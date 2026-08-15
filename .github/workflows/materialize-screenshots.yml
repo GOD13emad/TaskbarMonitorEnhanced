@@ -1,0 +1,64 @@
+name: Materialize screenshot gallery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/materialize-screenshots.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore accepted screenshot blobs
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          import base64, json, os, pathlib, urllib.request
+
+          images = {
+              'docs/screenshots/strips/theme-dark-minimal.webp': '638f6f33cce4ee0ffc4e347902b35db794e06166',
+              'docs/screenshots/strips/theme-sleek-white.webp': '2b941de1ed5f01859f5f08e0a5918730bdedc113',
+              'docs/screenshots/strips/theme-honeycomb-tech.webp': '50e3f6a5392874668806924e8ff7256cfde5867f',
+              'docs/screenshots/strips/theme-fluent-glass.webp': '03abd3d04cf05c96beae60eca55a1dc59b82814e',
+              'docs/screenshots/strips/theme-oled-mono.webp': '7cc00d004056685e89debfa565f905e3cbfb3de1',
+              'docs/screenshots/strips/theme-retro-terminal.webp': 'ccc5c3828b0f0cccc0523012882aac1cb69cb9f9',
+              'docs/screenshots/desktops/desktop-dark-minimal.webp': '8082f8c3feda4471ace0e0f062e4175abd6ebdd4',
+          }
+
+          token = os.environ['GH_TOKEN']
+          repo = os.environ['GH_REPOSITORY']
+          for target, sha in images.items():
+              req = urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/git/blobs/{sha}',
+                  headers={
+                      'Authorization': f'Bearer {token}',
+                      'Accept': 'application/vnd.github+json',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                  },
+              )
+              with urllib.request.urlopen(req) as response:
+                  payload = json.load(response)
+              raw = base64.b64decode(payload['content'].replace('\n', ''))
+              path = pathlib.Path(target)
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_bytes(raw)
+              print(f'{target}: {len(raw)} bytes')
+
+      - name: Commit screenshots and remove bootstrap workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/screenshots
+          git rm .github/workflows/materialize-screenshots.yml
+          git commit -m "Add real-world screenshot gallery"
+          git push
