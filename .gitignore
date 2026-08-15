@@ -1,0 +1,31 @@
+# Build output
+bin/
+obj/
+Debug/
+Release/
+*.pdb
+*.ilk
+*.user
+*.suo
+
+# Local runtime/evidence files
+*.log
+*.tmp
+*.bak
+cpu_temp_broker.json
+sensor_supervisor_state.json
+install_state.json
+
+# IDE/editor
+.vs/
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Local release staging
+*_RETURN_TO_CHATGPT_*.zip
+*_ONEFILE_DOWNLOAD.zip
