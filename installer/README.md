@@ -1,7 +1,20 @@
-# Installer sources
+# Installer source
 
-The public 1.0.0 installer keeps the visible taskbar application non-elevated. Administrator approval is requested only when the protected hardware-sensor layer must be installed or removed.
+This folder contains the custom Windows installer source used by Taskbar Monitor Enhanced.
 
-`TaskbarMonitorEnhanced_Setup.cs` implements the public installer/uninstaller. `TBME_Setup_Elevated_Helper.ps1` installs the protected sensor broker and supervisor under Program Files and registers the elevated Scheduled Task.
+For 1.0.1 the installer was validated through the full release lifecycle on the real AMD laptop:
 
-The exact accepted installer binary is available from the `v1.0.0` GitHub Release.
+- upgrade install
+- configuration preservation
+- complete uninstall
+- clean install using the exact same Setup binary
+- vendor-neutral CPU temperature readiness
+- AMD iGPU telemetry validation
+- zero Windows taskbar-control overlap
+- hidden elevated helper
+- windowless Sensor Supervisor
+- 120-second clean-install lifetime
+
+The exact accepted public hashes are recorded in `../docs/FINAL_ACCEPTANCE_v1.0.1.md`.
+
+The main application remains non-elevated. Administrator approval is used only for the protected hardware-sensor layer. PawnIO is intentionally retained on uninstall because another hardware-monitoring application may depend on it.
