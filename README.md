@@ -4,14 +4,14 @@ A lightweight Windows taskbar system monitor built to keep useful system telemet
 
 ## Current stable release
 
-**1.0.0** is the currently published GitHub release. **1.0.1 has completed final lifecycle acceptance and is ready for publication.**
+**1.0.2** is the current stable GitHub release.
 
-Accepted 1.0.1 artifacts:
+Accepted 1.0.2 artifacts:
 
-- `TaskbarMonitorEnhanced_Setup_1.0.1.exe`
-  - SHA-256: `4fd7d1055917eebb6598ba78e68294845f51fb190c93889b78f313ec1f3aed54`
-- `TaskbarMonitorEnhanced_1.0.1_SOURCE.zip`
-  - SHA-256: `32b69949b1bb8067739c53737b805274b069c63d98b96d84e4855ae826b0cc35`
+- `TaskbarMonitorEnhanced_Setup_1.0.2.exe`
+  - SHA-256: `56DA35F0787A5F0D79E0B46ED4FC9FE9ECACF4547A853105894EA7504A88D5D6`
+- `TaskbarMonitorEnhanced_1.0.2_SOURCE.zip`
+  - SHA-256: `6BC2ED8DA18F5959E9B6780C55ACF204ADC4C41FC7100C1BFEF567E56DE7E571`
 
 > The installer is not Authenticode-signed. Windows SmartScreen may display an **Unknown publisher** warning.
 
@@ -23,35 +23,42 @@ Taskbar Monitor Enhanced is designed to feel like part of Windows rather than a 
 
 - CPU, RAM, disk, GPU, VRAM, upload and download monitoring
 - CPU Package / vendor-neutral CPU temperature telemetry
+- AMD Radeon GPU temperature fallback through AMD ADLX 1.1 when LibreHardwareMonitor does not expose an AMD GPU temperature sensor
 - NVIDIA, AMD, and Intel GPU telemetry paths
 - 14 built-in themes
 - Live sparklines and theme-aware network graphs
 - Left, center, and right taskbar placement
-- Adaptive Safe Placement on smaller Windows 11 taskbars
-- Compact metric layout for narrow free taskbar regions
-- Right-click context menu
+- Compact taskbar rendering with vertical DL/UL stacking in narrow Network cards
+- Direct left-click and right-click interaction without click-through behavior
+- No-activate taskbar interaction
+- Stable Start/Search/taskbar placement and persistent shell-style self-heal
 - Automatic Explorer/taskbar recovery
 - Non-elevated main application
 - Protected hardware-sensor broker with watchdog supervision
 - Start-with-Windows support
 - Desktop and Start Menu shortcuts
-- Upgrade, uninstall, and clean-install tested
+- Upgrade, uninstall, clean-install, and post-install runtime validation
 
-## 1.0.1 acceptance
+## 1.0.2 acceptance
 
-The exact 1.0.1 Setup binary passed:
+The exact 1.0.2 Setup binary passed:
 
 - upgrade installation
-- configuration preservation
+- existing configuration preservation
 - complete uninstall
-- clean installation using the same Setup binary
-- AMD Ryzen 7 7730U CPU temperature validation using `Core (Tctl/Tdie)`
-- AMD Radeon integrated-GPU load/memory telemetry
-- zero Windows taskbar-control overlap
-- windowless Sensor Supervisor validation
-- 120-second clean-install lifetime validation
+- clean installation
+- 19/19 embedded installer resources
+- CPU temperature validation
+- AMD Radeon GPU temperature via `AMD_ADLX_1.1`
+- 14-theme wide proof
+- 14-theme compact proof with zero overflow
+- Network DL/UL stacked compact rendering
+- 180-second final installed runtime campaign: 171 samples, width delta 0, height delta 0
+- `WS_EX_NOACTIVATE` preserved, `WS_EX_TRANSPARENT` absent, taskbar parent preserved
 
-See `RELEASE_NOTES_v1.0.1.md` and `docs/FINAL_ACCEPTANCE_v1.0.1.md` for the release record.
+The underlying engineering baseline also completed a separate 600-second / 582-sample long-run acceptance before release packaging.
+
+The authoritative corresponding source for the public binary is the explicitly attached release asset `TaskbarMonitorEnhanced_1.0.2_SOURCE.zip` with the SHA-256 above. See `RELEASE_NOTES_v1.0.2.md` and `docs/FINAL_ACCEPTANCE_v1.0.2.md` for the release record.
 
 ## Documentation languages
 
