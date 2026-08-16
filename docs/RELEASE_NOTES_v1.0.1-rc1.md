@@ -1,36 +1,46 @@
-# Taskbar Monitor Enhanced 1.0.1 RC1
+# Taskbar Monitor Enhanced 1.0.1 — laptop portability work
 
-This release candidate fixes a portability problem found after the first public release: on some laptops, Windows can fail or stall while activating the optional CPU-temperature sensor layer.
+This document tracks the RC path that led to the accepted 1.0.1 release.
 
-The visible taskbar monitor itself does not require the protected sensor driver, so the installer should never make the whole application unusable just because CPU temperature cannot be activated.
+## Problems reproduced on the laptop
 
-## What changed
+- the 1.0.0 installer could fail the whole setup when protected CPU-sensor activation failed or took too long
+- CPU readiness was accidentally tied to the Intel-oriented sensor name `CPU Package`
+- AMD-only / Intel-iGPU systems had no vendor-neutral GPU fallback
+- a fixed wide overlay could extend underneath centered Windows 11 taskbar controls on smaller displays
+- install-time helper/supervisor windows could become visible
+- narrow safe-placement widths could make the metric text too crowded
 
-- CPU sensor installation is now **non-fatal**.
-- The main application completes installation even if PawnIO or the protected sensor task cannot be activated.
-- CPU temperature falls back to `N/A` instead of failing Setup.
-- PawnIO installation has a **60-second bounded timeout** instead of an unbounded wait.
-- Exit code `3010` is treated as **restart required**, not as a failed application install.
-- The Setup window remains responsive while waiting for the elevated sensor helper.
-- Detailed sensor installation logs are written under:
-  `%LOCALAPPDATA%\TaskbarMonitorEnhanced\Logs`
-- The Start Menu includes **Taskbar Monitor Enhanced - Repair Hardware Sensors** so the sensor layer can be retried after a reboot or Windows security change.
-- Existing application runtime, themes and monitoring behavior are unchanged from 1.0.0.
+## Resolved in the accepted 1.0.1 path
 
-## Laptop validation requested
+- bounded PawnIO installation
+- non-fatal optional sensor activation
+- restart-required handling
+- vendor-neutral CPU readiness based on fresh elevated sensor data, not a specific sensor name
+- AMD/Intel GPU fallback through LibreHardwareMonitor, while NVIDIA keeps `nvidia-smi`
+- adaptive safe placement with zero Windows taskbar-control overlap
+- compact metric rendering on narrow laptop layouts
+- hidden elevated PowerShell helper
+- windowless Sensor Supervisor release build
 
-This is a **pre-release build** intended to validate the installer fix on the laptop where 1.0.0 reported:
+## Real laptop acceptance
 
-`Protected sensor installation failed. Exit code: 1`
+Validated on AMD Ryzen 7 7730U + AMD Radeon (TM) Graphics:
 
-Expected result on that machine:
+- CPU sensor `Core (Tctl/Tdie)`: READY
+- AMD GPU load/memory telemetry: PASS
+- GPU temperature: N/A when not exposed by the hardware/backend
+- taskbar-control overlap: 0
+- Sensor Supervisor MainWindowHandle: 0
+- compact layout active on the 1920×1080 laptop
 
-1. The application installs successfully.
-2. If CPU temperature activates, it is shown normally.
-3. If it cannot activate, the application still runs and shows `TEMP N/A`.
-4. Setup writes a diagnostic result and log rather than failing the entire installation.
+## Final lifecycle acceptance
 
-## Status
+The exact final Setup passed upgrade, configuration preservation, uninstall, clean install, AMD CPU/GPU revalidation, zero-overlap placement, silent-supervisor validation, and a 120-second clean-install lifetime.
 
-Pre-release / validation candidate.  
-Do not replace the stable `v1.0.0` release with this build until the laptop test passes.
+Accepted hashes:
+
+- Setup SHA-256: `4fd7d1055917eebb6598ba78e68294845f51fb190c93889b78f313ec1f3aed54`
+- Source ZIP SHA-256: `32b69949b1bb8067739c53737b805274b069c63d98b96d84e4855ae826b0cc35`
+
+See `RELEASE_NOTES_v1.0.1.md` and `docs/FINAL_ACCEPTANCE_v1.0.1.md` for the public release record.
