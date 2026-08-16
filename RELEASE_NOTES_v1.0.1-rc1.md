@@ -1,22 +1,15 @@
-# Taskbar Monitor Enhanced 1.0.1 RC
+# Taskbar Monitor Enhanced 1.0.1 — RC history
 
-This release candidate focuses on laptop portability.
+The 1.0.1 release candidate series was used to reproduce and close laptop-specific installation, sensor, GPU, and taskbar-placement issues before the stable release.
 
-## CPU sensor installer resilience
-- protected CPU sensor activation is non-fatal
-- PawnIO installation is bounded instead of waiting indefinitely
-- reboot-required is handled as a recoverable state
-- setup stays usable if CPU temperature cannot be activated
-- sensor result/log files are persisted
-- Start Menu sensor-repair action can retry the hardware sensor layer
+The accepted stable release record is in:
 
-## AMD / Intel integrated GPU portability
-- 1.0.0 used `nvidia-smi` as its GPU telemetry path
-- 1.0.1 adds a vendor-neutral LibreHardwareMonitor fallback for AMD and Intel integrated GPUs
-- integrated graphics may report shared GPU memory rather than dedicated VRAM
-- unavailable GPU temperature remains `N/A` rather than causing an error
+- `RELEASE_NOTES_v1.0.1.md`
+- `docs/FINAL_ACCEPTANCE_v1.0.1.md`
 
-## Laptop validation observation
-The first resilient-installer test successfully installed the application, but CPU temperature remained unavailable on the test laptop. The same laptop uses AMD integrated graphics without a discrete NVIDIA GPU, so cross-vendor GPU telemetry is being validated in the same 1.0.1 cycle.
+Final accepted artifacts:
 
-The accepted 1.0.0 taskbar UI, themes, placement, Explorer recovery, and non-elevated main-app architecture remain unchanged.
+- Setup SHA-256: `4fd7d1055917eebb6598ba78e68294845f51fb190c93889b78f313ec1f3aed54`
+- Source ZIP SHA-256: `32b69949b1bb8067739c53737b805274b069c63d98b96d84e4855ae826b0cc35`
+
+The stable Setup passed upgrade, configuration preservation, complete uninstall, clean install, AMD CPU/GPU portability checks, zero taskbar-control overlap, windowless Sensor Supervisor validation, and a 120-second lifetime test.
