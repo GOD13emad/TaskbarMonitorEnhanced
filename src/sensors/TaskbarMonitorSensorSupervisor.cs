@@ -154,6 +154,9 @@ internal static class TaskbarMonitorSensorSupervisor
                         outputWriteUtc!=DateTime.MinValue &&
                         outputWriteUtc>=WorkerStartedUtc.AddSeconds(-1);
 
+                    // Critical anti-thrash rule:
+                    // an old stale JSON file belongs to the previous worker and must never
+                    // be used to kill a newly-started LibreHardwareMonitor worker.
                     if(workerAge<=StartupGraceSeconds)
                     {
                         if(ticks%5==0)
