@@ -1,0 +1,1 @@
+Theme strip previews captured from the real Taskbar Monitor Enhanced UI. The individual images in this folder are referenced from the main README and screenshot gallery.
