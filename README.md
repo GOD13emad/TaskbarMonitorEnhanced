@@ -2,18 +2,30 @@
 
 A lightweight Windows taskbar system monitor built to keep useful system telemetry visible without opening another dashboard.
 
-## Current stable release
+## Official downloads
 
-**1.0.2** is the current stable GitHub release.
+Use the **GitHub Releases** page for official builds.
 
-Accepted 1.0.2 artifacts:
+For release **1.0.2**, the accepted artifacts are:
 
 - `TaskbarMonitorEnhanced_Setup_1.0.2.exe`
   - SHA-256: `56DA35F0787A5F0D79E0B46ED4FC9FE9ECACF4547A853105894EA7504A88D5D6`
 - `TaskbarMonitorEnhanced_1.0.2_SOURCE.zip`
   - SHA-256: `6BC2ED8DA18F5959E9B6780C55ACF204ADC4C41FC7100C1BFEF567E56DE7E571`
 
-> The installer is not Authenticode-signed. Windows SmartScreen may display an **Unknown publisher** warning.
+> **Do not use `Code > Download ZIP` as the accepted release package.** That GitHub control downloads a repository snapshot. Likewise, GitHub's automatically generated `Source code (zip)` / `Source code (tar.gz)` entries are repository snapshots. The explicitly attached, hash-identified `TaskbarMonitorEnhanced_1.0.2_SOURCE.zip` release asset is the authoritative corresponding-source package for 1.0.2.
+
+## Code signing status
+
+The published 1.0.2 installer is **not Authenticode-signed**, so Windows Defender SmartScreen can display **Unknown publisher** on first launch.
+
+The project is preparing trusted code signing for future releases. See [`CODE_SIGNING.md`](CODE_SIGNING.md) for the signing policy and [`PRIVACY.md`](PRIVACY.md) for the privacy statement.
+
+A signed build will still be subject to the project's full runtime/lifecycle acceptance process before publication; signing alone does not promote a build to an accepted release.
+
+## Current stable release
+
+**1.0.2** is the current stable GitHub release.
 
 ## Why this project exists
 
