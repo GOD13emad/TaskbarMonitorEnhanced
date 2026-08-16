@@ -181,13 +181,17 @@ if($taskInstalled -and -not$rebootRequired){
                 $j=Get-Content -LiteralPath $LiveJson -Raw|ConvertFrom-Json
                 $ts=[datetime]::Parse([string]$j.TimestampUtc,[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::AssumeUniversal).ToUniversalTime()
                 $age=([datetime]::UtcNow-$ts).TotalSeconds
+                $sensorName=[string]$j.Sensor
+                $current=[double]$j.CurrentC
                 if([bool]$j.Available -eq $true -and
                    [bool]$j.Is64BitProcess -eq $true -and
                    [bool]$j.IsElevated -eq $true -and
-                   [string]$j.Sensor -eq 'CPU Package' -and
+                   -not[String]::IsNullOrWhiteSpace($sensorName) -and
+                   $current -gt 0 -and $current -lt 130 -and
                    $age -lt 15){
                     $healthy=$true
-                    $currentC=$j.CurrentC
+                    $currentC=$current
+                    Write-Log ("SENSOR_READY_MATCH sensor='"+$sensorName+"' cpu="+$current+" ageSec="+[math]::Round($age,2))
                     break
                 }
             }catch{}
@@ -197,7 +201,7 @@ if($taskInstalled -and -not$rebootRequired){
 
 if($healthy){
     Write-Log "SENSOR_READY cpu=$currentC"
-    Write-Result 'READY' 'CPU temperature sensor is active.' $pawnStatus $pawnExit $false $taskInstalled $true
+    Write-Result 'READY' 'CPU temperature sensor is active and reporting fresh data.' $pawnStatus $pawnExit $false $taskInstalled $true
 }elseif($rebootRequired){
     Write-Log 'SENSOR_REBOOT_REQUIRED'
     Write-Result 'REBOOT_REQUIRED' 'The application installed successfully. Restart Windows to finish activating CPU temperature monitoring.' $pawnStatus $pawnExit $true $taskInstalled $false
