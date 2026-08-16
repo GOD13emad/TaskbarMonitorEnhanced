@@ -16,4 +16,7 @@ This release candidate focuses on laptop portability.
 - integrated graphics may report shared GPU memory rather than dedicated VRAM
 - unavailable GPU temperature remains `N/A` rather than causing an error
 
+## Laptop validation observation
+The first resilient-installer test successfully installed the application, but CPU temperature remained unavailable on the test laptop. The same laptop uses AMD integrated graphics without a discrete NVIDIA GPU, so cross-vendor GPU telemetry is being validated in the same 1.0.1 cycle.
+
 The accepted 1.0.0 taskbar UI, themes, placement, Explorer recovery, and non-elevated main-app architecture remain unchanged.
