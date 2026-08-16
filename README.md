@@ -19,7 +19,9 @@ For release **1.0.2**, the accepted artifacts are:
 
 The published 1.0.2 installer is **not Authenticode-signed**, so Windows Defender SmartScreen can display **Unknown publisher** on first launch.
 
-The project is preparing trusted code signing for future releases. See [`CODE_SIGNING.md`](CODE_SIGNING.md) for the signing policy and [`PRIVACY.md`](PRIVACY.md) for the privacy statement.
+The project has applied / is applying for the SignPath Foundation open-source code-signing program for future releases: **Free code signing provided by SignPath.io, certificate by SignPath Foundation.** This statement is conditional on project acceptance by SignPath Foundation; the current 1.0.2 release remains unsigned.
+
+See [`CODE_SIGNING.md`](CODE_SIGNING.md) for the signing policy and [`PRIVACY.md`](PRIVACY.md) for the privacy statement.
 
 A signed build will still be subject to the project's full runtime/lifecycle acceptance process before publication; signing alone does not promote a build to an accepted release.
 
