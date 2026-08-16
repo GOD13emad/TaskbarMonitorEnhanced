@@ -13,3 +13,5 @@ Planned behavior:
 - Missing dedicated VRAM: do not invent a value; use available GPU/shared-memory sensors only.
 
 This is separate from the protected CPU-temperature sensor installer issue. A machine can have an AMD iGPU and still require the CPU-sensor fallback/repair path independently.
+
+Current laptop observation: the application installs successfully with the resilient installer, but the protected CPU sensor remains unavailable. The laptop also has AMD integrated graphics without a discrete NVIDIA GPU, so GPU telemetry portability is now part of the same 1.0.1 laptop-validation cycle.
