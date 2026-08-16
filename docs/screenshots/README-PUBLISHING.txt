@@ -1,0 +1,1 @@
+Screenshot publication is managed directly in the repository; temporary automation workflows are not required for normal operation.
