@@ -15,13 +15,13 @@ using Microsoft.Win32;
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.0.1.0")]
-[assembly: AssemblyFileVersion("1.0.1.0")]
+[assembly: AssemblyVersion("1.0.2.0")]
+[assembly: AssemblyFileVersion("1.0.2.0")]
 
 internal static class SetupProgram
 {
     const string Product="Taskbar Monitor Enhanced";
-    const string Version="1.0.1";
+    const string Version="1.0.2";
     const string Publisher="Dr. Ali-Akbar Emadeddin";
     const string AppFolder="TaskbarMonitorEnhanced";
     const string UninstallKey=@"Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced";
@@ -43,7 +43,7 @@ internal static class SetupProgram
       "Payload.COPYRIGHT_AND_ATTRIBUTION.md",
       "Payload.AI_ASSISTED_DEVELOPMENT.md",
       "Payload.THIRD_PARTY_NOTICES.md",
-      "Payload.RELEASE_NOTES_v1.0.1.md",
+      "Payload.RELEASE_NOTES_v1.0.2.md",
       "Payload.UPSTREAM_REFERENCE_GPL_NOTICE.md",
       "Payload.TaskbarMonitorEnhanced_Setup.cs"
     };
@@ -153,8 +153,8 @@ internal static class SetupProgram
     {
         string json="{\r\n"+
           "  \"App\": \"Taskbar Monitor Enhanced\",\r\n"+
-          "  \"Version\": \"PUBLIC_1.0.1\",\r\n"+
-          "  \"PublicVersion\": \"1.0.1\",\r\n"+
+          "  \"Version\": \"PUBLIC_1.0.2\",\r\n"+
+          "  \"PublicVersion\": \"1.0.2\",\r\n"+
           "  \"InternalRuntimeBaseline\": \"R12A2R5R4\",\r\n"+
           "  \"SensorSupervisor\": \"R12A2R5R4S1R3R2_ACCEPTED\",\r\n"+
           "  \"ProductIdentity\": \"LOCKED\",\r\n"+
@@ -279,7 +279,7 @@ internal static class SetupProgram
     static SensorOutcome Install(bool desktop,bool startup)
     {
         if(!Environment.Is64BitOperatingSystem)
-            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.0.1 requires 64-bit Windows.");
+            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.0.2 requires 64-bit Windows.");
 
         StopProcess("TaskbarMonitorEnhanced");
 
@@ -298,7 +298,7 @@ internal static class SetupProgram
         string[] docs=new string[]{
           "LICENSE","README.md","AUTHORS.md","COPYRIGHT_AND_ATTRIBUTION.md",
           "AI_ASSISTED_DEVELOPMENT.md","THIRD_PARTY_NOTICES.md",
-          "RELEASE_NOTES_v1.0.1.md","UPSTREAM_REFERENCE_GPL_NOTICE.md"
+          "RELEASE_NOTES_v1.0.2.md","UPSTREAM_REFERENCE_GPL_NOTICE.md"
         };
         foreach(string doc in docs)
             Extract("Payload."+doc,Path.Combine(AppRoot,"Docs",doc));
@@ -357,7 +357,6 @@ internal static class SetupProgram
         }
 
         StopProcess("TaskbarMonitorEnhanced");
-
         string payload=Path.Combine(Path.GetTempPath(),"tbme_uninstall_"+Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(payload);
         string helper=Path.Combine(payload,"TBME_Setup_Elevated_Helper.ps1");
@@ -399,7 +398,7 @@ internal static class SetupProgram
                 }
             }
             if(!String.IsNullOrEmpty(path)){
-                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+",\"Version\":\"1.0.1\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\"}";
+                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+",\"Version\":\"1.0.2\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\"}";
                 File.WriteAllText(path,json,Encoding.UTF8);
             }
             return 0;
@@ -436,7 +435,7 @@ internal static class SetupProgram
             Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
             Label title=new Label();
-            title.Text=Product+"  1.0.1";
+            title.Text=Product+"  1.0.2";
             title.Font=new Font(Font.FontFamily,18,FontStyle.Bold);
             title.Left=28;title.Top=22;title.AutoSize=true;Controls.Add(title);
 
@@ -471,12 +470,12 @@ internal static class SetupProgram
                     progress.Visible=false;
                     status.Text="Installation completed.";
                     if(outcome.IsHealthy){
-                        MessageBox.Show(Product+" 1.0.1 was installed successfully.\r\n\r\nCPU temperature monitoring is active.",
+                        MessageBox.Show(Product+" 1.0.2 was installed successfully.\r\n\r\nCPU temperature monitoring is active.",
                           "Setup complete",MessageBoxButtons.OK,MessageBoxIcon.Information);
                     }else{
                         string extra=outcome.RebootRequired ? "\r\n\r\nRestart Windows, then use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors if needed." :
                           "\r\n\r\nThe application is installed and usable. The sensor supervisor continues in the background. If CPU TEMP is still N/A after a short wait or restart, use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors.";
-                        MessageBox.Show(Product+" 1.0.1 was installed successfully.\r\n\r\n"+outcome.Message+extra,
+                        MessageBox.Show(Product+" 1.0.2 was installed successfully.\r\n\r\n"+outcome.Message+extra,
                           "Setup complete - sensor warning",MessageBoxButtons.OK,MessageBoxIcon.Warning);
                     }
                     Close();
