@@ -1,40 +1,34 @@
 # AMD / Intel integrated GPU portability
 
-Taskbar Monitor Enhanced 1.0.0 used `nvidia-smi` as its GPU telemetry path. That works well on NVIDIA systems, but it leaves AMD- or Intel-only laptops without GPU telemetry even though the rest of the application can run normally.
+Taskbar Monitor Enhanced 1.0.1 adds a vendor-neutral GPU fallback for systems without NVIDIA graphics.
 
-For 1.0.1 the GPU path is vendor-neutral:
+## Runtime behavior
 
-- NVIDIA continues to prefer `nvidia-smi` when available.
-- AMD and Intel GPUs can fall back to LibreHardwareMonitor.
-- Integrated graphics can use D3D/shared-memory metrics where exposed by Windows/the hardware.
-- GPU temperature is shown only when a real temperature sensor is available. The application does not fabricate a value.
+- NVIDIA systems continue to prefer `nvidia-smi`.
+- AMD and Intel GPUs fall back to LibreHardwareMonitor when supported by the exposed hardware sensors.
+- Integrated-GPU memory uses available D3D/shared-memory telemetry when dedicated VRAM is not present.
+- GPU temperature is shown only when a valid temperature sensor is exposed.
+- If no valid GPU temperature sensor is available, the UI shows `N/A`; no temperature value is fabricated.
 
-## Laptop validation
+## Real AMD laptop validation
 
-Validated on an AMD-only laptop:
+Validated on:
 
 - CPU: AMD Ryzen 7 7730U with Radeon Graphics
 - GPU: AMD Radeon (TM) Graphics
+- Windows 11, 1920×1080 taskbar
+
+Accepted 1.0.1 evidence:
+
 - GPU source: `LHM_GPU:GpuAmd:AMD Radeon (TM) Graphics`
-- GPU load observed: 2%
-- GPU memory observed: 0.78 GB used / 2.00 GB total
-- GPU temperature: unavailable on this hardware/backend path, therefore correctly shown as `N/A`
-- CPU sensor: `Core (Tctl/Tdie)`
-- CPU temperature broker: elevated, x64, fresh and healthy
+- GPU load telemetry: PASS
+- GPU memory telemetry: PASS
+- GPU temperature: `N/A` because the tested hardware/backend did not expose a valid GPU temperature sensor
+- CPU sensor: `Core (Tctl/Tdie)` — READY
+- vendor-neutral CPU readiness: PASS
+- adaptive taskbar placement: PASS
+- Windows taskbar-control overlap: 0
+- windowless Sensor Supervisor: PASS
+- final 120-second clean-install lifetime: PASS
 
-The same laptop also validated adaptive taskbar placement with zero overlap against Windows 11 taskbar controls.
-
-## CPU sensor readiness portability
-
-A separate installer bug was found during the same validation cycle: the sensor acceptance gate required the exact sensor name `CPU Package`, which is common on Intel systems but not on this AMD laptop. AMD reported `Core (Tctl/Tdie)`, so Setup incorrectly warned that the CPU sensor was unavailable even though fresh elevated temperature data existed.
-
-The 1.0.1 fix is vendor-neutral. Setup now accepts a CPU sensor when the broker reports:
-
-- `Available = true`
-- x64 process
-- elevated process
-- non-empty sensor name
-- plausible temperature (>0 °C and <130 °C)
-- fresh timestamp (<15 seconds)
-
-This removes the Intel-specific name dependency while preserving strict freshness and privilege checks.
+The exact accepted public artifacts are recorded in `docs/FINAL_ACCEPTANCE_v1.0.1.md`.
