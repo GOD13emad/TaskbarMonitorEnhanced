@@ -21,7 +21,7 @@ using Microsoft.Win32;
 internal static class SetupProgram
 {
     const string Product="Taskbar Monitor Enhanced";
-    const string Version="1.0.1-rc1";
+    const string Version="1.0.1";
     const string Publisher="Dr. Ali-Akbar Emadeddin";
     const string AppFolder="TaskbarMonitorEnhanced";
     const string UninstallKey=@"Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced";
@@ -43,7 +43,7 @@ internal static class SetupProgram
       "Payload.COPYRIGHT_AND_ATTRIBUTION.md",
       "Payload.AI_ASSISTED_DEVELOPMENT.md",
       "Payload.THIRD_PARTY_NOTICES.md",
-      "Payload.RELEASE_NOTES_v1.0.1-rc1.md",
+      "Payload.RELEASE_NOTES_v1.0.1.md",
       "Payload.UPSTREAM_REFERENCE_GPL_NOTICE.md",
       "Payload.TaskbarMonitorEnhanced_Setup.cs"
     };
@@ -90,7 +90,7 @@ internal static class SetupProgram
     {
         ProcessStartInfo psi=new ProcessStartInfo();
         psi.FileName="powershell.exe";
-        psi.Arguments="-NoProfile -ExecutionPolicy Bypass -File \""+helper+"\" "+args;
+        psi.Arguments="-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \""+helper+"\" "+args;
         psi.UseShellExecute=true;
         psi.Verb="runas";
         Process p=Process.Start(psi);
@@ -153,8 +153,8 @@ internal static class SetupProgram
     {
         string json="{\r\n"+
           "  \"App\": \"Taskbar Monitor Enhanced\",\r\n"+
-          "  \"Version\": \"PUBLIC_1.0.1_RC1\",\r\n"+
-          "  \"PublicVersion\": \"1.0.1-rc1\",\r\n"+
+          "  \"Version\": \"PUBLIC_1.0.1\",\r\n"+
+          "  \"PublicVersion\": \"1.0.1\",\r\n"+
           "  \"InternalRuntimeBaseline\": \"R12A2R5R4\",\r\n"+
           "  \"SensorSupervisor\": \"R12A2R5R4S1R3R2_ACCEPTED\",\r\n"+
           "  \"ProductIdentity\": \"LOCKED\",\r\n"+
@@ -251,17 +251,17 @@ internal static class SetupProgram
                   110000);
             }catch(Exception ex){
                 outcome.Status="DEGRADED";
-                outcome.Message="The application installed successfully, but Windows did not complete the protected CPU sensor step. "+ex.Message+" CPU temperature will show N/A for now.";
+                outcome.Message="The application installed successfully. The protected CPU sensor did not report ready before Setup finished. "+ex.Message+" It will continue starting in the background; TEMP may briefly show N/A.";
                 return outcome;
             }
 
             outcome=ReadSensorOutcome();
             if(helperExit==124 && String.Equals(outcome.Status,"UNKNOWN",StringComparison.OrdinalIgnoreCase)){
                 outcome.Status="DEGRADED";
-                outcome.Message="The application installed successfully, but the hardware sensor step exceeded its time limit. CPU temperature will show N/A for now.";
+                outcome.Message="The application installed successfully. The hardware sensor step exceeded the Setup readiness window, but the supervisor will continue in the background. TEMP may briefly show N/A.";
             }else if(helperExit!=0 && String.Equals(outcome.Status,"UNKNOWN",StringComparison.OrdinalIgnoreCase)){
                 outcome.Status="DEGRADED";
-                outcome.Message="The application installed successfully, but the hardware sensor helper returned exit code "+helperExit+". CPU temperature will show N/A for now.";
+                outcome.Message="The application installed successfully. The hardware sensor helper returned exit code "+helperExit+". The monitor will continue without blocking; use Repair Hardware Sensors only if CPU TEMP remains unavailable.";
             }
             return outcome;
         }finally{
@@ -279,7 +279,7 @@ internal static class SetupProgram
     static SensorOutcome Install(bool desktop,bool startup)
     {
         if(!Environment.Is64BitOperatingSystem)
-            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.0.1 RC1 requires 64-bit Windows.");
+            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.0.1 requires 64-bit Windows.");
 
         StopProcess("TaskbarMonitorEnhanced");
 
@@ -298,7 +298,7 @@ internal static class SetupProgram
         string[] docs=new string[]{
           "LICENSE","README.md","AUTHORS.md","COPYRIGHT_AND_ATTRIBUTION.md",
           "AI_ASSISTED_DEVELOPMENT.md","THIRD_PARTY_NOTICES.md",
-          "RELEASE_NOTES_v1.0.1-rc1.md","UPSTREAM_REFERENCE_GPL_NOTICE.md"
+          "RELEASE_NOTES_v1.0.1.md","UPSTREAM_REFERENCE_GPL_NOTICE.md"
         };
         foreach(string doc in docs)
             Extract("Payload."+doc,Path.Combine(AppRoot,"Docs",doc));
@@ -399,7 +399,7 @@ internal static class SetupProgram
                 }
             }
             if(!String.IsNullOrEmpty(path)){
-                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+",\"Version\":\"1.0.1-rc1\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\"}";
+                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+",\"Version\":\"1.0.1\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\"}";
                 File.WriteAllText(path,json,Encoding.UTF8);
             }
             return 0;
@@ -436,7 +436,7 @@ internal static class SetupProgram
             Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
             Label title=new Label();
-            title.Text=Product+"  1.0.1 RC1";
+            title.Text=Product+"  1.0.1";
             title.Font=new Font(Font.FontFamily,18,FontStyle.Bold);
             title.Left=28;title.Top=22;title.AutoSize=true;Controls.Add(title);
 
@@ -471,12 +471,12 @@ internal static class SetupProgram
                     progress.Visible=false;
                     status.Text="Installation completed.";
                     if(outcome.IsHealthy){
-                        MessageBox.Show(Product+" 1.0.1 RC1 was installed successfully.\r\n\r\nCPU temperature monitoring is active.",
+                        MessageBox.Show(Product+" 1.0.1 was installed successfully.\r\n\r\nCPU temperature monitoring is active.",
                           "Setup complete",MessageBoxButtons.OK,MessageBoxIcon.Information);
                     }else{
                         string extra=outcome.RebootRequired ? "\r\n\r\nRestart Windows, then use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors if needed." :
-                          "\r\n\r\nThe application is installed and usable. CPU temperature will show N/A for now. You can retry from Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors.";
-                        MessageBox.Show(Product+" 1.0.1 RC1 was installed successfully.\r\n\r\n"+outcome.Message+extra,
+                          "\r\n\r\nThe application is installed and usable. The sensor supervisor continues in the background. If CPU TEMP is still N/A after a short wait or restart, use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors.";
+                        MessageBox.Show(Product+" 1.0.1 was installed successfully.\r\n\r\n"+outcome.Message+extra,
                           "Setup complete - sensor warning",MessageBoxButtons.OK,MessageBoxIcon.Warning);
                     }
                     Close();
