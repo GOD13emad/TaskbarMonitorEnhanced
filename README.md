@@ -1,58 +1,34 @@
 # Taskbar Monitor Enhanced
 
-A lightweight Windows taskbar system monitor built to keep useful telemetry visible without turning monitoring into another full-screen application.
+A lightweight Windows taskbar system monitor built to keep useful system telemetry visible without opening another dashboard.
 
-Taskbar Monitor Enhanced shows CPU, memory, disk, network, GPU, VRAM, and temperature information directly on the Windows taskbar. It is designed to stay readable, recover cleanly when Windows Explorer restarts, and keep the visible application running without administrator privileges.
+## Current stable release
 
-## Download
+**1.0.0** is the currently published GitHub release. **1.0.1 has completed final lifecycle acceptance and is ready for publication.**
 
-**Current release: v1.0.0**
+Accepted 1.0.1 artifacts:
 
-- [Download the Windows installer](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.0.0/TaskbarMonitorEnhanced_Setup_1.0.0.exe)
-- [Download the corresponding source archive](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.0.0/TaskbarMonitorEnhanced_1.0.0_SOURCE.zip)
-- [View release notes](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.0.0)
+- `TaskbarMonitorEnhanced_Setup_1.0.1.exe`
+  - SHA-256: `4fd7d1055917eebb6598ba78e68294845f51fb190c93889b78f313ec1f3aed54`
+- `TaskbarMonitorEnhanced_1.0.1_SOURCE.zip`
+  - SHA-256: `32b69949b1bb8067739c53737b805274b069c63d98b96d84e4855ae826b0cc35`
 
-Installer SHA-256:
+> The installer is not Authenticode-signed. Windows SmartScreen may display an **Unknown publisher** warning.
 
-`57196706279272fa2d605331f34b5386a5ba3fba8f0f64e12ee65e4288f5a4e7`
+## Why this project exists
 
-Source archive SHA-256:
-
-`82ddae1701aae2d427aac08e08d5c249d3efe52e599794effd90fe9c861b01af`
-
-> The 1.0.0 installer is not Authenticode-signed. Windows SmartScreen may therefore show an **Unknown publisher** warning. The hashes above identify the exact files that passed final release acceptance.
-
-## Real-world preview
-
-The image below is a real Windows 11 capture from the validation machine, not a mockup.
-
-![Taskbar Monitor Enhanced running in the Windows 11 taskbar](docs/screenshots/desktops/desktop-dark-minimal.webp)
-
-### Theme previews
-
-![Dark Minimal](docs/screenshots/strips/theme-dark-minimal.webp)
-
-![Sleek White](docs/screenshots/strips/theme-sleek-white.webp)
-
-![Honeycomb Tech](docs/screenshots/strips/theme-honeycomb-tech.webp)
-
-![Fluent Glass](docs/screenshots/strips/theme-fluent-glass.webp)
-
-![OLED Mono](docs/screenshots/strips/theme-oled-mono.webp)
-
-![Retro Terminal](docs/screenshots/strips/theme-retro-terminal.webp)
-
-[Open the screenshot gallery](docs/screenshots/README.md)
+Taskbar Monitor Enhanced is designed to feel like part of Windows rather than a separate monitoring application: compact enough to leave running all day, useful at a glance, customizable without being distracting, and resilient when the Windows shell restarts.
 
 ## Highlights
 
-- CPU, RAM, disk, GPU and VRAM monitoring
-- Separate upload and download telemetry
-- CPU Package and GPU temperature monitoring
-- 14 built-in visual themes
+- CPU, RAM, disk, GPU, VRAM, upload and download monitoring
+- CPU Package / vendor-neutral CPU temperature telemetry
+- NVIDIA, AMD, and Intel GPU telemetry paths
+- 14 built-in themes
 - Live sparklines and theme-aware network graphs
 - Left, center, and right taskbar placement
-- Adjustable width and safe placement
+- Adaptive Safe Placement on smaller Windows 11 taskbars
+- Compact metric layout for narrow free taskbar regions
 - Right-click context menu
 - Automatic Explorer/taskbar recovery
 - Non-elevated main application
@@ -61,32 +37,25 @@ The image below is a real Windows 11 capture from the validation machine, not a 
 - Desktop and Start Menu shortcuts
 - Upgrade, uninstall, and clean-install tested
 
-## Installation
+## 1.0.1 acceptance
 
-1. Download `TaskbarMonitorEnhanced_Setup_1.0.0.exe` from the release assets.
-2. Run the installer.
-3. Windows may request administrator approval for the protected hardware-sensor component.
-4. The main application itself continues to run without administrator privileges.
+The exact 1.0.1 Setup binary passed:
 
-## Source code
+- upgrade installation
+- configuration preservation
+- complete uninstall
+- clean installation using the same Setup binary
+- AMD Ryzen 7 7730U CPU temperature validation using `Core (Tctl/Tdie)`
+- AMD Radeon integrated-GPU load/memory telemetry
+- zero Windows taskbar-control overlap
+- windowless Sensor Supervisor validation
+- 120-second clean-install lifetime validation
 
-The release includes the exact corresponding-source ZIP used for the accepted 1.0.0 installer. Key components are also browsable in this repository:
-
-- [`src/sensors/TaskbarMonitorSensorBroker.cs`](src/sensors/TaskbarMonitorSensorBroker.cs)
-- [`src/sensors/TaskbarMonitorSensorSupervisor.cs`](src/sensors/TaskbarMonitorSensorSupervisor.cs)
-- [`installer/TaskbarMonitorEnhanced_Setup.cs`](installer/TaskbarMonitorEnhanced_Setup.cs)
-- [`installer/TBME_Setup_Elevated_Helper.ps1`](installer/TBME_Setup_Elevated_Helper.ps1)
-- [`src/README.md`](src/README.md)
-
-The full main-runtime source remains part of the exact corresponding-source archive linked above.
-
-## Release validation
-
-Version 1.0.0 completed a controlled acceptance cycle covering upgrade installation, configuration preservation, complete uninstall, clean installation, protected sensor startup, CPU temperature continuity, and post-install runtime stability.
+See `RELEASE_NOTES_v1.0.1.md` and `docs/FINAL_ACCEPTANCE_v1.0.1.md` for the release record.
 
 ## Documentation languages
 
-English is the primary project language. User-facing documentation is also available in:
+English is the primary project language. Short user-facing documentation is also available in:
 
 - [فارسی / Persian](docs/i18n/README.fa.md)
 - [中文 / Simplified Chinese](docs/i18n/README.zh-CN.md)
@@ -112,4 +81,6 @@ AI-assisted tools were used during development for code drafting, refactoring, d
 
 ## License
 
-GNU General Public License v3.0. See `LICENSE`, `COPYRIGHT_AND_ATTRIBUTION.md`, `THIRD_PARTY_NOTICES.md`, and `UPSTREAM_REFERENCE_GPL_NOTICE.md`.
+GNU General Public License v3.0.
+
+See `LICENSE`, `COPYRIGHT_AND_ATTRIBUTION.md`, and `THIRD_PARTY_NOTICES.md` for details.
