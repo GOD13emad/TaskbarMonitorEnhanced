@@ -1,12 +1,12 @@
 # Screenshot Gallery
 
-These are real screenshots from Windows 11 running Taskbar Monitor Enhanced on an everyday desktop. I kept the full desktop view here because it shows the part that matters most: the monitor actually lives inside the taskbar instead of floating in a separate window.
+These images were captured from Taskbar Monitor Enhanced running on Windows 11 during the final validation and release-preparation work. They are real application captures, not generated UI mockups.
 
-## Real desktop view
+## Full desktop capture
 
-![Taskbar Monitor Enhanced running on Windows 11](desktops/desktop-dark-minimal.webp)
+![Taskbar Monitor Enhanced on Windows 11](desktops/desktop-dark-minimal.webp)
 
-## Taskbar theme previews
+## Theme strips
 
 ### Dark Minimal
 ![Dark Minimal](strips/theme-dark-minimal.webp)
@@ -26,6 +26,4 @@ These are real screenshots from Windows 11 running Taskbar Monitor Enhanced on a
 ### Retro Terminal
 ![Retro Terminal](strips/theme-retro-terminal.webp)
 
-The screenshots use live machine data, so percentages, temperatures, traffic rates, and graph shapes naturally differ between captures.
-
-The application includes 14 built-in themes in total. More real-world captures will be added here over time without replacing the original release evidence.
+The application ships with 14 themes in total. This gallery intentionally keeps the repository landing page compact while showing representative light, dark, technical, glass, OLED, and terminal styles.

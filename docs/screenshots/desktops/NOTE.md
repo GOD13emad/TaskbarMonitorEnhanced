@@ -1,1 +1,0 @@
-These files are real desktop captures from the final validation machine. They are included for visual reference and are not generated mockups.
