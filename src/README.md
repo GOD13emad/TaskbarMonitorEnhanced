@@ -1,18 +1,15 @@
-# Source overview
+# Source layout
 
-Taskbar Monitor Enhanced 1.0.0 is distributed under GNU GPL v3.0, with upstream attribution preserved.
+The public repository keeps the installer and sensor-layer sources directly browsable under `installer/` and `src/sensors/`.
 
-The exact corresponding-source archive for the accepted installer is attached to the `v1.0.0` GitHub Release:
+The exact corresponding source for each stable release is distributed as a release asset and identified by its published SHA-256. This is the authoritative byte-exact source package used for release acceptance.
 
-`TaskbarMonitorEnhanced_1.0.0_SOURCE.zip`
+For 1.0.1:
 
-Browsable components in this repository include the protected CPU sensor broker, the sensor supervisor/watchdog, and the public installer sources. The full main runtime source is included in the exact release source archive so that the source package remains byte-for-byte identical to the artifact accepted during the final release process.
+- corresponding source asset: `TaskbarMonitorEnhanced_1.0.1_SOURCE.zip`
+- SHA-256: `32b69949b1bb8067739c53737b805274b069c63d98b96d84e4855ae826b0cc35`
+- runtime source SHA-256 inside that package: `e20dc0a164648dced105a22d2237e164f021eb60c582f8ce8ef18e621ede042c`
 
-## Components
+See `docs/FINAL_ACCEPTANCE_v1.0.1.md` for the lifecycle acceptance record.
 
-- `sensors/TaskbarMonitorSensorBroker.cs` — elevated CPU temperature reader based on LibreHardwareMonitor.
-- `sensors/TaskbarMonitorSensorSupervisor.cs` — watchdog that supervises broker liveness and data freshness.
-- `../installer/TaskbarMonitorEnhanced_Setup.cs` — public installer/uninstaller implementation.
-- `../installer/TBME_Setup_Elevated_Helper.ps1` — protected sensor installation helper.
-
-See the root attribution and third-party notice files before redistributing modified versions.
+The repository preserves upstream attribution and GNU GPL v3.0 licensing. Third-party notices are documented separately.
