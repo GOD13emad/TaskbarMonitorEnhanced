@@ -1,0 +1,43 @@
+{
+  "Status": "PASS_LOCAL_PACKAGING_READY_FOR_GITHUB",
+  "Version": "1.1.1",
+  "Repository": "GOD13emad/TaskbarMonitorEnhanced",
+  "AuthorityRevision": "TBME_V1_1_1_STABILITY_HARDENING_R06",
+  "AuthorityReturnSHA256": "D8679AE49C294CDF3C6F05A85F4468C5CB1495B341C26D7B0A88C940E297D18C",
+  "Setup": {
+    "Name": "TaskbarMonitorEnhanced_Setup_1.1.1.exe",
+    "SHA256": "DEC349FF188EA73BF7AA991110B9534851ED3F017B536D3F9DC24C286FBCEF1B",
+    "Bytes": 10834432,
+    "FileVersion": "1.1.1.0"
+  },
+  "Source": {
+    "Name": "TaskbarMonitorEnhanced_1.1.1_SOURCE.zip",
+    "SHA256": "BAF407D5B41395F8A9BCAC3BDBB27C26A522C18CC89CFF0A3D40669D50C86FDA",
+    "Bytes": 9847441
+  },
+  "AcceptedMain": {
+    "ExeSHA256": "D2112BCB9C14D3916CD888449101701F4EC3E3FFF61EE2C83C7BB6DD97840CB4",
+    "SourceSHA256": "125E48D3054025AA98F2E1459060E1BAEF7B99548A6C771FB99C99600BD84BBA",
+    "FileVersion": "1.1.1.0"
+  },
+  "Stability": {
+    "ExternalNvidiaSmiPollingDefault": false,
+    "ShellWatchdogMs": 250,
+    "StyleIntegrityMs": 2000,
+    "PlacementRefreshMs": 5000,
+    "WatchdogUiAutomationPlacementScan": false
+  },
+  "Acceptance": {
+    "UserVerdict": "PASS",
+    "ExplorerPidStable": true,
+    "ExplorerRelevantEvents": 0,
+    "RollbackRequired": false
+  },
+  "Verification": {
+    "SetupVerifyExit": "PASS_0",
+    "EmbeddedResources": "PASS_19_OF_19",
+    "UnchangedSensorAndThirdPartyResources": "PASS",
+    "CorrespondingSourceMainSHA256": "125E48D3054025AA98F2E1459060E1BAEF7B99548A6C771FB99C99600BD84BBA"
+  },
+  "At": "2026-08-26T08:00:16.5470966+03:30"
+}

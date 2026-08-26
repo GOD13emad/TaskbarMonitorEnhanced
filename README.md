@@ -4,56 +4,48 @@ A lightweight Windows taskbar system monitor that keeps useful hardware and perf
 
 ## Official download
 
-**Current stable release: 1.1.0**
+**Current stable release: 1.1.1**
 
-Download the official build from the [Taskbar Monitor Enhanced 1.1.0 release](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.0).
+Download the official build from the [Taskbar Monitor Enhanced 1.1.1 release](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.1).
 
 Accepted release assets:
 
-- `TaskbarMonitorEnhanced_Setup_1.1.0.exe`
-  - SHA-256: `CF03BCAFC78BB5F8A01C8ED4BFD7B4E16E75A7BFDA57AC1C7A8D7594BEA4D5D6`
-- `TaskbarMonitorEnhanced_1.1.0_SOURCE.zip`
-  - SHA-256: `DF26B9887E72C532022E4B28F2F989F603DFCD6E19D592456AFEABE23783ADB0`
+- `TaskbarMonitorEnhanced_Setup_1.1.1.exe`
+  - SHA-256: `DEC349FF188EA73BF7AA991110B9534851ED3F017B536D3F9DC24C286FBCEF1B`
+- `TaskbarMonitorEnhanced_1.1.1_SOURCE.zip`
+  - SHA-256: `BAF407D5B41395F8A9BCAC3BDBB27C26A522C18CC89CFF0A3D40669D50C86FDA`
 
-The release also includes `SHA256SUMS_v1.1.0.txt` and `RELEASE_MANIFEST_v1.1.0.json` for independent verification.
+The release also includes `SHA256SUMS_v1.1.1.txt` and `RELEASE_MANIFEST_v1.1.1.json` for independent verification.
 
-> **Do not use `Code > Download ZIP` as the accepted release package.** GitHub's repository snapshot downloads are not the authoritative v1.1.0 source package. The explicitly attached, hash-identified `TaskbarMonitorEnhanced_1.1.0_SOURCE.zip` release asset is the corresponding-source package for this release.
+> **Do not use Code > Download ZIP as the accepted release package.** GitHub repository snapshots are not the authoritative v1.1.1 source package. Use the explicitly attached, hash-identified `TaskbarMonitorEnhanced_1.1.1_SOURCE.zip` release asset.
 
-## What's new in 1.1.0
+## What's new in 1.1.1
 
-Version 1.1.0 focuses on storage telemetry and shell reliability while preserving the compact taskbar-native experience.
+Version 1.1.1 is a stability-hardening release.
 
-- multi-disk read/write activity, capacity, and temperature telemetry
-- real temperature reporting for four validated physical drives
-- storage identity mapping through LibreHardwareMonitor hardware IDs before model-name fallback
-- validated USB-bridge temperature mapping for JMicron and Lenovo attached SSDs
-- restored accepted taskbar child-window shell behavior for Start/Search/taskbar compatibility
-- automatic recovery after Windows Explorer restarts
-- CPU, RAM, GPU, VRAM, network, disk, temperature, theme, graph, and placement features retained
+- external `nvidia-smi.exe` polling is disabled by default, eliminating the dominant console-process hot path observed during diagnosis
+- WDDM and LibreHardwareMonitor remain the normal GPU telemetry paths
+- diagnostic NVIDIA SMI opt-in remains available through `TBME_ENABLE_NVIDIA_SMI=1`
+- shell watchdog frequency reduced from every 40 ms to every 250 ms
+- style-integrity checks reduced from every 500 ms to every 2000 ms
+- heavy Safe Placement UI-Automation scanning removed from the watchdog hot path
+- normal placement reevaluation throttled to at least 5000 ms
+- all accepted v1.1.0 multi-hardware, storage, hover, recovery and verified-update features retained
 
 ## Release validation
 
-The accepted v1.1.0 engineering baseline completed:
+The accepted R06 v1.1.1 stability candidate completed build, self-test, runtime smoke and real-use acceptance. Explorer PID remained unchanged, no relevant Explorer Event 1000/1002 was recorded during the acceptance window, and the user verdict was PASS. The installed accepted hashes are:
 
-- manual Start open/close x5: PASS
-- ShellState PRE/POST: PASS
-- disk temperature telemetry: 4/4 PASS
-- runtime storage identity mapping: 4/4 PASS
-- installer embedded resources: 19/19 PASS
-- 600-second / 300-sample responsiveness campaign: 300/300 PASS
-- zero Explorer Application Hang events during the accepted R02R6 validation window
-- exact accepted Main application and Sensor Broker hashes embedded in the published installer
-- remote GitHub re-download and SHA-256 verification of all four published release assets: PASS
+- main EXE: `D2112BCB9C14D3916CD888449101701F4EC3E3FFF61EE2C83C7BB6DD97840CB4`
+- main source: `125E48D3054025AA98F2E1459060E1BAEF7B99548A6C771FB99C99600BD84BBA`
 
-Two Explorer `Application Hang` Event 1002 records occurred after the accepted validation window. Their causality to Taskbar Monitor Enhanced remains **unproven**. The TBME process survived the Explorer restarts and successfully recovered its taskbar attachment. Full details are recorded in [`docs/FINAL_ACCEPTANCE_v1.1.0.md`](docs/FINAL_ACCEPTANCE_v1.1.0.md).
-
-See [`RELEASE_NOTES_v1.1.0.md`](RELEASE_NOTES_v1.1.0.md) for the complete release notes.
+See [`docs/FINAL_ACCEPTANCE_v1.1.1.md`](docs/FINAL_ACCEPTANCE_v1.1.1.md) and [`RELEASE_NOTES_v1.1.1.md`](RELEASE_NOTES_v1.1.1.md) for the evidence and residual-risk statement.
 
 ## Code signing status
 
-The published 1.1.0 installer is **not Authenticode-signed**, so Windows Defender SmartScreen may show **Unknown publisher** on first launch.
+The published 1.1.1 installer is **not Authenticode-signed**, so Windows Defender SmartScreen may show **Unknown publisher** on first launch.
 
-The project has applied / is applying for the SignPath Foundation open-source code-signing program for future releases: **Free code signing provided by SignPath.io, certificate by SignPath Foundation.** This statement is conditional on project acceptance by SignPath Foundation; the current 1.1.0 release remains unsigned.
+The project has applied / is applying for the SignPath Foundation open-source code-signing program for future releases: **Free code signing provided by SignPath.io, certificate by SignPath Foundation.** This statement is conditional on project acceptance by SignPath Foundation; the current 1.1.1 release remains unsigned.
 
 See [`CODE_SIGNING.md`](CODE_SIGNING.md) for the signing policy and [`PRIVACY.md`](PRIVACY.md) for the privacy statement.
 
