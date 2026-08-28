@@ -1,45 +1,24 @@
 # Taskbar Monitor Enhanced
 
-A lightweight Windows taskbar system monitor that keeps useful hardware and performance telemetry visible without forcing you to open a separate dashboard.
+A lightweight Windows taskbar system monitor for live CPU, RAM, disk, network, GPU, VRAM and temperature telemetry.
 
-## Official download
+## Latest stable release: v1.1.1
 
-**Current stable release: 1.1.1**
+Version **v1.1.1** is the current Stable/Latest release.
 
-Download the official build from the [Taskbar Monitor Enhanced 1.1.1 release](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.1).
+Existing users can update directly through the application's built-in GitHub update flow, or download the installer from:
 
-Accepted release assets:
+https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.1
 
-- `TaskbarMonitorEnhanced_Setup_1.1.1.exe`
-  - SHA-256: `DEC349FF188EA73BF7AA991110B9534851ED3F017B536D3F9DC24C286FBCEF1B`
-- `TaskbarMonitorEnhanced_1.1.1_SOURCE.zip`
-  - SHA-256: `BAF407D5B41395F8A9BCAC3BDBB27C26A522C18CC89CFF0A3D40669D50C86FDA`
+v1.1.1 includes:
 
-The release also includes `SHA256SUMS_v1.1.1.txt` and `RELEASE_MANIFEST_v1.1.1.json` for independent verification.
+- removal of default NVIDIA-SMI realtime polling that caused repeated console-host launches on the validation system
+- low-pressure taskbar-child shell integration
+- watchdog 500 ms, host poll 1000 ms, style/placement health 5000 ms
+- event/geometry-driven Safe Placement work
+- single-instance Settings behavior
 
-> **Do not use Code > Download ZIP as the accepted release package.** GitHub repository snapshots are not the authoritative v1.1.1 source package. Use the explicitly attached, hash-identified `TaskbarMonitorEnhanced_1.1.1_SOURCE.zip` release asset.
-
-## What's new in 1.1.1
-
-Version 1.1.1 is a stability-hardening release.
-
-- external `nvidia-smi.exe` polling is disabled by default, eliminating the dominant console-process hot path observed during diagnosis
-- WDDM and LibreHardwareMonitor remain the normal GPU telemetry paths
-- diagnostic NVIDIA SMI opt-in remains available through `TBME_ENABLE_NVIDIA_SMI=1`
-- shell watchdog frequency reduced from every 40 ms to every 250 ms
-- style-integrity checks reduced from every 500 ms to every 2000 ms
-- heavy Safe Placement UI-Automation scanning removed from the watchdog hot path
-- normal placement reevaluation throttled to at least 5000 ms
-- all accepted v1.1.0 multi-hardware, storage, hover, recovery and verified-update features retained
-
-## Release validation
-
-The accepted R06 v1.1.1 stability candidate completed build, self-test, runtime smoke and real-use acceptance. Explorer PID remained unchanged, no relevant Explorer Event 1000/1002 was recorded during the acceptance window, and the user verdict was PASS. The installed accepted hashes are:
-
-- main EXE: `D2112BCB9C14D3916CD888449101701F4EC3E3FFF61EE2C83C7BB6DD97840CB4`
-- main source: `125E48D3054025AA98F2E1459060E1BAEF7B99548A6C771FB99C99600BD84BBA`
-
-See [`docs/FINAL_ACCEPTANCE_v1.1.1.md`](docs/FINAL_ACCEPTANCE_v1.1.1.md) and [`RELEASE_NOTES_v1.1.1.md`](RELEASE_NOTES_v1.1.1.md) for the evidence and residual-risk statement.
+Accepted assets and hashes are published in `SHA256SUMS_v1.1.1.txt` and `RELEASE_MANIFEST_v1.1.1.json`.
 
 ## Code signing status
 

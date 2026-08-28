@@ -1,59 +1,67 @@
 # Taskbar Monitor Enhanced 1.1.1
 
-## Stability hardening
+## Stable release
 
-- External `nvidia-smi.exe` polling is disabled by default in the real-time GPU telemetry path. Windows WDDM and LibreHardwareMonitor remain the normal GPU data sources.
-- NVIDIA SMI remains available only as an explicit diagnostic opt-in with `TBME_ENABLE_NVIDIA_SMI=1`.
-- Shell visibility watchdog interval increased from 40 ms to 250 ms.
-- Style-integrity checks reduced from every 500 ms to every 2000 ms.
-- Heavy UI Automation Safe Placement scanning was removed from the watchdog hot path.
-- Normal Safe Placement reevaluation is throttled to at least 5000 ms.
-- v1.1.0 multi-hardware telemetry, disk temperature/throughput, hover details, Explorer recovery, themes, configuration, and SHA-256-verified GitHub updates are retained.
+Version 1.1.1 is the current stable release.
 
-## Why this update
+This release addresses the two user-visible issues identified during validation:
 
-A Windows Security Event 4688 capture on the affected validation workstation recorded 132 `conhost.exe` creations parented by `nvidia-smi.exe` during an approximately 134-second observation window. This was by far the dominant console-process path and matched the repeated visible console flashes reported during gaming.
+1. repeated console/PowerShell-style flashing associated with the previous real-time external NVIDIA-SMI polling path;
+2. excessive shell/taskbar background pressure, including aggressive watchdog, style and Safe Placement polling.
 
-Version 1.1.1 removes that external-process polling hot path by default. Separately, v1.1.0 had residual Windows Explorer Application Hang events whose causality to TBME remained unproven. Version 1.1.1 therefore also reduces periodic shell/UI-Automation pressure without claiming those historical Explorer hangs were definitively caused by TBME.
+## Fixes
 
-## Local acceptance for 1.1.1
+### Console-flash fix
 
-Accepted stability candidate: `TBME_V1_1_1_STABILITY_HARDENING_R06`.
+- Default real-time `nvidia-smi.exe` polling is removed from the normal GPU telemetry path.
+- WDDM and LibreHardwareMonitor remain the normal GPU telemetry sources.
+- The accepted R15 NVIDIA-SMI suppression is retained.
 
-- build: PASS
-- self-test: PASS
-- installed file version: `1.1.1.0`
-- user acceptance verdict: PASS
-- Explorer PID before/after acceptance: unchanged (`3992`)
-- Explorer Application Error 1000 during acceptance window: `0`
-- Explorer Application Hang 1002 during acceptance window: `0`
+### Taskbar / Start stability hardening
+
+R18 keeps the native taskbar-child integration so the monitor behaves correctly with Windows 11 Start, while greatly reducing periodic shell work:
+
+- watchdog: 40 ms -> 500 ms
+- host-context polling: 250 ms -> 1000 ms
+- style health: 500 ms -> 5000 ms
+- placement health: 1000 ms -> 5000 ms
+- style checks are read-only in the hot path
+- Safe Placement / UI Automation work is event/geometry-driven rather than continuously repeated
+
+### Settings behavior
+
+- Settings is now single-instance.
+- The first click opens Settings.
+- Later clicks reuse and foreground the same Settings window instead of opening repeated dialogs.
+- Cancel closes the existing Settings window.
+- Save & Apply persists the configuration and closes the window.
+
+## Validation
+
+The accepted R18 validation recorded:
+
+- user verdict: PASS
+- Explorer PID unchanged during acceptance
+- Explorer Application Hang 1002: 0
+- Explorer Application Error 1000: 0
+- Settings single-instance: PASS
+- native Start/taskbar visual behavior: PASS
 - rollback required: NO
-- candidate committed locally: YES
-- external NVIDIA-SMI polling default: OFF
-- shell watchdog: 250 ms
-- style-integrity interval: 2000 ms
-- placement refresh minimum: 5000 ms
-- watchdog UI-Automation placement scan: OFF
+- candidate retained locally: YES
 
-## Accepted engineering hashes
+## Upgrade
 
-- Main EXE: `D2112BCB9C14D3916CD888449101701F4EC3E3FFF61EE2C83C7BB6DD97840CB4`
-- Main source: `125E48D3054025AA98F2E1459060E1BAEF7B99548A6C771FB99C99600BD84BBA`
+Existing users can update directly to v1.1.1 through the application's normal GitHub update path or by running:
 
-The public installer and corresponding-source package are separately hash-identified after release packaging.
+`TaskbarMonitorEnhanced_Setup_1.1.1.exe`
 
-## Compatibility
+Existing settings are intended to be preserved.
 
-- Windows x64.
-- Main application remains non-elevated.
-- Existing hardware-sensor broker/supervisor components are unchanged in this stability revision.
-- Existing settings are intended to be preserved during upgrade.
-- No configuration migration is required.
+## Verification
 
-## Residual risk
+Release assets:
 
-The R06 gate was a targeted real-use acceptance window, not a new multi-hour endurance campaign. Historical Explorer hangs from v1.1.0 remain causally unproven. The release therefore records the specific local acceptance evidence above rather than claiming universal elimination of all possible Explorer/taskbar hangs.
-
-## License
-
-GNU General Public License v3.0.
+- `TaskbarMonitorEnhanced_Setup_1.1.1.exe`
+- `TaskbarMonitorEnhanced_1.1.1_SOURCE.zip`
+- `SHA256SUMS_v1.1.1.txt`
+- `RELEASE_MANIFEST_v1.1.1.json`

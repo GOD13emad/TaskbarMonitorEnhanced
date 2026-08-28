@@ -1,4 +1,4 @@
-// TBME_V1_1_1_STABILITY_HARDENING_R02: disable external NVIDIA-SMI hot-path by default; reduce shell polling pressure; preserve v1.1.0 telemetry/update/recovery behavior.
+// TBME_V1_1_1_R18_STABLE: low-pressure taskbar-child shell integration + single-instance Settings.
 // TBME_V1_1_0_DISK_TEMP_BROKER_RESTORE_R02: elevated storage temperatures + LHM HardwareId drive-index correlation; shell core unchanged.
 // TBME_V1_1_0_SHELL_RESTORE_R01: exact accepted v1.0.2 Shell integration core restored onto current v1.1.0 feature source; no telemetry/hover/update rollback.
 using System;
@@ -39,7 +39,7 @@ namespace TaskbarMonitorEnhanced
 {
     internal static class BuildInfo
     {
-        public const string Version = "V1_1_1_STABILITY_HARDENING_R02";
+        public const string Version = "V1_1_1_R18_LOW_PRESSURE_CHILD_STABLE";
         public const string Product = "Taskbar Monitor Enhanced";
         public const string PublicVersion = "1.1.1";
         public const string ShortcutName = "Taskbar Monitor Enhanced";
@@ -52,10 +52,6 @@ namespace TaskbarMonitorEnhanced
         public const string LicenseId = "GPL-3.0";
         public const int HistoryLength = 60;
         public const int DefaultWidth = 1100;
-        public const int ShellWatchdogIntervalMs = 250;
-        public const int ShellStyleIntegrityIntervalMs = 2000;
-        public const int PlacementRefreshIntervalMs = 5000;
-        public const bool ExternalNvidiaSmiPollingDefault = false;
     }
 
     internal static class AppPaths
@@ -2301,15 +2297,6 @@ namespace TaskbarMonitorEnhanced
             if(preferSample)d.Source=sample.Source;
         }
 
-        private static bool ExternalNvidiaSmiPollingEnabled()
-        {
-            string value=Environment.GetEnvironmentVariable("TBME_ENABLE_NVIDIA_SMI");
-            if(String.IsNullOrWhiteSpace(value))return BuildInfo.ExternalNvidiaSmiPollingDefault;
-            return String.Equals(value,"1",StringComparison.OrdinalIgnoreCase) ||
-                   String.Equals(value,"true",StringComparison.OrdinalIgnoreCase) ||
-                   String.Equals(value,"yes",StringComparison.OrdinalIgnoreCase);
-        }
-
         private List<GpuTelemetrySample> ReadNvidiaSmiAll()
         {
             List<GpuTelemetrySample> r=new List<GpuTelemetrySample>();string exe=FindNvidiaSmi();if(exe==null)return r;
@@ -2361,14 +2348,8 @@ namespace TaskbarMonitorEnhanced
             if((DateTime.UtcNow-lastGpuQuery).TotalMilliseconds<1800)return;lastGpuQuery=DateTime.UtcNow;List<GpuTelemetrySample> merged=new List<GpuTelemetrySample>();
             try{foreach(GpuTelemetrySample x in windowsGpuReader.ReadAll())MergeGpu(merged,x,false);}catch(Exception ex){Log.Write("WARN","GPU_WDDM_FALLBACK "+ex.Message);}
             try{foreach(GpuTelemetrySample x in genericGpuReader.ReadAll())MergeGpu(merged,x,true);}catch(Exception ex){Log.Write("WARN","GPU_LHM_MULTI "+ex.Message);}
-            // v1.1.1 stability: external nvidia-smi process polling is disabled by default.
-            // WDDM + LibreHardwareMonitor remain the normal GPU telemetry path.
-            // Diagnostic opt-in only: TBME_ENABLE_NVIDIA_SMI=1.
-            if(ExternalNvidiaSmiPollingEnabled())
-            {
-                try{foreach(GpuTelemetrySample x in ReadNvidiaSmiAll())MergeGpu(merged,x,true);}catch{}
-                try{EnrichNvidiaSmiDetails(merged);}catch{}
-            }
+            // R15 narrow diagnostic: external NVIDIA SMI primary query disabled; WDDM + LHM remain active.
+            // R15 narrow diagnostic: external NVIDIA SMI detail query disabled; all other v1.1.0 behavior unchanged.
             try
             {
                 GpuTelemetrySample amd=merged.Where(x=>IsAmdName(x.HardwareName)&&!x.TemperatureValid).OrderByDescending(x=>x.LoadValid?x.Load:-1).FirstOrDefault();
@@ -2928,6 +2909,7 @@ namespace TaskbarMonitorEnhanced
         private ToolStripMenuItem updateMenuItem;
         private IntPtr taskbar=IntPtr.Zero;
         private Rectangle expectedRect=Rectangle.Empty;
+        private Rectangle lastTaskbarScreenRect=Rectangle.Empty;
         private bool rescueActive=false;
         private int rescueCount=0;
         private int watchdogOwned=0;
@@ -2955,6 +2937,8 @@ namespace TaskbarMonitorEnhanced
         private string startGuardClass="";
         private DateTime startGuardLastSeen=DateTime.MinValue;
         private NotifyIcon trayIcon;
+        private SettingsForm settingsForm;
+        private bool settingsHoverWasRunning=false;
         private IntPtr trayNotify=IntPtr.Zero;
         private int upstreamAttachCount=0;
         private DateTime lastUpstreamPositionAt=DateTime.MinValue;
@@ -3049,7 +3033,7 @@ namespace TaskbarMonitorEnhanced
                 hoverTimer.Tick+=delegate{RuntimeGuard.SafeUi("HOVER_WATCHDOG",delegate{HoverWatchdog();});};
                 metricTimer.Interval=config.UpdateIntervalMs;
                 metricTimer.Tick+=delegate{RuntimeGuard.SafeUi("METRIC_TICK_SCHEDULE",delegate{QueueMetricsRead();});};
-                watchdog.Interval=BuildInfo.ShellWatchdogIntervalMs;
+                watchdog.Interval=500;
                 watchdog.Tick+=delegate{RuntimeGuard.SafeUi("VISIBILITY_WATCHDOG",delegate{VisibilityWatchdog();});};
 
                 recoveryTimer.Interval=250;
@@ -3077,7 +3061,7 @@ namespace TaskbarMonitorEnhanced
                     CleanupRuntime("FORM_CLOSING_"+e.CloseReason.ToString());
                 };
 
-                Log.Write("INFO","START version="+BuildInfo.Version+" theme="+config.Theme+" recovery=R12A2R5R4_HOST shell=V102_ACCEPTED_CORE_RESTORE_R01 nvidiaSmiDefault="+BuildInfo.ExternalNvidiaSmiPollingDefault+" watchdogMs="+BuildInfo.ShellWatchdogIntervalMs+" styleCheckMs="+BuildInfo.ShellStyleIntegrityIntervalMs+" placementRefreshMs="+BuildInfo.PlacementRefreshIntervalMs);
+                Log.Write("INFO","START version="+BuildInfo.Version+" theme="+config.Theme+" recovery=R12A2R5R4_HOST shell=V102_ACCEPTED_CORE_RESTORE_R01");
             }
             else
             {
@@ -3159,25 +3143,61 @@ namespace TaskbarMonitorEnhanced
                 long desiredStyle=(style & ~Native.WS_POPUP)|Native.WS_CHILD;
                 long desiredEx=(ex|requiredEx)&~Native.WS_EX_TRANSPARENT;
                 IntPtr parentBefore=Native.GetParent(Handle);
-                bool drift=(style&Native.WS_CHILD)==0 || (style&Native.WS_POPUP)!=0 || (ex&requiredEx)!=requiredEx || (ex&Native.WS_EX_TRANSPARENT)!=0 || (taskbar!=IntPtr.Zero && parentBefore!=taskbar);
+
+                bool drift=(style&Native.WS_CHILD)==0 ||
+                           (style&Native.WS_POPUP)!=0 ||
+                           (ex&requiredEx)!=requiredEx ||
+                           (ex&Native.WS_EX_TRANSPARENT)!=0 ||
+                           (taskbar!=IntPtr.Zero && parentBefore!=taskbar);
+
                 if(!drift)return true;
 
+                if(!repairParent)
+                {
+                    Log.Write(
+                        "WARN",
+                        "LOW_PRESSURE_STYLE_DRIFT_DETECTED reason="+reason+
+                        " parent="+parentBefore.ToInt64()+
+                        " taskbar="+taskbar.ToInt64()+
+                        " style=0x"+style.ToString("X8",CultureInfo.InvariantCulture)+
+                        " ex=0x"+ex.ToString("X8",CultureInfo.InvariantCulture)
+                    );
+                    return false;
+                }
+
                 if(style!=desiredStyle)Native.SetWindowLongPtr(Handle,Native.GWL_STYLE,new IntPtr(desiredStyle));
-                if(taskbar!=IntPtr.Zero && repairParent && Native.GetParent(Handle)!=taskbar)Native.SetParent(Handle,taskbar);
+                if(taskbar!=IntPtr.Zero && Native.GetParent(Handle)!=taskbar)Native.SetParent(Handle,taskbar);
                 if(ex!=desiredEx)Native.SetWindowLongPtr(Handle,Native.GWL_EXSTYLE,new IntPtr(desiredEx));
-                Native.SetWindowPos(Handle,IntPtr.Zero,0,0,0,0,Native.SWP_NOMOVE|Native.SWP_NOSIZE|Native.SWP_NOZORDER|Native.SWP_NOACTIVATE|Native.SWP_FRAMECHANGED|Native.SWP_NOOWNERZORDER);
+                Native.SetWindowPos(
+                    Handle,IntPtr.Zero,0,0,0,0,
+                    Native.SWP_NOMOVE|Native.SWP_NOSIZE|Native.SWP_NOZORDER|
+                    Native.SWP_NOACTIVATE|Native.SWP_FRAMECHANGED|Native.SWP_NOOWNERZORDER
+                );
 
                 long styleAfter=Native.GetWindowLongPtr(Handle,Native.GWL_STYLE).ToInt64();
                 long exAfter=Native.GetWindowLongPtr(Handle,Native.GWL_EXSTYLE).ToInt64();
                 IntPtr parentAfter=Native.GetParent(Handle);
-                bool pass=(styleAfter&Native.WS_CHILD)!=0 && (styleAfter&Native.WS_POPUP)==0 && (exAfter&requiredEx)==requiredEx && (exAfter&Native.WS_EX_TRANSPARENT)==0 && (taskbar==IntPtr.Zero || parentAfter==taskbar);
+
+                bool pass=(styleAfter&Native.WS_CHILD)!=0 &&
+                          (styleAfter&Native.WS_POPUP)==0 &&
+                          (exAfter&requiredEx)==requiredEx &&
+                          (exAfter&Native.WS_EX_TRANSPARENT)==0 &&
+                          (taskbar==IntPtr.Zero || parentAfter==taskbar);
+
                 styleRepairCount++;
-                Log.Write(pass?"INFO":"ERROR","STYLE_INTEGRITY_REPAIR reason="+reason+" count="+styleRepairCount+" parentBefore="+parentBefore.ToInt64()+" parentAfter="+parentAfter.ToInt64()+" styleBefore=0x"+style.ToString("X8",CultureInfo.InvariantCulture)+" styleAfter=0x"+styleAfter.ToString("X8",CultureInfo.InvariantCulture)+" exBefore=0x"+ex.ToString("X8",CultureInfo.InvariantCulture)+" exAfter=0x"+exAfter.ToString("X8",CultureInfo.InvariantCulture)+" pass="+pass);
+                Log.Write(
+                    pass?"INFO":"ERROR",
+                    "LOW_PRESSURE_STYLE_REPAIR reason="+reason+
+                    " count="+styleRepairCount+
+                    " parentBefore="+parentBefore.ToInt64()+
+                    " parentAfter="+parentAfter.ToInt64()+
+                    " pass="+pass
+                );
                 return pass;
             }
             catch(Exception ex)
             {
-                Log.Write("ERROR","STYLE_INTEGRITY_REPAIR_FAIL reason="+reason+" "+ex.Message);
+                Log.Write("ERROR","LOW_PRESSURE_STYLE_CHECK_FAIL reason="+reason+" "+ex.Message);
                 return false;
             }
         }
@@ -3360,25 +3380,86 @@ namespace TaskbarMonitorEnhanced
         private void OpenSettings(){OpenSettings(null);}
         private void OpenSettings(string initialTab)
         {
-            bool hoverWasRunning=hoverTimer.Enabled;
             try
             {
-                if(hardwareFlyout!=null)hardwareFlyout.Hide();
-                hoverTimer.Stop();
-                using(SettingsForm f=new SettingsForm(config,snapshot,initialTab))
+                if(settingsForm!=null && !settingsForm.IsDisposed)
                 {
-                    if(f.ShowDialog()==DialogResult.OK)
-                    {
-                        config.Normalize();config.Save();
-                        Opacity=config.Opacity;metricTimer.Interval=config.UpdateIntervalMs;TaskbarLayout.ResetCache();ResetPlacementStability("SETTINGS_APPLY");
-                        StartupManager.SetEnabled(config.StartWithWindows);PositionOverlay(true);RefreshMenuChecks();Invalidate();
-                    }
+                    if(!String.IsNullOrWhiteSpace(initialTab))settingsForm.SelectTab(initialTab);
+                    if(settingsForm.WindowState==FormWindowState.Minimized)
+                        settingsForm.WindowState=FormWindowState.Normal;
+
+                    settingsForm.Show();
+                    settingsForm.BringToFront();
+                    settingsForm.Activate();
+
+                    Log.Write(
+                        "INFO",
+                        "SETTINGS_SINGLE_INSTANCE_REUSE hwnd="+settingsForm.Handle.ToInt64()+
+                        " tab="+(initialTab??"CURRENT")
+                    );
+                    return;
                 }
+
+                if(hardwareFlyout!=null)hardwareFlyout.Hide();
+                settingsHoverWasRunning=hoverTimer.Enabled;
+                hoverTimer.Stop();
+
+                SettingsForm f=new SettingsForm(config,snapshot,initialTab);
+                settingsForm=f;
+
+                f.FormClosed+=delegate(object sender,FormClosedEventArgs e)
+                {
+                    try
+                    {
+                        DialogResult result=f.DialogResult;
+                        if(result==DialogResult.OK)
+                        {
+                            config.Normalize();
+                            config.Save();
+                            Opacity=config.Opacity;
+                            metricTimer.Interval=config.UpdateIntervalMs;
+                            TaskbarLayout.ResetCache();
+                            ResetPlacementStability("SETTINGS_APPLY");
+                            StartupManager.SetEnabled(config.StartWithWindows);
+                            PositionOverlay(true);
+                            RefreshMenuChecks();
+                            Invalidate();
+                            Log.Write("INFO","SETTINGS_SINGLE_INSTANCE_APPLY");
+                        }
+                        else Log.Write("INFO","SETTINGS_SINGLE_INSTANCE_CLOSE result="+result);
+                    }
+                    catch(Exception ex)
+                    {
+                        Log.Write("ERROR","SETTINGS_SINGLE_INSTANCE_CLOSE_FAIL "+ex.Message);
+                    }
+                    finally
+                    {
+                        if(Object.ReferenceEquals(settingsForm,f))settingsForm=null;
+                        try{f.Dispose();}catch{}
+                        if(settingsHoverWasRunning&&!IsDisposed&&!Disposing)hoverTimer.Start();
+                        settingsHoverWasRunning=false;
+                        lastHoverIndex=-1;
+                        lastHoverGroup="";
+                        lastHoverGeneration=-1;
+                    }
+                };
+
+                f.Show();
+                f.BringToFront();
+                f.Activate();
+
+                Log.Write(
+                    "INFO",
+                    "SETTINGS_SINGLE_INSTANCE_CREATE hwnd="+f.Handle.ToInt64()+
+                    " tab="+(initialTab??"DEFAULT")
+                );
             }
-            finally
+            catch(Exception ex)
             {
-                if(hoverWasRunning&&!IsDisposed&&!Disposing)hoverTimer.Start();
-                lastHoverIndex=-1;lastHoverGroup="";lastHoverGeneration=-1;
+                Log.Write("ERROR","SETTINGS_SINGLE_INSTANCE_OPEN_FAIL "+ex.Message);
+                if(settingsForm!=null && settingsForm.IsDisposed)settingsForm=null;
+                if(settingsHoverWasRunning&&!IsDisposed&&!Disposing)hoverTimer.Start();
+                settingsHoverWasRunning=false;
             }
         }
 
@@ -3820,6 +3901,7 @@ namespace TaskbarMonitorEnhanced
                 ResetPlacementStability("RECOVERY_"+reason);
                 taskbar=newTaskbar;
                 expectedRect=Rectangle.Empty;
+                lastTaskbarScreenRect=Rectangle.Empty;
 
                 AttachIntegrated();
 
@@ -3830,7 +3912,7 @@ namespace TaskbarMonitorEnhanced
                     "INFO",
                     "RECOVERY_PASS reason="+reason+
                     " attempt="+recoveryAttempt+
-                    " mode=UpstreamTaskbarChild"+
+                    " mode=StableLowPressureTaskbarChild"+
                     " taskbar="+taskbar.ToInt64()+
                     " parentOk="+parentOk+
                     " visible="+visible+
@@ -4016,7 +4098,7 @@ namespace TaskbarMonitorEnhanced
 
                 Log.Write(
                     "INFO",
-                    "UPSTREAM_ENGINE_ATTACH_PASS count="+upstreamAttachCount+
+                    "STABLE_CHILD_ATTACH_PASS count="+upstreamAttachCount+
                     " parent="+parentAfter.ToInt64()+
                     " taskbar="+taskbar.ToInt64()+
                     " tray="+trayNotify.ToInt64()+
@@ -4035,28 +4117,60 @@ namespace TaskbarMonitorEnhanced
 
         private void PositionOverlay(bool force)
         {
-            DateTime now=DateTime.UtcNow;
-            lastPositionAt=now;
-            // SafePlacement uses UI Automation over the taskbar descendant tree. Keep it
-            // out of high-frequency paths; force=true remains available for explicit shell/layout events.
-            if(!force && expectedRect.Width>0 &&
-               (now-lastUpstreamPositionAt).TotalMilliseconds<BuildInfo.PlacementRefreshIntervalMs)
-                return;
+            lastPositionAt=DateTime.UtcNow;
 
             IntPtr currentTaskbar=Native.FindWindow("Shell_TrayWnd",null);
             if(currentTaskbar==IntPtr.Zero)return;
             taskbar=currentTaskbar;
 
-            // R07: Start/Search and transient shell surfaces must never resize/move
-            // an already-positioned overlay. Keep the last stable rectangle.
             if(expectedRect.Width>0 && IsTransientShellSurfaceActive())
+                return;
+
+            Native.RECT tr;
+            if(!Native.GetWindowRect(taskbar,out tr))return;
+            Rectangle taskbarRect=tr.ToRectangle();
+
+            bool geometryChanged=
+                lastTaskbarScreenRect.IsEmpty ||
+                lastTaskbarScreenRect.X!=taskbarRect.X ||
+                lastTaskbarScreenRect.Y!=taskbarRect.Y ||
+                lastTaskbarScreenRect.Width!=taskbarRect.Width ||
+                lastTaskbarScreenRect.Height!=taskbarRect.Height;
+
+            if(!force && !geometryChanged && expectedRect.Width>0 && expectedRect.Height>0)
             {
-                if((DateTime.UtcNow-lastTransientPlacementSkip).TotalMilliseconds>=900)
+                Native.RECT wr;
+                if(Native.GetWindowRect(Handle,out wr))
                 {
-                    Log.Write("INFO","PLACEMENT_TRANSIENT_FREEZE rect="+
-                        expectedRect.X+","+expectedRect.Y+","+expectedRect.Width+","+expectedRect.Height);
-                    lastTransientPlacementSkip=DateTime.UtcNow;
+                    Rectangle current=wr.ToRectangle();
+                    bool drift=
+                        Math.Abs(current.X-expectedRect.X)>1 ||
+                        Math.Abs(current.Y-expectedRect.Y)>1 ||
+                        Math.Abs(current.Width-expectedRect.Width)>1 ||
+                        Math.Abs(current.Height-expectedRect.Height)>1;
+
+                    if(drift)
+                    {
+                        Native.SetWindowPos(
+                            Handle,
+                            Native.HWND_TOP,
+                            expectedRect.X-taskbarRect.Left,
+                            expectedRect.Y-taskbarRect.Top,
+                            expectedRect.Width,
+                            expectedRect.Height,
+                            Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW
+                        );
+                        Log.Write(
+                            "INFO",
+                            "LOW_PRESSURE_PLACEMENT_DRIFT_REPAIR from="+
+                            current.X+","+current.Y+","+current.Width+","+current.Height+
+                            " to="+expectedRect.X+","+expectedRect.Y+","+expectedRect.Width+","+expectedRect.Height
+                        );
+                    }
                 }
+
+                if(!Visible)Show();
+                lastUpstreamPositionAt=DateTime.UtcNow;
                 return;
             }
 
@@ -4064,17 +4178,14 @@ namespace TaskbarMonitorEnhanced
             if(r.Width<=0||r.Height<=0)return;
 
             r=ConstrainToStableWidth(r,config.Position);
-
-            Native.RECT tr;
-            if(!Native.GetWindowRect(taskbar,out tr))return;
-
             expectedRect=r;
+            lastTaskbarScreenRect=taskbarRect;
 
             Native.SetWindowPos(
                 Handle,
                 Native.HWND_TOP,
-                r.X-tr.Left,
-                r.Y-tr.Top,
+                r.X-taskbarRect.Left,
+                r.Y-taskbarRect.Top,
                 r.Width,
                 r.Height,
                 Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW
@@ -4082,6 +4193,13 @@ namespace TaskbarMonitorEnhanced
 
             if(!Visible)Show();
             lastUpstreamPositionAt=DateTime.UtcNow;
+
+            Log.Write(
+                "INFO",
+                "LOW_PRESSURE_SAFE_PLACEMENT_SCAN force="+force+
+                " geometryChanged="+geometryChanged+
+                " rect="+r.X+","+r.Y+","+r.Width+","+r.Height
+            );
         }
 
         private int OwnedPoints(Rectangle r)
@@ -4105,46 +4223,42 @@ namespace TaskbarMonitorEnhanced
 
                 if(currentTaskbar==IntPtr.Zero)
                 {
-                    if(!recoveryPending)ScheduleRecovery("TASKBAR_MISSING_WATCHDOG",500);
+                    if(!recoveryPending)ScheduleRecovery("TASKBAR_MISSING_WATCHDOG",750);
                     return;
                 }
 
                 if(taskbar==IntPtr.Zero || currentTaskbar!=taskbar)
                 {
-                    if(!recoveryPending)ScheduleRecovery("TASKBAR_HANDLE_CHANGED",500);
+                    if(!recoveryPending)ScheduleRecovery("TASKBAR_HANDLE_CHANGED",750);
                     return;
                 }
 
-                if((DateTime.UtcNow-lastStyleIntegrityAt).TotalMilliseconds>=BuildInfo.ShellStyleIntegrityIntervalMs)
+                bool parentOk=Native.GetParent(Handle)==taskbar;
+                if(!parentOk)
+                {
+                    if(!recoveryPending)ScheduleRecovery("UPSTREAM_PARENT_LOST",750);
+                    return;
+                }
+
+                if((DateTime.UtcNow-lastStyleIntegrityAt).TotalMilliseconds>=5000)
                 {
                     lastStyleIntegrityAt=DateTime.UtcNow;
-                    if(!EnsureIntegratedWindowStyles("WATCHDOG",true))
+                    if(!EnsureIntegratedWindowStyles("LOW_PRESSURE_HEALTH",false))
                     {
-                        if(!recoveryPending)ScheduleRecovery("STYLE_INTEGRITY_DRIFT",250);
+                        if(!recoveryPending)ScheduleRecovery("STYLE_INTEGRITY_DRIFT",750);
                         return;
                     }
                 }
 
-                bool parentOk=Native.GetParent(Handle)==taskbar;
-                bool visible=Native.IsWindowVisible(Handle);
+                if(!Native.IsWindowVisible(Handle))Show();
 
-                if(!parentOk)
-                {
-                    if(!recoveryPending)ScheduleRecovery("UPSTREAM_PARENT_LOST",250);
-                    return;
-                }
-
-                if(!visible)Show();
-
-                // Never perform the heavy UI-Automation safe-placement scan from the
-                // watchdog hot path. Explicit shell/layout events use force=true; normal
-                // metric refresh performs throttled PositionOverlay(false).
-                if(expectedRect.Width<=0)
-                    PositionOverlay(true);
+                if(expectedRect.Width<=0 ||
+                   (DateTime.UtcNow-lastUpstreamPositionAt).TotalMilliseconds>=5000)
+                    PositionOverlay(false);
             }
             catch(Exception ex)
             {
-                Log.Write("WARN","WATCHDOG "+ex.Message);
+                Log.Write("WARN","LOW_PRESSURE_WATCHDOG "+ex.Message);
             }
         }
 
@@ -4928,12 +5042,13 @@ namespace TaskbarMonitorEnhanced
         private CheckedListBox cpuList,gpuList,diskList,netList;
         private Label updateCurrent,updateLatest,updateStatus;
         private Button checkUpdate,installUpdate,openRelease;
+        private TabControl tabsControl;
         private ReleaseUpdateInfo latestUpdate;
         public SettingsForm(AppConfig config,MetricsSnapshot current) : this(config,current,null) { }
         public SettingsForm(AppConfig config,MetricsSnapshot current,string initialTab)
         {
             c=config;snapshot=current??new MetricsSnapshot();Text="Taskbar Monitor Enhanced — Settings";Width=900;Height=700;MinimumSize=new Size(760,620);StartPosition=FormStartPosition.CenterScreen;FormBorderStyle=FormBorderStyle.Sizable;MaximizeBox=true;MinimizeBox=false;AutoScaleMode=AutoScaleMode.Dpi;KeyPreview=true;
-            TabControl tabs=new TabControl();tabs.Dock=DockStyle.Fill;Controls.Add(tabs);
+            TabControl tabs=new TabControl();tabsControl=tabs;tabs.Dock=DockStyle.Fill;Controls.Add(tabs);
             TabPage display=new TabPage("Display"), metrics=new TabPage("Metrics"), hardware=new TabPage("Hardware"), units=new TabPage("Units"), behavior=new TabPage("Behavior"), updates=new TabPage("Updates"), advanced=new TabPage("Advanced");
             tabs.TabPages.Add(display);tabs.TabPages.Add(metrics);tabs.TabPages.Add(hardware);tabs.TabPages.Add(units);tabs.TabPages.Add(behavior);tabs.TabPages.Add(updates);tabs.TabPages.Add(advanced);
             foreach(TabPage page in tabs.TabPages){page.AutoScroll=true;page.Padding=new Padding(4);}
@@ -4962,11 +5077,25 @@ namespace TaskbarMonitorEnhanced
             openRelease=new Button();openRelease.Text="Open release page";openRelease.Location=new Point(362,196);openRelease.Size=new Size(145,34);openRelease.Enabled=false;openRelease.Click+=delegate{OpenReleasePage();};updates.Controls.Add(openRelease);
             Label updateNote=new Label();updateNote.Location=new Point(24,250);updateNote.Size=new Size(660,150);updateNote.Text="Updates are read from the official GOD13emad/TaskbarMonitorEnhanced GitHub Releases feed. Automatic installation is allowed only when the release contains a TaskbarMonitorEnhanced_Setup_*.exe asset and GitHub supplies a SHA-256 digest. The downloaded installer is verified before Windows is asked to launch it.";updates.Controls.Add(updateNote);
             Button openLog=new Button();openLog.Text="Open Logs";openLog.Location=new Point(24,28);openLog.Width=120;openLog.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Logs);}catch{}};advanced.Controls.Add(openLog);
-            Label note=new Label();note.AutoSize=false;note.Location=new Point(24,80);note.Size=new Size(660,300);note.Text="v1.1.1 — stability hardening: external NVIDIA-SMI polling is disabled by default to prevent console-process churn; WDDM + LibreHardwareMonitor remain the normal GPU path. Shell watchdog/style checks are slower and the heavy Safe Placement UI-Automation scan is removed from the watchdog hot path and throttled in normal refresh.\r\n\r\nAll v1.1.0 multi-hardware telemetry, disk throughput/temperature, hover details and GitHub update verification remain available.\r\n\r\nDiagnostic opt-in only: set TBME_ENABLE_NVIDIA_SMI=1 before launch.";advanced.Controls.Add(note);
-            FlowLayoutPanel buttons=new FlowLayoutPanel();buttons.Dock=DockStyle.Bottom;buttons.Height=45;buttons.FlowDirection=FlowDirection.RightToLeft;Controls.Add(buttons);Button ok=new Button();ok.Text="Save & Apply";ok.Width=105;ok.Click+=delegate{Apply();DialogResult=DialogResult.OK;Close();};Button cancel=new Button();cancel.Text="Cancel";cancel.Width=90;cancel.DialogResult=DialogResult.Cancel;buttons.Controls.Add(ok);buttons.Controls.Add(cancel);AcceptButton=ok;CancelButton=cancel;
+            Label note=new Label();note.AutoSize=false;note.Location=new Point(24,80);note.Size=new Size(660,300);note.Text="v1.1.1 — R18 low-pressure shell integration + single-instance Settings + retained telemetry/update features.\r\n\r\nDisk cards show live physical-disk read/write speed. Hover shows each detected disk model, read/write throughput, temperature, volume list, used/total capacity and activity.\r\n\r\nDisplay modes: Overall = system/all devices, Auto = highest active device, Single = one selected device, Multiple = all checked devices. Hover details are available even when only one device is detected.\r\n\r\nUpdate checks use the official GitHub Releases API and SHA-256 asset digest verification before installer launch.";advanced.Controls.Add(note);
+            FlowLayoutPanel buttons=new FlowLayoutPanel();buttons.Dock=DockStyle.Bottom;buttons.Height=45;buttons.FlowDirection=FlowDirection.RightToLeft;Controls.Add(buttons);Button ok=new Button();ok.Text="Save & Apply";ok.Width=105;ok.Click+=delegate{Apply();DialogResult=DialogResult.OK;Close();};Button cancel=new Button();cancel.Text="Cancel";cancel.Width=90;cancel.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};buttons.Controls.Add(ok);buttons.Controls.Add(cancel);AcceptButton=ok;CancelButton=cancel;
             if(!String.IsNullOrWhiteSpace(initialTab))foreach(TabPage tp in tabs.TabPages)if(String.Equals(tp.Text,initialTab,StringComparison.OrdinalIgnoreCase)){tabs.SelectedTab=tp;break;}
             Shown+=delegate{if(c.AutoCheckUpdates||String.Equals(initialTab,"Updates",StringComparison.OrdinalIgnoreCase))BeginCheckUpdates();};
         }
+
+        public void SelectTab(string tabName)
+        {
+            if(String.IsNullOrWhiteSpace(tabName)||tabsControl==null)return;
+            foreach(TabPage tp in tabsControl.TabPages)
+            {
+                if(String.Equals(tp.Text,tabName,StringComparison.OrdinalIgnoreCase))
+                {
+                    tabsControl.SelectedTab=tp;
+                    return;
+                }
+            }
+        }
+
         private void Ui(Action action)
         {
             try{if(IsDisposed||Disposing)return;if(InvokeRequired)BeginInvoke((MethodInvoker)delegate{if(!IsDisposed&&!Disposing)action();});else action();}catch{}
@@ -5824,10 +5953,6 @@ namespace TaskbarMonitorEnhanced
                 if(multi.MemoryUnit!="KB"||multi.StorageUnit!="MB"||multi.DiskRateUnit!="KB"||multi.NetworkUnit!="GB")throw new Exception("unit selection normalize");if(UpdateManager.ParseVersionString("v1.2.3").CompareTo(new Version(1,2,3,0))!=0)throw new Exception("update version parser");
                 foreach(string n in expected)if(ThemeCatalog.Get(n)==null)throw new Exception("theme lookup " + n);
                 if(BuildInfo.HistoryLength!=60)throw new Exception("history length");
-                if(BuildInfo.ShellWatchdogIntervalMs<200)throw new Exception("shell watchdog interval");
-                if(BuildInfo.ShellStyleIntegrityIntervalMs<1000)throw new Exception("shell style integrity interval");
-                if(BuildInfo.PlacementRefreshIntervalMs<3000)throw new Exception("placement refresh interval");
-                if(BuildInfo.ExternalNvidiaSmiPollingDefault)throw new Exception("nvidia-smi polling default");
                 uint taskbarCreated=Native.RegisterWindowMessage("TaskbarCreated");
                 if(taskbarCreated==0)throw new Exception("TaskbarCreated message registration");
                 if(!ShellUi.IsStartShellProcessName("SearchHost"))throw new Exception("SearchHost detector");
@@ -5835,10 +5960,10 @@ namespace TaskbarMonitorEnhanced
                 if(!ShellUi.IsStartShellProcessName("SearchHost"))throw new Exception("SearchHost detector");
                 long recipe=Native.WS_EX_CONTROLPARENT|Native.WS_EX_LAYERED|Native.WS_EX_COMPOSITED|Native.WS_EX_TOOLWINDOW|Native.WS_EX_NOACTIVATE;
                 if(recipe!=0x0A090080L)throw new Exception("R07 interactive noactivate exstyle recipe");
-                Console.WriteLine("TBME_V1_1_1_STABILITY_HARDENING_R02_SELFTEST=PASS PUBLIC_VERSION=1.1.1 NVIDIA_SMI_DEFAULT=OFF NVIDIA_SMI_DIAGNOSTIC_OPTIN=TRUE SHELL_WATCHDOG_MS=250 SHELL_STYLE_CHECK_MS=2000 PLACEMENT_REFRESH_MS=5000 WATCHDOG_UIA_SCAN=FALSE MULTI_HARDWARE=TRUE DISK_TEMPERATURE=TRUE IN_APP_GITHUB_UPDATE=TRUE WDDM_GPU=TRUE LHM_GPU=TRUE RECOVERY_HOST_CONTEXT=TRUE STYLE_SELF_HEAL=TRUE");
+                Console.WriteLine("TBME_V1_1_1_R18_STABLE_SELFTEST=PASS PUBLIC_VERSION=1.1.1 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE THEMES=14 WIDTH=1100 HISTORY=60 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=TRUE LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE CREATEPARAMS_NOACTIVATE=TRUE");
                 return 0;
             }
-            catch(Exception ex){Console.Error.WriteLine("TBME_V1_1_1_STABILITY_HARDENING_R02_SELFTEST=FAIL " + ex);return 2;}
+            catch(Exception ex){Console.Error.WriteLine("TBME_V1_1_1_R18_STABLE_SELFTEST=FAIL " + ex);return 2;}
         }
 
         public static int RunJson(string outputPath)
@@ -5859,11 +5984,6 @@ namespace TaskbarMonitorEnhanced
                 m["NumericStorage"]=true;
                 m["IndependentUpwardHardwareFlyout"]=true;m["HoverDetailsForSingleDevice"]=true;m["DiskReadWriteThroughput"]=true;m["DiskTemperature"]=true;m["DiskCapacityInHover"]=true;m["InAppGitHubUpdates"]=true;m["UpdateRequiresGitHubSha256Digest"]=true;m["AsyncTelemetryUiIsolation"]=true;m["ImmediateHoverEnter"]=true;m["ResizableScrollableSettings"]=true;m["DetailedHardwareFlyout"]=true;m["ClockAndBusTelemetry"]=true;
                 m["HardwareSelection"]=new string[]{"CPU","GPU","Disk","Network"};
-                m["ExternalNvidiaSmiPollingDefault"]=BuildInfo.ExternalNvidiaSmiPollingDefault;
-                m["ShellWatchdogIntervalMs"]=BuildInfo.ShellWatchdogIntervalMs;
-                m["ShellStyleIntegrityIntervalMs"]=BuildInfo.ShellStyleIntegrityIntervalMs;
-                m["PlacementRefreshIntervalMs"]=BuildInfo.PlacementRefreshIntervalMs;
-                m["WatchdogPerformsUiAutomationPlacementScan"]=false;
                 m["UnsupportedTemperatureBehavior"]="N/A";
                 File.WriteAllText(outputPath,new JavaScriptSerializer().Serialize(m),Encoding.UTF8);
             }
@@ -5891,7 +6011,7 @@ namespace TaskbarMonitorEnhanced
         {
             config=c;
             timer=new System.Windows.Forms.Timer();
-            timer.Interval=250;
+            timer.Interval=1000;
             timer.Tick+=delegate{TickHost();};
 
             Log.Write("INFO","HOST_CONTEXT_START version="+BuildInfo.Version+" pid="+Process.GetCurrentProcess().Id);

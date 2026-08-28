@@ -1,43 +1,55 @@
 {
-  "Status": "PASS_LOCAL_PACKAGING_READY_FOR_GITHUB",
+  "Status": "PASS_LOCAL_PACKAGING_READY_FOR_STABLE_LATEST",
   "Version": "1.1.1",
+  "ReleaseChannel": "STABLE_LATEST",
+  "PreviousStableRelease": "v1.1.0",
   "Repository": "GOD13emad/TaskbarMonitorEnhanced",
-  "AuthorityRevision": "TBME_V1_1_1_STABILITY_HARDENING_R06",
-  "AuthorityReturnSHA256": "D8679AE49C294CDF3C6F05A85F4468C5CB1495B341C26D7B0A88C940E297D18C",
+  "AuthorityRevision": "TBME_STABLE_CHILD_LOW_PRESSURE_AND_SETTINGS_R18",
+  "AuthorityReturnSHA256": "38E129A1AD6397E0747CD28F463BDF706549C5625EF4F382F2E7D4D1F8195453",
+  "AuthorityR18": {
+    "SourceSHA256": "66A82CC7A0899ED5C6A216C99DCBE6B601AB3B7A6465B90C75D0801B62736CA5",
+    "ExeSHA256": "854CDA360A65E9E4FD7287AD6DA8B927188DF55C4DCCC1092B9F36EA9C696DFA",
+    "Status": "PASS_R18_LOW_PRESSURE_CHILD_CANDIDATE_RETAINED",
+    "Qualification": "SHORT_ACCEPTANCE_ONLY_NOT_LONG_TERM_STABILITY"
+  },
+  "ReleaseMain": {
+    "ExeSHA256": "408D5DFA73871579A3FF46F9D681BE78B9AF882CFE569D0750260ACA5694D139",
+    "SourceSHA256": "DEE536DC038872C85CEDD7ED3C4C7CA8793C68AED0262B9944936B402D9E90F6",
+    "FileVersion": "1.1.1.0",
+    "FunctionalBase": "Exact accepted R18 logic with stable v1.1.1 release identity"
+  },
   "Setup": {
     "Name": "TaskbarMonitorEnhanced_Setup_1.1.1.exe",
-    "SHA256": "DEC349FF188EA73BF7AA991110B9534851ED3F017B536D3F9DC24C286FBCEF1B",
-    "Bytes": 10834432,
+    "SHA256": "225AED99D44AC74AA899B7FA3F5B923692EE2FE088E342FE88711E335BACC926",
+    "Bytes": 10841088,
     "FileVersion": "1.1.1.0"
   },
   "Source": {
     "Name": "TaskbarMonitorEnhanced_1.1.1_SOURCE.zip",
-    "SHA256": "BAF407D5B41395F8A9BCAC3BDBB27C26A522C18CC89CFF0A3D40669D50C86FDA",
-    "Bytes": 9847441
-  },
-  "AcceptedMain": {
-    "ExeSHA256": "D2112BCB9C14D3916CD888449101701F4EC3E3FFF61EE2C83C7BB6DD97840CB4",
-    "SourceSHA256": "125E48D3054025AA98F2E1459060E1BAEF7B99548A6C771FB99C99600BD84BBA",
-    "FileVersion": "1.1.1.0"
+    "SHA256": "1AD9D0DE10C5879ABB1786711000A998A570627EA444250C59BC3083DF3F5A11",
+    "Bytes": 9846512
   },
   "Stability": {
-    "ExternalNvidiaSmiPollingDefault": false,
-    "ShellWatchdogMs": 250,
-    "StyleIntegrityMs": 2000,
-    "PlacementRefreshMs": 5000,
-    "WatchdogUiAutomationPlacementScan": false
+    "ShellMode": "StableLowPressureTaskbarChild",
+    "WatchdogMs": 500,
+    "HostPollMs": 1000,
+    "StyleHealthMs": 5000,
+    "PlacementHealthMs": 5000,
+    "SettingsMode": "SingleInstance",
+    "NvidiaSmiPolling": "R15 suppression retained"
   },
   "Acceptance": {
     "UserVerdict": "PASS",
     "ExplorerPidStable": true,
-    "ExplorerRelevantEvents": 0,
-    "RollbackRequired": false
+    "ExplorerEvent1000": 0,
+    "ExplorerEvent1002": 0,
+    "LongTermStability": "UNPROVEN"
   },
-  "Verification": {
-    "SetupVerifyExit": "PASS_0",
-    "EmbeddedResources": "PASS_19_OF_19",
-    "UnchangedSensorAndThirdPartyResources": "PASS",
-    "CorrespondingSourceMainSHA256": "125E48D3054025AA98F2E1459060E1BAEF7B99548A6C771FB99C99600BD84BBA"
+  "Publication": {
+    "DraftId": 376881112,
+    "Prerelease": false,
+    "Latest": true,
+    "MainBranchMutation": false
   },
-  "At": "2026-08-26T08:00:16.5470966+03:30"
+  "At": "2026-08-29T01:47:17.4697387+03:30"
 }

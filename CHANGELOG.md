@@ -1,17 +1,15 @@
 # Changelog
 
-## 1.1.1
+## 1.1.1 — Stable (R18)
 
-Stability-hardening release.
-
-- disable external NVIDIA-SMI polling by default in the realtime GPU path
-- keep WDDM + LibreHardwareMonitor as normal GPU telemetry
-- retain explicit diagnostic NVIDIA-SMI opt-in
-- reduce shell watchdog/style-check frequency
-- remove heavy Safe Placement UI-Automation scanning from the watchdog hot path
-- throttle normal placement reevaluation
-- preserve v1.1.0 telemetry, recovery, configuration and SHA-256-verified update features
-- local R06 build/self-test/runtime/user acceptance: PASS
+- retain R15 removal of default NVIDIA-SMI realtime polling
+- restore native taskbar-child visual behavior while reducing shell pressure
+- watchdog 500 ms; host poll 1000 ms
+- style and placement health 5000 ms
+- Safe Placement UI Automation moved out of the continuous hot path
+- Settings is single-instance and repeated clicks reuse the existing window
+- R18 short acceptance: PASS; Explorer PID stable; Event 1000/1002 = 0
+- released as Stable/Latest after accepted R18 validation
 ## 1.0.2
 
 Release-hardening and AMD GPU-temperature release.

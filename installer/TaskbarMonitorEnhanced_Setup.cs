@@ -155,7 +155,7 @@ internal static class SetupProgram
           "  \"App\": \"Taskbar Monitor Enhanced\",\r\n"+
           "  \"Version\": \"PUBLIC_1.1.1\",\r\n"+
           "  \"PublicVersion\": \"1.1.1\",\r\n"+
-          "  \"InternalRuntimeBaseline\": \"V1_1_1_STABILITY_HARDENING_R06_LOCAL_ACCEPTED\",\r\n"+
+          "  \"InternalRuntimeBaseline\": \"V1_1_1_R18_LOW_PRESSURE_CHILD_STABLE_ACCEPTED\",\r\n"+
           "  \"SensorSupervisor\": \"V1_0_2_SUPERVISOR_ACCEPTED_UNCHANGED\",\r\n"+
           "  \"ProductIdentity\": \"LOCKED\",\r\n"+
           "  \"ShortcutName\": \"Taskbar Monitor Enhanced\",\r\n"+
