@@ -267,17 +267,17 @@ internal static class SetupProgram
                   110000);
             }catch(Exception ex){
                 outcome.Status="DEGRADED";
-                outcome.Message="The application installed successfully. The protected CPU sensor did not report ready before Setup finished. "+ex.Message+" It will continue starting in the background; TEMP may briefly show N/A.";
+                outcome.Message="The application installed successfully. The protected sensor supervisor did not report ready before Setup finished. "+ex.Message+" It will continue starting in the background; protected temperature fields may briefly show N/A.";
                 return outcome;
             }
 
             outcome=ReadSensorOutcome();
             if(helperExit==124 && String.Equals(outcome.Status,"UNKNOWN",StringComparison.OrdinalIgnoreCase)){
                 outcome.Status="DEGRADED";
-                outcome.Message="The application installed successfully. The hardware sensor step exceeded the Setup readiness window, but the supervisor will continue in the background. TEMP may briefly show N/A.";
+                outcome.Message="The application installed successfully. The protected sensor step exceeded the Setup readiness window, but the supervisor will continue in the background. CPU/GPU/storage temperature fields may briefly show N/A.";
             }else if(helperExit!=0 && String.Equals(outcome.Status,"UNKNOWN",StringComparison.OrdinalIgnoreCase)){
                 outcome.Status="DEGRADED";
-                outcome.Message="The application installed successfully. The hardware sensor helper returned exit code "+helperExit+". The monitor will continue without blocking; use Repair Hardware Sensors only if CPU TEMP remains unavailable.";
+                outcome.Message="The application installed successfully. The protected sensor helper returned exit code "+helperExit+". The monitor will continue without blocking; use Repair Hardware Sensors if protected CPU/GPU/storage telemetry remains unavailable.";
             }
             return outcome;
         }finally{
@@ -463,7 +463,7 @@ internal static class SetupProgram
             TextBox info=new TextBox();
             info.Left=30;info.Top=116;info.Width=530;info.Height=140;
             info.Multiline=true;info.ReadOnly=true;info.ScrollBars=ScrollBars.Vertical;
-            info.Text="Live CPU, RAM, disk, GPU, VRAM, network and temperature telemetry integrated into the Windows taskbar.\r\n\r\nThe main application runs without elevation. Windows requests administrator approval only for the optional protected hardware-sensor service. If the CPU sensor cannot be activated, installation still completes and CPU temperature shows N/A.\r\n\r\nSource code, GPL license, upstream attribution and third-party notices are installed with the application.";
+            info.Text="Live CPU, RAM, disk, GPU, VRAM, network and temperature telemetry integrated into the Windows taskbar.\r\n\r\nThe main application runs without elevation. Windows requests administrator approval only for the optional protected hardware-sensor service. If protected sensors cannot be activated, installation still completes and unavailable temperature fields show N/A.\r\n\r\nSource code, GPL license, upstream attribution and third-party notices are installed with the application.";
             Controls.Add(info);
 
             desktop=new CheckBox();desktop.Text="Create Desktop shortcut";desktop.Checked=true;
@@ -480,7 +480,7 @@ internal static class SetupProgram
             install=new Button();install.Text="Install";install.Left=460;install.Top=326;install.Width=100;install.Height=38;
             install.Click+=delegate{
                 install.Enabled=false;desktop.Enabled=false;startup.Enabled=false;progress.Visible=true;
-                status.Text="Installing application and optional CPU sensor support…";
+                status.Text="Installing application and protected hardware-sensor support…";
                 Application.DoEvents();
                 try{
                     SensorOutcome outcome=Install(desktop.Checked,startup.Checked);
@@ -491,7 +491,7 @@ internal static class SetupProgram
                           "Setup complete",MessageBoxButtons.OK,MessageBoxIcon.Information);
                     }else{
                         string extra=outcome.RebootRequired ? "\r\n\r\nRestart Windows, then use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors if needed." :
-                          "\r\n\r\nThe application is installed and usable. The sensor supervisor continues in the background. If CPU TEMP is still N/A after a short wait or restart, use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors.";
+                          "\r\n\r\nThe application is installed and usable. The sensor supervisor continues in the background. If protected CPU/GPU/storage telemetry is still unavailable after a short wait or restart, use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors.";
                         MessageBox.Show(Product+" 1.1.2-rc2 was installed successfully.\r\n\r\n"+outcome.Message+extra,
                           "Setup complete - sensor warning",MessageBoxButtons.OK,MessageBoxIcon.Warning);
                     }
