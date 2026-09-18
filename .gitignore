@@ -48,3 +48,4 @@ build/_package/
 artifacts/
 r21_perf_canary/
 r21_supply_chain/
+r21_preinstall_backup_*/

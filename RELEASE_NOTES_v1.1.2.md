@@ -25,6 +25,8 @@ Release-candidate engineering build focused on long-run stability, lower telemet
 
 - Added --healthprobe <json> for machine-readable supervisor and broker freshness/transport checks.
 - Added an explicit Repair protected sensors action in Diagnostics; elevation is requested only after user confirmation.
+- Bounded the administrator-consent launch itself: if UAC/ShellExecute does not complete within 30 seconds, Setup continues as a clearly marked DEGRADED install instead of remaining half-installed indefinitely.
+- install_state.json records SensorLayerStatus so a degraded/mixed sensor layer cannot be mistaken for a fully healthy R21 installation.
 - Added a Diagnostics tab and taskbar-menu shortcut.
 - Diagnostics show runtime paths, sensor supervisor state, telemetry freshness, build identity, and current hardware availability.
 - Diagnostic reports can be saved as text for support/auditing.

@@ -94,19 +94,43 @@ internal static class SetupProgram
         psi.Arguments="-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \""+helper+"\" "+args;
         psi.UseShellExecute=true;
         psi.Verb="runas";
-        Process p=Process.Start(psi);
-        if(p==null)throw new InvalidOperationException("Could not start protected-sensor helper.");
 
-        DateTime deadline=DateTime.UtcNow.AddMilliseconds(timeoutMs);
-        while(!p.HasExited && DateTime.UtcNow<deadline){
+        Process elevated=null;
+        Exception launchError=null;
+        ManualResetEvent launchFinished=new ManualResetEvent(false);
+        Thread launchThread=new Thread(new ThreadStart(delegate{
+            try{elevated=Process.Start(psi);}
+            catch(Exception ex){launchError=ex;}
+            finally{try{launchFinished.Set();}catch{}}
+        }));
+        launchThread.IsBackground=true;
+        try{launchThread.SetApartmentState(ApartmentState.STA);}catch{}
+
+        DateTime overallDeadline=DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        launchThread.Start();
+
+        int launchBudget=Math.Min(30000,Math.Max(1000,timeoutMs));
+        DateTime launchDeadline=DateTime.UtcNow.AddMilliseconds(launchBudget);
+        while(!launchFinished.WaitOne(100) && DateTime.UtcNow<launchDeadline)
+            Application.DoEvents();
+
+        if(!launchFinished.WaitOne(0))
+            return 125;
+
+        if(launchError!=null)
+            throw new InvalidOperationException("Could not start protected-sensor helper.",launchError);
+        if(elevated==null)
+            throw new InvalidOperationException("Could not start protected-sensor helper.");
+
+        while(!elevated.HasExited && DateTime.UtcNow<overallDeadline){
             Application.DoEvents();
             Thread.Sleep(100);
         }
-        if(!p.HasExited){
-            try{p.Kill();}catch{}
+        if(!elevated.HasExited){
+            try{elevated.Kill();}catch{}
             return 124;
         }
-        return p.ExitCode;
+        return elevated.ExitCode;
     }
 
     static void Shortcut(string path,string target)
@@ -165,14 +189,16 @@ internal static class SetupProgram
         File.WriteAllText(Path.Combine(AppRoot,"sensor_backend_state.json"),json,Encoding.UTF8);
     }
 
-    static void WriteInstallState()
+    static void WriteInstallState(SensorOutcome sensorOutcome)
     {
+        string sensorStatus=sensorOutcome==null?"UNKNOWN":(sensorOutcome.Status??"UNKNOWN");
         string json="{\r\n"+
           "  \"App\": \"Taskbar Monitor Enhanced\",\r\n"+
           "  \"Version\": \"RC_1.1.2_R21\",\r\n"+
           "  \"PublicVersion\": \"1.1.2-rc2\",\r\n"+
           "  \"InternalRuntimeBaseline\": \"V1_1_2_R21_PRODUCTION_HARDENING_RC2\",\r\n"+
           "  \"SensorSupervisor\": \"V1_1_2_R21_STAGGERED_HEALTH_SUPERVISOR\",\r\n"+
+          "  \"SensorLayerStatus\": \""+sensorStatus.Replace("\\","\\\\").Replace("\"","\\\"")+"\",\r\n"+
           "  \"ProductIdentity\": \"LOCKED\",\r\n"+
           "  \"ShortcutName\": \"Taskbar Monitor Enhanced\",\r\n"+
           "  \"Publisher\": \"Dr. Ali-Akbar Emadeddin\",\r\n"+
@@ -272,7 +298,10 @@ internal static class SetupProgram
             }
 
             outcome=ReadSensorOutcome();
-            if(helperExit==124 && String.Equals(outcome.Status,"UNKNOWN",StringComparison.OrdinalIgnoreCase)){
+            if(helperExit==125 && String.Equals(outcome.Status,"UNKNOWN",StringComparison.OrdinalIgnoreCase)){
+                outcome.Status="DEGRADED";
+                outcome.Message="The application installed successfully, but the Windows administrator-consent launch did not complete within 30 seconds. Protected CPU/GPU/storage telemetry remains degraded until Repair Hardware Sensors succeeds.";
+            }else if(helperExit==124 && String.Equals(outcome.Status,"UNKNOWN",StringComparison.OrdinalIgnoreCase)){
                 outcome.Status="DEGRADED";
                 outcome.Message="The application installed successfully. The protected sensor step exceeded the Setup readiness window, but the supervisor will continue in the background. CPU/GPU/storage temperature fields may briefly show N/A.";
             }else if(helperExit!=0 && String.Equals(outcome.Status,"UNKNOWN",StringComparison.OrdinalIgnoreCase)){
@@ -358,7 +387,7 @@ internal static class SetupProgram
             key.SetValue("NoRepair",1,RegistryValueKind.DWord);
         }
 
-        WriteInstallState();
+        WriteInstallState(sensorOutcome);
         Process.Start(AppExe);
         return sensorOutcome;
     }
