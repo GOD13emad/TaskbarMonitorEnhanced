@@ -2,7 +2,7 @@
   "Version": "1.1.2-rc2",
   "Status": "RELEASE_CANDIDATE_NOT_STABLE",
   "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC2",
-  "BinarySourceAuthorityCommit": "11cc2c7",
+  "BinarySourceAuthorityCommit": "9ea1886",
   "Dependencies": {
     "LibreHardwareMonitor": {
       "Version": "0.9.6",
@@ -33,8 +33,8 @@
     },
     {
       "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc2.exe",
-      "Bytes": 10898432,
-      "SHA256": "B0EA0BAF113BE7621B67B4C566AB4B322532B840E34AEA77A662EFE285523675"
+      "Bytes": 10898944,
+      "SHA256": "1FEF2C2380EC9114FB58B4082B3FF7EDB1246D371264F3443DB5356A8EE2AD08"
     }
   ],
   "Reproducibility": {
