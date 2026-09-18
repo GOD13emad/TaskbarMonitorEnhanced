@@ -20,6 +20,29 @@ v1.1.1 includes:
 
 Accepted assets and hashes are published in `SHA256SUMS_v1.1.1.txt` and `RELEASE_MANIFEST_v1.1.1.json`.
 
+
+## Development candidate: v1.1.2-rc2 (R21)
+
+v1.1.2-rc2 is an engineering release candidate, not the current Stable/Latest release. It remains blocked from public promotion until the final elevated R21 sensor-supervisor installation gate and installed soak are accepted.
+
+R21 adds:
+
+- process-isolated CPU, GPU and storage hardware-sensor workers
+- staggered worker startup, bounded exponential backoff and restart-storm containment
+- transport health separated from sensor-data availability
+- power-aware suspend/resume telemetry reset and native-worker recycling
+- Windows GetSystemTimes CPU usage sampling and cached CPU/network topology
+- fallback-only WDDM GPU polling and throttled CPU-temperature WMI/ACPI fallbacks
+- stale-temperature invalidation instead of presenting old data as current
+- Diagnostics UI with saveable support reports and protected-sensor repair action
+- a --healthprobe JSON command for machine-readable sensor-supervisor health
+- automatic update installation gated by both GitHub SHA-256 asset metadata and immutable GitHub Releases
+- installer task policy hardened to RestartCount=3 and MultipleInstances=IgnoreNew
+
+Current R21 engineering evidence includes zero-warning builds for the main app, broker, supervisor and setup; self-test PASS; all 14 full-width themes PASS; 14 themes at 592 px and 500 px with zero layout overflow; process-isolation fault injection PASS; a taskbar runtime canary with 24/24 stable direct-child geometry samples; live CPU/GPU/disk/network probes; isolated RTX 3080 telemetry including GPU temperature; and elevated evidence of three valid storage-temperature sensors on the validation machine.
+
+See docs/R21_ACCEPTANCE_STATUS.md and RELEASE_NOTES_v1.1.2.md.
+
 ## Code signing status
 
 The published 1.1.1 installer is **not Authenticode-signed**, so Windows Defender SmartScreen may show **Unknown publisher** on first launch.

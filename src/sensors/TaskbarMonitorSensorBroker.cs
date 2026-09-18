@@ -14,7 +14,7 @@ using LibreHardwareMonitor.Hardware;
 [assembly: AssemblyDescription("Isolated LibreHardwareMonitor sensor worker for Taskbar Monitor Enhanced")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.1.2-rc1+r20")]
+[assembly: AssemblyInformationalVersion("1.1.2-rc2+r21")]
 [assembly: AssemblyVersion("1.1.2.0")]
 [assembly: AssemblyFileVersion("1.1.2.0")]
 
@@ -53,6 +53,7 @@ namespace TaskbarMonitorSensorBroker
 
     internal static class Program
     {
+        private static long SampleSequence=0;
         private static string LogPath
         {
             get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"sensor_broker.log"); }
@@ -221,7 +222,7 @@ namespace TaskbarMonitorSensorBroker
                     {"CpuTemperatureSensors",raw.ToArray()},
                     {"BrokerPid",Process.GetCurrentProcess().Id},
                     {"BrokerMode","CPU"},
-                    {"BrokerVersion","1.1.2-rc1+r20"}
+                    {"BrokerVersion","1.1.2-rc2+r21"}
                 };
             }
             catch(Exception ex)
@@ -236,7 +237,7 @@ namespace TaskbarMonitorSensorBroker
                     {"CpuTemperatureSensors",raw.ToArray()},
                     {"BrokerPid",Process.GetCurrentProcess().Id},
                     {"BrokerMode","CPU"},
-                    {"BrokerVersion","1.1.2-rc1+r20"}
+                    {"BrokerVersion","1.1.2-rc2+r21"}
                 };
             }
         }
@@ -305,7 +306,7 @@ namespace TaskbarMonitorSensorBroker
                 {"StorageTemperatures",records.ToArray()},
                 {"BrokerPid",Process.GetCurrentProcess().Id},
                 {"BrokerMode","STORAGE_ONESHOT"},
-                {"BrokerVersion","1.1.2-rc1+r20"}
+                {"BrokerVersion","1.1.2-rc2+r21"}
             };
         }
 
@@ -390,6 +391,7 @@ namespace TaskbarMonitorSensorBroker
                     g.HardwareName=hw.Name??"";
                     g.HardwareId=hw.Identifier.ToString();
                     g.AdapterIndex=adapterIndex++;
+                    g.PcieGeneration=0;g.PcieWidth=0;
                     if(loads.Count>0)
                     {
                         Tuple<string,float> best=loads.OrderByDescending(x=>LoadPriority(x.Item1)).ThenByDescending(x=>x.Item2).First();
@@ -433,7 +435,7 @@ namespace TaskbarMonitorSensorBroker
                 {"Gpus",gpuJson.ToArray()},
                 {"BrokerPid",Process.GetCurrentProcess().Id},
                 {"BrokerMode","GPU"},
-                {"BrokerVersion","1.1.2-rc1+r20"}
+                {"BrokerVersion","1.1.2-rc2+r21"}
             };
         }
 
@@ -455,7 +457,12 @@ namespace TaskbarMonitorSensorBroker
                 computer.Open();
                 while(true)
                 {
+                    Stopwatch sw=Stopwatch.StartNew();
                     Dictionary<string,object> m=mode=="CPU"?ReadCpu(computer):ReadGpu(computer);
+                    sw.Stop();
+                    m["Sequence"]=Interlocked.Increment(ref SampleSequence);
+                    m["ReadDurationMs"]=sw.ElapsedMilliseconds;
+                    m["GeneratedBy"]="TBME_R21_ISOLATED_BROKER";
                     AtomicWrite(output,Json(m));
                     Thread.Sleep(sleepMs);
                 }
@@ -473,10 +480,15 @@ namespace TaskbarMonitorSensorBroker
             try
             {
                 computer.Open();
+                Stopwatch sw=Stopwatch.StartNew();
                 Dictionary<string,object> m;
                 if(mode=="CPU")m=ReadCpu(computer);
                 else if(mode=="GPU")m=ReadGpu(computer);
                 else m=ReadStorage(computer);
+                sw.Stop();
+                m["Sequence"]=Interlocked.Increment(ref SampleSequence);
+                m["ReadDurationMs"]=sw.ElapsedMilliseconds;
+                m["GeneratedBy"]="TBME_R21_ISOLATED_BROKER";
                 AtomicWrite(output,Json(m));
             }
             finally
@@ -495,7 +507,7 @@ namespace TaskbarMonitorSensorBroker
                     {"TimestampUtc",DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture)},
                     {"Available",false},{"Error",ex.ToString()},
                     {"Is64BitProcess",Environment.Is64BitProcess},{"IsElevated",IsElevated()},
-                    {"BrokerPid",Process.GetCurrentProcess().Id},{"BrokerMode",mode},{"BrokerVersion","1.1.2-rc1+r20"}
+                    {"BrokerPid",Process.GetCurrentProcess().Id},{"BrokerMode",mode},{"BrokerVersion","1.1.2-rc2+r21"}
                 }));
             }
             catch{}
@@ -509,8 +521,8 @@ namespace TaskbarMonitorSensorBroker
             Environment.CurrentDirectory=AppDomain.CurrentDomain.BaseDirectory;
             try
             {
-                if(mode=="--run"||mode=="--run-cpu")return RunPersistent("CPU",output,900);
-                if(mode=="--run-gpu")return RunPersistent("GPU",output,1800);
+                if(mode=="--run"||mode=="--run-cpu")return RunPersistent("CPU",output,1000);
+                if(mode=="--run-gpu")return RunPersistent("GPU",output,2000);
                 if(mode=="--once"||mode=="--once-cpu")return RunOnce("CPU",output);
                 if(mode=="--once-gpu")return RunOnce("GPU",output);
                 if(mode=="--once-storage")return RunOnce("STORAGE",output);

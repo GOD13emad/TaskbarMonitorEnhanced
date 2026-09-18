@@ -2,21 +2,30 @@
 
 This folder contains the custom Windows installer source used by Taskbar Monitor Enhanced.
 
-For 1.0.2 the installer was validated through the full release lifecycle on the real AMD laptop:
+## Current public authority
 
-- upgrade installation
-- existing configuration preservation
-- complete uninstall
-- clean installation using the exact same Setup binary
-- target Setup embedded resources: 19/19 PASS
-- rollback Setup embedded resources: 19/19 PASS
-- vendor-neutral CPU temperature readiness
-- AMD Radeon GPU temperature via AMD ADLX 1.1
-- compact and wide 14-theme regression proofs
-- narrow Network DL/UL stacking
-- final 180-second installed runtime campaign with 171 samples and zero geometry drift
-- separate 600-second / 582-sample engineering long-run acceptance
+The current Stable/Latest public release remains v1.1.1.
 
-The exact accepted public hashes and lifecycle evidence are recorded in `../docs/FINAL_ACCEPTANCE_v1.0.2.md`.
+## R21 candidate
 
-The main application remains non-elevated. Administrator approval is used only for the protected hardware-sensor layer. PawnIO is intentionally retained on uninstall because another hardware-monitoring application may depend on it.
+The installer source in this branch targets v1.1.2-rc2 / R21 Production Hardening. It is a release candidate and must not be promoted to Stable until the elevated split-supervisor installation and installed soak gates pass.
+
+R21 installer behavior includes:
+
+- non-elevated main application
+- elevation only for the protected hardware-sensor layer
+- independent CPU, GPU and storage sensor workers
+- R21 supervisor health validation across all worker lanes
+- Scheduled Task restart policy limited to three retries
+- MultipleInstances=IgnoreNew
+- fail-closed drain of prior sensor processes before replacement
+- stale split-telemetry cleanup during upgrade
+- pinned LibreHardwareMonitor 0.9.6 and PawnIO 2.2.0 dependency provenance
+- embedded source/license/attribution closure
+- setup /verify resource gate requiring 19 resources
+
+The authoritative reproducible build path is ../build/Build-R21.ps1.
+
+PawnIO is intentionally retained on uninstall because another hardware-monitoring application may depend on it.
+
+See ../docs/R21_ACCEPTANCE_STATUS.md for the current gate status.

@@ -1,3 +1,4 @@
+// TBME_V1_1_2_R21_RC2: production hardening; native CPU usage, cached WMI topology, power-aware telemetry, supervisor diagnostics.
 // TBME_V1_1_2_R20_RC1: LHM native sensor access isolated from the UI process; CPU/GPU/storage failures are independently contained.
 // TBME_V1_1_1_R18_STABLE: low-pressure taskbar-child shell integration + single-instance Settings.
 // TBME_V1_1_0_DISK_TEMP_BROKER_RESTORE_R02: elevated storage temperatures + LHM HardwareId drive-index correlation; shell core unchanged.
@@ -31,7 +32,7 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Live system monitor integrated into the Windows taskbar")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.1.2-rc1+r20")]
+[assembly: AssemblyInformationalVersion("1.1.2-rc2+r21")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
 [assembly: AssemblyVersion("1.1.2.0")]
 [assembly: AssemblyFileVersion("1.1.2.0")]
@@ -40,9 +41,9 @@ namespace TaskbarMonitorEnhanced
 {
     internal static class BuildInfo
     {
-        public const string Version = "V1_1_2_R20_LHM_PROCESS_ISOLATION_RC1";
+        public const string Version = "V1_1_2_R21_PRODUCTION_HARDENING_RC2";
         public const string Product = "Taskbar Monitor Enhanced";
-        public const string PublicVersion = "1.1.2-rc1";
+        public const string PublicVersion = "1.1.2-rc2";
         public const string ShortcutName = "Taskbar Monitor Enhanced";
         public const string ProductDescription = "Live system monitor integrated into the Windows taskbar";
         public const string Author = "Dr. Ali-Akbar Emadeddin";
@@ -65,6 +66,7 @@ namespace TaskbarMonitorEnhanced
         public static readonly string CpuTempBrokerData = Path.Combine(Root, "cpu_temp_broker.json");
         public static readonly string GpuBrokerData = Path.Combine(Root, "gpu_temp_broker.json");
         public static readonly string StorageBrokerData = Path.Combine(Root, "storage_temp_broker.json");
+        public static readonly string SensorSupervisorState = Path.Combine(Root, "sensor_supervisor_state.json");
         public static readonly string Updates = Path.Combine(Root, "Updates");
         public static readonly string Log = Path.Combine(Logs, "tbme_csharp_" + DateTime.Now.ToString("yyyyMMdd") + ".log");
     }
@@ -218,7 +220,7 @@ namespace TaskbarMonitorEnhanced
             if (!ThemeCatalog.Names.Contains(Theme)) Theme = "Dark Minimal Pro";
             if (String.IsNullOrWhiteSpace(Position) || (Position != "Left" && Position != "Center" && Position != "Right")) Position = "Left";
             if (Opacity < 0.55 || Opacity > 1.0) Opacity = 0.97;
-            if (UpdateIntervalMs < 250 || UpdateIntervalMs > 5000) UpdateIntervalMs = 1000;
+            if (UpdateIntervalMs < 1000 || UpdateIntervalMs > 5000) UpdateIntervalMs = 1000;
             if (MinWidthLogicalPx < 900 || MinWidthLogicalPx > 1500) MinWidthLogicalPx = 1100;
             if (MaxWidthLogicalPx < MinWidthLogicalPx) MaxWidthLogicalPx = Math.Max(1400, MinWidthLogicalPx);
             MarginLogicalPx = 0;
@@ -427,7 +429,7 @@ namespace TaskbarMonitorEnhanced
     internal sealed class ReleaseUpdateInfo
     {
         public string Version,Tag,Name,HtmlUrl,SetupName,SetupUrl,SetupDigest,PublishedAt,Status;
-        public bool HasUpdate,SetupAssetAvailable,DigestAvailable;
+        public bool HasUpdate,SetupAssetAvailable,DigestAvailable,Immutable;
     }
 
     internal static class UpdateManager
@@ -464,6 +466,7 @@ namespace TaskbarMonitorEnhanced
             Dictionary<string,object> root=new JavaScriptSerializer().DeserializeObject(json) as Dictionary<string,object>;
             if(root==null)throw new InvalidDataException("GitHub latest-release response is not an object.");
             info.Tag=Text(root,"tag_name");info.Name=Text(root,"name");info.HtmlUrl=Text(root,"html_url");info.PublishedAt=Text(root,"published_at");
+            object immutableObj;if(root.TryGetValue("immutable",out immutableObj)&&immutableObj!=null){try{info.Immutable=Convert.ToBoolean(immutableObj,CultureInfo.InvariantCulture);}catch{}}
             Version latest=ParseVersionString(info.Tag);if(latest.Major==0&&latest.Minor==0&&latest.Build==0)latest=ParseVersionString(info.Name);
             info.Version=latest.Major+"."+latest.Minor+"."+Math.Max(0,latest.Build);
             Version current=ParseVersionString(BuildInfo.PublicVersion);info.HasUpdate=latest.CompareTo(current)>0;
@@ -482,9 +485,15 @@ namespace TaskbarMonitorEnhanced
                 }
                 if(fallback!=null){info.SetupName=Text(fallback,"name");info.SetupUrl=Text(fallback,"browser_download_url");info.SetupDigest=Text(fallback,"digest");info.SetupAssetAvailable=!String.IsNullOrWhiteSpace(info.SetupUrl);info.DigestAvailable=info.SetupDigest.StartsWith("sha256:",StringComparison.OrdinalIgnoreCase)&&info.SetupDigest.Length>20;}
             }
-            if(info.HasUpdate)info.Status=info.SetupAssetAvailable?(info.DigestAvailable?"Update available and verified asset metadata found.":"Update available, but GitHub SHA-256 digest is missing."):"Update available, but installer asset was not found.";
-            else if(latest.CompareTo(current)==0)info.Status="You are running the latest public release.";
-            else info.Status="This build is newer than the latest public release.";
+            if(info.HasUpdate)
+            {
+                if(!info.SetupAssetAvailable)info.Status="Update available, but installer asset was not found.";
+                else if(!info.DigestAvailable)info.Status="Update available, but GitHub SHA-256 digest is missing.";
+                else if(!info.Immutable)info.Status="Update available and SHA-256 metadata is present, but the GitHub Release is mutable. Automatic installation is blocked; use the release page for manual review.";
+                else info.Status="Update available. GitHub Release is immutable and installer SHA-256 metadata is present.";
+            }
+            else if(latest.CompareTo(current)==0)info.Status="You are running the latest public release. Release immutable="+info.Immutable+".";
+            else info.Status="This build is newer than the latest public release. Latest release immutable="+info.Immutable+".";
             return info;
         }
 
@@ -498,6 +507,7 @@ namespace TaskbarMonitorEnhanced
             if(info==null||!info.HasUpdate)throw new InvalidOperationException("No newer public release is selected.");
             if(!info.SetupAssetAvailable)throw new InvalidOperationException("The release does not contain a Taskbar Monitor Enhanced Setup asset.");
             if(!info.DigestAvailable)throw new InvalidOperationException("Automatic installation is blocked because the release asset has no GitHub SHA-256 digest.");
+            if(!info.Immutable)throw new InvalidOperationException("Automatic installation is blocked because the GitHub Release is mutable. Open the release page and review it manually.");
             Uri u=new Uri(info.SetupUrl);if(!String.Equals(u.Scheme,"https",StringComparison.OrdinalIgnoreCase)||!String.Equals(u.Host,"github.com",StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Unexpected update host: "+u.Host);
             Directory.CreateDirectory(AppPaths.Updates);string safe=Path.GetFileName(info.SetupName);if(String.IsNullOrWhiteSpace(safe)||!safe.EndsWith(".exe",StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Invalid update asset name.");string path=Path.Combine(AppPaths.Updates,safe);
             string partial=path+".download";try{if(File.Exists(partial))File.Delete(partial);}catch{}
@@ -1677,6 +1687,9 @@ namespace TaskbarMonitorEnhanced
     internal sealed class CpuTemperatureReader : IDisposable
     {
         private string lastSource="";
+        private DateTime lastFallbackAttemptUtc=DateTime.MinValue;
+        private CpuTemperatureSample lastFallbackSample=new CpuTemperatureSample{Valid=false,Source="UNAVAILABLE"};
+        private DateTime lastBrokerStaleLogUtc=DateTime.MinValue;
 
         public CpuTemperatureSample Read()
         {
@@ -1685,20 +1698,29 @@ namespace TaskbarMonitorEnhanced
             s=ReadElevatedBroker();
             if(s.Valid){LogSource(s.Source,s.SensorCount);return s;}
 
-            // R20: direct LibreHardwareMonitor is intentionally disabled in the UI process.
+            // R21: expensive fallback namespaces are sampled at most every 15 seconds.
+            // The elevated broker remains the immediate/primary source whenever it is fresh.
+            if(lastFallbackAttemptUtc!=DateTime.MinValue&&(DateTime.UtcNow-lastFallbackAttemptUtc).TotalSeconds<15)
+            {
+                if(lastFallbackSample!=null&&lastFallbackSample.Valid)LogSource(lastFallbackSample.Source,lastFallbackSample.SensorCount);
+                else LogSource("UNAVAILABLE",0);
+                return lastFallbackSample??new CpuTemperatureSample{Valid=false,Source="UNAVAILABLE"};
+            }
+            lastFallbackAttemptUtc=DateTime.UtcNow;
 
             s=ReadHardwareMonitorNamespace(@"\\.\root\LibreHardwareMonitor","LIBRE_HARDWARE_MONITOR_WMI");
-            if(s.Valid){LogSource(s.Source,s.SensorCount);return s;}
+            if(s.Valid){lastFallbackSample=s;LogSource(s.Source,s.SensorCount);return s;}
 
             s=ReadHardwareMonitorNamespace(@"\\.\root\OpenHardwareMonitor","OPEN_HARDWARE_MONITOR_WMI");
-            if(s.Valid){LogSource(s.Source,s.SensorCount);return s;}
+            if(s.Valid){lastFallbackSample=s;LogSource(s.Source,s.SensorCount);return s;}
 
             s=ReadAcpi();
-            if(s.Valid){LogSource(s.Source,s.SensorCount);return s;}
+            if(s.Valid){lastFallbackSample=s;LogSource(s.Source,s.SensorCount);return s;}
 
             s=new CpuTemperatureSample();
             s.Valid=false;
             s.Source="UNAVAILABLE";
+            lastFallbackSample=s;
             LogSource(s.Source,0);
             return s;
         }
@@ -1736,7 +1758,11 @@ namespace TaskbarMonitorEnhanced
                 const double brokerFreshnessSeconds=15.0;
                 if(age<0 || age>brokerFreshnessSeconds)
                 {
-                    Log.Write("WARN","CPU_TEMP_BROKER_STALE ageSec="+age.ToString("0.0",CultureInfo.InvariantCulture)+" limitSec="+brokerFreshnessSeconds.ToString("0",CultureInfo.InvariantCulture));
+                    if(lastBrokerStaleLogUtc==DateTime.MinValue||(DateTime.UtcNow-lastBrokerStaleLogUtc).TotalSeconds>=30)
+                    {
+                        lastBrokerStaleLogUtc=DateTime.UtcNow;
+                        Log.Write("WARN","CPU_TEMP_BROKER_STALE ageSec="+age.ToString("0.0",CultureInfo.InvariantCulture)+" limitSec="+brokerFreshnessSeconds.ToString("0",CultureInfo.InvariantCulture));
+                    }
                     return result;
                 }
 
@@ -1955,9 +1981,55 @@ namespace TaskbarMonitorEnhanced
         }
     }
 
+    internal sealed class NativeCpuUsageSampler
+    {
+        [StructLayout(LayoutKind.Sequential)]
+        private struct FILETIME_NATIVE { public uint Low; public uint High; }
+
+        [DllImport("kernel32.dll",SetLastError=true)]
+        [return:MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetSystemTimes(
+            out FILETIME_NATIVE idleTime,
+            out FILETIME_NATIVE kernelTime,
+            out FILETIME_NATIVE userTime
+        );
+
+        private bool hasBaseline;
+        private ulong lastIdle,lastKernel,lastUser;
+
+        private static ulong U64(FILETIME_NATIVE x)
+        {
+            return ((ulong)x.High<<32)|x.Low;
+        }
+
+        public bool TrySample(out float usage)
+        {
+            usage=0;
+            FILETIME_NATIVE idle,kernel,user;
+            if(!GetSystemTimes(out idle,out kernel,out user))return false;
+            ulong i=U64(idle),k=U64(kernel),u=U64(user);
+            if(!hasBaseline)
+            {
+                lastIdle=i;lastKernel=k;lastUser=u;hasBaseline=true;
+                return false;
+            }
+            ulong dk=k>=lastKernel?k-lastKernel:0;
+            ulong du=u>=lastUser?u-lastUser:0;
+            ulong di=i>=lastIdle?i-lastIdle:0;
+            lastIdle=i;lastKernel=k;lastUser=u;
+            ulong total=dk+du;
+            if(total==0)return false;
+            ulong busy=total>=di?total-di:0;
+            usage=(float)Math.Max(0d,Math.Min(100d,busy*100d/total));
+            return true;
+        }
+
+        public void Reset(){hasBaseline=false;lastIdle=lastKernel=lastUser=0;}
+    }
+
     internal sealed class MetricsEngine : IDisposable
     {
-        private PerformanceCounter cpuCounter;
+        private readonly NativeCpuUsageSampler cpuUsageSampler=new NativeCpuUsageSampler();
         private PerformanceCounter cpuFrequencyCounter;
         private PerformanceCounter diskCounter;
         private readonly Dictionary<string,PerformanceCounter> diskActivityCounters=new Dictionary<string,PerformanceCounter>(StringComparer.OrdinalIgnoreCase);
@@ -1965,6 +2037,8 @@ namespace TaskbarMonitorEnhanced
         private readonly Dictionary<string,PerformanceCounter> diskWriteCounters=new Dictionary<string,PerformanceCounter>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string,long> previousRx = new Dictionary<string,long>();
         private readonly Dictionary<string,long> previousTx = new Dictionary<string,long>();
+        private List<NetworkInterface> networkInterfaces=new List<NetworkInterface>();
+        private DateTime lastNetworkTopologyQuery=DateTime.MinValue;
         private DateTime previousNetAt = DateTime.UtcNow;
         private DateTime lastGpuQuery = DateTime.MinValue;
         private DateTime lastCpuTempQuery = DateTime.MinValue;
@@ -1979,10 +2053,13 @@ namespace TaskbarMonitorEnhanced
         private readonly AmdAdlxTemperatureReader amdAdlxTempReader = new AmdAdlxTemperatureReader();
         private List<GpuDeviceSnapshot> lastGpuDevices=new List<GpuDeviceSnapshot>();
         private List<MemoryModuleSnapshot> memoryModules=new List<MemoryModuleSnapshot>();
+        private List<CpuDeviceSnapshot> cpuDeviceTemplate=new List<CpuDeviceSnapshot>();
+        private DateTime lastCpuDeviceStaticQuery=DateTime.MinValue;
         private DateTime lastMemoryModuleQuery=DateTime.MinValue;
         private string lastGpuTempSource="UNAVAILABLE";
         private string lastCpuTempSource="UNAVAILABLE";
         private float lastCpuTempCurrent=0;
+        private DateTime lastCpuTempValidAt=DateTime.MinValue;
         private List<StorageTemperatureSample> lastStorageTemperatures=new List<StorageTemperatureSample>();
         private string lastDiskTemperatureProviderSignature="";
         private readonly HashSet<string> loggedDiskTemperatureMatches=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1999,7 +2076,6 @@ namespace TaskbarMonitorEnhanced
 
         public MetricsEngine()
         {
-            try { cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total", true); cpuCounter.NextValue(); } catch (Exception ex) { Log.Write("WARN", "CPU_COUNTER " + ex.Message); }
             try { cpuFrequencyCounter = new PerformanceCounter("Processor Information", "Processor Frequency", "_Total", true); cpuFrequencyCounter.NextValue(); } catch (Exception ex) { Log.Write("WARN", "CPU_FREQ_COUNTER " + ex.Message); }
             try { diskCounter = new PerformanceCounter("PhysicalDisk", "% Disk Time", "_Total", true); diskCounter.NextValue(); } catch (Exception ex) { Log.Write("WARN", "DISK_COUNTER " + ex.Message); }
             CaptureNetworkBaseline();
@@ -2008,12 +2084,13 @@ namespace TaskbarMonitorEnhanced
         public MetricsSnapshot Read()
         {
             MetricsSnapshot s = new MetricsSnapshot();
-            try { if (cpuCounter != null) s.Cpu = Clamp(cpuCounter.NextValue(),0,100); } catch { }
+            try { float nativeCpu;if(cpuUsageSampler.TrySample(out nativeCpu))s.Cpu=Clamp(nativeCpu,0,100); } catch { }
             try { if (diskCounter != null) s.Disk = Clamp(diskCounter.NextValue(),0,100); } catch { }
             NativeMemory.GetUsage(out s.RamUsedBytes,out s.RamTotalBytes,out s.Ram);
             ReadMemoryModulesIfDue(s);
             ReadCpuTemperatureIfDue();
-            s.CpuTempAvailable=cpuTemps.Count>0 && lastCpuTempCurrent>=5f;s.CpuTempCurrent=lastCpuTempCurrent;s.CpuTempAvg=cpuTemps.Average;s.CpuTempMax=cpuTemps.Maximum;s.CpuTempSource=lastCpuTempSource;
+            bool cpuTempFresh=lastCpuTempValidAt!=DateTime.MinValue&&(DateTime.UtcNow-lastCpuTempValidAt).TotalSeconds<=15;
+            s.CpuTempAvailable=cpuTempFresh&&cpuTemps.Count>0&&lastCpuTempCurrent>=5f;s.CpuTempCurrent=s.CpuTempAvailable?lastCpuTempCurrent:0;s.CpuTempAvg=cpuTemps.Average;s.CpuTempMax=cpuTemps.Maximum;s.CpuTempSource=s.CpuTempAvailable?lastCpuTempSource:"UNAVAILABLE";
             ReadCpuDevices(s);
             ReadDiskDevices(s);
             ReadNetwork(s);
@@ -2030,16 +2107,28 @@ namespace TaskbarMonitorEnhanced
 
         private static float Clamp(float v,float min,float max) { if (Single.IsNaN(v)||Single.IsInfinity(v)) return 0; return Math.Max(min,Math.Min(max,v)); }
 
-        private void ReadCpuDevices(MetricsSnapshot s)
+        private static CpuDeviceSnapshot CloneCpuDevice(CpuDeviceSnapshot x)
         {
+            CpuDeviceSnapshot d=new CpuDeviceSnapshot();
+            d.Id=x.Id;d.Name=x.Name;d.PhysicalCores=x.PhysicalCores;d.LogicalProcessors=x.LogicalProcessors;
+            d.CurrentClockMHz=x.CurrentClockMHz;d.MaxClockMHz=x.MaxClockMHz;d.ExternalClockMHz=x.ExternalClockMHz;d.Socket=x.Socket;
+            return d;
+        }
+
+        private void RefreshCpuDeviceTemplateIfDue()
+        {
+            if(cpuDeviceTemplate.Count>0&&(DateTime.UtcNow-lastCpuDeviceStaticQuery).TotalMinutes<5)return;
+            lastCpuDeviceStaticQuery=DateTime.UtcNow;
             List<CpuDeviceSnapshot> list=new List<CpuDeviceSnapshot>();
             try
             {
-                using(ManagementObjectSearcher q=new ManagementObjectSearcher("SELECT DeviceID,Name,LoadPercentage,NumberOfCores,NumberOfLogicalProcessors,CurrentClockSpeed,MaxClockSpeed,ExtClock,SocketDesignation FROM Win32_Processor"))
+                using(ManagementObjectSearcher q=new ManagementObjectSearcher(
+                    "SELECT DeviceID,Name,NumberOfCores,NumberOfLogicalProcessors,CurrentClockSpeed,MaxClockSpeed,ExtClock,SocketDesignation FROM Win32_Processor"))
                 foreach(ManagementObject o in q.Get())
                 {
-                    CpuDeviceSnapshot d=new CpuDeviceSnapshot();d.Id=Convert.ToString(o["DeviceID"],CultureInfo.InvariantCulture);d.Name=Convert.ToString(o["Name"],CultureInfo.InvariantCulture);
-                    try{d.Usage=Clamp(Convert.ToSingle(o["LoadPercentage"],CultureInfo.InvariantCulture),0,100);d.UsageAvailable=true;}catch{}
+                    CpuDeviceSnapshot d=new CpuDeviceSnapshot();
+                    d.Id=Convert.ToString(o["DeviceID"],CultureInfo.InvariantCulture);
+                    d.Name=Convert.ToString(o["Name"],CultureInfo.InvariantCulture);
                     try{d.PhysicalCores=Convert.ToInt32(o["NumberOfCores"],CultureInfo.InvariantCulture);}catch{}
                     try{d.LogicalProcessors=Convert.ToInt32(o["NumberOfLogicalProcessors"],CultureInfo.InvariantCulture);}catch{}
                     try{d.CurrentClockMHz=Convert.ToInt32(o["CurrentClockSpeed"],CultureInfo.InvariantCulture);}catch{}
@@ -2048,14 +2137,44 @@ namespace TaskbarMonitorEnhanced
                     try{d.Socket=Convert.ToString(o["SocketDesignation"],CultureInfo.InvariantCulture);}catch{}
                     list.Add(d);
                 }
-            }catch(Exception ex){Log.Write("WARN","CPU_DEVICE_ENUM "+ex.Message);}
-            if(list.Count==0){CpuDeviceSnapshot d=new CpuDeviceSnapshot();d.Id="CPU0";d.Name=Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER")??"CPU";d.Usage=s.Cpu;d.UsageAvailable=true;list.Add(d);}
+            }
+            catch(Exception ex){Log.Write("WARN","CPU_DEVICE_STATIC_ENUM "+ex.Message);}
+            if(list.Count==0)
+            {
+                CpuDeviceSnapshot d=new CpuDeviceSnapshot();d.Id="CPU0";
+                d.Name=Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER")??"CPU";
+                d.PhysicalCores=Environment.ProcessorCount;d.LogicalProcessors=Environment.ProcessorCount;
+                list.Add(d);
+            }
+            cpuDeviceTemplate=list;
+        }
+
+        private void ReadCpuDevices(MetricsSnapshot s)
+        {
+            RefreshCpuDeviceTemplateIfDue();
+            List<CpuDeviceSnapshot> list=cpuDeviceTemplate.Select(CloneCpuDevice).ToList();
+            foreach(CpuDeviceSnapshot d in list){d.Usage=s.Cpu;d.UsageAvailable=true;}
             if(list.Count==1)
             {
                 if(s.CpuTempAvailable){list[0].TemperatureAvailable=true;list[0].Temperature=s.CpuTempCurrent;}
                 try{if(cpuFrequencyCounter!=null){float live=cpuFrequencyCounter.NextValue();if(live>100&&live<10000)list[0].CurrentClockMHz=(int)Math.Round(live);}}catch{}
             }
             s.CpuDevices=list;
+        }
+
+        public void ResetAfterResume()
+        {
+            cpuUsageSampler.Reset();
+            try{CaptureNetworkBaseline();}catch{}
+            try{if(cpuFrequencyCounter!=null)cpuFrequencyCounter.NextValue();}catch{}
+            try{if(diskCounter!=null)diskCounter.NextValue();}catch{}
+            foreach(PerformanceCounter c in diskActivityCounters.Values)try{c.NextValue();}catch{}
+            foreach(PerformanceCounter c in diskReadCounters.Values)try{c.NextValue();}catch{}
+            foreach(PerformanceCounter c in diskWriteCounters.Values)try{c.NextValue();}catch{}
+            lastGpuQuery=DateTime.MinValue;
+            lastCpuTempQuery=DateTime.MinValue;
+            lastDiskTempQuery=DateTime.MinValue;
+            Log.Write("INFO","METRICS_RESUME_RESET nativeCpuBaseline=RESET networkBaseline=RESET");
         }
 
         private static string MemoryTypeName(int smbiosType)
@@ -2323,16 +2442,34 @@ namespace TaskbarMonitorEnhanced
             s.DiskDevices=list;s.DiskUsedBytes=usedAll;s.DiskTotalBytes=totalAll;s.DiskUsedPercent=totalAll>0?(float)(usedAll*100d/totalAll):0;s.DiskReadBytesPerSec=readAll;s.DiskWriteBytesPerSec=writeAll;if(list.Count>0)s.Disk=maxActivity;
         }
 
+        private void RefreshNetworkTopologyIfDue(bool force)
+        {
+            if(!force&&networkInterfaces.Count>0&&(DateTime.UtcNow-lastNetworkTopologyQuery).TotalSeconds<30)return;
+            lastNetworkTopologyQuery=DateTime.UtcNow;
+            try
+            {
+                networkInterfaces=NetworkInterface.GetAllNetworkInterfaces()
+                    .Where(n=>n.OperationalStatus==OperationalStatus.Up&&n.NetworkInterfaceType!=NetworkInterfaceType.Loopback)
+                    .ToList();
+                HashSet<string> ids=new HashSet<string>(networkInterfaces.Select(n=>n.Id),StringComparer.OrdinalIgnoreCase);
+                foreach(string id in previousRx.Keys.Where(x=>!ids.Contains(x)).ToList())previousRx.Remove(id);
+                foreach(string id in previousTx.Keys.Where(x=>!ids.Contains(x)).ToList())previousTx.Remove(id);
+            }
+            catch(Exception ex){Log.Write("WARN","NETWORK_TOPOLOGY "+ex.Message);}
+        }
+
         private void CaptureNetworkBaseline()
         {
-            foreach (NetworkInterface n in NetworkInterface.GetAllNetworkInterfaces())try{if(n.OperationalStatus!=OperationalStatus.Up||n.NetworkInterfaceType==NetworkInterfaceType.Loopback)continue;IPv4InterfaceStatistics st=n.GetIPv4Statistics();previousRx[n.Id]=st.BytesReceived;previousTx[n.Id]=st.BytesSent;}catch{}
+            previousRx.Clear();previousTx.Clear();RefreshNetworkTopologyIfDue(true);
+            foreach(NetworkInterface n in networkInterfaces)try{IPv4InterfaceStatistics st=n.GetIPv4Statistics();previousRx[n.Id]=st.BytesReceived;previousTx[n.Id]=st.BytesSent;}catch{}
             previousNetAt=DateTime.UtcNow;
         }
 
         private void ReadNetwork(MetricsSnapshot s)
         {
+            RefreshNetworkTopologyIfDue(false);
             DateTime now=DateTime.UtcNow;double sec=Math.Max(0.05,(now-previousNetAt).TotalSeconds);double rxAll=0,txAll=0;List<NetworkDeviceSnapshot> list=new List<NetworkDeviceSnapshot>();
-            foreach(NetworkInterface n in NetworkInterface.GetAllNetworkInterfaces())
+            foreach(NetworkInterface n in networkInterfaces)
             {
                 try
                 {
@@ -2346,7 +2483,7 @@ namespace TaskbarMonitorEnhanced
         private void ReadCpuTemperatureIfDue()
         {
             if((DateTime.UtcNow-lastCpuTempQuery).TotalMilliseconds<1800)return;lastCpuTempQuery=DateTime.UtcNow;
-            try{CpuTemperatureSample sample=cpuTempReader.Read();lastCpuTempSource=sample.Source??"UNAVAILABLE";if(sample.Valid){lastCpuTempCurrent=sample.Current;cpuTemps.Add(sample.Average,sample.Maximum);}}catch(Exception ex){Log.Write("WARN","CPU_TEMP_READ "+ex.Message);}
+            try{CpuTemperatureSample sample=cpuTempReader.Read();lastCpuTempSource=sample.Source??"UNAVAILABLE";if(sample.Valid){lastCpuTempCurrent=sample.Current;lastCpuTempValidAt=DateTime.UtcNow;cpuTemps.Add(sample.Average,sample.Maximum);}}catch(Exception ex){Log.Write("WARN","CPU_TEMP_READ "+ex.Message);}
         }
 
         private static bool IsAmdName(string s){s=s??"";return s.IndexOf("AMD",StringComparison.OrdinalIgnoreCase)>=0||s.IndexOf("Radeon",StringComparison.OrdinalIgnoreCase)>=0;}
@@ -2418,8 +2555,11 @@ namespace TaskbarMonitorEnhanced
         private void ReadGpuIfDue()
         {
             if((DateTime.UtcNow-lastGpuQuery).TotalMilliseconds<1800)return;lastGpuQuery=DateTime.UtcNow;List<GpuTelemetrySample> merged=new List<GpuTelemetrySample>();
-            try{foreach(GpuTelemetrySample x in windowsGpuReader.ReadAll())MergeGpu(merged,x,false);}catch(Exception ex){Log.Write("WARN","GPU_WDDM_FALLBACK "+ex.Message);}
             try{foreach(GpuTelemetrySample x in elevatedGpuReader.ReadAll())MergeGpu(merged,x,true);}catch(Exception ex){Log.Write("WARN","GPU_ISOLATED_BROKER "+ex.Message);}
+            if(merged.Count==0||!merged.Any(x=>x.LoadValid))
+            {
+                try{foreach(GpuTelemetrySample x in windowsGpuReader.ReadAll())MergeGpu(merged,x,false);}catch(Exception ex){Log.Write("WARN","GPU_WDDM_FALLBACK "+ex.Message);}
+            }
             // R15 narrow diagnostic: external NVIDIA SMI primary query disabled; WDDM + LHM remain active.
             // R15 narrow diagnostic: external NVIDIA SMI detail query disabled; all other v1.1.0 behavior unchanged.
             try
@@ -2438,7 +2578,7 @@ namespace TaskbarMonitorEnhanced
 
         public void Dispose()
         {
-            if(cpuCounter!=null)cpuCounter.Dispose();if(cpuFrequencyCounter!=null)cpuFrequencyCounter.Dispose();if(diskCounter!=null)diskCounter.Dispose();foreach(PerformanceCounter c in diskActivityCounters.Values)try{c.Dispose();}catch{}foreach(PerformanceCounter c in diskReadCounters.Values)try{c.Dispose();}catch{}foreach(PerformanceCounter c in diskWriteCounters.Values)try{c.Dispose();}catch{};try{cpuTempReader.Dispose();}catch{}try{amdAdlxTempReader.Dispose();}catch{}
+            if(cpuFrequencyCounter!=null)cpuFrequencyCounter.Dispose();if(diskCounter!=null)diskCounter.Dispose();foreach(PerformanceCounter c in diskActivityCounters.Values)try{c.Dispose();}catch{}foreach(PerformanceCounter c in diskReadCounters.Values)try{c.Dispose();}catch{}foreach(PerformanceCounter c in diskWriteCounters.Values)try{c.Dispose();}catch{};try{cpuTempReader.Dispose();}catch{}try{amdAdlxTempReader.Dispose();}catch{}
         }
     }
 
@@ -2982,9 +3122,6 @@ namespace TaskbarMonitorEnhanced
         private IntPtr taskbar=IntPtr.Zero;
         private Rectangle expectedRect=Rectangle.Empty;
         private Rectangle lastTaskbarScreenRect=Rectangle.Empty;
-        private bool rescueActive=false;
-        private int rescueCount=0;
-        private int watchdogOwned=0;
         private DateTime lastPositionAt=DateTime.MinValue;
         private readonly bool proofMode;
         private bool engineDisposed=false;
@@ -3002,11 +3139,6 @@ namespace TaskbarMonitorEnhanced
         private bool systemEventsSubscribed=false;
 
         // R11S1: Start/Shell guard. Prefer staying a direct taskbar child during Start.
-        private bool startGuardActive=false;
-        private int startGuardReassertCount=0;
-        private int startGuardFailureCount=0;
-        private string startGuardProcess="";
-        private string startGuardClass="";
         private DateTime startGuardLastSeen=DateTime.MinValue;
         private NotifyIcon trayIcon;
         private SettingsForm settingsForm;
@@ -3044,6 +3176,7 @@ namespace TaskbarMonitorEnhanced
         private readonly object engineSync=new object();
         private int metricReadInFlight=0;
         private volatile bool metricReadShutdown=false;
+        private volatile bool telemetryPaused=false;
         private int metricSnapshotGeneration=0;
         private string lastHoverGroup="";
         private int lastHoverIndex=-1;
@@ -3430,6 +3563,7 @@ namespace TaskbarMonitorEnhanced
             foreach(string p in new string[]{"Left","Center","Right"}){ToolStripMenuItem i=new ToolStripMenuItem(p);i.Tag=p;i.Checked=(p==config.Position);i.Click+=delegate(object s,EventArgs e){config.Position=(string)((ToolStripMenuItem)s).Tag;TaskbarLayout.ResetCache();ResetPlacementStability("POSITION_MENU");config.Save();PositionOverlay(true);RefreshMenuChecks();};pos.DropDownItems.Add(i);} m.Items.Add(pos);
             m.Items.Add(new ToolStripSeparator());
             ToolStripMenuItem settings=new ToolStripMenuItem("Settings..."); settings.Click+=delegate{OpenSettings();}; m.Items.Add(settings);
+            ToolStripMenuItem diagnostics=new ToolStripMenuItem("Diagnostics...");diagnostics.Click+=delegate{OpenSettings("Diagnostics");};m.Items.Add(diagnostics);
             updateMenuItem=new ToolStripMenuItem("Updates...");updateMenuItem.Click+=delegate{OpenSettings("Updates");};m.Items.Add(updateMenuItem);
             ToolStripMenuItem logs=new ToolStripMenuItem("Open Logs"); logs.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Logs);}catch{}}; m.Items.Add(logs);
             m.Items.Add(new ToolStripSeparator());
@@ -3579,7 +3713,7 @@ namespace TaskbarMonitorEnhanced
 
         private void QueueMetricsRead()
         {
-            if(metricReadShutdown||engineDisposed)return;
+            if(metricReadShutdown||engineDisposed||telemetryPaused)return;
             if(Interlocked.CompareExchange(ref metricReadInFlight,1,0)!=0)return;
             ThreadPool.QueueUserWorkItem(delegate
             {
@@ -3881,8 +4015,48 @@ namespace TaskbarMonitorEnhanced
 
         private void OnPowerModeChanged(object sender,PowerModeChangedEventArgs e)
         {
+            if(e.Mode==PowerModes.Suspend)
+            {
+                SafePauseTelemetry("POWER_SUSPEND");
+                return;
+            }
             if(e.Mode==PowerModes.Resume)
+            {
+                SafeResumeTelemetry("POWER_RESUME");
                 SafeScheduleRecovery("POWER_RESUME",1000);
+            }
+        }
+
+        private void SafePauseTelemetry(string reason)
+        {
+            try
+            {
+                if(IsDisposed||Disposing)return;
+                if(InvokeRequired){BeginInvoke((MethodInvoker)delegate{SafePauseTelemetry(reason);});return;}
+                telemetryPaused=true;
+                try{metricTimer.Stop();}catch{}
+                try{hoverTimer.Stop();}catch{}
+                try{if(hardwareFlyout!=null)hardwareFlyout.Hide();}catch{}
+                Log.Write("INFO","TELEMETRY_PAUSE reason="+reason);
+            }
+            catch(Exception ex){Log.Write("WARN","TELEMETRY_PAUSE_FAIL "+ex.Message);}
+        }
+
+        private void SafeResumeTelemetry(string reason)
+        {
+            try
+            {
+                if(IsDisposed||Disposing)return;
+                if(InvokeRequired){BeginInvoke((MethodInvoker)delegate{SafeResumeTelemetry(reason);});return;}
+                lock(engineSync){if(!engineDisposed)engine.ResetAfterResume();}
+                telemetryPaused=false;
+                metricTimer.Interval=Math.Max(1000,config.UpdateIntervalMs);
+                metricTimer.Start();
+                hoverTimer.Start();
+                QueueMetricsRead();
+                Log.Write("INFO","TELEMETRY_RESUME reason="+reason);
+            }
+            catch(Exception ex){Log.Write("WARN","TELEMETRY_RESUME_FAIL "+ex.Message);}
         }
 
         private void SafeScheduleRecovery(string reason,int delayMs)
@@ -4031,8 +4205,12 @@ namespace TaskbarMonitorEnhanced
             if(m.Msg==0x0218)
             {
                 int powerCode=m.WParam.ToInt32();
+                if(powerCode==0x0004)SafePauseTelemetry("WM_POWER_SUSPEND");
                 if(powerCode==0x0007 || powerCode==0x0012)
+                {
+                    SafeResumeTelemetry("WM_POWER_RESUME");
                     ScheduleRecovery("WM_POWER_RESUME",1000);
+                }
             }
 
             base.WndProc(ref m);
@@ -4163,7 +4341,6 @@ namespace TaskbarMonitorEnhanced
                 );
 
                 TopMost=false;
-                rescueActive=false;
                 upstreamAttachCount++;
 
                 PositionOverlay(true);
@@ -5114,6 +5291,8 @@ namespace TaskbarMonitorEnhanced
         private CheckedListBox cpuList,gpuList,diskList,netList;
         private Label updateCurrent,updateLatest,updateStatus;
         private Button checkUpdate,installUpdate,openRelease;
+        private TextBox diagnosticsText;
+        private Button refreshDiagnostics,saveDiagnostics,openDataFolder,repairSensors;
         private TabControl tabsControl;
         private ReleaseUpdateInfo latestUpdate;
         public SettingsForm(AppConfig config,MetricsSnapshot current) : this(config,current,null) { }
@@ -5121,10 +5300,10 @@ namespace TaskbarMonitorEnhanced
         {
             c=config;snapshot=current??new MetricsSnapshot();Text="Taskbar Monitor Enhanced — Settings";Width=900;Height=700;MinimumSize=new Size(760,620);StartPosition=FormStartPosition.CenterScreen;FormBorderStyle=FormBorderStyle.Sizable;MaximizeBox=true;MinimizeBox=false;AutoScaleMode=AutoScaleMode.Dpi;KeyPreview=true;
             TabControl tabs=new TabControl();tabsControl=tabs;tabs.Dock=DockStyle.Fill;Controls.Add(tabs);
-            TabPage display=new TabPage("Display"), metrics=new TabPage("Metrics"), hardware=new TabPage("Hardware"), units=new TabPage("Units"), behavior=new TabPage("Behavior"), updates=new TabPage("Updates"), advanced=new TabPage("Advanced");
-            tabs.TabPages.Add(display);tabs.TabPages.Add(metrics);tabs.TabPages.Add(hardware);tabs.TabPages.Add(units);tabs.TabPages.Add(behavior);tabs.TabPages.Add(updates);tabs.TabPages.Add(advanced);
+            TabPage display=new TabPage("Display"), metrics=new TabPage("Metrics"), hardware=new TabPage("Hardware"), units=new TabPage("Units"), behavior=new TabPage("Behavior"), updates=new TabPage("Updates"), diagnostics=new TabPage("Diagnostics"), advanced=new TabPage("Advanced");
+            tabs.TabPages.Add(display);tabs.TabPages.Add(metrics);tabs.TabPages.Add(hardware);tabs.TabPages.Add(units);tabs.TabPages.Add(behavior);tabs.TabPages.Add(updates);tabs.TabPages.Add(diagnostics);tabs.TabPages.Add(advanced);
             foreach(TabPage page in tabs.TabPages){page.AutoScroll=true;page.Padding=new Padding(4);}
-            display.AutoScrollMinSize=new Size(720,280);metrics.AutoScrollMinSize=new Size(720,330);hardware.AutoScrollMinSize=new Size(720,640);units.AutoScrollMinSize=new Size(720,440);behavior.AutoScrollMinSize=new Size(720,260);updates.AutoScrollMinSize=new Size(720,440);advanced.AutoScrollMinSize=new Size(720,440);
+            display.AutoScrollMinSize=new Size(720,280);metrics.AutoScrollMinSize=new Size(720,330);hardware.AutoScrollMinSize=new Size(720,640);units.AutoScrollMinSize=new Size(720,440);behavior.AutoScrollMinSize=new Size(720,260);updates.AutoScrollMinSize=new Size(720,440);diagnostics.AutoScrollMinSize=new Size(720,520);advanced.AutoScrollMinSize=new Size(720,440);
             theme=Combo(display,"Theme",ThemeCatalog.Names,c.Theme,22);position=Combo(display,"Position",new string[]{"Left","Center","Right"},c.Position,68);opacity=Number(display,"Opacity %",(decimal)(c.Opacity*100),55,100,114);width=Number(display,"Locked width px",c.MinWidthLogicalPx,900,1500,160);
             cpu=Check(metrics,"CPU",c.ShowCpu,24);ram=Check(metrics,"RAM",c.ShowRam,55);disk=Check(metrics,"Disk / storage",c.ShowDisk,86);gpu=Check(metrics,"GPU",c.ShowGpu,117);vram=Check(metrics,"VRAM",c.ShowVram,148);net=Check(metrics,"Network",c.ShowNetwork,179);temp=Check(metrics,"CPU/GPU temperature",c.ShowTemperatures,210);spark=Check(metrics,"Real sparklines",c.ShowSparklines,241);
 
@@ -5138,7 +5317,7 @@ namespace TaskbarMonitorEnhanced
             memoryUnit=Combo(units,"RAM unit",new string[]{"Auto","KB","MB","GB"},c.MemoryUnit,28);storageUnit=Combo(units,"Storage capacity unit",new string[]{"Auto","KB","MB","GB"},c.StorageUnit,78);diskRateUnit=Combo(units,"Disk speed unit",new string[]{"Auto","KB","MB","GB"},c.DiskRateUnit,128);networkUnit=Combo(units,"Network rate unit",new string[]{"Auto","KB","MB","GB"},c.NetworkUnit,178);ramNumeric=Check(units,"Show used / total RAM as a number",c.ShowRamNumeric,238);diskNumeric=Check(units,"Show used / total disk capacity in hover details",c.ShowDiskNumeric,272);
             Label unitNote=new Label();unitNote.Location=new Point(24,320);unitNote.Size=new Size(660,85);unitNote.Text="Disk cards show live read/write throughput. Disk capacity, usage percentage, volumes and temperature are shown in the upward hover details. Auto selects KB, MB or GB independently for capacity, disk speed and network rate.";units.Controls.Add(unitNote);
 
-            interval=Number(behavior,"Update interval ms",c.UpdateIntervalMs,250,5000,24);startup=Check(behavior,"Start with Windows",c.StartWithWindows,78);safe=Check(behavior,"Safe placement / avoid taskbar controls",c.SafePlacement,112);
+            interval=Number(behavior,"Update interval ms",c.UpdateIntervalMs,1000,5000,24);startup=Check(behavior,"Start with Windows",c.StartWithWindows,78);safe=Check(behavior,"Safe placement / avoid taskbar controls",c.SafePlacement,112);
             autoCheckUpdates=Check(behavior,"Automatically check GitHub Releases for updates",c.AutoCheckUpdates,148);
 
             updateCurrent=new Label();updateCurrent.Location=new Point(24,28);updateCurrent.Size=new Size(650,24);updateCurrent.Text="Installed version: "+BuildInfo.PublicVersion;updates.Controls.Add(updateCurrent);
@@ -5147,12 +5326,19 @@ namespace TaskbarMonitorEnhanced
             checkUpdate=new Button();checkUpdate.Text="Check for updates";checkUpdate.Location=new Point(24,196);checkUpdate.Size=new Size(150,34);checkUpdate.Click+=delegate{BeginCheckUpdates();};updates.Controls.Add(checkUpdate);
             installUpdate=new Button();installUpdate.Text="Download && Install";installUpdate.Location=new Point(188,196);installUpdate.Size=new Size(160,34);installUpdate.Enabled=false;installUpdate.Click+=delegate{BeginInstallUpdate();};updates.Controls.Add(installUpdate);
             openRelease=new Button();openRelease.Text="Open release page";openRelease.Location=new Point(362,196);openRelease.Size=new Size(145,34);openRelease.Enabled=false;openRelease.Click+=delegate{OpenReleasePage();};updates.Controls.Add(openRelease);
-            Label updateNote=new Label();updateNote.Location=new Point(24,250);updateNote.Size=new Size(660,150);updateNote.Text="Updates are read from the official GOD13emad/TaskbarMonitorEnhanced GitHub Releases feed. Automatic installation is allowed only when the release contains a TaskbarMonitorEnhanced_Setup_*.exe asset and GitHub supplies a SHA-256 digest. The downloaded installer is verified before Windows is asked to launch it.";updates.Controls.Add(updateNote);
+            Label updateNote=new Label();updateNote.Location=new Point(24,250);updateNote.Size=new Size(660,150);updateNote.Text="Updates are read from the official GOD13emad/TaskbarMonitorEnhanced GitHub Releases feed. Automatic installation requires an immutable GitHub Release, a TaskbarMonitorEnhanced_Setup_*.exe asset and GitHub SHA-256 digest metadata. Mutable releases are never auto-installed.";updates.Controls.Add(updateNote);
+
+            diagnosticsText=new TextBox();diagnosticsText.Location=new Point(24,72);diagnosticsText.Size=new Size(800,390);diagnosticsText.Multiline=true;diagnosticsText.ReadOnly=true;diagnosticsText.ScrollBars=ScrollBars.Both;diagnosticsText.WordWrap=false;diagnosticsText.Font=new Font("Consolas",9f);diagnostics.Controls.Add(diagnosticsText);
+            refreshDiagnostics=new Button();refreshDiagnostics.Text="Refresh health";refreshDiagnostics.Location=new Point(24,24);refreshDiagnostics.Size=new Size(130,34);refreshDiagnostics.Click+=delegate{RefreshDiagnostics();};diagnostics.Controls.Add(refreshDiagnostics);
+            saveDiagnostics=new Button();saveDiagnostics.Text="Save report...";saveDiagnostics.Location=new Point(168,24);saveDiagnostics.Size=new Size(130,34);saveDiagnostics.Click+=delegate{SaveDiagnosticsReport();};diagnostics.Controls.Add(saveDiagnostics);
+            openDataFolder=new Button();openDataFolder.Text="Open data folder";openDataFolder.Location=new Point(312,24);openDataFolder.Size=new Size(135,34);openDataFolder.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Root);}catch{}};diagnostics.Controls.Add(openDataFolder);
+            repairSensors=new Button();repairSensors.Text="Repair protected sensors...";repairSensors.Location=new Point(461,24);repairSensors.Size=new Size(185,34);repairSensors.Click+=delegate{RepairProtectedSensors();};diagnostics.Controls.Add(repairSensors);
+
             Button openLog=new Button();openLog.Text="Open Logs";openLog.Location=new Point(24,28);openLog.Width=120;openLog.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Logs);}catch{}};advanced.Controls.Add(openLog);
-            Label note=new Label();note.AutoSize=false;note.Location=new Point(24,80);note.Size=new Size(660,300);note.Text="v1.1.1 — R18 low-pressure shell integration + single-instance Settings + retained telemetry/update features.\r\n\r\nDisk cards show live physical-disk read/write speed. Hover shows each detected disk model, read/write throughput, temperature, volume list, used/total capacity and activity.\r\n\r\nDisplay modes: Overall = system/all devices, Auto = highest active device, Single = one selected device, Multiple = all checked devices. Hover details are available even when only one device is detected.\r\n\r\nUpdate checks use the official GitHub Releases API and SHA-256 asset digest verification before installer launch.";advanced.Controls.Add(note);
+            Label note=new Label();note.AutoSize=false;note.Location=new Point(24,80);note.Size=new Size(660,300);note.Text="v1.1.2-rc2 — R21 production hardening: isolated native sensors, staggered health supervisor, power-aware telemetry, native CPU usage, cached topology and diagnostics.\r\n\r\nDisk cards show live physical-disk read/write speed. Hover shows each detected disk model, read/write throughput, temperature, volume list, used/total capacity and activity.\r\n\r\nDisplay modes: Overall = system/all devices, Auto = highest active device, Single = one selected device, Multiple = all checked devices.\r\n\r\nAutomatic update installation requires both GitHub SHA-256 asset metadata and an immutable GitHub Release.";advanced.Controls.Add(note);
             FlowLayoutPanel buttons=new FlowLayoutPanel();buttons.Dock=DockStyle.Bottom;buttons.Height=45;buttons.FlowDirection=FlowDirection.RightToLeft;Controls.Add(buttons);Button ok=new Button();ok.Text="Save & Apply";ok.Width=105;ok.Click+=delegate{Apply();DialogResult=DialogResult.OK;Close();};Button cancel=new Button();cancel.Text="Cancel";cancel.Width=90;cancel.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};buttons.Controls.Add(ok);buttons.Controls.Add(cancel);AcceptButton=ok;CancelButton=cancel;
             if(!String.IsNullOrWhiteSpace(initialTab))foreach(TabPage tp in tabs.TabPages)if(String.Equals(tp.Text,initialTab,StringComparison.OrdinalIgnoreCase)){tabs.SelectedTab=tp;break;}
-            Shown+=delegate{if(c.AutoCheckUpdates||String.Equals(initialTab,"Updates",StringComparison.OrdinalIgnoreCase))BeginCheckUpdates();};
+            Shown+=delegate{if(c.AutoCheckUpdates||String.Equals(initialTab,"Updates",StringComparison.OrdinalIgnoreCase))BeginCheckUpdates();if(String.Equals(initialTab,"Diagnostics",StringComparison.OrdinalIgnoreCase))RefreshDiagnostics();};
         }
 
         public void SelectTab(string tabName)
@@ -5179,7 +5365,7 @@ namespace TaskbarMonitorEnhanced
             {
                 try
                 {
-                    ReleaseUpdateInfo info=UpdateManager.CheckLatest();latestUpdate=info;Ui(delegate{updateLatest.Text="Latest public release: "+(String.IsNullOrWhiteSpace(info.Version)?info.Tag:info.Version);updateStatus.Text=info.Status;openRelease.Enabled=!String.IsNullOrWhiteSpace(info.HtmlUrl);installUpdate.Enabled=info.HasUpdate&&info.SetupAssetAvailable&&info.DigestAvailable;checkUpdate.Enabled=true;});
+                    ReleaseUpdateInfo info=UpdateManager.CheckLatest();latestUpdate=info;Ui(delegate{updateLatest.Text="Latest public release: "+(String.IsNullOrWhiteSpace(info.Version)?info.Tag:info.Version)+"  |  Immutable: "+(info.Immutable?"Yes":"No");updateStatus.Text=info.Status;openRelease.Enabled=!String.IsNullOrWhiteSpace(info.HtmlUrl);installUpdate.Enabled=info.HasUpdate&&info.SetupAssetAvailable&&info.DigestAvailable&&info.Immutable;checkUpdate.Enabled=true;});
                     Log.Write("INFO","UPDATE_CHECK latest="+info.Version+" hasUpdate="+info.HasUpdate+" asset="+info.SetupAssetAvailable+" digest="+info.DigestAvailable);
                 }
                 catch(Exception ex){Log.Write("WARN","UPDATE_CHECK_FAIL "+ex.Message);Ui(delegate{updateStatus.Text="Update check failed: "+ex.Message;checkUpdate.Enabled=true;installUpdate.Enabled=false;});}
@@ -5196,10 +5382,115 @@ namespace TaskbarMonitorEnhanced
                 {
                     string path=UpdateManager.DownloadAndVerify(info);Ui(delegate{updateStatus.Text="SHA-256 verified. Starting Windows installer...";});Thread.Sleep(250);UpdateManager.StartInstaller(path);Ui(delegate{DialogResult=DialogResult.Cancel;Close();});Thread.Sleep(300);Application.Exit();
                 }
-                catch(Exception ex){Log.Write("ERROR","UPDATE_INSTALL_FAIL "+ex.ToString());Ui(delegate{updateStatus.Text="Update failed safely: "+ex.Message;checkUpdate.Enabled=true;installUpdate.Enabled=info.HasUpdate&&info.SetupAssetAvailable&&info.DigestAvailable;});}
+                catch(Exception ex){Log.Write("ERROR","UPDATE_INSTALL_FAIL "+ex.ToString());Ui(delegate{updateStatus.Text="Update failed safely: "+ex.Message;checkUpdate.Enabled=true;installUpdate.Enabled=info.HasUpdate&&info.SetupAssetAvailable&&info.DigestAvailable&&info.Immutable;});}
             });
         }
         private void OpenReleasePage(){try{if(latestUpdate!=null&&!String.IsNullOrWhiteSpace(latestUpdate.HtmlUrl))Process.Start(latestUpdate.HtmlUrl);else Process.Start(BuildInfo.RepositoryUrl+"/releases");}catch(Exception ex){MessageBox.Show(ex.Message,"Open release page");}}
+
+        private static string ReadSharedDiagnostic(string path)
+        {
+            try
+            {
+                if(!File.Exists(path))return "MISSING";
+                using(FileStream fs=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete))
+                using(StreamReader sr=new StreamReader(fs,Encoding.UTF8,true))
+                    return sr.ReadToEnd();
+            }
+            catch(Exception ex){return "READ_ERROR: "+ex.Message;}
+        }
+
+        private static string DiagnosticFileLine(string label,string path)
+        {
+            try
+            {
+                if(!File.Exists(path))return label+": MISSING — "+path;
+                DateTime utc=File.GetLastWriteTimeUtc(path);
+                double age=Math.Max(0,(DateTime.UtcNow-utc).TotalSeconds);
+                return label+": age="+age.ToString("0.0",CultureInfo.InvariantCulture)+"s bytes="+new FileInfo(path).Length+" — "+path;
+            }
+            catch(Exception ex){return label+": ERROR "+ex.Message+" — "+path;}
+        }
+
+        private string BuildDiagnosticsReport()
+        {
+            StringBuilder b=new StringBuilder();
+            b.AppendLine("Taskbar Monitor Enhanced — Diagnostics");
+            b.AppendLine("GeneratedUtc: "+DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture));
+            b.AppendLine("Build: "+BuildInfo.Version+" / "+BuildInfo.PublicVersion);
+            b.AppendLine("Process: PID="+Process.GetCurrentProcess().Id+" 64Bit="+Environment.Is64BitProcess);
+            b.AppendLine("OS: "+Environment.OSVersion+" CLR="+Environment.Version);
+            b.AppendLine("TelemetryIntervalMs: "+c.UpdateIntervalMs);
+            b.AppendLine();
+            b.AppendLine("Current snapshot");
+            b.AppendLine("CPU devices="+snapshot.CpuDevices.Count+" usage="+snapshot.Cpu.ToString("0.0",CultureInfo.InvariantCulture)+"% temp="+(snapshot.CpuTempAvailable?snapshot.CpuTempCurrent.ToString("0.0",CultureInfo.InvariantCulture)+"C":"N/A")+" source="+(snapshot.CpuTempSource??"UNAVAILABLE"));
+            b.AppendLine("GPU devices="+snapshot.GpuDevices.Count+" usage="+snapshot.Gpu.ToString("0.0",CultureInfo.InvariantCulture)+"% temp="+(snapshot.GpuTempAvailable?snapshot.GpuTemp.ToString("0.0",CultureInfo.InvariantCulture)+"C":"N/A")+" source="+(snapshot.GpuTempSource??"UNAVAILABLE"));
+            b.AppendLine("Disk devices="+snapshot.DiskDevices.Count+" Network adapters="+snapshot.NetworkDevices.Count);
+            b.AppendLine();
+            b.AppendLine("Runtime files");
+            b.AppendLine(DiagnosticFileLine("Supervisor state",AppPaths.SensorSupervisorState));
+            b.AppendLine(DiagnosticFileLine("CPU broker",AppPaths.CpuTempBrokerData));
+            b.AppendLine(DiagnosticFileLine("GPU broker",AppPaths.GpuBrokerData));
+            b.AppendLine(DiagnosticFileLine("Storage broker",AppPaths.StorageBrokerData));
+            b.AppendLine(DiagnosticFileLine("Backend state",AppPaths.SensorBackendState));
+            b.AppendLine();
+            b.AppendLine("Supervisor state JSON");
+            b.AppendLine(ReadSharedDiagnostic(AppPaths.SensorSupervisorState));
+            b.AppendLine();
+            b.AppendLine("Sensor backend state JSON");
+            b.AppendLine(ReadSharedDiagnostic(AppPaths.SensorBackendState));
+            b.AppendLine();
+            b.AppendLine("Notes");
+            b.AppendLine("- TransportHealthy means the worker is alive and producing fresh output.");
+            b.AppendLine("- DataAvailable is separate: a healthy worker can legitimately report no supported/privileged sensor data.");
+            b.AppendLine("- Automatic updates require immutable GitHub Releases plus GitHub SHA-256 asset digest metadata.");
+            return b.ToString();
+        }
+
+        private void RefreshDiagnostics()
+        {
+            try{if(diagnosticsText!=null)diagnosticsText.Text=BuildDiagnosticsReport();}
+            catch(Exception ex){if(diagnosticsText!=null)diagnosticsText.Text="Diagnostics failed: "+ex;}
+        }
+
+        private void SaveDiagnosticsReport()
+        {
+            try
+            {
+                using(SaveFileDialog d=new SaveFileDialog())
+                {
+                    d.Filter="Text report (*.txt)|*.txt";
+                    d.FileName="TBME_Diagnostics_"+DateTime.Now.ToString("yyyyMMdd_HHmmss",CultureInfo.InvariantCulture)+".txt";
+                    if(d.ShowDialog(this)!=DialogResult.OK)return;
+                    File.WriteAllText(d.FileName,BuildDiagnosticsReport(),Encoding.UTF8);
+                    if(diagnosticsText!=null)diagnosticsText.Text=BuildDiagnosticsReport()+"\r\n\r\nSaved: "+d.FileName;
+                }
+            }
+            catch(Exception ex){MessageBox.Show(ex.Message,"Save diagnostics");}
+        }
+
+        private void RepairProtectedSensors()
+        {
+            try
+            {
+                string setup=Path.Combine(AppPaths.Root,"Uninstall.exe");
+                if(!File.Exists(setup))
+                {
+                    MessageBox.Show("Repair tool was not found. Re-run the latest Taskbar Monitor Enhanced installer.","Repair protected sensors",MessageBoxButtons.OK,MessageBoxIcon.Warning);
+                    return;
+                }
+                if(MessageBox.Show("Repair the protected CPU/GPU/storage sensor layer? Windows will request administrator approval.","Repair protected sensors",MessageBoxButtons.YesNo,MessageBoxIcon.Question)!=DialogResult.Yes)return;
+                ProcessStartInfo psi=new ProcessStartInfo();
+                psi.FileName=setup;psi.Arguments="/repair-sensors";psi.UseShellExecute=true;psi.Verb="runas";
+                Process x=Process.Start(psi);
+                if(x==null)throw new InvalidOperationException("Windows did not start the sensor repair tool.");
+                Log.Write("INFO","SENSOR_REPAIR_STARTED");
+            }
+            catch(Exception ex)
+            {
+                Log.Write("WARN","SENSOR_REPAIR_START_FAIL "+ex.Message);
+                MessageBox.Show(ex.Message,"Repair protected sensors",MessageBoxButtons.OK,MessageBoxIcon.Warning);
+            }
+        }
 
         private List<HardwareChoice> ChoicesCpu(){return snapshot.CpuDevices.Select(x=>new HardwareChoice{Id=x.Id,Name=x.Name}).ToList();}
         private List<HardwareChoice> ChoicesGpu(){return snapshot.GpuDevices.Select(x=>new HardwareChoice{Id=x.Id,Name=x.Name}).ToList();}
@@ -5323,6 +5614,93 @@ namespace TaskbarMonitorEnhanced
                 Console.Error.WriteLine("TBME_TEMP_PROBE=FAIL "+ex.Message);
                 return 7;
             }
+        }
+    }
+
+    internal static class HealthProbe
+    {
+        private static Dictionary<string,object> ReadState(string path,double freshnessSeconds)
+        {
+            Dictionary<string,object> d=new Dictionary<string,object>();
+            d["Path"]=path;d["Exists"]=File.Exists(path);
+            if(!File.Exists(path))return d;
+            try
+            {
+                string json=BrokerJsonFile.ReadShared(path);
+                Dictionary<string,object> root=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(json);
+                if(root==null){d["ReadError"]="JSON_EMPTY";return d;}
+                object tsObj;DateTime ts=DateTime.MinValue;
+                if(root.TryGetValue("TimestampUtc",out tsObj)&&DateTime.TryParse(Convert.ToString(tsObj,CultureInfo.InvariantCulture),CultureInfo.InvariantCulture,DateTimeStyles.AssumeUniversal|DateTimeStyles.AdjustToUniversal,out ts))
+                {
+                    double age=Math.Max(0,(DateTime.UtcNow-ts).TotalSeconds);
+                    d["TimestampUtc"]=ts.ToString("o",CultureInfo.InvariantCulture);d["AgeSeconds"]=age;d["Fresh"]=freshnessSeconds<=0||age<=freshnessSeconds;
+                }
+                else d["Fresh"]=freshnessSeconds<=0;
+
+                foreach(string key in new string[]{"Available","Error","BrokerPid","BrokerMode","BrokerVersion","Sequence","ReadDurationMs",
+                    "CpuTransportHealthy","CpuDataAvailable","CpuRestartCount","CpuConsecutiveFailures","CpuLastReason",
+                    "GpuTransportHealthy","GpuDataAvailable","GpuRestartCount","GpuConsecutiveFailures","GpuLastReason",
+                    "StorageTransportHealthy","StorageDataAvailable","StorageAttemptCount","StorageConsecutiveFailures","StorageLastReason"})
+                {
+                    object v;if(root.TryGetValue(key,out v)&&v!=null)d[key]=v;
+                }
+
+                object seq;
+                if(root.TryGetValue("Gpus",out seq)&&seq is System.Collections.IEnumerable)
+                {
+                    int count=0,available=0;
+                    foreach(object x in (System.Collections.IEnumerable)seq)
+                    {
+                        count++;Dictionary<string,object> m=x as Dictionary<string,object>;object av;
+                        if(m!=null&&m.TryGetValue("Available",out av)){try{if(Convert.ToBoolean(av,CultureInfo.InvariantCulture))available++;}catch{}}
+                    }
+                    d["RecordCount"]=count;d["DataRecordCount"]=available;
+                }
+                if(root.TryGetValue("StorageTemperatures",out seq)&&seq is System.Collections.IEnumerable)
+                {
+                    int count=0,available=0;
+                    foreach(object x in (System.Collections.IEnumerable)seq)
+                    {
+                        count++;Dictionary<string,object> m=x as Dictionary<string,object>;object av;
+                        if(m!=null&&m.TryGetValue("Available",out av)){try{if(Convert.ToBoolean(av,CultureInfo.InvariantCulture))available++;}catch{}}
+                    }
+                    d["RecordCount"]=count;d["DataRecordCount"]=available;
+                }
+            }
+            catch(Exception ex){d["ReadError"]=ex.Message;}
+            return d;
+        }
+
+        private static bool B(Dictionary<string,object> d,string key,bool fallback)
+        {
+            object x;if(!d.TryGetValue(key,out x)||x==null)return fallback;
+            try{return Convert.ToBoolean(x,CultureInfo.InvariantCulture);}catch{return fallback;}
+        }
+
+        public static int Run(string outputPath)
+        {
+            Dictionary<string,object> supervisor=ReadState(AppPaths.SensorSupervisorState,15);
+            Dictionary<string,object> cpu=ReadState(AppPaths.CpuTempBrokerData,15);
+            Dictionary<string,object> gpu=ReadState(AppPaths.GpuBrokerData,20);
+            Dictionary<string,object> storage=ReadState(AppPaths.StorageBrokerData,120);
+            string brokerVersion=Convert.ToString(supervisor.ContainsKey("BrokerVersion")?supervisor["BrokerVersion"]:"",CultureInfo.InvariantCulture)??"";
+            bool architectureR21=brokerVersion.IndexOf("r21",StringComparison.OrdinalIgnoreCase)>=0;
+            bool supervisorFresh=B(supervisor,"Fresh",false);
+            bool cpuFresh=B(cpu,"Fresh",false);
+            bool gpuFresh=B(gpu,"Fresh",false);
+            bool storageFresh=B(storage,"Fresh",false);
+            bool cpuTransport=B(supervisor,"CpuTransportHealthy",cpuFresh);
+            bool gpuTransport=B(supervisor,"GpuTransportHealthy",gpuFresh);
+            bool storageTransport=B(supervisor,"StorageTransportHealthy",storageFresh);
+            bool pass=architectureR21&&supervisorFresh&&cpuFresh&&gpuFresh&&storageFresh&&cpuTransport&&gpuTransport&&storageTransport;
+
+            Dictionary<string,object> result=new Dictionary<string,object>();
+            result["Version"]=BuildInfo.Version;result["PublicVersion"]=BuildInfo.PublicVersion;result["GeneratedUtc"]=DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture);
+            result["Status"]=pass?"PASS":"DEGRADED";result["ArchitectureR21"]=architectureR21;
+            result["Supervisor"]=supervisor;result["Cpu"]=cpu;result["Gpu"]=gpu;result["Storage"]=storage;
+            File.WriteAllText(outputPath,new JavaScriptSerializer().Serialize(result),Encoding.UTF8);
+            Console.WriteLine("TBME_HEALTH_PROBE="+(pass?"PASS":"DEGRADED")+" R21="+architectureR21+" SUP="+supervisorFresh+" CPU="+cpuFresh+"/"+cpuTransport+" GPU="+gpuFresh+"/"+gpuTransport+" STORAGE="+storageFresh+"/"+storageTransport);
+            return pass?0:12;
         }
     }
 
@@ -6032,10 +6410,10 @@ namespace TaskbarMonitorEnhanced
                 if(!ShellUi.IsStartShellProcessName("SearchHost"))throw new Exception("SearchHost detector");
                 long recipe=Native.WS_EX_CONTROLPARENT|Native.WS_EX_LAYERED|Native.WS_EX_COMPOSITED|Native.WS_EX_TOOLWINDOW|Native.WS_EX_NOACTIVATE;
                 if(recipe!=0x0A090080L)throw new Exception("R07 interactive noactivate exstyle recipe");
-                Console.WriteLine("TBME_V1_1_2_R20_SELFTEST=PASS PUBLIC_VERSION=1.1.2-rc1 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE THEMES=14 WIDTH=1100 HISTORY=60 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE CREATEPARAMS_NOACTIVATE=TRUE");
+                Console.WriteLine("TBME_V1_1_2_R21_SELFTEST=PASS PUBLIC_VERSION=1.1.2-rc2 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE THEMES=14 WIDTH=1100 HISTORY=60 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE CREATEPARAMS_NOACTIVATE=TRUE");
                 return 0;
             }
-            catch(Exception ex){Console.Error.WriteLine("TBME_V1_1_2_R20_SELFTEST=FAIL " + ex);return 2;}
+            catch(Exception ex){Console.Error.WriteLine("TBME_V1_1_2_R21_SELFTEST=FAIL " + ex);return 2;}
         }
 
         public static int RunJson(string outputPath)
@@ -6334,6 +6712,11 @@ namespace TaskbarMonitorEnhanced
                     return 7;
                 }
                 return TemperatureProbe.Run(args[1]);
+            }
+            if(args!=null && args.Length>0 && args[0]=="--healthprobe")
+            {
+                if(args.Length<2){Console.Error.WriteLine("TBME_HEALTH_PROBE=FAIL missing json path");return 12;}
+                return HealthProbe.Run(args[1]);
             }
             bool created;
             using(Mutex mutex=new Mutex(true,@"Local\TaskbarMonitorEnhanced_V1_1_0",out created))

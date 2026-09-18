@@ -5,6 +5,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Reflection;
 using System.Security.Principal;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
@@ -15,13 +16,13 @@ using Microsoft.Win32;
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.1.1.0")]
-[assembly: AssemblyFileVersion("1.1.1.0")]
+[assembly: AssemblyVersion("1.1.2.0")]
+[assembly: AssemblyFileVersion("1.1.2.0")]
 
 internal static class SetupProgram
 {
     const string Product="Taskbar Monitor Enhanced";
-    const string Version="1.1.1";
+    const string Version="1.1.2-rc2";
     const string Publisher="Dr. Ali-Akbar Emadeddin";
     const string AppFolder="TaskbarMonitorEnhanced";
     const string UninstallKey=@"Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced";
@@ -43,7 +44,7 @@ internal static class SetupProgram
       "Payload.COPYRIGHT_AND_ATTRIBUTION.md",
       "Payload.AI_ASSISTED_DEVELOPMENT.md",
       "Payload.THIRD_PARTY_NOTICES.md",
-      "Payload.RELEASE_NOTES_v1.1.1.md",
+      "Payload.RELEASE_NOTES_v1.1.2.md",
       "Payload.UPSTREAM_REFERENCE_GPL_NOTICE.md",
       "Payload.TaskbarMonitorEnhanced_Setup.cs"
     };
@@ -137,13 +138,28 @@ internal static class SetupProgram
         finally{try{File.Delete(temp);}catch{}}
     }
 
+    static string Sha256File(string path)
+    {
+        using(SHA256 sha=SHA256.Create())
+        using(FileStream fs=File.OpenRead(path))
+        {
+            byte[] hash=sha.ComputeHash(fs);
+            StringBuilder b=new StringBuilder();
+            foreach(byte x in hash)b.Append(x.ToString("X2"));
+            return b.ToString();
+        }
+    }
+
     static void WriteBackendState(string backendRoot)
     {
         string library=Path.Combine(backendRoot,"LibreHardwareMonitorLib.dll");
+        string sha=File.Exists(library)?Sha256File(library):"MISSING";
         string json="{\r\n"+
           "  \"Status\": \"READY\",\r\n"+
           "  \"Backend\": \"LibreHardwareMonitor\",\r\n"+
           "  \"Version\": \"0.9.6\",\r\n"+
+          "  \"Channel\": \"STABLE_PINNED\",\r\n"+
+          "  \"LibrarySHA256\": \""+sha+"\",\r\n"+
           "  \"LibraryPath\": \""+library.Replace("\\","\\\\")+"\"\r\n"+
           "}\r\n";
         File.WriteAllText(Path.Combine(AppRoot,"sensor_backend_state.json"),json,Encoding.UTF8);
@@ -153,10 +169,10 @@ internal static class SetupProgram
     {
         string json="{\r\n"+
           "  \"App\": \"Taskbar Monitor Enhanced\",\r\n"+
-          "  \"Version\": \"PUBLIC_1.1.1\",\r\n"+
-          "  \"PublicVersion\": \"1.1.1\",\r\n"+
-          "  \"InternalRuntimeBaseline\": \"V1_1_1_R18_LOW_PRESSURE_CHILD_STABLE_ACCEPTED\",\r\n"+
-          "  \"SensorSupervisor\": \"V1_0_2_SUPERVISOR_ACCEPTED_UNCHANGED\",\r\n"+
+          "  \"Version\": \"RC_1.1.2_R21\",\r\n"+
+          "  \"PublicVersion\": \"1.1.2-rc2\",\r\n"+
+          "  \"InternalRuntimeBaseline\": \"V1_1_2_R21_PRODUCTION_HARDENING_RC2\",\r\n"+
+          "  \"SensorSupervisor\": \"V1_1_2_R21_STAGGERED_HEALTH_SUPERVISOR\",\r\n"+
           "  \"ProductIdentity\": \"LOCKED\",\r\n"+
           "  \"ShortcutName\": \"Taskbar Monitor Enhanced\",\r\n"+
           "  \"Publisher\": \"Dr. Ali-Akbar Emadeddin\",\r\n"+
@@ -279,7 +295,7 @@ internal static class SetupProgram
     static SensorOutcome Install(bool desktop,bool startup)
     {
         if(!Environment.Is64BitOperatingSystem)
-            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.1.1 requires 64-bit Windows.");
+            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.1.2-rc2 requires 64-bit Windows.");
 
         StopProcess("TaskbarMonitorEnhanced");
 
@@ -298,7 +314,7 @@ internal static class SetupProgram
         string[] docs=new string[]{
           "LICENSE","README.md","AUTHORS.md","COPYRIGHT_AND_ATTRIBUTION.md",
           "AI_ASSISTED_DEVELOPMENT.md","THIRD_PARTY_NOTICES.md",
-          "RELEASE_NOTES_v1.1.1.md","UPSTREAM_REFERENCE_GPL_NOTICE.md"
+          "RELEASE_NOTES_v1.1.2.md","UPSTREAM_REFERENCE_GPL_NOTICE.md"
         };
         foreach(string doc in docs)
             Extract("Payload."+doc,Path.Combine(AppRoot,"Docs",doc));
@@ -399,7 +415,7 @@ internal static class SetupProgram
                 }
             }
             if(!String.IsNullOrEmpty(path)){
-                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+",\"Version\":\"1.1.1\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\"}";
+                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+",\"Version\":\"1.1.2-rc2\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\",\"SensorArchitecture\":\"R21_PROCESS_ISOLATED\"}";
                 File.WriteAllText(path,json,Encoding.UTF8);
             }
             return 0;
@@ -436,7 +452,7 @@ internal static class SetupProgram
             Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
             Label title=new Label();
-            title.Text=Product+"  1.1.1";
+            title.Text=Product+"  1.1.2-rc2";
             title.Font=new Font(Font.FontFamily,18,FontStyle.Bold);
             title.Left=28;title.Top=22;title.AutoSize=true;Controls.Add(title);
 
@@ -471,12 +487,12 @@ internal static class SetupProgram
                     progress.Visible=false;
                     status.Text="Installation completed.";
                     if(outcome.IsHealthy){
-                        MessageBox.Show(Product+" 1.1.1 was installed successfully.\r\n\r\nCPU temperature monitoring is active.",
+                        MessageBox.Show(Product+" 1.1.2-rc2 was installed successfully.\r\n\r\nProtected hardware sensor monitoring is active.",
                           "Setup complete",MessageBoxButtons.OK,MessageBoxIcon.Information);
                     }else{
                         string extra=outcome.RebootRequired ? "\r\n\r\nRestart Windows, then use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors if needed." :
                           "\r\n\r\nThe application is installed and usable. The sensor supervisor continues in the background. If CPU TEMP is still N/A after a short wait or restart, use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors.";
-                        MessageBox.Show(Product+" 1.1.1 was installed successfully.\r\n\r\n"+outcome.Message+extra,
+                        MessageBox.Show(Product+" 1.1.2-rc2 was installed successfully.\r\n\r\n"+outcome.Message+extra,
                           "Setup complete - sensor warning",MessageBoxButtons.OK,MessageBoxIcon.Warning);
                     }
                     Close();

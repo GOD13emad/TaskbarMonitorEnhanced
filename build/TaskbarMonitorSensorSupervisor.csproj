@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net48</TargetFramework><OutputType>Exe</OutputType><PlatformTarget>x64</PlatformTarget><Prefer32Bit>false</Prefer32Bit><GenerateAssemblyInfo>false</GenerateAssemblyInfo><EnableDefaultCompileItems>false</EnableDefaultCompileItems><LangVersion>latest</LangVersion><AssemblyName>TaskbarMonitorSensorSupervisor</AssemblyName><OutputPath>_out\Supervisor\</OutputPath><AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath></PropertyGroup>
+  <ItemGroup><Compile Include="..\src\sensors\TaskbarMonitorSensorSupervisor.cs" /></ItemGroup>
+</Project>

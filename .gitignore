@@ -29,3 +29,22 @@ Desktop.ini
 # Local release staging
 *_RETURN_TO_CHATGPT_*.zip
 *_ONEFILE_DOWNLOAD.zip
+
+# Local engineering workspaces (R20/R21 audit, build, canary and raw evidence)
+r20_build/
+r20_evidence/
+r21_benchmark/
+r21_canary/
+r21_canary_noscreen/
+r21_evidence/
+r21_package/
+r21_tests/
+r21_upstream/
+
+# Reproducible build outputs/dependency cache
+build/_deps/
+build/_out/
+build/_package/
+artifacts/
+r21_perf_canary/
+r21_supply_chain/

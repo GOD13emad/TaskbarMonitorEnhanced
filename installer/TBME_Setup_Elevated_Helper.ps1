@@ -14,6 +14,14 @@ $ResultPath=Join-Path $LogsRoot 'sensor_install_result.json'
 $LogPath=Join-Path $LogsRoot 'sensor_install.log'
 New-Item -ItemType Directory -Force -Path $LogsRoot | Out-Null
 
+# R21 health channels are initialized before any early-return/uninstall branch so
+# Write-Result can always emit a stable schema under StrictMode.
+$SupervisorHealthy=$false
+$CpuTransportHealthy=$false
+$GpuTransportHealthy=$false
+$StorageTransportHealthy=$false
+$CpuDataAvailable=$false
+
 function Write-Log([string]$Message){
     $line=(Get-Date).ToString('o')+' '+$Message
     $line | Add-Content -LiteralPath $LogPath -Encoding UTF8
@@ -35,6 +43,12 @@ function Write-Result(
         RebootRequired=$RebootRequired
         TaskInstalled=$TaskInstalled
         SensorHealthy=$SensorHealthy
+        SupervisorHealthy=$SupervisorHealthy
+        CpuTransportHealthy=$CpuTransportHealthy
+        GpuTransportHealthy=$GpuTransportHealthy
+        StorageTransportHealthy=$StorageTransportHealthy
+        CpuDataAvailable=$CpuDataAvailable
+        Architecture='R21_PROCESS_ISOLATED'
         Time=(Get-Date).ToString('o')
         LogPath=$LogPath
     } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ResultPath -Encoding UTF8
@@ -77,6 +91,9 @@ $SupervisorPayload=Join-Path $PayloadDir 'TaskbarMonitorSensorSupervisor.exe'
 $PawnPayload=Join-Path $PayloadDir 'PawnIO_setup.exe'
 $BackendRoot=Join-Path $AppRoot 'SensorBackend\LibreHardwareMonitor-0.9.6'
 $LiveJson=Join-Path $AppRoot 'cpu_temp_broker.json'
+$GpuJson=Join-Path $AppRoot 'gpu_temp_broker.json'
+$StorageJson=Join-Path $AppRoot 'storage_temp_broker.json'
+$SupervisorState=Join-Path $AppRoot 'sensor_supervisor_state.json'
 
 $requiredOk=$true
 foreach($required in @(
@@ -140,7 +157,15 @@ try{
     Get-Process TaskbarMonitorSensorSupervisor,TaskbarMonitorSensorBroker -ErrorAction SilentlyContinue |
         Stop-Process -Force -ErrorAction SilentlyContinue
     Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
-    Start-Sleep -Milliseconds 600
+    $drainDeadline=(Get-Date).AddSeconds(5)
+    do{
+        Start-Sleep -Milliseconds 250
+        $remaining=@(Get-Process TaskbarMonitorSensorSupervisor,TaskbarMonitorSensorBroker -ErrorAction SilentlyContinue)
+    }while($remaining.Count -gt 0 -and (Get-Date) -lt $drainDeadline)
+    if($remaining.Count -gt 0){
+        throw ('SENSOR_PROCESS_DRAIN_FAILED pids='+($remaining.Id -join ','))
+    }
+    Remove-Item -LiteralPath $LiveJson,$GpuJson,$StorageJson,$SupervisorState -Force -ErrorAction SilentlyContinue
 
     New-Item -ItemType Directory -Force -Path $BrokerRoot|Out-Null
     Copy-Item -LiteralPath $BrokerPayload -Destination (Join-Path $BrokerRoot 'TaskbarMonitorSensorBroker.exe') -Force
@@ -160,11 +185,11 @@ try{
     $Action=New-ScheduledTaskAction -Execute $SupervisorExe -Argument ('--broker "'+$BrokerExe+'" --output "'+$LiveJson+'"')
     $Trigger=New-ScheduledTaskTrigger -AtLogOn -User $UserId
     $Principal=New-ScheduledTaskPrincipal -UserId $UserId -LogonType Interactive -RunLevel Highest
-    $Settings=New-ScheduledTaskSettingsSet -RestartCount 99 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    $Settings=New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
     Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Force|Out-Null
     Start-ScheduledTask -TaskName $TaskName
     $taskInstalled=$true
-    Write-Log 'SUPERVISOR_TASK_INSTALLED_AND_STARTED'
+    Write-Log 'SUPERVISOR_TASK_INSTALLED_AND_STARTED restartCount=3 restartInterval=PT1M multipleInstances=IgnoreNew'
 }catch{
     Write-Log ('SUPERVISOR_TASK_SETUP_WARNING '+$_.Exception.ToString())
 }
@@ -172,36 +197,65 @@ try{
 $healthy=$false
 $currentC=$null
 if($taskInstalled -and -not$rebootRequired){
-    for($i=0;$i -lt 60;$i++){
+    for($i=0;$i -lt 90;$i++){
         Start-Sleep -Milliseconds 500
         $task=Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
         $supervisor=@(Get-Process TaskbarMonitorSensorSupervisor -ErrorAction SilentlyContinue)
-        if($task -and [string]$task.State -eq 'Running' -and $supervisor.Count -eq 1 -and (Test-Path -LiteralPath $LiveJson)){
+
+        if($task -and [string]$task.State -eq 'Running' -and $supervisor.Count -eq 1){
             try{
-                $j=Get-Content -LiteralPath $LiveJson -Raw|ConvertFrom-Json
-                $ts=[datetime]::Parse([string]$j.TimestampUtc,[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::AssumeUniversal).ToUniversalTime()
-                $age=([datetime]::UtcNow-$ts).TotalSeconds
-                $sensorName=[string]$j.Sensor
-                $current=[double]$j.CurrentC
-                if([bool]$j.Available -eq $true -and
-                   [bool]$j.Is64BitProcess -eq $true -and
-                   [bool]$j.IsElevated -eq $true -and
-                   -not[String]::IsNullOrWhiteSpace($sensorName) -and
-                   $current -gt 0 -and $current -lt 130 -and
-                   $age -lt 15){
-                    $healthy=$true
-                    $currentC=$current
-                    Write-Log ("SENSOR_READY_MATCH sensor='"+$sensorName+"' cpu="+$current+" ageSec="+[math]::Round($age,2))
-                    break
+                if(Test-Path -LiteralPath $SupervisorState){
+                    $state=Get-Content -LiteralPath $SupervisorState -Raw|ConvertFrom-Json
+                    $stateTs=[datetime]::Parse([string]$state.TimestampUtc,[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::AssumeUniversal).ToUniversalTime()
+                    $stateAge=([datetime]::UtcNow-$stateTs).TotalSeconds
+                    $version=[string]$state.BrokerVersion
+                    $CpuTransportHealthy=[bool]$state.CpuTransportHealthy
+                    $GpuTransportHealthy=[bool]$state.GpuTransportHealthy
+                    $StorageTransportHealthy=[bool]$state.StorageTransportHealthy
+                    $SupervisorHealthy=(
+                        $stateAge -ge 0 -and $stateAge -lt 15 -and
+                        $version -match 'r21' -and
+                        $CpuTransportHealthy -and $GpuTransportHealthy -and $StorageTransportHealthy
+                    )
+                }
+            }catch{
+                $SupervisorHealthy=$false
+            }
+
+            try{
+                if(Test-Path -LiteralPath $LiveJson){
+                    $j=Get-Content -LiteralPath $LiveJson -Raw|ConvertFrom-Json
+                    $ts=[datetime]::Parse([string]$j.TimestampUtc,[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::AssumeUniversal).ToUniversalTime()
+                    $age=([datetime]::UtcNow-$ts).TotalSeconds
+                    $sensorName=[string]$j.Sensor
+                    $current=[double]$j.CurrentC
+                    if([bool]$j.Available -eq $true -and
+                       [bool]$j.Is64BitProcess -eq $true -and
+                       [bool]$j.IsElevated -eq $true -and
+                       -not[String]::IsNullOrWhiteSpace($sensorName) -and
+                       $current -gt 0 -and $current -lt 130 -and
+                       $age -lt 15){
+                        $healthy=$true
+                        $CpuDataAvailable=$true
+                        $currentC=$current
+                    }
                 }
             }catch{}
+
+            if($SupervisorHealthy -and $healthy){
+                Write-Log ("R21_READY_MATCH cpu="+$currentC+" cpuTransport="+$CpuTransportHealthy+" gpuTransport="+$GpuTransportHealthy+" storageTransport="+$StorageTransportHealthy)
+                break
+            }
         }
     }
 }
 
-if($healthy){
-    Write-Log "SENSOR_READY cpu=$currentC"
-    Write-Result 'READY' 'CPU temperature sensor is active and reporting fresh data.' $pawnStatus $pawnExit $false $taskInstalled $true
+if($SupervisorHealthy -and $healthy){
+    Write-Log "R21_SENSOR_READY cpu=$currentC"
+    Write-Result 'READY' 'R21 protected sensor supervisor is healthy across CPU, GPU and storage lanes; CPU temperature data is active.' $pawnStatus $pawnExit $false $taskInstalled $true
+}elseif($SupervisorHealthy){
+    Write-Log 'R21_SENSOR_TRANSPORT_READY_DATA_DEGRADED'
+    Write-Result 'DEGRADED_DATA' 'The R21 protected sensor supervisor is healthy across CPU, GPU and storage lanes, but CPU temperature data is not currently available on this machine.' $pawnStatus $pawnExit $false $taskInstalled $false
 }elseif($rebootRequired){
     Write-Log 'SENSOR_REBOOT_REQUIRED'
     Write-Result 'REBOOT_REQUIRED' 'The application installed successfully. Restart Windows to finish activating CPU temperature monitoring.' $pawnStatus $pawnExit $true $taskInstalled $false
@@ -215,7 +269,7 @@ if($healthy){
     Write-Log 'SENSOR_DEGRADED task-not-installed'
     Write-Result 'DEGRADED' 'The application installed successfully, but the protected sensor task could not be created. CPU temperature will show N/A.' $pawnStatus $pawnExit $false $false $false
 }else{
-    Write-Log 'SENSOR_UNAVAILABLE_AFTER_STARTUP_WINDOW'
-    Write-Result 'UNAVAILABLE' 'The application installed successfully. The CPU sensor did not become ready in time and will show N/A for now.' $pawnStatus $pawnExit $false $taskInstalled $false
+    Write-Log ("R21_SUPERVISOR_UNAVAILABLE_AFTER_STARTUP_WINDOW cpuTransport="+$CpuTransportHealthy+" gpuTransport="+$GpuTransportHealthy+" storageTransport="+$StorageTransportHealthy)
+    Write-Result 'UNAVAILABLE' 'The application installed successfully, but the R21 protected sensor supervisor did not reach a fresh healthy state across all worker lanes in time. Use Diagnostics > Repair protected sensors.' $pawnStatus $pawnExit $false $taskInstalled $false
 }
 exit 0

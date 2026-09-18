@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.2-rc2 — R21 Production Hardening (candidate; not Stable)
+
+- isolate LibreHardwareMonitor CPU, GPU and storage access into independent worker processes
+- stagger sensor-worker startup and apply bounded exponential backoff / termination-pending protection
+- distinguish worker transport health from hardware data availability
+- recycle native sensor workers across long suspend/resume gaps
+- replace hot-loop Processor PerformanceCounter CPU usage with Windows GetSystemTimes
+- cache static CPU topology for five minutes and active network topology for 30 seconds
+- use isolated GPU telemetry first; run WDDM fallback only when needed
+- invalidate stale CPU temperature and throttle expensive WMI/ACPI temperature fallback
+- add Diagnostics UI, support-report export, repair action and --healthprobe
+- require immutable GitHub Releases in addition to asset SHA-256 metadata for automatic installation
+- harden Scheduled Task restart policy to RestartCount=3 and MultipleInstances=IgnoreNew
+- keep LibreHardwareMonitor 0.9.6 pinned after a current upstream nightly failed to improve the CPU-worker behavior in validation
+- engineering gates: zero-warning build PASS, self-test PASS, theme/compact proof PASS, deterministic supervisor fault-injection PASS, no-screen taskbar canary PASS
+- remaining release gate: elevated R21 split-supervisor install/health validation plus installed soak
+
 ## 1.1.1 — Stable (R18)
 
 - retain R15 removal of default NVIDIA-SMI realtime polling

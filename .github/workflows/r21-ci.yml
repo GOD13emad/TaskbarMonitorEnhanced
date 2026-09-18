@@ -1,0 +1,38 @@
+name: R21 Build and Verification
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+      - 'audit/**'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Git whitespace check
+        shell: pwsh
+        run: git diff --check HEAD^
+
+      - name: Reproducible R21 build
+        shell: pwsh
+        run: ./build/Build-R21.ps1
+
+      - name: Print build manifest
+        shell: pwsh
+        run: Get-Content ./artifacts/R21_BUILD_MANIFEST.json
