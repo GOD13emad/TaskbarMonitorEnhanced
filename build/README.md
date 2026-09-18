@@ -7,6 +7,7 @@ It performs the following gates:
 1. Downloads LibreHardwareMonitor 0.9.6 and PawnIO 2.2.0 only from their official GitHub release URLs.
 2. Verifies the pinned SHA-256 of both dependency artifacts before extraction or use.
 3. Builds the main application, isolated sensor broker, and supervisor as x64 .NET Framework 4.8 binaries.
+   Release projects explicitly enable deterministic/CI compilation and omit absolute PDB path metadata from production PE files.
 4. Builds the setup executable from those exact outputs.
 5. Runs setup /verify and requires 19 embedded resources.
 6. Runs the application self-test.
