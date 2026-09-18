@@ -1,3 +1,4 @@
+// TBME_V1_1_2_R20_RC1: LHM native sensor access isolated from the UI process; CPU/GPU/storage failures are independently contained.
 // TBME_V1_1_1_R18_STABLE: low-pressure taskbar-child shell integration + single-instance Settings.
 // TBME_V1_1_0_DISK_TEMP_BROKER_RESTORE_R02: elevated storage temperatures + LHM HardwareId drive-index correlation; shell core unchanged.
 // TBME_V1_1_0_SHELL_RESTORE_R01: exact accepted v1.0.2 Shell integration core restored onto current v1.1.0 feature source; no telemetry/hover/update rollback.
@@ -30,18 +31,18 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Live system monitor integrated into the Windows taskbar")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.1.1")]
+[assembly: AssemblyInformationalVersion("1.1.2-rc1+r20")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.1.1.0")]
-[assembly: AssemblyFileVersion("1.1.1.0")]
+[assembly: AssemblyVersion("1.1.2.0")]
+[assembly: AssemblyFileVersion("1.1.2.0")]
 
 namespace TaskbarMonitorEnhanced
 {
     internal static class BuildInfo
     {
-        public const string Version = "V1_1_1_R18_LOW_PRESSURE_CHILD_STABLE";
+        public const string Version = "V1_1_2_R20_LHM_PROCESS_ISOLATION_RC1";
         public const string Product = "Taskbar Monitor Enhanced";
-        public const string PublicVersion = "1.1.1";
+        public const string PublicVersion = "1.1.2-rc1";
         public const string ShortcutName = "Taskbar Monitor Enhanced";
         public const string ProductDescription = "Live system monitor integrated into the Windows taskbar";
         public const string Author = "Dr. Ali-Akbar Emadeddin";
@@ -62,6 +63,8 @@ namespace TaskbarMonitorEnhanced
         public static readonly string SensorBackend = Path.Combine(Root, "SensorBackend", "LibreHardwareMonitor-0.9.6");
         public static readonly string SensorBackendState = Path.Combine(Root, "sensor_backend_state.json");
         public static readonly string CpuTempBrokerData = Path.Combine(Root, "cpu_temp_broker.json");
+        public static readonly string GpuBrokerData = Path.Combine(Root, "gpu_temp_broker.json");
+        public static readonly string StorageBrokerData = Path.Combine(Root, "storage_temp_broker.json");
         public static readonly string Updates = Path.Combine(Root, "Updates");
         public static readonly string Log = Path.Combine(Logs, "tbme_csharp_" + DateTime.Now.ToString("yyyyMMdd") + ".log");
     }
@@ -605,8 +608,8 @@ namespace TaskbarMonitorEnhanced
             List<StorageTemperatureSample> result=new List<StorageTemperatureSample>();
             try
             {
-                if(!File.Exists(AppPaths.CpuTempBrokerData)){State("FILE_MISSING");return result;}
-                string json=BrokerJsonFile.ReadShared(AppPaths.CpuTempBrokerData);
+                if(!File.Exists(AppPaths.StorageBrokerData)){State("FILE_MISSING");return result;}
+                string json=BrokerJsonFile.ReadShared(AppPaths.StorageBrokerData);
                 JavaScriptSerializer js=new JavaScriptSerializer();
                 Dictionary<string,object> root=js.Deserialize<Dictionary<string,object>>(json);
                 if(root==null){State("JSON_EMPTY");return result;}
@@ -617,7 +620,7 @@ namespace TaskbarMonitorEnhanced
                     DateTimeStyles.AssumeUniversal|DateTimeStyles.AdjustToUniversal,out ts))
                 {State("TIMESTAMP_INVALID");return result;}
                 double age=(DateTime.UtcNow-ts).TotalSeconds;
-                if(age<0||age>20){State("STALE");return result;}
+                if(age<0||age>120){State("STALE");return result;}
 
                 object storageObj;
                 if(!root.TryGetValue("StorageTemperatures",out storageObj)||storageObj==null)
@@ -637,10 +640,95 @@ namespace TaskbarMonitorEnhanced
                     string sensor=Text(m,"Sensor");
                     StorageTemperatureSample x=new StorageTemperatureSample();
                     x.Valid=true;x.HardwareName=Text(m,"HardwareName");x.HardwareId=Text(m,"HardwareId");x.Temperature=temp;
-                    x.Source="LHM_ELEVATED_STORAGE_BROKER"+(String.IsNullOrWhiteSpace(sensor)?"":":"+sensor);
+                    x.Source="LHM_ISOLATED_STORAGE_BROKER"+(String.IsNullOrWhiteSpace(sensor)?"":":"+sensor);
                     result.Add(x);
                 }
                 State(result.Count>0?("READY count="+result.Count):"NO_VALID_STORAGE_TEMPERATURES");
+            }
+            catch(Exception ex){State("READ_FAIL "+ex.Message);}
+            return result;
+        }
+    }
+
+    internal sealed class ElevatedGpuTelemetryReader
+    {
+        private string lastState="";
+
+        private static string Text(Dictionary<string,object> m,string key)
+        {
+            object x;if(m==null||!m.TryGetValue(key,out x)||x==null)return "";
+            return Convert.ToString(x,CultureInfo.InvariantCulture)??"";
+        }
+        private static bool Bool(Dictionary<string,object> m,string key)
+        {
+            object x;if(m==null||!m.TryGetValue(key,out x)||x==null)return false;
+            try{return Convert.ToBoolean(x,CultureInfo.InvariantCulture);}catch{return false;}
+        }
+        private static float Float(Dictionary<string,object> m,string key)
+        {
+            object x;if(m==null||!m.TryGetValue(key,out x)||x==null)return 0;
+            try{return Convert.ToSingle(x,CultureInfo.InvariantCulture);}catch{return 0;}
+        }
+        private static int Int(Dictionary<string,object> m,string key,int fallback)
+        {
+            object x;if(m==null||!m.TryGetValue(key,out x)||x==null)return fallback;
+            try{return Convert.ToInt32(x,CultureInfo.InvariantCulture);}catch{return fallback;}
+        }
+        private void State(string x)
+        {
+            if(String.Equals(x,lastState,StringComparison.Ordinal))return;
+            lastState=x;Log.Write("INFO","GPU_ISOLATED_BROKER_STATE "+x);
+        }
+
+        public List<GpuTelemetrySample> ReadAll()
+        {
+            List<GpuTelemetrySample> result=new List<GpuTelemetrySample>();
+            try
+            {
+                if(!File.Exists(AppPaths.GpuBrokerData)){State("FILE_MISSING");return result;}
+                string json=BrokerJsonFile.ReadShared(AppPaths.GpuBrokerData);
+                Dictionary<string,object> root=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(json);
+                if(root==null){State("JSON_EMPTY");return result;}
+
+                object tsObj;DateTime ts;
+                if(!root.TryGetValue("TimestampUtc",out tsObj) ||
+                   !DateTime.TryParse(Convert.ToString(tsObj,CultureInfo.InvariantCulture),CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal|DateTimeStyles.AdjustToUniversal,out ts))
+                {State("TIMESTAMP_INVALID");return result;}
+                double age=(DateTime.UtcNow-ts).TotalSeconds;
+                if(age<0||age>20){State("STALE ageSec="+age.ToString("0.0",CultureInfo.InvariantCulture));return result;}
+
+                object gpusObj;
+                if(!root.TryGetValue("Gpus",out gpusObj)||gpusObj==null){State("GPU_ARRAY_MISSING");return result;}
+                System.Collections.IEnumerable seq=gpusObj as System.Collections.IEnumerable;
+                if(seq==null){State("GPU_ARRAY_INVALID");return result;}
+
+                foreach(object item in seq)
+                {
+                    Dictionary<string,object> m=item as Dictionary<string,object>;if(m==null)continue;
+                    if(!Bool(m,"Available"))continue;
+                    GpuTelemetrySample g=new GpuTelemetrySample();
+                    g.Valid=true;
+                    g.LoadValid=Bool(m,"LoadValid");
+                    g.TemperatureValid=Bool(m,"TemperatureValid");
+                    g.CoreClockValid=Bool(m,"CoreClockValid");
+                    g.MemoryClockValid=Bool(m,"MemoryClockValid");
+                    g.Load=Float(m,"Load");
+                    g.Temperature=Float(m,"Temperature");
+                    g.VramUsedGb=Float(m,"VramUsedGb");
+                    g.VramTotalGb=Float(m,"VramTotalGb");
+                    g.CoreClockMHz=Float(m,"CoreClockMHz");
+                    g.MemoryClockMHz=Float(m,"MemoryClockMHz");
+                    g.PcieGeneration=Int(m,"PcieGeneration",0);
+                    g.PcieWidth=Int(m,"PcieWidth",0);
+                    g.AdapterIndex=Int(m,"AdapterIndex",-1);
+                    g.HardwareName=Text(m,"HardwareName");
+                    g.HardwareId=Text(m,"HardwareId");
+                    g.Source=Text(m,"Source");
+                    if(String.IsNullOrWhiteSpace(g.Source))g.Source="LHM_ISOLATED_GPU_BROKER";
+                    result.Add(g);
+                }
+                State(result.Count>0?("READY count="+result.Count):"NO_VALID_GPU_RECORDS");
             }
             catch(Exception ex){State("READ_FAIL "+ex.Message);}
             return result;
@@ -1589,7 +1677,6 @@ namespace TaskbarMonitorEnhanced
     internal sealed class CpuTemperatureReader : IDisposable
     {
         private string lastSource="";
-        private readonly LibreHardwareMonitorBridge direct=new LibreHardwareMonitorBridge();
 
         public CpuTemperatureSample Read()
         {
@@ -1598,8 +1685,7 @@ namespace TaskbarMonitorEnhanced
             s=ReadElevatedBroker();
             if(s.Valid){LogSource(s.Source,s.SensorCount);return s;}
 
-            s=direct.Read();
-            if(s.Valid){LogSource(s.Source,s.SensorCount);return s;}
+            // R20: direct LibreHardwareMonitor is intentionally disabled in the UI process.
 
             s=ReadHardwareMonitorNamespace(@"\\.\root\LibreHardwareMonitor","LIBRE_HARDWARE_MONITOR_WMI");
             if(s.Valid){LogSource(s.Source,s.SensorCount);return s;}
@@ -1866,7 +1952,6 @@ namespace TaskbarMonitorEnhanced
 
         public void Dispose()
         {
-            try{direct.Dispose();}catch{}
         }
     }
 
@@ -1889,7 +1974,7 @@ namespace TaskbarMonitorEnhanced
         private readonly ElevatedStorageTemperatureReader elevatedStorageTempReader = new ElevatedStorageTemperatureReader();
         private readonly RollingTemperatureWindow cpuTemps = new RollingTemperatureWindow();
         private readonly RollingTemperatureWindow gpuTemps = new RollingTemperatureWindow();
-        private readonly LibreGpuTelemetryReader genericGpuReader = new LibreGpuTelemetryReader();
+        private readonly ElevatedGpuTelemetryReader elevatedGpuReader = new ElevatedGpuTelemetryReader();
         private readonly WindowsGpuFallbackReader windowsGpuReader = new WindowsGpuFallbackReader();
         private readonly AmdAdlxTemperatureReader amdAdlxTempReader = new AmdAdlxTemperatureReader();
         private List<GpuDeviceSnapshot> lastGpuDevices=new List<GpuDeviceSnapshot>();
@@ -2135,26 +2220,13 @@ namespace TaskbarMonitorEnhanced
         {
             if((DateTime.UtcNow-lastDiskTempQuery).TotalMilliseconds<1800)return;
             lastDiskTempQuery=DateTime.UtcNow;
-            List<StorageTemperatureSample> elevated=new List<StorageTemperatureSample>();
-            List<StorageTemperatureSample> direct=new List<StorageTemperatureSample>();
-            try{elevated=elevatedStorageTempReader.Read();}catch(Exception ex){Log.Write("WARN","DISK_TEMP_ELEVATED_READ "+ex.Message);}
-            try{direct=genericGpuReader.ReadStorageTemperatures();}catch(Exception ex){Log.Write("WARN","DISK_TEMP_DIRECT_READ "+ex.Message);}
+            List<StorageTemperatureSample> isolated=new List<StorageTemperatureSample>();
+            try{isolated=elevatedStorageTempReader.Read();}catch(Exception ex){Log.Write("WARN","DISK_TEMP_ISOLATED_READ "+ex.Message);}
 
             List<StorageTemperatureSample> merged=new List<StorageTemperatureSample>();
-            foreach(StorageTemperatureSample x in elevated)if(x!=null&&x.Valid)merged.Add(x);
-            foreach(StorageTemperatureSample x in direct)
-            {
-                if(x==null||!x.Valid)continue;
-                string n=NormalizeDiskModel(x.HardwareName);
-                bool dup=merged.Any(delegate(StorageTemperatureSample y)
-                {
-                    string yn=NormalizeDiskModel(y.HardwareName);
-                    return n.Length>0&&yn.Length>0&&(n==yn||n.Contains(yn)||yn.Contains(n));
-                });
-                if(!dup)merged.Add(x);
-            }
+            foreach(StorageTemperatureSample x in isolated)if(x!=null&&x.Valid)merged.Add(x);
             lastStorageTemperatures=merged;
-            string sig="elevated="+elevated.Count+" direct="+direct.Count+" merged="+merged.Count+
+            string sig="isolated="+isolated.Count+" merged="+merged.Count+
                 " sources="+String.Join("|",merged.Select(x=>(x.HardwareName??"")+"@"+(x.Source??"")).ToArray());
             if(!String.Equals(sig,lastDiskTemperatureProviderSignature,StringComparison.Ordinal))
             {
@@ -2347,7 +2419,7 @@ namespace TaskbarMonitorEnhanced
         {
             if((DateTime.UtcNow-lastGpuQuery).TotalMilliseconds<1800)return;lastGpuQuery=DateTime.UtcNow;List<GpuTelemetrySample> merged=new List<GpuTelemetrySample>();
             try{foreach(GpuTelemetrySample x in windowsGpuReader.ReadAll())MergeGpu(merged,x,false);}catch(Exception ex){Log.Write("WARN","GPU_WDDM_FALLBACK "+ex.Message);}
-            try{foreach(GpuTelemetrySample x in genericGpuReader.ReadAll())MergeGpu(merged,x,true);}catch(Exception ex){Log.Write("WARN","GPU_LHM_MULTI "+ex.Message);}
+            try{foreach(GpuTelemetrySample x in elevatedGpuReader.ReadAll())MergeGpu(merged,x,true);}catch(Exception ex){Log.Write("WARN","GPU_ISOLATED_BROKER "+ex.Message);}
             // R15 narrow diagnostic: external NVIDIA SMI primary query disabled; WDDM + LHM remain active.
             // R15 narrow diagnostic: external NVIDIA SMI detail query disabled; all other v1.1.0 behavior unchanged.
             try
@@ -2366,7 +2438,7 @@ namespace TaskbarMonitorEnhanced
 
         public void Dispose()
         {
-            if(cpuCounter!=null)cpuCounter.Dispose();if(cpuFrequencyCounter!=null)cpuFrequencyCounter.Dispose();if(diskCounter!=null)diskCounter.Dispose();foreach(PerformanceCounter c in diskActivityCounters.Values)try{c.Dispose();}catch{}foreach(PerformanceCounter c in diskReadCounters.Values)try{c.Dispose();}catch{}foreach(PerformanceCounter c in diskWriteCounters.Values)try{c.Dispose();}catch{};try{cpuTempReader.Dispose();}catch{}try{genericGpuReader.Dispose();}catch{}try{amdAdlxTempReader.Dispose();}catch{}
+            if(cpuCounter!=null)cpuCounter.Dispose();if(cpuFrequencyCounter!=null)cpuFrequencyCounter.Dispose();if(diskCounter!=null)diskCounter.Dispose();foreach(PerformanceCounter c in diskActivityCounters.Values)try{c.Dispose();}catch{}foreach(PerformanceCounter c in diskReadCounters.Values)try{c.Dispose();}catch{}foreach(PerformanceCounter c in diskWriteCounters.Values)try{c.Dispose();}catch{};try{cpuTempReader.Dispose();}catch{}try{amdAdlxTempReader.Dispose();}catch{}
         }
     }
 
@@ -5960,10 +6032,10 @@ namespace TaskbarMonitorEnhanced
                 if(!ShellUi.IsStartShellProcessName("SearchHost"))throw new Exception("SearchHost detector");
                 long recipe=Native.WS_EX_CONTROLPARENT|Native.WS_EX_LAYERED|Native.WS_EX_COMPOSITED|Native.WS_EX_TOOLWINDOW|Native.WS_EX_NOACTIVATE;
                 if(recipe!=0x0A090080L)throw new Exception("R07 interactive noactivate exstyle recipe");
-                Console.WriteLine("TBME_V1_1_1_R18_STABLE_SELFTEST=PASS PUBLIC_VERSION=1.1.1 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE THEMES=14 WIDTH=1100 HISTORY=60 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=TRUE LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE CREATEPARAMS_NOACTIVATE=TRUE");
+                Console.WriteLine("TBME_V1_1_2_R20_SELFTEST=PASS PUBLIC_VERSION=1.1.2-rc1 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE THEMES=14 WIDTH=1100 HISTORY=60 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE CREATEPARAMS_NOACTIVATE=TRUE");
                 return 0;
             }
-            catch(Exception ex){Console.Error.WriteLine("TBME_V1_1_1_R18_STABLE_SELFTEST=FAIL " + ex);return 2;}
+            catch(Exception ex){Console.Error.WriteLine("TBME_V1_1_2_R20_SELFTEST=FAIL " + ex);return 2;}
         }
 
         public static int RunJson(string outputPath)
