@@ -27,6 +27,9 @@ Development branch: audit/r21-production-hardening.
 - Existing elevated monolithic broker evidence: three storage temperature records available (Crucial BX500, Samsung 980 PRO, Samsung 990 PRO).
 - --healthprobe correctly identifies the current older installation as DEGRADED / ArchitectureR21=false rather than falsely passing it.
 - Current GitHub public release v1.1.1 has SHA-256 asset metadata but is mutable; R21 automatic-install policy correctly blocks mutable releases.
+- Reproducible clean-clone build: PASS from commit 11cc2c7 using freshly downloaded official dependencies.
+- Binary determinism: PASS; main app, broker, supervisor and setup are byte-for-byte identical between the primary workspace and a separate clean clone.
+- Short same-machine A/B UI benchmark: R21 process CPU time decreased by about 47.4% and median working set by about 23.9% versus the installed v1.1.1 across a 15-second post-warm-up window. This is a local directional benchmark, not a universal performance claim.
 
 ## Environment/test limitation
 

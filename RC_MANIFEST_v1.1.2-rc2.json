@@ -1,0 +1,47 @@
+{
+  "Version": "1.1.2-rc2",
+  "Status": "RELEASE_CANDIDATE_NOT_STABLE",
+  "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC2",
+  "BinarySourceAuthorityCommit": "11cc2c7",
+  "Dependencies": {
+    "LibreHardwareMonitor": {
+      "Version": "0.9.6",
+      "Url": "https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/download/v0.9.6/LibreHardwareMonitor.zip",
+      "SHA256": "086D9F1B5A99E643EDC2CFAAAC16051685B551E4C5AC0B32A57C58C0E529C001"
+    },
+    "PawnIO": {
+      "Version": "2.2.0",
+      "Url": "https://github.com/namazso/PawnIO.Setup/releases/download/2.2.0/PawnIO_setup.exe",
+      "SHA256": "1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032"
+    }
+  },
+  "Outputs": [
+    {
+      "Name": "TaskbarMonitorEnhanced.exe",
+      "Bytes": 264192,
+      "SHA256": "450F1C3ACBDA9CE34C27087B69F88028DBD05AC5805B7F9020D0E070624A9009"
+    },
+    {
+      "Name": "TaskbarMonitorSensorBroker.exe",
+      "Bytes": 20480,
+      "SHA256": "48CB8DB6B3D664571F059F395D4F3E8BD0A5D1E7251D302CE1C3E93E8D98827D"
+    },
+    {
+      "Name": "TaskbarMonitorSensorSupervisor.exe",
+      "Bytes": 20480,
+      "SHA256": "BCA88BA359C03B6D53F3BAA702C7BF787EC12F9748DFA08B3A48711B4D60A4CB"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc2.exe",
+      "Bytes": 10898432,
+      "SHA256": "B0EA0BAF113BE7621B67B4C566AB4B322532B840E34AEA77A662EFE285523675"
+    }
+  ],
+  "Reproducibility": {
+    "CleanCloneBuild": "PASS",
+    "ByteIdenticalAcrossIndependentPaths": true,
+    "PrimaryWorkspace": "TaskbarMonitorEnhanced_R20",
+    "CleanVerificationWorkspace": "TaskbarMonitorEnhanced_R21_CLEAN_VERIFY_49f66ff"
+  },
+  "RemainingGate": "Interactive UAC elevated split-supervisor installation plus installed healthprobe/soak"
+}

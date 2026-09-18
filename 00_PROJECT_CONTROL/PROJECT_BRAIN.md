@@ -29,6 +29,8 @@ Increase long-run stability and observability without regressing the accepted ta
 
 ## Evidence summary
 
+- Clean-clone reproducible build PASS; all four release binaries are byte-for-byte deterministic across independent workspace paths.
+- Same-machine short A/B indicates approximately 47.4% lower R21 UI process CPU time and 23.9% lower median working set than installed v1.1.1 in the sampled window.
 See docs/R21_ACCEPTANCE_STATUS.md and local r21_evidence/. Core builds and deterministic/visual/canary gates pass. Existing elevated hardware evidence confirms CPU and three storage temperatures; candidate user-context GPU worker confirms RTX 3080 temperature and detailed telemetry.
 
 ## Open blocker
