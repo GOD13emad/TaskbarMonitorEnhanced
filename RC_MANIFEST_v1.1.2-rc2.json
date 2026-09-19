@@ -1,6 +1,6 @@
 {
   "Version": "1.1.2-rc2",
-  "Status": "RELEASE_CANDIDATE_NOT_STABLE",
+  "Status": "RELEASE_CANDIDATE_INSTALLED_VALIDATED_NOT_STABLE",
   "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC2",
   "BinarySourceAuthorityCommit": "357a2ba",
   "Dependencies": {
@@ -19,7 +19,7 @@
     {
       "Name": "TaskbarMonitorEnhanced.exe",
       "Bytes": 264192,
-      "SHA256": "4B2959C9E1D55CCE61D217D12636CD7B5EF3ACBA2BA8847718F84A03A9A13656"
+      "SHA256": "E5453A17A41937121EFF069AC45FB5BAB75C2A24A610F3A1D1E4F369E48A0DEB"
     },
     {
       "Name": "TaskbarMonitorSensorBroker.exe",
@@ -33,8 +33,8 @@
     },
     {
       "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc2.exe",
-      "Bytes": 10908160,
-      "SHA256": "EA3DB74772670104CBE8460026FB0DCC7B636892C536E82C72AA43553C50ED89"
+      "Bytes": 10909184,
+      "SHA256": "68B998510B028003EA46A95B584EB78E0FC407FAD3E322DBA986ABFF4358B4A5"
     }
   ],
   "Reproducibility": {
@@ -44,7 +44,7 @@
     "AutomatedVerifier": "build/Verify-Determinism.ps1",
     "DependencyLock": "build/dependencies.lock.json"
   },
-  "RemainingGate": "Interactive UAC-approved R21 split-supervisor installation, healthprobe PASS, and installed long soak",
+  "RemainingGate": "Extended installed soak including suspend/resume coverage before public Stable/Latest promotion",
   "InstallerSafety": {
     "BoundedUacLaunch": "PASS",
     "NonInteractiveReturnSeconds": 31.31,
@@ -67,5 +67,30 @@
     "GpuWddmFallbackOnDemand": true,
     "CpuTemperatureFallbackThrottleSeconds": 15
   },
-  "InstallerTransactionAuthorityCommit": "d9953d5"
+  "InstallerTransactionAuthorityCommit": "d9953d5",
+  "ReleaseSourceAuthorityCommit": "9211aa5",
+  "RuntimeCodeAuthorityCommit": "7a89368",
+  "TransactionalInstallerAuthorityCommit": "d9953d5",
+  "InstalledValidation": {
+    "Status": "PASS",
+    "SensorLayerStatus": "READY",
+    "HealthProbe": "PASS",
+    "ArchitectureR21": true,
+    "TaskRestartCount": 3,
+    "TaskMultipleInstances": "IgnoreNew",
+    "CpuTransportHealthy": true,
+    "GpuTransportHealthy": true,
+    "StorageTransportHealthy": true,
+    "GpuRecords": 1,
+    "StorageRecords": 3,
+    "MainLoadsLibreHardwareMonitor": false,
+    "TaskbarDirectChildStable": true,
+    "ExplorerRecovery": "PASS_2_SECONDS_APP_PID_STABLE",
+    "PostExplorerSoak": "PASS_18_OF_18",
+    "ApplicationEventLogErrorsSinceInstall": 0,
+    "ExplorerEventLogErrorsSinceInstall": 0,
+    "ObservedCpuWorkerRecoveryCount": 1,
+    "FurtherWorkerFailuresAfterRecovery": 0,
+    "SharedReadMainLogErrorsAfterPatch": 0
+  }
 }

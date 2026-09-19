@@ -4,7 +4,9 @@ Status: RELEASE CANDIDATE / NOT STABLE
 
 Authority baseline: Git commit 539c8f7 (R20 process-isolation baseline).
 Development branch: audit/r21-production-hardening.
-R21 binary-source authority: 357a2ba.
+R21 release-source authority: 9211aa5.
+R21 runtime-code authority: 7a89368.
+R21 transactional-installer authority: d9953d5.
 R21 build-pipeline authority: bdcd2b4.
 
 ## Evidence-backed PASS gates
@@ -27,9 +29,9 @@ R21 build-pipeline authority: bdcd2b4.
 - Live CPU temperature: elevated broker available.
 - Candidate isolated GPU broker: RTX 3080 load/temperature/VRAM/clocks available in non-elevated test.
 - Existing elevated monolithic broker evidence: three storage temperature records available (Crucial BX500, Samsung 980 PRO, Samsung 990 PRO).
-- --healthprobe correctly identifies the current older installation as DEGRADED / ArchitectureR21=false rather than falsely passing it.
+- Historical downgrade/regression gate: --healthprobe correctly identified the pre-R21 installation as DEGRADED / ArchitectureR21=false rather than falsely passing it.
 - Current GitHub public release v1.1.1 has SHA-256 asset metadata but is mutable; R21 automatic-install policy correctly blocks mutable releases.
-- Reproducible clean-clone build: PASS from commit 43d166a using freshly downloaded official dependencies.
+- Reproducible clean-clone build: PASS from release-source commit 9211aa5 using the pinned dependency lock; an earlier clean clone also re-downloaded and verified the official dependencies.
 - Binary determinism: PASS; main app, broker, supervisor and setup are byte-for-byte identical between the primary workspace and a separate clean clone.
 - Automated determinism verifier: PASS from committed HEAD using build/Verify-Determinism.ps1 and build/dependencies.lock.json.
 - Setup assembly identity: PASS; app, broker, supervisor and setup all expose ProductVersion 1.1.2-rc2+r21.
@@ -37,21 +39,28 @@ R21 build-pipeline authority: bdcd2b4.
 - Transactional sensor rollback fault-injection: PASS; after forced failure following candidate file replacement, the previous sensor sentinel was restored exactly, no candidate files remained, stale CPU/GPU/storage/supervisor test telemetry was removed, and the helper emitted DEGRADED_ROLLED_BACK with RollbackSucceeded=true.
 - Stable rollback after the bounded-UAC test: PASS; installed v1.1.1 app SHA-256 restored exactly to 408D5DFA73871579A3FF46F9D681BE78B9AF882CFE569D0750260ACA5694D139 and resumed as a visible direct taskbar child with fresh elevated CPU telemetry.
 - Short same-machine A/B UI benchmark: R21 process CPU time decreased by about 47.4% and median working set by about 23.9% versus the installed v1.1.1 across a 15-second post-warm-up window. This is a local directional benchmark, not a universal performance claim.
+- Windows Event Log post-install check: PASS; no TBME/LHM or Explorer Application Error/.NET Runtime/Application Hang/WER events were found in the observed R21 install window.
+- Post-Explorer soak: PASS; 18/18 five-second samples kept CPU/GPU restart counts fixed, failure counts at zero, healthy reasons, visibility and taskbar geometry.
+- Explorer recovery: PASS; the taskbar shell process was deliberately restarted, the R21 UI process PID stayed unchanged, and it reattached to the new taskbar within 2 seconds at 1100x48.
+- CPU worker containment: PASS; one NO_CURRENT_OUTPUT_AFTER_GRACE event produced one bounded restart with 5-second backoff, then WORKER_RECOVERY_STABLE; no further worker failures were recorded in the observed window.
+- Shared-read CPU broker fix: PASS; after deployment, new main-log lines contain no CPU_TEMP_BROKER_READ, broker-stale or CPU-temperature-unavailable events in the observed window.
+- Installed main-process isolation: PASS; current 100-sample module audit found no LibreHardwareMonitor module in the UI process.
+- Installed live CPU/GPU/storage telemetry: PASS; CPU, RTX 3080 and three storage records are fresh and data-available.
+- Installed Scheduled Task policy: PASS; RestartCount=3 and MultipleInstances=IgnoreNew.
+- Installed file identity: PASS; Main/Broker/Supervisor SHA-256 values match the current deterministic candidate outputs.
+- Installed elevated R21 split supervisor: PASS; install_state SensorLayerStatus=READY and healthprobe reports PASS.
 
 ## Environment/test limitation
 
-The Remote Commander execution token is non-elevated. The R21 split CPU/GPU/storage Supervisor therefore cannot be installed or tested under a fresh highest-privilege token without interactive UAC approval. This is the principal remaining acceptance gate; it is not substituted by non-elevated tests.
+The elevated installation gate is now closed on the validation machine. The remaining limitation is duration/power-transition coverage: the observed installed run is healthy, but a longer soak that includes an actual suspend/resume cycle has not yet been completed in this acceptance record. This is intentionally not substituted with a synthetic claim.
 
 ## Remaining release gates
 
-1. Install TaskbarMonitorEnhanced_Setup_1.1.2-rc2.exe with UAC approval.
-2. Confirm sensor_supervisor_state.json is fresh and BrokerVersion=1.1.2-rc2+r21.
-3. Confirm CpuTransportHealthy, GpuTransportHealthy and StorageTransportHealthy are true.
-4. Confirm GPU split JSON exposes the RTX 3080 temperature and storage split JSON exposes supported disk temperatures.
-5. Run TaskbarMonitorEnhanced.exe --healthprobe <path> and require PASS.
-6. Run installed UI/Start/Search/Explorer-recovery checks.
-7. Run installed long-duration soak with no restart storm, geometry drift, UI exception or Explorer crash.
-8. Only after those gates may R21 be considered for Stable/Latest publication.
+1. Continue the installed R21 soak for a substantially longer window.
+2. Include at least one real suspend/resume cycle and require automatic native-worker recycle/recovery without restart storm or stale UI data.
+3. Re-run healthprobe, taskbar geometry, module isolation and Event Log checks after resume.
+4. Before public Stable/Latest publication, enable GitHub immutable releases for the repository and publish the finalized assets through the immutable-release workflow.
+5. Only after those gates may R21 be promoted from release candidate to Stable/Latest.
 
 ## Dependency decision
 
