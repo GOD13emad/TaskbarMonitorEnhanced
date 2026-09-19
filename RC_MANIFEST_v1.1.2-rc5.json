@@ -4,7 +4,7 @@
   "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC5",
   "Rc4BaselineAuthority": "8943a59",
   "Rc5LogThrottleAuthority": "23e079e",
-  "BinarySourceAuthorityCommit": "PENDING_FINAL_RC5_DOCS_COMMIT",
+  "BinarySourceAuthorityCommit": "5f87c2e",
   "Dependencies": {
     "LibreHardwareMonitor": {
       "Version": "0.9.6",
@@ -41,13 +41,14 @@
   ],
   "Reproducibility": {
     "PrimaryBuild": "PASS",
-    "CleanCloneBuild": "PENDING_AFTER_FINAL_DOCS_COMMIT",
-    "ByteIdenticalAcrossIndependentPaths": false,
+    "CleanCloneBuild": "PASS",
+    "ByteIdenticalAcrossIndependentPaths": true,
     "AutomatedVerifier": "build/Verify-Determinism.ps1",
     "DependencyLock": "build/dependencies.lock.json",
     "SbomGenerator": "build/Generate-Sbom.ps1",
     "SbomGeneration": "PASS",
-    "SbomPath": "artifacts/R21_SBOM.spdx.json"
+    "SbomPath": "artifacts/R21_SBOM.spdx.json",
+    "FinalDeterminismAuthorityCommit": "5f87c2e"
   },
   "Rc5Additions": {
     "GpuDynamicStaleStateNormalized": true,
@@ -82,5 +83,31 @@
     "RecentRelevantApplicationEventErrors": 0,
     "ProtectedSensorLayer": "RC4_HEALTHY_RC5_UPGRADE_PENDING_ELEVATION",
     "SensorLayerStatus": "DEGRADED_EXPECTED_UNTIL_RC5_UAC_COMPLETION"
+  },
+  "Rc4LiveSelfHealRegressionEvidence": {
+    "Status": "PASS",
+    "Evidence": "r21_evidence/rc4_live_selfheal/RESULT.json",
+    "ProductionThresholds": true,
+    "Trigger": "STATE_STALE_100S",
+    "StartTaskPass": true,
+    "SupervisorPidChanged": true,
+    "FinalHealthProbe": "PASS",
+    "SupervisorCount": 1,
+    "PersistentBrokerCount": 2,
+    "PersistentBrokerParenting": "PASS"
+  },
+  "Rc5MainCanary": {
+    "InstalledMainHashMatch": true,
+    "TaskbarGeometry": "PASS_24_OF_24_1100x48_DIRECT_CHILD",
+    "MainModuleIsolation": "PASS_300_OF_300_NO_LHM",
+    "RecentRelevantApplicationEventErrors": 0,
+    "ProtectedLayerVersion": "1.1.2-rc4+r21",
+    "ProtectedRc5Completion": "PENDING_UAC_APPROVAL",
+    "InstallState": "DEGRADED_EXPECTED"
+  },
+  "ExternalGates": {
+    "GithubActionsProvenanceAndSbomAttestation": "PENDING_PUSH_AND_WORKFLOW_RUN",
+    "GithubImmutableReleases": "PENDING_REPOSITORY_SETTING_FOR_FUTURE_RELEASE",
+    "RealSuspendResumeSoak": "PENDING_USER_SAFE_WINDOW"
   }
 }

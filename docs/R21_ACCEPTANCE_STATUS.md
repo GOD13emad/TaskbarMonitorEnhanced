@@ -17,6 +17,7 @@ R21 build-pipeline authority: bdcd2b4.
 - RC5 GPU stale-log throttle source build/self-test: PASS.
 - RC5 objective is deliberately narrow: remove log amplification without changing the proven recovery architecture.
 - RC5 clean-clone determinism: PASS; all four outputs byte-identical across independent workspace paths.
+- RC5 final deterministic authority: PASS at 5f87c2e.
 - RC5 Main installed canary: PASS for exact Main hash, 24/24 taskbar geometry, 300/300 no-LHM module samples and zero relevant recent Application Event errors.
 - RC5 protected Broker/Supervisor completion: PENDING administrator/UAC approval; currently healthy RC4 protected binaries remain active and RC5 install_state correctly reports DEGRADED.
 

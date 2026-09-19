@@ -52,7 +52,7 @@ See docs/R21_ACCEPTANCE_STATUS.md and local r21_evidence/. Core builds and deter
 
 ## Open blocker
 
-RC5 source/build/self-test/SBOM/clean-clone determinism are PASS. RC5 Main is installed with exact hash and passes taskbar/module/EventLog canaries. The protected Broker/Supervisor remain the healthy RC4 layer because the bounded RC5 UAC attempts were not approved, so install_state correctly remains DEGRADED. GitHub-side attestation execution and a real suspend/resume soak also remain external gates.
+RC5 source/build/self-test/SPDX SBOM/final clean-clone determinism are PASS from authority commit 5f87c2e. RC5 Main is installed with exact hash and passes taskbar/module/EventLog canaries. The protected Broker/Supervisor remain the healthy RC4 layer because the bounded RC5 UAC attempts were not approved, so install_state correctly remains DEGRADED. GitHub-side attestation execution and a real suspend/resume soak also remain external gates.
 
 ## Next authoritative actions
 
