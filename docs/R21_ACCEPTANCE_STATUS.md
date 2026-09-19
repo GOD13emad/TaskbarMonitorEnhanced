@@ -40,6 +40,8 @@ R21 build-pipeline authority: bdcd2b4.
 - Stable rollback after the bounded-UAC test: PASS; installed v1.1.1 app SHA-256 restored exactly to 408D5DFA73871579A3FF46F9D681BE78B9AF882CFE569D0750260ACA5694D139 and resumed as a visible direct taskbar child with fresh elevated CPU telemetry.
 - Short same-machine A/B UI benchmark: R21 process CPU time decreased by about 47.4% and median working set by about 23.9% versus the installed v1.1.1 across a 15-second post-warm-up window. This is a local directional benchmark, not a universal performance claim.
 - Windows Event Log post-install check: PASS; no TBME/LHM or Explorer Application Error/.NET Runtime/Application Hang/WER events were found in the observed R21 install window.
+- Test-only supervisor long-gap path: PASS; an 18.5-second suspended supervisor loop triggered POWER_RESUME_OR_LONG_GAP_DETECTED, bounded staggered CPU/GPU recycle, stable transport and zero consecutive failures.
+- Synthetic main power-message path: PASS; WM suspend/resume produced TELEMETRY_PAUSE, static-topology reset/invalidation, TELEMETRY_RESUME, taskbar recovery and healthprobe PASS.
 - Post-Explorer soak: PASS; 18/18 five-second samples kept CPU/GPU restart counts fixed, failure counts at zero, healthy reasons, visibility and taskbar geometry.
 - Explorer recovery: PASS; the taskbar shell process was deliberately restarted, the R21 UI process PID stayed unchanged, and it reattached to the new taskbar within 2 seconds at 1100x48.
 - CPU worker containment: PASS; one NO_CURRENT_OUTPUT_AFTER_GRACE event produced one bounded restart with 5-second backoff, then WORKER_RECOVERY_STABLE; no further worker failures were recorded in the observed window.

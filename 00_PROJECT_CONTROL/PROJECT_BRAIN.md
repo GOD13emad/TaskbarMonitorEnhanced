@@ -38,6 +38,7 @@ Increase long-run stability and observability without regressing the accepted ta
 - Explorer shell recovery PASS: same R21 UI PID reattached to the new taskbar within 2 seconds; 18/18 post-recovery soak samples remained healthy and geometrically stable.
 - Current Main module audit finds no LibreHardwareMonitor in the UI process; current post-shared-read log window has no CPU broker read/stale/unavailable events.
 - Windows Event Log has no TBME/LHM or Explorer crash/hang/.NET error in the observed post-install R21 window.
+- Synthetic power-path coverage PASS: main WM suspend/resume handler resets telemetry/topology and recovers placement; test-only supervisor detects an 18.5-second long gap and performs bounded staggered worker recycle.
 - Clean-clone reproducible build PASS; all four release binaries are byte-for-byte deterministic across independent workspace paths.
 - Same-machine short A/B indicates approximately 47.4% lower R21 UI process CPU time and 23.9% lower median working set than installed v1.1.1 in the sampled window.
 See docs/R21_ACCEPTANCE_STATUS.md and local r21_evidence/. Core builds and deterministic/visual/canary gates pass. Existing elevated hardware evidence confirms CPU and three storage temperatures; candidate user-context GPU worker confirms RTX 3080 temperature and detailed telemetry.

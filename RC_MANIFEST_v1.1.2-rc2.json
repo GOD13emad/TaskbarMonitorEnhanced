@@ -44,7 +44,7 @@
     "AutomatedVerifier": "build/Verify-Determinism.ps1",
     "DependencyLock": "build/dependencies.lock.json"
   },
-  "RemainingGate": "Extended installed soak including suspend/resume coverage before public Stable/Latest promotion",
+  "RemainingGate": "Extended installed soak including at least one real suspend/resume cycle before public Stable/Latest promotion",
   "InstallerSafety": {
     "BoundedUacLaunch": "PASS",
     "NonInteractiveReturnSeconds": 31.31,
@@ -91,6 +91,8 @@
     "ExplorerEventLogErrorsSinceInstall": 0,
     "ObservedCpuWorkerRecoveryCount": 1,
     "FurtherWorkerFailuresAfterRecovery": 0,
-    "SharedReadMainLogErrorsAfterPatch": 0
+    "SharedReadMainLogErrorsAfterPatch": 0,
+    "SyntheticMainPowerPath": "PASS",
+    "SyntheticSupervisorLongGap": "PASS_18_5_SECONDS_STAGGERED_RECYCLE"
   }
 }
