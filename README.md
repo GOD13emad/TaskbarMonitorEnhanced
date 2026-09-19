@@ -21,9 +21,9 @@ v1.1.1 includes:
 Accepted assets and hashes are published in `SHA256SUMS_v1.1.1.txt` and `RELEASE_MANIFEST_v1.1.1.json`.
 
 
-## Development candidate: v1.1.2-rc9 (R21)
+## Development candidate: v1.1.2-rc10 (R21)
 
-v1.1.2-rc9 is the active engineering release candidate, not the current Stable/Latest release. RC9 fixes the real-S3 resume ordering race found in RC8 by registering the official Windows suspend/resume callback and consuming resume before worker freshness checks. Stable/Latest remains v1.1.1 until the RC9 physical suspend/resume acceptance and final publication gates pass.
+v1.1.2-rc10 is the active engineering release candidate, not the current Stable/Latest release. RC10 retains the RC9 real-S3 power-notification fix and adds a CPU-specific 60-second hard stall watchdog while keeping the 15-second UI freshness boundary. This prevents short LibreHardwareMonitor/PawnIO CPU read stalls from causing restart storms while still terminating a truly stuck worker. Stable/Latest remains v1.1.1 until RC10 fault-injection, soak, physical suspend/resume, reproducibility and publication gates pass.
 
 R21 adds:
 

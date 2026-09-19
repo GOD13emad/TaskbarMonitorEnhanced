@@ -10,7 +10,7 @@ using System.Threading;
 [assembly: AssemblyDescription("Failure-contained sensor worker supervisor for Taskbar Monitor Enhanced")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.1.2-rc9+r21")]
+[assembly: AssemblyInformationalVersion("1.1.2-rc10+r21")]
 [assembly: AssemblyVersion("1.1.2.0")]
 [assembly: AssemblyFileVersion("1.1.2.0")]
 
@@ -252,7 +252,9 @@ internal static class TaskbarMonitorSensorSupervisor
     }
 
     const int FreshnessLimitSeconds=15;
-    const int StartupGraceSeconds=30;
+    const int DefaultStartupGraceSeconds=30;
+    const int CpuHardStallSeconds=60;
+    const int CpuStartupGraceSeconds=60;
     const int StorageIntervalSeconds=60;
     const int StorageTimeoutSeconds=12;
     const long MaxSensorLogBytes=4L*1024L*1024L;
@@ -270,6 +272,10 @@ internal static class TaskbarMonitorSensorSupervisor
         public DateTime NextStartUtc=DateTime.MinValue;
         public DateTime HealthySinceUtc=DateTime.MinValue;
         public DateTime LastOutputUtc=DateTime.MinValue;
+        public int HardStallSeconds=FreshnessLimitSeconds;
+        public int StartupGraceSeconds=DefaultStartupGraceSeconds;
+        public bool SlowOutputActive;
+        public DateTime SlowOutputSinceUtc=DateTime.MinValue;
         public bool TransportHealthy;
         public bool DataAvailable;
         public string OutputError="";
@@ -288,7 +294,7 @@ internal static class TaskbarMonitorSensorSupervisor
     static string CpuOutput="";
     static string GpuOutput="";
     static string StorageOutput="";
-    static readonly Worker Cpu=new Worker{Name="CPU",Mode="--run-cpu"};
+    static readonly Worker Cpu=new Worker{Name="CPU",Mode="--run-cpu",HardStallSeconds=CpuHardStallSeconds,StartupGraceSeconds=CpuStartupGraceSeconds};
     static readonly Worker Gpu=new Worker{Name="GPU",Mode="--run-gpu"};
     static Process StorageProcess;
     static DateTime StorageStartedUtc=DateTime.MinValue;
@@ -383,6 +389,9 @@ internal static class TaskbarMonitorSensorSupervisor
                 "\"CpuWorkerAgeSeconds\":"+(Cpu.StartedUtc==DateTime.MinValue?"0":Math.Max(0,(DateTime.UtcNow-Cpu.StartedUtc).TotalSeconds).ToString("0.0",CultureInfo.InvariantCulture))+","+
                 "\"CpuRestartCount\":"+Cpu.RestartCount+","+
                 "\"CpuConsecutiveFailures\":"+Cpu.ConsecutiveFailures+","+
+                "\"CpuSlowOutputActive\":"+(Cpu.SlowOutputActive?"true":"false")+","+
+                "\"CpuHardStallSeconds\":"+Cpu.HardStallSeconds+","+
+                "\"CpuStartupGraceSeconds\":"+Cpu.StartupGraceSeconds+","+
                 "\"CpuLastReason\":\""+JsonEscape(Cpu.LastReason)+"\","+
                 "\"CpuTransportHealthy\":"+(Cpu.TransportHealthy?"true":"false")+","+
                 "\"CpuDataAvailable\":"+(Cpu.DataAvailable?"true":"false")+","+
@@ -417,7 +426,7 @@ internal static class TaskbarMonitorSensorSupervisor
                 "\"StorageLastFailureUtc\":\""+(StorageLastFailureUtc==DateTime.MinValue?"":StorageLastFailureUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
                 "\"StorageLastFailureReason\":\""+JsonEscape(StorageLastFailureReason)+"\","+
                 "\"StorageLastRecoveryUtc\":\""+(StorageLastRecoveryUtc==DateTime.MinValue?"":StorageLastRecoveryUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
-                "\"BrokerVersion\":\"1.1.2-rc9+r21\""+
+                "\"BrokerVersion\":\"1.1.2-rc10+r21\""+
                 "}";
             string tmp=StatePath+".tmp";
             File.WriteAllText(tmp,json);
@@ -526,6 +535,7 @@ internal static class TaskbarMonitorSensorSupervisor
     static void ScheduleFailure(Worker w,string reason)
     {
         w.TransportHealthy=false;w.DataAvailable=false;
+        w.SlowOutputActive=false;w.SlowOutputSinceUtc=DateTime.MinValue;
         w.ConsecutiveFailures++;
         w.LastFailureUtc=DateTime.UtcNow;
         w.LastFailureReason=reason;
@@ -559,10 +569,11 @@ internal static class TaskbarMonitorSensorSupervisor
         w.StartedUtc=DateTime.UtcNow;
         w.HealthySinceUtc=DateTime.MinValue;
         w.TransportHealthy=false;w.DataAvailable=false;w.OutputError="";w.LastOutputUtc=DateTime.MinValue;
+        w.SlowOutputActive=false;w.SlowOutputSinceUtc=DateTime.MinValue;
         w.RestartCount++;
         w.LastReason=reason;
         Log("WORKER_START name="+w.Name+" reason="+reason+" pid="+p.Id+
-            " restartCount="+w.RestartCount+" startupGraceSec="+StartupGraceSeconds);
+            " restartCount="+w.RestartCount+" startupGraceSec="+w.StartupGraceSeconds+" hardStallSec="+w.HardStallSeconds);
     }
 
     static DateTime OutputWriteUtc(string path)
@@ -613,6 +624,12 @@ internal static class TaskbarMonitorSensorSupervisor
 
     static void MarkFreshOutput(Worker w,DateTime writeUtc,DateTime now)
     {
+        if(w.SlowOutputActive)
+        {
+            double slowSeconds=w.SlowOutputSinceUtc==DateTime.MinValue?0:Math.Max(0,(now-w.SlowOutputSinceUtc).TotalSeconds);
+            Log("WORKER_SLOW_OUTPUT_RECOVERED name="+w.Name+" slowSec="+slowSeconds.ToString("0.0",CultureInfo.InvariantCulture));
+            w.SlowOutputActive=false;w.SlowOutputSinceUtc=DateTime.MinValue;
+        }
         string dataError="";
         bool data=OutputDataAvailable(w.Output,out dataError);
         w.TransportHealthy=true;
@@ -627,6 +644,17 @@ internal static class TaskbarMonitorSensorSupervisor
             w.ConsecutiveFailures=0;
         }
         w.LastReason=data?"HEALTHY_DATA":"HEALTHY_NO_DATA";
+    }
+
+    static void MarkSlowOutput(Worker w,string reason,double ageSeconds)
+    {
+        w.TransportHealthy=false;w.DataAvailable=false;w.OutputError=reason;
+        if(!w.SlowOutputActive)
+        {
+            w.SlowOutputActive=true;w.SlowOutputSinceUtc=DateTime.UtcNow;
+            Log("WORKER_SLOW_OUTPUT name="+w.Name+" reason="+reason+" ageSec="+ageSeconds.ToString("0.0",CultureInfo.InvariantCulture)+" hardStallSec="+w.HardStallSeconds);
+        }
+        w.LastReason=reason+"_SOFT_"+ageSeconds.ToString("0.0",CultureInfo.InvariantCulture)+"S";
     }
 
     static void CheckWorker(Worker w)
@@ -697,10 +725,10 @@ internal static class TaskbarMonitorSensorSupervisor
             }
         }
 
-        w.TransportHealthy=false;
-        w.DataAvailable=false;
-        if(workerAge<=StartupGraceSeconds && w.LastOutputUtc==DateTime.MinValue)
+        int hardLimit=Math.Max(FreshnessLimitSeconds,w.HardStallSeconds);
+        if(workerAge<=w.StartupGraceSeconds && w.LastOutputUtc==DateTime.MinValue)
         {
+            w.TransportHealthy=false;w.DataAvailable=false;
             w.LastReason="STARTUP_GRACE";
             return;
         }
@@ -710,13 +738,23 @@ internal static class TaskbarMonitorSensorSupervisor
             if(w.LastOutputUtc!=DateTime.MinValue)
             {
                 double lastGoodAge=(now-w.LastOutputUtc).TotalSeconds;
-                ScheduleFailure(w,"OUTPUT_OBSERVATION_GAP_"+lastGoodAge.ToString("0.0",CultureInfo.InvariantCulture)+"S");
+                if(lastGoodAge<=hardLimit)
+                {
+                    MarkSlowOutput(w,"OUTPUT_OBSERVATION_GAP",lastGoodAge);
+                    return;
+                }
+                ScheduleFailure(w,"OUTPUT_OBSERVATION_GAP_HARD_"+lastGoodAge.ToString("0.0",CultureInfo.InvariantCulture)+"S");
             }
-            else ScheduleFailure(w,"NO_CURRENT_OUTPUT_AFTER_GRACE");
+            else ScheduleFailure(w,"NO_CURRENT_OUTPUT_AFTER_GRACE_"+w.StartupGraceSeconds+"S");
             return;
         }
 
-        ScheduleFailure(w,"STALE_OUTPUT_"+age.ToString("0.0",CultureInfo.InvariantCulture)+"S");
+        if(age<=hardLimit)
+        {
+            MarkSlowOutput(w,"STALE_OUTPUT",age);
+            return;
+        }
+        ScheduleFailure(w,"STALE_OUTPUT_HARD_"+age.ToString("0.0",CultureInfo.InvariantCulture)+"S");
     }
 
     static bool TryTerminateStorage()
