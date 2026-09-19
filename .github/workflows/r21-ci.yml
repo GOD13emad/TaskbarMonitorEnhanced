@@ -33,6 +33,10 @@ jobs:
         shell: pwsh
         run: ./build/Build-R21.ps1
 
+      - name: Verify deterministic clean-clone build
+        shell: pwsh
+        run: ./build/Verify-Determinism.ps1
+
       - name: Print build manifest
         shell: pwsh
         run: Get-Content ./artifacts/R21_BUILD_MANIFEST.json

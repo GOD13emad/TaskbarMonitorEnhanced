@@ -12,10 +12,13 @@ $LhmZip=Join-Path $Deps 'LibreHardwareMonitor.zip'
 $PawnExe=Join-Path $Deps 'PawnIO_setup.exe'
 $LhmDir=Join-Path $Deps 'LHM'
 
-$LhmUrl='https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/download/v0.9.6/LibreHardwareMonitor.zip'
-$LhmSha='086D9F1B5A99E643EDC2CFAAAC16051685B551E4C5AC0B32A57C58C0E529C001'
-$PawnUrl='https://github.com/namazso/PawnIO.Setup/releases/download/2.2.0/PawnIO_setup.exe'
-$PawnSha='1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032'
+$LockPath=Join-Path $PSScriptRoot 'dependencies.lock.json'
+if(!(Test-Path -LiteralPath $LockPath)){throw 'Dependency lock file is missing.'}
+$Lock=Get-Content -LiteralPath $LockPath -Raw|ConvertFrom-Json
+$LhmUrl=[string]$Lock.dependencies.LibreHardwareMonitor.url
+$LhmSha=([string]$Lock.dependencies.LibreHardwareMonitor.sha256).ToUpperInvariant()
+$PawnUrl=[string]$Lock.dependencies.PawnIO.url
+$PawnSha=([string]$Lock.dependencies.PawnIO.sha256).ToUpperInvariant()
 
 function Assert-Hash([string]$Path,[string]$Expected){
     if(!(Test-Path -LiteralPath $Path)){throw "Missing dependency: $Path"}
@@ -70,8 +73,8 @@ $manifest=[ordered]@{
     Build='V1_1_2_R21_PRODUCTION_HARDENING_RC2'
     GeneratedUtc=[datetime]::UtcNow.ToString('o')
     Dependencies=[ordered]@{
-        LibreHardwareMonitor=[ordered]@{Version='0.9.6';Url=$LhmUrl;SHA256=$LhmSha}
-        PawnIO=[ordered]@{Version='2.2.0';Url=$PawnUrl;SHA256=$PawnSha}
+        LibreHardwareMonitor=[ordered]@{Version=[string]$Lock.dependencies.LibreHardwareMonitor.version;Url=$LhmUrl;SHA256=$LhmSha}
+        PawnIO=[ordered]@{Version=[string]$Lock.dependencies.PawnIO.version;Url=$PawnUrl;SHA256=$PawnSha}
     }
     Outputs=@()
 }
