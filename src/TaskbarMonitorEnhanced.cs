@@ -882,6 +882,7 @@ namespace TaskbarMonitorEnhanced
     internal sealed class ElevatedGpuTelemetryReader
     {
         private string lastState="";
+        private DateTime lastStateLogUtc=DateTime.MinValue;
 
         private static string Text(Dictionary<string,object> m,string key)
         {
@@ -905,8 +906,13 @@ namespace TaskbarMonitorEnhanced
         }
         private void State(string x)
         {
-            if(String.Equals(x,lastState,StringComparison.Ordinal))return;
-            lastState=x;Log.Write("INFO","GPU_ISOLATED_BROKER_STATE "+x);
+            string key=(x??"").StartsWith("STALE ageSec=",StringComparison.Ordinal)?"STALE":(x??"");
+            DateTime now=DateTime.UtcNow;
+            bool same=String.Equals(key,lastState,StringComparison.Ordinal);
+            if(same&&(now-lastStateLogUtc).TotalSeconds<30)return;
+            lastState=key;
+            lastStateLogUtc=now;
+            Log.Write("INFO","GPU_ISOLATED_BROKER_STATE "+x);
         }
 
         public List<GpuTelemetrySample> ReadAll()
