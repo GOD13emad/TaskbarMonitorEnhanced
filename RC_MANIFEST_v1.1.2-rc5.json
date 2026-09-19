@@ -1,10 +1,10 @@
 {
   "Version": "1.1.2-rc5",
-  "Status": "RELEASE_CANDIDATE_SOURCE_BUILT_DETERMINISM_PENDING",
+  "Status": "RELEASE_CANDIDATE_MAIN_INSTALLED_PROTECTED_RC5_PENDING_ELEVATION",
   "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC5",
   "Rc4BaselineAuthority": "8943a59",
   "Rc5LogThrottleAuthority": "23e079e",
-  "BinarySourceAuthorityCommit": "PENDING_RC5_IDENTITY_COMMIT",
+  "BinarySourceAuthorityCommit": "PENDING_FINAL_RC5_DOCS_COMMIT",
   "Dependencies": {
     "LibreHardwareMonitor": {
       "Version": "0.9.6",
@@ -35,13 +35,13 @@
     },
     {
       "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc5.exe",
-      "Bytes": 10969600,
-      "SHA256": "34A7FECB564721B49A4F89C93D5D08AB327D0C8A8BB1A2384F2D27695299743C"
+      "Bytes": 10970112,
+      "SHA256": "C13A5514BFAE3D88FD9C5D22B001B9BDD4E2B81BE6A39F7BDA74883295AC872F"
     }
   ],
   "Reproducibility": {
     "PrimaryBuild": "PASS",
-    "CleanCloneBuild": "PENDING",
+    "CleanCloneBuild": "PENDING_AFTER_FINAL_DOCS_COMMIT",
     "ByteIdenticalAcrossIndependentPaths": false,
     "AutomatedVerifier": "build/Verify-Determinism.ps1",
     "DependencyLock": "build/dependencies.lock.json",
@@ -71,5 +71,16 @@
     "HealthProbeAfterRecovery": "PASS",
     "ProcessContainment": true
   },
-  "RemainingGate": "Build/determinism -> install RC5 -> repeat live self-heal with bounded logging -> GitHub attestation run -> real suspend/resume soak"
+  "RemainingGate": "Complete protected RC5 with administrator/UAC approval; repeat live self-heal/log-throttle gate; run GitHub attestations; real suspend/resume soak before Stable/Latest",
+  "RuntimeCodeAuthorityCommit": "2b2b242",
+  "CurrentInstalledCanary": {
+    "MainPublicVersion": "1.1.2-rc5",
+    "MainHashMatchesCandidate": true,
+    "MainSHA256": "10747E76B898F79E16F475CD907A8C201906D56C96EDD387F8B8A17F32388AE9",
+    "TaskbarGeometry": "PASS_24_OF_24_1100x48_DIRECT_CHILD",
+    "MainModuleIsolation": "PASS_300_OF_300_NO_LHM",
+    "RecentRelevantApplicationEventErrors": 0,
+    "ProtectedSensorLayer": "RC4_HEALTHY_RC5_UPGRADE_PENDING_ELEVATION",
+    "SensorLayerStatus": "DEGRADED_EXPECTED_UNTIL_RC5_UAC_COMPLETION"
+  }
 }

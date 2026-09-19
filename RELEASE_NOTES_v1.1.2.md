@@ -47,6 +47,12 @@ Release-candidate engineering build focused on long-run stability, lower telemet
 - Live RC5 broker validation on the RTX 3080 produced valid power and fan telemetry; the CPU zero-watt false-positive found during testing was rejected by a >0.1 W validity guard.
 - Supervisor test lanes pass steady state, stale-worker isolation, long-gap recycle, log rotation and failure-to-recovery timestamp propagation.
 
+## RC5 final log-pressure hardening
+
+- GPU stale-state logging is normalized so a changing age value no longer creates a new log state every telemetry poll.
+- Repeated GPU stale-state messages are bounded to one every 30 seconds while immediate READY/STALE transitions remain observable.
+- The production-threshold RC4 Supervisor-stop fault injection proved the inherited Main self-heal path end to end before this narrow logging change.
+
 ## Dependency decision
 
 - LibreHardwareMonitor 0.9.6 remains the pinned production backend for this candidate.
@@ -56,8 +62,8 @@ Release-candidate engineering build focused on long-run stability, lower telemet
 
 Engineering evidence includes zero-warning builds of the app/broker/supervisor/setup, self-test PASS, 14-theme proof PASS, compact proof at 592/500 px with zero overflow, deterministic stale-worker recovery PASS, and a no-screen Windows taskbar canary with 24/24 stable direct-child geometry samples. Live validation read CPU temperature through the elevated broker, full RTX 3080 telemetry including temperature through the isolated GPU broker, and three elevated storage-temperature sensors on the validation machine.
 
-This is a release candidate, not a final public release. The previously installed R21 candidate passed elevated validation on the validation machine; RC5 itself must complete its installed-canary gate before that installed acceptance can be attributed to RC5: healthprobe reports PASS, CPU/GPU/storage transport and data availability are healthy, the isolated RTX 3080 lane reports temperature/load/VRAM/clocks, three storage-temperature records are available, the installed main UI contains no LibreHardwareMonitor module, taskbar geometry remains stable, and Windows Event Log shows no TBME/Explorer crash or hang event in the observed post-install window.
+This is a release candidate, not a final public release. RC5 build/self-test/SBOM/determinism gates pass and its Main canary is installed with exact hash; the protected Broker/Supervisor are still RC4 because the RC5 administrator/UAC completion was not approved: healthprobe reports PASS, CPU/GPU/storage transport and data availability are healthy, the isolated RTX 3080 lane reports temperature/load/VRAM/clocks, three storage-temperature records are available, the installed main UI contains no LibreHardwareMonitor module, taskbar geometry remains stable, and Windows Event Log shows no TBME/Explorer crash or hang event in the observed post-install window.
 
 After the one contained CPU worker recovery, the supervisor returned to HEALTHY_DATA and recorded no further worker failures during the observed installed window. The shared-read main patch then ran without CPU broker read/stale/unavailable log events.
 
-RC5 promotion remains blocked on its transactional installed canary and then a longer soak that includes a real suspend/resume cycle; this RC is not yet declared Stable/Latest.
+RC5 promotion remains blocked on protected-layer administrator completion, GitHub-side provenance/SBOM attestation execution, and then a longer soak that includes a real suspend/resume cycle; this RC is not yet declared Stable/Latest.

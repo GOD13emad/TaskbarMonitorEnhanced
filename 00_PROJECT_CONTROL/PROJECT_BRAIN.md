@@ -52,7 +52,7 @@ See docs/R21_ACCEPTANCE_STATUS.md and local r21_evidence/. Core builds and deter
 
 ## Open blocker
 
-RC4 is fully installed and its live forced Supervisor-stop self-heal test passed: Main restarted the existing Scheduled Task, the Supervisor PID changed, worker parenting was correct and healthprobe returned PASS. RC5 only changes GPU stale-log pressure and must complete deterministic build/install and repeat the outage test with bounded logging. Public Stable/Latest additionally requires an extended real suspend/resume soak and GitHub-side attestation execution.
+RC5 source/build/self-test/SBOM/clean-clone determinism are PASS. RC5 Main is installed with exact hash and passes taskbar/module/EventLog canaries. The protected Broker/Supervisor remain the healthy RC4 layer because the bounded RC5 UAC attempts were not approved, so install_state correctly remains DEGRADED. GitHub-side attestation execution and a real suspend/resume soak also remain external gates.
 
 ## Next authoritative actions
 

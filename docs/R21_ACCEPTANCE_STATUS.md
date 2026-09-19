@@ -14,8 +14,11 @@ R21 build-pipeline authority: bdcd2b4.
 
 - RC4 fully installed baseline: PASS; exact hashes, READY, healthprobe PASS and ProcessContainment=true.
 - RC4 production-threshold forced Supervisor-stop self-heal: PASS; Main emitted SENSOR_SUPERVISOR_AUTOHEAL_TRIGGER and START_TASK_PASS, new Supervisor became fresh, exactly one Supervisor/two persistent brokers remained and final healthprobe passed.
-- RC5 GPU stale-log throttle source build/self-test: PASS; final RC5 build/determinism/install gates pending.
+- RC5 GPU stale-log throttle source build/self-test: PASS.
 - RC5 objective is deliberately narrow: remove log amplification without changing the proven recovery architecture.
+- RC5 clean-clone determinism: PASS; all four outputs byte-identical across independent workspace paths.
+- RC5 Main installed canary: PASS for exact Main hash, 24/24 taskbar geometry, 300/300 no-LHM module samples and zero relevant recent Application Event errors.
+- RC5 protected Broker/Supervisor completion: PENDING administrator/UAC approval; currently healthy RC4 protected binaries remain active and RC5 install_state correctly reports DEGRADED.
 
 ## RC4-specific status
 
