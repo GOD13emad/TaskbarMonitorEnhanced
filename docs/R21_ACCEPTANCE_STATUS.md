@@ -1,15 +1,16 @@
 # R21 Acceptance Status — Taskbar Monitor Enhanced 1.1.2-rc10
 
 Status: RELEASE CANDIDATE / NOT STABLE
-Updated: 2026-09-19T21:44:26+03:30
+Updated: 2026-09-19T22:01:00+03:30
 
 ## Authority
 
 - Branch: `audit/r21-final-hardening-rc10`
 - Source authority: `e89aebd9012f95d050771283562069f9cb5f5515`
 - Public Stable/Latest: `v1.1.1`
-- RC10 GitHub self-hosted finalize run: `35460297804` = SUCCESS
-- RC10 draft prerelease target: exact source authority above; draft/prerelease only.
+- RC10 binary-source GitHub self-hosted run: `35460297804` = SUCCESS at `e89aebd...`
+- RC10 control-head GitHub self-hosted run: `35460716964` = SUCCESS at `238d93e...`
+- RC10 draft prerelease target: control head `238d93eeeadd83e31aa1de002cf00dee0778da41`; binary source authority remains `e89aebd...`; draft/prerelease only.
 
 ## RC10 objective
 
@@ -38,13 +39,16 @@ Preserve 15-second CPU temperature freshness while preventing transient LibreHar
 
 ## Current installed acceptance
 
-**FAIL-CLOSED / MIXED STATE — NOT ACCEPTED**
+**RC10 NOT INSTALLED / LIVE SYSTEM SAFELY ROLLED BACK TO ACCEPTED RC9**
 
-- Main is RC10.
-- protected Broker/Supervisor remain RC9.
-- `install_state.json` reports `SensorLayerStatus=DEGRADED`.
-- Exact protected RC10 installation is waiting for Windows Secure Desktop administrator consent.
-- Fault-injection and RC10 physical S3 acceptance must not run until the protected hashes match RC10.
+- The hash-pinned RC10 elevation reached Windows Secure Desktop but Windows returned: `The operation was canceled by the user.`
+- No automatic elevation retry was attempted after that denial.
+- Exact accepted RC9 Setup `48DADB48072344E4627A939971313B931E84365A0311F79E48FC793BB029CBC8` was then used for rollback.
+- Live Main/Broker/Supervisor hashes now exactly match accepted RC9.
+- `install_state.json`: `1.1.2-rc9 / READY / CURRENT_EXACT_RC9`.
+- Post-rollback HealthProbe: `PASS / STABLE`; all CPU/GPU/storage lanes healthy; active consecutive failures = 0.
+- Windowless tree proof: one Supervisor, two Brokers, zero sensor-owned console children.
+- RC10 fault-injection and physical S3 acceptance remain blocked until a **new explicit administrator consent** installs the exact RC10 protected pair.
 
 ## Root-cause chain leading to RC10
 
@@ -57,7 +61,7 @@ Preserve 15-second CPU temperature freshness while preventing transient LibreHar
 
 ## Open acceptance gates
 
-1. Exact protected RC10 install / READY state.
+1. New explicit administrator consent, then exact protected RC10 install / READY state.
 2. Soft-stall 25s fault injection: no restart; recovery required.
 3. Hard-stall >60s fault injection: bounded restart required.
 4. Post-fault 90s soak: restart counters stable; all samples healthy; zero new failures.

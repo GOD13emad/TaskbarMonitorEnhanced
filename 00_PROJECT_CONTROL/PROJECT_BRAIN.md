@@ -1,8 +1,8 @@
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
-Brain Version: PB-2026-09-19-R21-RC10-PENDING-INSTALL1
+Brain Version: PB-2026-09-19-R21-RC10-UAC-ROLLBACK1
 Status: CURRENT
-Updated: 2026-09-19T21:44:26+03:30
+Updated: 2026-09-19T21:56:24+03:30
 
 ## Project definition
 
@@ -30,8 +30,9 @@ Release immutable public v1.1.2 only when the exact final source/build/install i
 - Current branch: `audit/r21-final-hardening-rc10`.
 - Source authority: `e89aebd9012f95d050771283562069f9cb5f5515`.
 - Parent accepted source before RC10 mutation: RC9 `220e49824a8ccb89192e0ab173860e016c2ca7d9`.
-- RC10 self-hosted GitHub run: `35460297804` = SUCCESS.
-- RC10 draft prerelease target: `e89aebd9012f95d050771283562069f9cb5f5515`, draft/prerelease only.
+- RC10 binary-source self-hosted GitHub run: `35460297804` = SUCCESS at `e89aebd...`.
+- RC10 control-head self-hosted GitHub run: `35460716964` = SUCCESS at `238d93e...`.
+- RC10 draft prerelease target: `238d93eeeadd83e31aa1de002cf00dee0778da41`, draft/prerelease only; binary source authority remains `e89aebd...` because the later commit changes only control records.
 - Repository immutable releases policy is enabled.
 - Local project root: `C:\Users\Aa.Emad\source\repos\TaskbarMonitorEnhanced_R20`.
 - Protected sensor root: `C:\Program Files\TaskbarMonitorEnhanced\SensorBroker`.
@@ -65,7 +66,7 @@ Evidence-backed completed:
 10. RC10 source/build/determinism/SBOM/self-hosted GitHub supply-chain gates.
 
 Current critical gate:
-**Install exact protected RC10 pair and execute fault-injection/runtime acceptance.**
+**Obtain a new explicit administrator-consent approval, then install exact protected RC10 pair and execute fault-injection/runtime acceptance.**
 
 Remaining after RC10 protected install:
 - 25-second soft-stall fault injection: no CPU restart; UI freshness remains truthful; same worker recovers.
@@ -78,12 +79,19 @@ Remaining after RC10 protected install:
 
 ## Current installed state — IMPORTANT
 
-The machine is temporarily in a **mixed RC10/RC9 state**, intentionally marked non-accepted:
-- Main is RC10 hash `6BBD6BF7...`.
-- protected Broker is still RC9 hash `5D482440...`.
-- protected Supervisor is still RC9 hash `A0A7C711...`.
-- `install_state.json`: PublicVersion RC10 but `SensorLayerStatus=DEGRADED`; protected RC10 install is pending Windows Secure Desktop administrator consent.
-- Do not run RC10 fault-injection or claim installed RC10 acceptance until protected hashes equal the RC10 manifest.
+The attempted protected RC10 elevation reached Windows Secure Desktop, but Windows returned **"The operation was canceled by the user."** Per fail-closed policy it was not automatically retried.
+
+A transactional rollback was then completed with the exact accepted RC9 Setup:
+- RC9 Setup SHA-256: `48DADB48072344E4627A939971313B931E84365A0311F79E48FC793BB029CBC8`.
+- installed Main: `911D5F6303BB6CBA48FB1D9651B4CADB541A62BB6781E57312FEA52E913AE59D`.
+- installed Broker: `5D4824409E34794467340741A88EE0B1EC390ADE9F090D33B5746DD92081CB9C`.
+- installed Supervisor: `A0A7C711BEC1F920DB8107E4700FCA886EF7E6869E987546D0938DBEA69DFDB5`.
+- `install_state.json`: `1.1.2-rc9 / READY / CURRENT_EXACT_RC9`.
+- post-rollback HealthProbe: `PASS / STABLE / ActiveConsecutiveFailures=0`.
+- runtime tree: 1 Supervisor, 2 persistent Brokers, 0 sensor-owned console children.
+- no Setup orphan remains.
+
+Therefore the user's live machine is back on the last accepted runtime baseline and is **not left degraded**. RC10 remains a development candidate whose exact protected installation requires a new explicit future administrator consent before runtime/fault-injection acceptance can proceed.
 
 ## Why RC10 exists
 
@@ -168,13 +176,13 @@ They remain historical provenance/evidence only.
 
 ## Risks / hinges
 
-- Windows Secure Desktop UAC is the current owner gate for replacing Program Files protected binaries. Remote Commander cannot click or bypass Secure Desktop.
+- Windows Secure Desktop UAC is the current owner gate for replacing Program Files protected binaries. The latest consent was canceled by the user; Remote Commander must not automatically retry or bypass that denial.
 - LibreHardwareMonitor/PawnIO may experience transient hardware-access stalls on this MSI Z790 environment; RC10 watchdog semantics require real fault-injection and soak proof.
 - Public Stable/Latest promotion is irreversible in practice under immutable-release policy; promotion is forbidden until exact final v1.1.2 identity is revalidated.
 
 ## Exact next action
 
-1. Approve the currently requested Windows administrator consent for the hash-pinned RC10 Setup, or run that exact Setup interactively if the prompt was dismissed.
+1. Provide a new explicit administrator-consent approval for the hash-pinned RC10 Setup. The previous UAC was canceled and will not be retried automatically.
 2. Verify installed Broker/Supervisor hashes equal the RC10 manifest and `install_state=READY/CURRENT_EXACT_RC10`.
 3. Run RC10 soft-stall and hard-stall fault injections, then post-fault soak.
 4. Run real S3 and full installed regressions.
@@ -191,4 +199,4 @@ PASS for understanding/continuation: a new account can identify project goal, ro
 - RC7: output-gap and windowless sensor fixes.
 - RC8: Main integrity/elevation boundary.
 - RC9: official power notification, deterministic Setup and installer state-integrity fixes; real S3 PASS but post-S3 CPU stall recurrence.
-- RC10: CPU 15s freshness / 60s hard-stall separation. Build/CI PASS; exact protected install and runtime validation pending.
+- RC10: CPU 15s freshness / 60s hard-stall separation. Build/determinism/SBOM/self-hosted CI PASS; protected-install consent was canceled, live system was rolled back cleanly to accepted RC9, and RC10 runtime validation remains pending.
