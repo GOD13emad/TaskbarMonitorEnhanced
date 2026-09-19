@@ -1,10 +1,10 @@
 {
   "Version": "1.1.2-rc6",
-  "Status": "RELEASE_CANDIDATE_BUILT_COMPAT_REUSE_INSTALLED_DETERMINISM_PENDING",
+  "Status": "RELEASE_CANDIDATE_ALL_LOCAL_GATES_PASS_EXTERNAL_GATES_REMAIN",
   "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC6",
   "Rc5BaselineAuthority": "9c16fac",
   "Rc6ComponentReusePolicy": "HASH_PINNED_LIVE_HEALTH_GATED",
-  "BinarySourceAuthorityCommit": "PENDING_RC6_IDENTITY_COMMIT",
+  "BinarySourceAuthorityCommit": "e343648",
   "Dependencies": {
     "LibreHardwareMonitor": {
       "Version": "0.9.6",
@@ -41,15 +41,16 @@
   ],
   "Reproducibility": {
     "PrimaryBuild": "PASS",
-    "CleanCloneBuild": "PENDING",
-    "ByteIdenticalAcrossIndependentPaths": false,
+    "CleanCloneBuild": "PASS",
+    "ByteIdenticalAcrossIndependentPaths": true,
     "AutomatedVerifier": "build/Verify-Determinism.ps1",
     "DependencyLock": "build/dependencies.lock.json",
     "SbomGenerator": "build/Generate-Sbom.ps1",
     "BuiltInSelfTest": "PASS",
     "SetupVerify": "PASS_HASH_PINNED_COMPATIBLE_REUSE",
     "SbomGeneration": "PASS",
-    "SbomPath": "artifacts/R21_SBOM.spdx.json"
+    "SbomPath": "artifacts/R21_SBOM.spdx.json",
+    "DeterminismAuthorityCommit": "e343648"
   },
   "Rc6Additions": {
     "CompatibleProtectedReuse": true,
@@ -94,5 +95,39 @@
     "Result": "NOT_STARTED_ACCOUNT_LOCKED_BILLING",
     "Meaning": "External account/billing blocker; no checkout/build step executed"
   },
-  "RemainingGate": "Commit/determinism -> RC6 self-heal/log-throttle regression -> taskbar/module/EventLog -> delivery package. External: GitHub billing unlock/attestations + real suspend/resume."
+  "RemainingGate": "External only: resolve GitHub billing lock and run attestations; complete one real suspend/resume post-check; enable immutable releases before public Stable/Latest.",
+  "BuildInputAuthorityCommit": "e343648",
+  "RuntimeAcceptance": {
+    "CompatibleReuseInstall": "PASS",
+    "InstallElapsedSeconds": 2.38,
+    "UacRequested": false,
+    "InstallState": "READY",
+    "SensorLayerMode": "REUSED_COMPATIBLE_RC4",
+    "SensorLayerVersion": "1.1.2-rc4+r21",
+    "MainExactHash": true,
+    "HealthStabilization": "PASS_RECOVERED_RECENTLY_ACTIVE_FAILURES_0",
+    "ForcedSupervisorStopSelfHeal": "PASS_STATE_STALE_98S",
+    "GpuStaleLogThrottle": "PASS_APPROX_30S",
+    "SelfHealFinalHealth": "PASS_STABLE",
+    "SelfHealSupervisorCount": 1,
+    "SelfHealPersistentBrokerCount": 2,
+    "SelfHealPersistentParenting": "PASS",
+    "TaskbarCanary": "PASS_24_OF_24_1100x48_DIRECT_CHILD_VISIBLE",
+    "MainModuleIsolation": "PASS_300_OF_300_NO_LHM",
+    "RecentRelevantApplicationEventErrors": 0
+  },
+  "ExternalGates": {
+    "GithubActionsProvenanceAndSbomAttestation": {
+      "Status": "BLOCKED_EXTERNAL",
+      "RunId": 35431499569,
+      "ObservedMessage": "The job was not started because your account is locked due to a billing issue.",
+      "CodeExecutionStarted": false
+    },
+    "RealSuspendResumeSoak": {
+      "Status": "PENDING_REAL_POWER_CYCLE",
+      "SyntheticResumeAndStaticTopologyInvalidation": "COVERED_BY_SELFTEST",
+      "Reason": "A real suspend/resume would interrupt the active control session and cannot be truthfully replaced by simulation."
+    },
+    "GithubImmutableReleases": "PENDING_REPOSITORY_RELEASE_SETTING_BEFORE_PUBLICATION"
+  }
 }

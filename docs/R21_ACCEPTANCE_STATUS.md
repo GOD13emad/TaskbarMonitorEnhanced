@@ -10,6 +10,18 @@ R21 transactional-installer authority: d9953d5.
 R21 build-pipeline authority: bdcd2b4.
 
 
+## RC6 final local acceptance
+
+- Clean-clone byte-for-byte determinism: PASS at build-input authority e343648.
+- Live compatible protected-layer reuse: PASS; 2.38-second install, no UAC, READY / REUSED_COMPATIBLE_RC4, protected hashes unchanged.
+- Post-install stabilization: PASS; healthprobe remained PASS and ActiveConsecutiveFailures returned to 0.
+- Forced Supervisor-stop production-threshold recovery: PASS at STATE_STALE_98S; existing Scheduled Task restarted by Main, one Supervisor/two persistent brokers, correct parenting, final health PASS/STABLE.
+- GPU stale-log pressure: PASS; repeated stale messages were bounded to approximately 30-second intervals.
+- Installed taskbar canary: PASS, 24/24 samples at 1100x48, visible and direct taskbar child.
+- Installed Main module isolation: PASS, 300/300 samples with no LibreHardwareMonitor module in the UI process.
+- Recent relevant Application/Explorer Event Log errors: 0.
+- All local RC6 source/build/runtime acceptance gates are PASS.
+
 ## RC6-specific status
 
 - RC4->RC5 protected-source diff audit: PASS; Broker/Supervisor differences are version identity only.
@@ -98,12 +110,12 @@ The elevated installation gate is now closed on the validation machine. The rema
 
 ## Remaining release gates
 
-1. Require RC6 zero-warning build, self-test, Setup verification, SPDX SBOM and clean-clone byte-for-byte determinism.
-2. Install RC6 on the current machine and require exact Main hash plus READY / SensorLayerMode=REUSED_COMPATIBLE_RC4 without an administrator prompt.
-3. Re-run forced Supervisor-stop self-heal/log-pressure, taskbar geometry, module isolation and recent Event Log checks.
-4. Resolve the GitHub account billing lock and require the already-pushed workflow to complete build provenance + SBOM attestations.
-5. Complete an extended real suspend/resume soak before public Stable/Latest.
-6. Enable GitHub immutable releases before public R21 publication.
+All local RC6 engineering gates are PASS. The remaining gates are external/physical:
+
+1. Resolve the GitHub account billing lock. The pushed Actions run did not start any job/checkout/build step, so provenance/SBOM attestations could not execute.
+2. Re-run the pinned GitHub Actions workflow and require build-provenance plus SBOM attestation success.
+3. Complete one real suspend/resume cycle and re-run healthprobe, taskbar/module and Event Log checks.
+4. Enable GitHub immutable releases before public Stable/Latest publication.
 
 ## Dependency decision
 

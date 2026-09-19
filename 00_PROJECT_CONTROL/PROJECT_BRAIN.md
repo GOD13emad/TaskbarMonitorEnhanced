@@ -53,13 +53,12 @@ See docs/R21_ACCEPTANCE_STATUS.md and local r21_evidence/. Core builds and deter
 
 ## Open blocker
 
-RC6 component-aware reuse passed end to end on the validation machine: the RC6 Main installed in 2.38 seconds without UAC while the exact allowlisted healthy RC4 protected layer remained byte-identical; install_state is READY / REUSED_COMPATIBLE_RC4 and healthprobe is PASS with zero active failures after stabilization. Local remaining gates are final identity/determinism, repeated Supervisor-stop/log-throttle regression, taskbar/module/EventLog canaries and delivery packaging. GitHub Actions remains externally blocked because the account reports a billing lock; a real suspend/resume soak also remains external.
+All local RC6 engineering gates are now PASS: deterministic zero-warning build, self-test, Setup policy verification, SPDX SBOM, hash-pinned no-UAC compatible protected-layer reuse, health stabilization, production-threshold Supervisor self-heal, bounded GPU stale logging, 24/24 taskbar geometry, 300/300 UI module isolation and zero recent relevant Application Event errors. Remaining blockers are external/physical only: GitHub Actions cannot start because the account reports a billing lock; a real suspend/resume cycle and immutable-release publication setting also remain.
 
 ## Next authoritative actions
 
-- Build/seal RC6 and require zero-warning build, self-test, Setup verification, SPDX SBOM and clean-clone determinism.
-- Install RC6 over the current healthy RC4 protected layer and require READY + SensorLayerMode=REUSED_COMPATIBLE_RC4 with no UAC/elevated mutation.
-- Repeat Supervisor-stop self-heal/log-pressure and taskbar/module/EventLog gates.
-- Keep Repair Hardware Sensors as the explicit path for upgrading the protected binaries to RC6 when administrator approval is desired.
-- Resolve the GitHub account billing lock, then require the pushed Actions workflow to produce provenance/SBOM attestations.
-- Complete one real suspend/resume post-check before Stable/Latest.
+- Produce and independently verify the sealed RC6 Return package from delivery authority.
+- Push the RC6 branch to GitHub.
+- After the account billing lock is resolved, re-run the pinned Actions workflow and require provenance/SBOM attestations.
+- At the next operationally safe power-cycle window, perform one real suspend/resume and re-run health/taskbar/module/EventLog checks.
+- Enable immutable releases immediately before public R21 Stable/Latest publication.
