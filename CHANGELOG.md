@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.2-rc8 — R21 Main Integrity Boundary Hardening (candidate; not Stable)
+
+- preserve the exact accepted RC7 Broker/Supervisor binaries and windowless sensor behavior
+- prevent whole-Setup elevation from auto-launching TaskbarMonitorEnhanced.exe with a High-integrity token
+- normal non-elevated Setup still auto-launches Main; elevated Setup records SKIPPED_ELEVATED_SETUP instead
+- reuse the exact RC7 protected sensor pair only after hash, fresh state, Job containment, transport and data-health gates pass
+- record MainLaunchMode in install_state.json so the least-privilege launch decision is auditable
+
 ## 1.1.2-rc7 — R21 Supervisor Observation-Gap Hardening (candidate; not Stable)
 
 - prevent a single transient output-file observation gap from killing an otherwise healthy CPU/GPU sensor worker

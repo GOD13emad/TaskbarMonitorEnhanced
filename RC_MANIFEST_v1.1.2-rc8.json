@@ -1,0 +1,25 @@
+{
+  "Version": "1.1.2-rc8",
+  "Status": "SOURCE_MUTATED_BUILD_PENDING",
+  "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC8",
+  "ParentRc7Authority": "4b9c7ce47f37cb6ade4ef5b90f4c43137d1923c1",
+  "ChangeObjective": "PREVENT_ELEVATED_SETUP_FROM_LAUNCHING_HIGH_INTEGRITY_MAIN",
+  "ProtectedSensorAuthority": {
+    "Version": "1.1.2-rc7+r21",
+    "BrokerSha256": "DBB2AF15D116564E3C287D1F5EC04B62D5BBE803048E52B855D9B5BF37316FCB",
+    "SupervisorSha256": "1A9AAA02D7FBA3DAF876A6399000BCA8A21CEC158F9FD5D5E2D0D2F99FF68DF9",
+    "ReusePolicy": "EXACT_HASH_PLUS_FRESH_HEALTH"
+  },
+  "Method": "If Setup token is elevated, skip Main autolaunch; outer/non-elevated caller or normal shortcut starts Main. Avoid token duplication or privilege-bearing launch machinery.",
+  "Outputs": [],
+  "RemainingGates": [
+    "ZERO_WARNING_BUILD",
+    "DETERMINISM",
+    "SETUP_VERIFY",
+    "NON_ELEVATED_INSTALL_REUSE_RC7",
+    "MAIN_MEDIUM_INTEGRITY",
+    "RUNTIME_REGRESSION",
+    "GITHUB_ATTESTATION",
+    "REAL_SUSPEND_RESUME"
+  ]
+}
