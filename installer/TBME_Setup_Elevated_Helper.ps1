@@ -288,9 +288,16 @@ if($taskInstalled -and -not$rebootRequired){
                     $CpuTransportHealthy=[bool]$state.CpuTransportHealthy
                     $GpuTransportHealthy=[bool]$state.GpuTransportHealthy
                     $StorageTransportHealthy=[bool]$state.StorageTransportHealthy
+                    $JobContainmentHealthy=(
+                        [bool]$state.ChildJobKillOnClose -and
+                        [bool]$state.CpuJobContained -and
+                        [bool]$state.GpuJobContained -and
+                        [bool]$state.StorageJobContained
+                    )
                     $SupervisorHealthy=(
                         $stateAge -ge 0 -and $stateAge -lt 15 -and
-                        $version -match 'r21' -and
+                        $version -eq '1.1.2-rc3+r21' -and
+                        $JobContainmentHealthy -and
                         $CpuTransportHealthy -and $GpuTransportHealthy -and $StorageTransportHealthy
                     )
                 }
@@ -319,7 +326,7 @@ if($taskInstalled -and -not$rebootRequired){
             }catch{}
 
             if($SupervisorHealthy -and $healthy){
-                Write-Log ("R21_READY_MATCH cpu="+$currentC+" cpuTransport="+$CpuTransportHealthy+" gpuTransport="+$GpuTransportHealthy+" storageTransport="+$StorageTransportHealthy)
+                Write-Log ("R21_READY_MATCH cpu="+$currentC+" jobContainment="+$JobContainmentHealthy+" cpuTransport="+$CpuTransportHealthy+" gpuTransport="+$GpuTransportHealthy+" storageTransport="+$StorageTransportHealthy)
                 break
             }
         }

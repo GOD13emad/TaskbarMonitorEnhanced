@@ -10,6 +10,7 @@ Release-candidate engineering build focused on long-run stability, lower telemet
 - Supervisor health distinguishes fresh transport from actual sensor-data availability.
 - CPU, GPU, and storage workers start in a staggered sequence to reduce low-level hardware contention.
 - Stale/hung workers use bounded exponential backoff and termination-pending protection to prevent restart storms.
+- All isolated workers are attached to a Windows Job Object with kill-on-close semantics, so abrupt Supervisor termination also tears down children at the OS boundary.
 - Long suspend/resume gaps recycle native sensor workers before reuse.
 
 ## Performance

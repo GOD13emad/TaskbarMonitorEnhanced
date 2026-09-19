@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 [assembly: AssemblyTitle("Taskbar Monitor Enhanced Sensor Supervisor")]
@@ -15,6 +16,94 @@ using System.Threading;
 
 internal static class TaskbarMonitorSensorSupervisor
 {
+    static class ChildJobContainment
+    {
+        const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE=0x00002000;
+        const int JobObjectExtendedLimitInformation=9;
+        static IntPtr Handle=IntPtr.Zero;
+        public static bool Active;
+        public static int LastError;
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct JOBOBJECT_BASIC_LIMIT_INFORMATION
+        {
+            public long PerProcessUserTimeLimit;
+            public long PerJobUserTimeLimit;
+            public uint LimitFlags;
+            public UIntPtr MinimumWorkingSetSize;
+            public UIntPtr MaximumWorkingSetSize;
+            public uint ActiveProcessLimit;
+            public UIntPtr Affinity;
+            public uint PriorityClass;
+            public uint SchedulingClass;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct IO_COUNTERS
+        {
+            public ulong ReadOperationCount;
+            public ulong WriteOperationCount;
+            public ulong OtherOperationCount;
+            public ulong ReadTransferCount;
+            public ulong WriteTransferCount;
+            public ulong OtherTransferCount;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+        {
+            public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+            public IO_COUNTERS IoInfo;
+            public UIntPtr ProcessMemoryLimit;
+            public UIntPtr JobMemoryLimit;
+            public UIntPtr PeakProcessMemoryUsed;
+            public UIntPtr PeakJobMemoryUsed;
+        }
+
+        [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)]
+        static extern IntPtr CreateJobObject(IntPtr lpJobAttributes,string lpName);
+        [DllImport("kernel32.dll",SetLastError=true)]
+        static extern bool SetInformationJobObject(IntPtr hJob,int infoClass,ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION info,uint length);
+        [DllImport("kernel32.dll",SetLastError=true)]
+        static extern bool AssignProcessToJobObject(IntPtr hJob,IntPtr hProcess);
+        [DllImport("kernel32.dll",SetLastError=true)]
+        static extern bool CloseHandle(IntPtr hObject);
+
+        public static bool Initialize()
+        {
+            if(Handle!=IntPtr.Zero)return Active;
+            Handle=CreateJobObject(IntPtr.Zero,null);
+            if(Handle==IntPtr.Zero){LastError=Marshal.GetLastWin32Error();return false;}
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION info=new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
+            info.BasicLimitInformation.LimitFlags=JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            if(!SetInformationJobObject(Handle,JobObjectExtendedLimitInformation,ref info,(uint)Marshal.SizeOf(typeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION))))
+            {
+                LastError=Marshal.GetLastWin32Error();
+                CloseHandle(Handle);Handle=IntPtr.Zero;return false;
+            }
+            Active=true;LastError=0;return true;
+        }
+
+        public static bool Attach(Process process)
+        {
+            if(!Active||Handle==IntPtr.Zero||process==null)return false;
+            try
+            {
+                if(process.HasExited)return false;
+                bool ok=AssignProcessToJobObject(Handle,process.Handle);
+                if(!ok)LastError=Marshal.GetLastWin32Error();
+                return ok;
+            }
+            catch{LastError=Marshal.GetLastWin32Error();return false;}
+        }
+
+        public static void Dispose()
+        {
+            IntPtr h=Handle;Handle=IntPtr.Zero;Active=false;
+            if(h!=IntPtr.Zero)try{CloseHandle(h);}catch{}
+        }
+    }
+
     const int FreshnessLimitSeconds=15;
     const int StartupGraceSeconds=30;
     const int StorageIntervalSeconds=60;
@@ -41,6 +130,7 @@ internal static class TaskbarMonitorSensorSupervisor
         public DateTime LastFailureUtc=DateTime.MinValue;
         public DateTime LastRecoveryUtc=DateTime.MinValue;
         public string LastFailureReason="";
+        public bool JobContained;
     }
 
     static string LogPath="";
@@ -66,6 +156,7 @@ internal static class TaskbarMonitorSensorSupervisor
     static DateTime StorageLastFailureUtc=DateTime.MinValue;
     static DateTime StorageLastRecoveryUtc=DateTime.MinValue;
     static string StorageLastFailureReason="";
+    static bool StorageJobContained;
 
     static void Log(string message)
     {
@@ -132,6 +223,11 @@ internal static class TaskbarMonitorSensorSupervisor
                 "\"SupervisorStartedUtc\":\""+SupervisorStartedUtc.ToString("o",CultureInfo.InvariantCulture)+"\","+
                 "\"SupervisorUptimeSeconds\":"+Math.Max(0,(DateTime.UtcNow-SupervisorStartedUtc).TotalSeconds).ToString("0.0",CultureInfo.InvariantCulture)+","+
                 "\"Reason\":\""+JsonEscape(reason)+"\","+
+                "\"ChildJobKillOnClose\":"+(ChildJobContainment.Active?"true":"false")+","+
+                "\"ChildJobLastError\":"+ChildJobContainment.LastError+","+
+                "\"CpuJobContained\":"+(Cpu.JobContained?"true":"false")+","+
+                "\"GpuJobContained\":"+(Gpu.JobContained?"true":"false")+","+
+                "\"StorageJobContained\":"+(StorageJobContained?"true":"false")+","+
                 "\"CpuWorkerPid\":"+Pid(Cpu)+","+
                 "\"CpuWorkerStartedUtc\":\""+(Cpu.StartedUtc==DateTime.MinValue?"":Cpu.StartedUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
                 "\"CpuWorkerAgeSeconds\":"+(Cpu.StartedUtc==DateTime.MinValue?"0":Math.Max(0,(DateTime.UtcNow-Cpu.StartedUtc).TotalSeconds).ToString("0.0",CultureInfo.InvariantCulture))+","+
@@ -308,6 +404,8 @@ internal static class TaskbarMonitorSensorSupervisor
         Process p=Process.Start(psi);
         if(p==null)throw new InvalidOperationException(w.Name+"_BROKER_START_RETURNED_NULL");
         w.Process=p;
+        w.JobContained=ChildJobContainment.Attach(p);
+        if(!w.JobContained)Log("WORKER_JOB_ATTACH_FAIL name="+w.Name+" pid="+p.Id+" win32="+ChildJobContainment.LastError);
         w.StartedUtc=DateTime.UtcNow;
         w.HealthySinceUtc=DateTime.MinValue;
         w.TransportHealthy=false;w.DataAvailable=false;w.OutputError="";w.LastOutputUtc=DateTime.MinValue;
@@ -517,6 +615,8 @@ internal static class TaskbarMonitorSensorSupervisor
         Process p=Process.Start(psi);
         if(p==null)throw new InvalidOperationException("STORAGE_BROKER_START_RETURNED_NULL");
         StorageProcess=p;
+        StorageJobContained=ChildJobContainment.Attach(p);
+        if(!StorageJobContained)Log("STORAGE_JOB_ATTACH_FAIL pid="+p.Id+" win32="+ChildJobContainment.LastError);
         StorageStartedUtc=DateTime.UtcNow;
         StorageAttemptCount++;
         StorageLastReason="RUNNING";
@@ -657,6 +757,10 @@ internal static class TaskbarMonitorSensorSupervisor
                     return 0;
                 }
 
+                bool jobReady=ChildJobContainment.Initialize();
+                Log("CHILD_JOB_KILL_ON_CLOSE active="+jobReady+" win32="+ChildJobContainment.LastError);
+                if(!jobReady)return 4;
+
                 Log("SUPERVISOR_START R21_PRODUCTION_HARDENING pid="+Process.GetCurrentProcess().Id+
                     " broker="+BrokerPath+
                     " cpuOutput="+CpuOutput+
@@ -724,6 +828,7 @@ internal static class TaskbarMonitorSensorSupervisor
             try{TryTerminateWorker(Cpu);}catch{}
             try{TryTerminateWorker(Gpu);}catch{}
             try{TryTerminateStorage();}catch{}
+            try{ChildJobContainment.Dispose();}catch{}
         }
     }
 }

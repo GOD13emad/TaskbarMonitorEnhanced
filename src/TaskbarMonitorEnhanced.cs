@@ -5811,7 +5811,7 @@ namespace TaskbarMonitorEnhanced
                 else d["Fresh"]=freshnessSeconds<=0;
 
                 foreach(string key in new string[]{"Available","Error","BrokerPid","BrokerMode","BrokerVersion","Sequence","ReadDurationMs",
-                    "SupervisorStartedUtc","SupervisorUptimeSeconds",
+                    "SupervisorStartedUtc","SupervisorUptimeSeconds","ChildJobKillOnClose","ChildJobLastError","CpuJobContained","GpuJobContained","StorageJobContained",
                     "CpuTransportHealthy","CpuDataAvailable","CpuRestartCount","CpuConsecutiveFailures","CpuLastReason","CpuWorkerStartedUtc","CpuWorkerAgeSeconds","CpuLastFailureUtc","CpuLastFailureReason","CpuLastRecoveryUtc",
                     "GpuTransportHealthy","GpuDataAvailable","GpuRestartCount","GpuConsecutiveFailures","GpuLastReason","GpuWorkerStartedUtc","GpuWorkerAgeSeconds","GpuLastFailureUtc","GpuLastFailureReason","GpuLastRecoveryUtc",
                     "StorageTransportHealthy","StorageDataAvailable","StorageAttemptCount","StorageConsecutiveFailures","StorageLastReason","StorageWorkerStartedUtc","StorageWorkerAgeSeconds","StorageLastFailureUtc","StorageLastFailureReason","StorageLastRecoveryUtc"})
@@ -5886,7 +5886,12 @@ namespace TaskbarMonitorEnhanced
             bool cpuTransport=B(supervisor,"CpuTransportHealthy",cpuFresh);
             bool gpuTransport=B(supervisor,"GpuTransportHealthy",gpuFresh);
             bool storageTransport=B(supervisor,"StorageTransportHealthy",storageFresh);
-            bool pass=architectureR21&&supervisorFresh&&cpuFresh&&gpuFresh&&storageFresh&&cpuTransport&&gpuTransport&&storageTransport;
+            bool jobKillOnClose=B(supervisor,"ChildJobKillOnClose",false);
+            bool cpuJob=B(supervisor,"CpuJobContained",false);
+            bool gpuJob=B(supervisor,"GpuJobContained",false);
+            bool storageJob=I(supervisor,"StorageAttemptCount",0)<=0||B(supervisor,"StorageJobContained",false);
+            bool processContainment=jobKillOnClose&&cpuJob&&gpuJob&&storageJob;
+            bool pass=architectureR21&&supervisorFresh&&cpuFresh&&gpuFresh&&storageFresh&&cpuTransport&&gpuTransport&&storageTransport&&processContainment;
 
             int activeFailures=I(supervisor,"CpuConsecutiveFailures",0)+I(supervisor,"GpuConsecutiveFailures",0)+I(supervisor,"StorageConsecutiveFailures",0);
             DateTime latestFailure=Latest(Utc(supervisor,"CpuLastFailureUtc"),Utc(supervisor,"GpuLastFailureUtc"),Utc(supervisor,"StorageLastFailureUtc"));
@@ -5899,13 +5904,14 @@ namespace TaskbarMonitorEnhanced
             Dictionary<string,object> result=new Dictionary<string,object>();
             result["Version"]=BuildInfo.Version;result["PublicVersion"]=BuildInfo.PublicVersion;result["GeneratedUtc"]=DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture);
             result["Status"]=pass?"PASS":"DEGRADED";result["ArchitectureR21"]=architectureR21;
+            result["ProcessContainment"]=processContainment;
             result["ResilienceState"]=resilienceState;
             result["ActiveConsecutiveFailures"]=activeFailures;
             result["LastFailureUtc"]=latestFailure==DateTime.MinValue?"":latestFailure.ToString("o",CultureInfo.InvariantCulture);
             result["LastRecoveryUtc"]=latestRecovery==DateTime.MinValue?"":latestRecovery.ToString("o",CultureInfo.InvariantCulture);
             result["Supervisor"]=supervisor;result["Cpu"]=cpu;result["Gpu"]=gpu;result["Storage"]=storage;
             File.WriteAllText(outputPath,new JavaScriptSerializer().Serialize(result),Encoding.UTF8);
-            Console.WriteLine("TBME_HEALTH_PROBE="+(pass?"PASS":"DEGRADED")+" R21="+architectureR21+" RESILIENCE="+resilienceState+" SUP="+supervisorFresh+" CPU="+cpuFresh+"/"+cpuTransport+" GPU="+gpuFresh+"/"+gpuTransport+" STORAGE="+storageFresh+"/"+storageTransport);
+            Console.WriteLine("TBME_HEALTH_PROBE="+(pass?"PASS":"DEGRADED")+" R21="+architectureR21+" JOB="+processContainment+" RESILIENCE="+resilienceState+" SUP="+supervisorFresh+" CPU="+cpuFresh+"/"+cpuTransport+" GPU="+gpuFresh+"/"+gpuTransport+" STORAGE="+storageFresh+"/"+storageTransport);
             return pass?0:12;
         }
     }
@@ -6632,7 +6638,7 @@ namespace TaskbarMonitorEnhanced
                 if(UpdateManager.IsStrictSha256Digest("sha256:"+new string('A',63)))throw new Exception("strict sha256 short");
                 if(UpdateManager.IsStrictSha256Digest("sha256:"+new string('G',64)))throw new Exception("strict sha256 nonhex");
                 if(UpdateManager.ExpectedSetupAssetName("1.2.3")!="TaskbarMonitorEnhanced_Setup_1.2.3.exe")throw new Exception("strict setup asset name");
-                Console.WriteLine("TBME_V1_1_2_R21_SELFTEST=PASS PUBLIC_VERSION=1.1.2-rc3 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE THEMES=14 WIDTH=1100 HISTORY=60 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE CREATEPARAMS_NOACTIVATE=TRUE");
+                Console.WriteLine("TBME_V1_1_2_R21_SELFTEST=PASS PUBLIC_VERSION=1.1.2-rc3 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE THEMES=14 WIDTH=1100 HISTORY=60 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE CREATEPARAMS_NOACTIVATE=TRUE");
                 return 0;
             }
             catch(Exception ex){Console.Error.WriteLine("TBME_V1_1_2_R21_SELFTEST=FAIL " + ex);return 2;}

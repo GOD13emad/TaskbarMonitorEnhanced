@@ -4,6 +4,7 @@
 
 - isolate LibreHardwareMonitor CPU, GPU and storage access into independent worker processes
 - stagger sensor-worker startup and apply bounded exponential backoff / termination-pending protection
+- place all sensor workers in a Windows kill-on-close Job Object so abrupt supervisor termination cannot orphan CPU/GPU/storage workers
 - distinguish worker transport health from hardware data availability
 - recycle native sensor workers across long suspend/resume gaps
 - replace hot-loop Processor PerformanceCounter CPU usage with Windows GetSystemTimes

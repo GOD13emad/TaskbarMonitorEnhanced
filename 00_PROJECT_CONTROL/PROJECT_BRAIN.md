@@ -14,6 +14,7 @@ Increase long-run stability and observability without regressing the accepted ta
 ## Implemented
 
 - Independent CPU/GPU/storage LHM worker processes.
+- RC3 OS-level kill-on-close Job Object containment prevents orphan sensor workers after abrupt Supervisor termination.
 - Staggered worker startup and bounded retry/backoff.
 - Fresh transport health separated from data availability.
 - Power-aware telemetry pause/reset/recycle.

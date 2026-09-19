@@ -29,6 +29,7 @@ R21 adds:
 
 - process-isolated CPU, GPU and storage hardware-sensor workers
 - staggered worker startup, bounded exponential backoff and restart-storm containment
+- Windows Job Object kill-on-close containment so abrupt Supervisor termination cannot leave orphan sensor workers
 - transport health separated from sensor-data availability
 - power-aware suspend/resume telemetry reset and native-worker recycling
 - Windows GetSystemTimes CPU usage sampling and cached CPU/network topology

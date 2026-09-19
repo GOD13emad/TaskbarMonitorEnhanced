@@ -16,6 +16,7 @@ R21 build-pipeline authority: bdcd2b4.
 - RC3 atomic-config, strict-updater and optional power/fan self-test assertions: PASS.
 - RC3 live isolated RTX 3080 power/fan probe: PASS.
 - RC3 supervisor steady/stale/18.5-second long-gap/log-rotation/failure-to-recovery observability tests: PASS.
+- RC3 abrupt-supervisor-death containment: PASS; test Supervisor was terminated with TerminateProcess and both CPU/GPU child workers exited automatically via Windows Job Object within the next observation interval.
 - RC3 clean-clone determinism: PENDING until the RC3 release-identity commit becomes HEAD.
 - RC3 installed canary: PENDING. Installed evidence below predating RC3 remains useful regression evidence but is not relabeled as RC3 acceptance.
 
