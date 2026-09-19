@@ -33,8 +33,8 @@
     },
     {
       "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc2.exe",
-      "Bytes": 10903040,
-      "SHA256": "C19B0DC0DD0784FB8C7AC2C2AB3DD0C298509A9002618941EDF15A6CFA67AD44"
+      "Bytes": 10908160,
+      "SHA256": "EA3DB74772670104CBE8460026FB0DCC7B636892C536E82C72AA43553C50ED89"
     }
   ],
   "Reproducibility": {
@@ -51,7 +51,10 @@
     "DegradedStateRecorded": true,
     "StableRollbackVerified": true,
     "StableRollbackVersion": "1.1.1",
-    "StableRollbackAppSHA256": "408D5DFA73871579A3FF46F9D681BE78B9AF882CFE569D0750260ACA5694D139"
+    "StableRollbackAppSHA256": "408D5DFA73871579A3FF46F9D681BE78B9AF882CFE569D0750260ACA5694D139",
+    "TransactionalSensorRollback": "PASS",
+    "ForcedFaultRollbackTest": "PASS",
+    "RollbackClearsSplitTelemetry": true
   },
   "BuildPipelineAuthorityCommit": "bdcd2b4",
   "PerformanceHardening": {
@@ -63,5 +66,6 @@
     "ResumeInvalidatesStaticTopology": true,
     "GpuWddmFallbackOnDemand": true,
     "CpuTemperatureFallbackThrottleSeconds": 15
-  }
+  },
+  "InstallerTransactionAuthorityCommit": "d9953d5"
 }
