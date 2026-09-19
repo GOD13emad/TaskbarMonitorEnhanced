@@ -6,7 +6,7 @@ on:
       - 'audit/r21-final-hardening-rc6'
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
   attestations: write
   artifact-metadata: write
@@ -61,15 +61,56 @@ jobs:
           subject-path: 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_*.exe'
           sbom-path: 'artifacts/R21_SBOM.spdx.json'
 
-      - name: Upload verified RC6 build evidence
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: r21-rc6-selfhosted-evidence
-          if-no-files-found: error
-          path: |
-            artifacts/R21_BUILD_MANIFEST.json
-            artifacts/R21_SBOM.spdx.json
-            build/_out/App/TaskbarMonitorEnhanced.exe
-            build/_out/Broker/TaskbarMonitorSensorBroker.exe
-            build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe
-            build/_out/Setup/TaskbarMonitorEnhanced_Setup_*.exe
+      - name: Verify attestations are persisted
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $files=@(
+            'build/_out/App/TaskbarMonitorEnhanced.exe',
+            'build/_out/Broker/TaskbarMonitorSensorBroker.exe',
+            'build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe'
+          )
+          foreach($f in $files){
+            $hash=(Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant()
+            $j=gh api "repos/$env:GITHUB_REPOSITORY/attestations/sha256:$hash?predicate_type=provenance" | ConvertFrom-Json
+            if(@($j.attestations).Count -lt 1){ throw "Missing persisted provenance attestation for $f" }
+          }
+          $setup=Get-ChildItem 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_*.exe' | Select-Object -First 1
+          $setupHash=(Get-FileHash -LiteralPath $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          $prov=gh api "repos/$env:GITHUB_REPOSITORY/attestations/sha256:$setupHash?predicate_type=provenance" | ConvertFrom-Json
+          $sbom=gh api "repos/$env:GITHUB_REPOSITORY/attestations/sha256:$setupHash?predicate_type=sbom" | ConvertFrom-Json
+          if(@($prov.attestations).Count -lt 1){ throw 'Missing persisted Setup provenance attestation' }
+          if(@($sbom.attestations).Count -lt 1){ throw 'Missing persisted Setup SBOM attestation' }
+          Write-Host "ATTESTATION_PERSISTENCE=PASS"
+
+      - name: Package verified RC6 build evidence
+        shell: pwsh
+        run: |
+          $stage='release-evidence'
+          Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $stage | Out-Null
+          Copy-Item artifacts/R21_BUILD_MANIFEST.json $stage/
+          Copy-Item artifacts/R21_SBOM.spdx.json $stage/
+          Copy-Item build/_out/App/TaskbarMonitorEnhanced.exe $stage/
+          Copy-Item build/_out/Broker/TaskbarMonitorSensorBroker.exe $stage/
+          Copy-Item build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe $stage/
+          Copy-Item (Get-ChildItem build/_out/Setup/TaskbarMonitorEnhanced_Setup_*.exe | Select-Object -First 1).FullName $stage/
+          Get-ChildItem $stage -File | Get-FileHash -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash)  $([IO.Path]::GetFileName($_.Path))" } |
+            Set-Content "$stage/SHA256SUMS.txt"
+          Compress-Archive -Path "$stage/*" -DestinationPath r21-rc6-selfhosted-evidence.zip -Force
+
+      - name: Upload verified evidence to RC6 draft prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag='v1.1.2-rc6'
+          $all=gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" | ConvertFrom-Json
+          $rel=@($all | Where-Object { $_.tag_name -eq $tag } | Select-Object -First 1)
+          if($rel.Count -eq 0){
+            gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --draft --prerelease --latest=false --title 'Taskbar Monitor Enhanced v1.1.2-rc6' --notes 'RC6 engineering candidate. Draft only; public Stable/Latest remains v1.1.1 pending real suspend/resume and release-policy gates.'
+          }
+          gh release upload $tag r21-rc6-selfhosted-evidence.zip artifacts/R21_BUILD_MANIFEST.json artifacts/R21_SBOM.spdx.json --clobber --repo $env:GITHUB_REPOSITORY
+          Write-Host "DRAFT_RELEASE_EVIDENCE_UPLOAD=PASS"
