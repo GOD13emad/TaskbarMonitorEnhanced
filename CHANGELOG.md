@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.2-rc7 — R21 Supervisor Observation-Gap Hardening (candidate; not Stable)
+
+- prevent a single transient output-file observation gap from killing an otherwise healthy CPU/GPU sensor worker
+- retain the existing 15-second freshness budget: persistent missing/unreadable output beyond the last-known-good window still forces bounded restart
+- preserve startup failure detection when a new worker never produces its first output
+- older RC4/RC5/RC6 protected sensor pairs are not eligible for compatible reuse because RC7 changes Supervisor failure semantics; upgrading to RC7 requires the protected Supervisor update
+- regression evidence requires baseline reproduction of the short-gap false positive plus RC7 proof that a 3-second gap is tolerated while a >15-second gap still restarts
+
 ## 1.1.2-rc6 — R21 Component-Aware Least-Privilege Finalization (candidate; not Stable)
 
 - add hash-pinned compatible protected-layer reuse for app-only updates

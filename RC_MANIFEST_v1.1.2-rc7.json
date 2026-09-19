@@ -1,0 +1,21 @@
+{
+  "Version": "1.1.2-rc7",
+  "Status": "SOURCE_MUTATED_BUILD_PENDING",
+  "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC7",
+  "ParentRc6Authority": "154fc70d58d70b076127e1430aeebdcf11da67aa",
+  "ChangeObjective": "SUPERVISOR_OUTPUT_OBSERVATION_GAP_DEBOUNCE",
+  "ProtectedReusePolicy": "CURRENT_EXACT_ONLY_RC7",
+  "Regression": {
+    "BaselineShortGapFalseRestart": "PASS_REPRODUCED",
+    "Rc7ShortGapToleranceAndPersistentGapRestart": "PASS_PREBUILD_SOURCE_HARNESS"
+  },
+  "Outputs": [],
+  "RemainingGates": [
+    "ZERO_WARNING_BUILD",
+    "DETERMINISM",
+    "INSTALL_PROTECTED_RC7",
+    "LONG_RUN_RESTART_REGRESSION",
+    "REAL_SUSPEND_RESUME",
+    "GITHUB_ATTESTATION"
+  ]
+}

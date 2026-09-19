@@ -21,9 +21,9 @@ v1.1.1 includes:
 Accepted assets and hashes are published in `SHA256SUMS_v1.1.1.txt` and `RELEASE_MANIFEST_v1.1.1.json`.
 
 
-## Development candidate: v1.1.2-rc6 (R21)
+## Development candidate: v1.1.2-rc7 (R21)
 
-v1.1.2-rc6 is the active engineering release candidate, not the current Stable/Latest release. RC6 adds hash-pinned compatible protected-layer reuse: app-only updates can reuse a previously accepted R21 Broker/Supervisor without elevation only when the exact binary pair and fresh live health state match the allowlist. The live RC4-protected -> RC6-Main canary passed in 2.38 seconds with no UAC, exact RC6 Main hash, SensorLayerStatus=READY and SensorLayerMode=REUSED_COMPATIBLE_RC4; protected hashes remained unchanged. Repair remains an explicit elevated path. Stable/Latest still requires GitHub-side attestation execution and the extended real suspend/resume soak.
+v1.1.2-rc7 is the active engineering release candidate, not the current Stable/Latest release. RC6 adds hash-pinned compatible protected-layer reuse: app-only updates can reuse a previously accepted R21 Broker/Supervisor without elevation only when the exact binary pair and fresh live health state match the allowlist. The live RC4-protected -> RC6-Main canary passed in 2.38 seconds with no UAC, exact RC6 Main hash, SensorLayerStatus=READY and SensorLayerMode=REUSED_COMPATIBLE_RC4; protected hashes remained unchanged. Repair remains an explicit elevated path. Stable/Latest still requires GitHub-side attestation execution and the extended real suspend/resume soak.
 
 R21 adds:
 

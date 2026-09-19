@@ -1,0 +1,94 @@
+name: R21 RC7 Self-Hosted Finalize
+
+on:
+  push:
+    branches:
+      - 'audit/r21-final-hardening-rc7'
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+  artifact-metadata: write
+
+jobs:
+  finalize:
+    if: github.repository == 'GOD13emad/TaskbarMonitorEnhanced' && github.ref == 'refs/heads/audit/r21-final-hardening-rc7'
+    runs-on: [self-hosted, Windows, X64, tbme-rc7-final]
+    timeout-minutes: 25
+    steps:
+      - name: Checkout sealed RC7 branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Validate installed .NET SDK
+        shell: pwsh
+        run: |
+          $v=(dotnet --version).Trim()
+          Write-Host "DOTNET_SDK=$v"
+          if($v -ne '10.0.400'){ throw "Expected .NET SDK 10.0.400, got $v" }
+          dotnet --info
+
+      - name: Git whitespace check
+        shell: pwsh
+        run: git diff --check HEAD^
+
+      - name: Reproducible R21 build
+        shell: pwsh
+        run: ./build/Build-R21.ps1
+
+      - name: Verify deterministic clean-clone build
+        shell: pwsh
+        run: ./build/Verify-Determinism.ps1
+
+      - name: Generate SPDX 2.3 SBOM
+        shell: pwsh
+        run: ./build/Generate-Sbom.ps1
+
+      - name: Attest binary build provenance
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        env:
+          INPUT_PRIVATE-SIGNING: 'true'
+        with:
+          subject-path: 'build/_out/**/*.exe'
+
+      - name: Attest Setup SBOM
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        env:
+          INPUT_PRIVATE-SIGNING: 'true'
+        with:
+          subject-path: 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_*.exe'
+          sbom-path: 'artifacts/R21_SBOM.spdx.json'
+
+      - name: Package verified RC7 build evidence
+        shell: pwsh
+        run: |
+          $stage='release-evidence'
+          Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $stage | Out-Null
+          Copy-Item artifacts/R21_BUILD_MANIFEST.json $stage/
+          Copy-Item artifacts/R21_SBOM.spdx.json $stage/
+          Copy-Item build/_out/App/TaskbarMonitorEnhanced.exe $stage/
+          Copy-Item build/_out/Broker/TaskbarMonitorSensorBroker.exe $stage/
+          Copy-Item build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe $stage/
+          Copy-Item (Get-ChildItem build/_out/Setup/TaskbarMonitorEnhanced_Setup_*.exe | Select-Object -First 1).FullName $stage/
+          Get-ChildItem $stage -File | Get-FileHash -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash)  $([IO.Path]::GetFileName($_.Path))" } |
+            Set-Content "$stage/SHA256SUMS.txt"
+          Compress-Archive -Path "$stage/*" -DestinationPath r21-rc7-selfhosted-evidence.zip -Force
+
+      - name: Upload verified evidence to RC7 draft prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag='v1.1.2-rc7'
+          $all=gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" | ConvertFrom-Json
+          $rel=@($all | Where-Object { $_.tag_name -eq $tag } | Select-Object -First 1)
+          if($rel.Count -eq 0){
+            gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --draft --prerelease --latest=false --title 'Taskbar Monitor Enhanced v1.1.2-rc7' --notes 'RC7 engineering candidate. Draft only; public Stable/Latest remains v1.1.1 pending installed long-run restart regression, real suspend/resume and final release-policy gates.'
+          }
+          gh release upload $tag r21-rc7-selfhosted-evidence.zip artifacts/R21_BUILD_MANIFEST.json artifacts/R21_SBOM.spdx.json --clobber --repo $env:GITHUB_REPOSITORY
+          Write-Host "DRAFT_RELEASE_EVIDENCE_UPLOAD=PASS"

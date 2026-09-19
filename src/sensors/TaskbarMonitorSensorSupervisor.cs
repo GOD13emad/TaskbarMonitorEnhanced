@@ -10,7 +10,7 @@ using System.Threading;
 [assembly: AssemblyDescription("Failure-contained sensor worker supervisor for Taskbar Monitor Enhanced")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.1.2-rc6+r21")]
+[assembly: AssemblyInformationalVersion("1.1.2-rc7+r21")]
 [assembly: AssemblyVersion("1.1.2.0")]
 [assembly: AssemblyFileVersion("1.1.2.0")]
 
@@ -267,7 +267,7 @@ internal static class TaskbarMonitorSensorSupervisor
                 "\"StorageLastFailureUtc\":\""+(StorageLastFailureUtc==DateTime.MinValue?"":StorageLastFailureUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
                 "\"StorageLastFailureReason\":\""+JsonEscape(StorageLastFailureReason)+"\","+
                 "\"StorageLastRecoveryUtc\":\""+(StorageLastRecoveryUtc==DateTime.MinValue?"":StorageLastRecoveryUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
-                "\"BrokerVersion\":\"1.1.2-rc6+r21\""+
+                "\"BrokerVersion\":\"1.1.2-rc7+r21\""+
                 "}";
             string tmp=StatePath+".tmp";
             File.WriteAllText(tmp,json);
@@ -537,6 +537,16 @@ internal static class TaskbarMonitorSensorSupervisor
             return;
         }
 
+        if(!current && w.LastOutputUtc!=DateTime.MinValue)
+        {
+            double lastGoodAge=(now-w.LastOutputUtc).TotalSeconds;
+            if(lastGoodAge<=FreshnessLimitSeconds)
+            {
+                w.LastReason="OUTPUT_OBSERVATION_GAP_LAST_GOOD_"+lastGoodAge.ToString("0.0",CultureInfo.InvariantCulture)+"S";
+                return;
+            }
+        }
+
         w.TransportHealthy=false;
         w.DataAvailable=false;
         if(workerAge<=StartupGraceSeconds && w.LastOutputUtc==DateTime.MinValue)
@@ -547,7 +557,12 @@ internal static class TaskbarMonitorSensorSupervisor
 
         if(!current)
         {
-            ScheduleFailure(w,"NO_CURRENT_OUTPUT_AFTER_GRACE");
+            if(w.LastOutputUtc!=DateTime.MinValue)
+            {
+                double lastGoodAge=(now-w.LastOutputUtc).TotalSeconds;
+                ScheduleFailure(w,"OUTPUT_OBSERVATION_GAP_"+lastGoodAge.ToString("0.0",CultureInfo.InvariantCulture)+"S");
+            }
+            else ScheduleFailure(w,"NO_CURRENT_OUTPUT_AFTER_GRACE");
             return;
         }
 
