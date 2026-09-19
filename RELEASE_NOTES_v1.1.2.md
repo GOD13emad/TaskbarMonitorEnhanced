@@ -45,4 +45,8 @@ Release-candidate engineering build focused on long-run stability, lower telemet
 
 Engineering evidence includes zero-warning builds of the app/broker/supervisor/setup, self-test PASS, 14-theme proof PASS, compact proof at 592/500 px with zero overflow, deterministic stale-worker recovery PASS, and a no-screen Windows taskbar canary with 24/24 stable direct-child geometry samples. Live validation read CPU temperature through the elevated broker, full RTX 3080 telemetry including temperature through the isolated GPU broker, and three elevated storage-temperature sensors on the validation machine.
 
-This is a release candidate, not a final public release. Build/self-test and isolated supervisor fault-injection gates pass. Final elevated CPU/storage validation and installed canary/soak remain required before public release.
+This is a release candidate, not a final public release. Elevated R21 installation now passes on the validation machine: healthprobe reports PASS, CPU/GPU/storage transport and data availability are healthy, the isolated RTX 3080 lane reports temperature/load/VRAM/clocks, three storage-temperature records are available, the installed main UI contains no LibreHardwareMonitor module, taskbar geometry remains stable, and Windows Event Log shows no TBME/Explorer crash or hang event in the observed post-install window.
+
+After the one contained CPU worker recovery, the supervisor returned to HEALTHY_DATA and recorded no further worker failures during the observed installed window. The shared-read main patch then ran without CPU broker read/stale/unavailable log events.
+
+Public promotion remains blocked on a longer soak that includes suspend/resume coverage; this RC is not yet declared Stable/Latest.

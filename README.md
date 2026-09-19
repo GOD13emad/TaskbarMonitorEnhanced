@@ -23,7 +23,7 @@ Accepted assets and hashes are published in `SHA256SUMS_v1.1.1.txt` and `RELEASE
 
 ## Development candidate: v1.1.2-rc2 (R21)
 
-v1.1.2-rc2 is an engineering release candidate, not the current Stable/Latest release. It remains blocked from public promotion until the final elevated R21 sensor-supervisor installation gate and installed soak are accepted.
+v1.1.2-rc2 is an engineering release candidate, not the current Stable/Latest release. Elevated R21 installation and live split-sensor validation now pass on the validation machine; public promotion remains blocked on an extended soak including suspend/resume coverage.
 
 R21 adds:
 
@@ -39,7 +39,7 @@ R21 adds:
 - automatic update installation gated by both GitHub SHA-256 asset metadata and immutable GitHub Releases
 - installer task policy hardened to RestartCount=3 and MultipleInstances=IgnoreNew
 
-Current R21 engineering evidence includes zero-warning builds for the main app, broker, supervisor and setup; self-test PASS; all 14 full-width themes PASS; 14 themes at 592 px and 500 px with zero layout overflow; process-isolation fault injection PASS; a taskbar runtime canary with 24/24 stable direct-child geometry samples; live CPU/GPU/disk/network probes; isolated RTX 3080 telemetry including GPU temperature; and elevated evidence of three valid storage-temperature sensors on the validation machine.
+Current R21 engineering evidence includes zero-warning deterministic builds for the main app, broker, supervisor and setup; self-test PASS; all 14 full-width themes PASS; 14 themes at 592 px and 500 px with zero layout overflow; process-isolation and transactional-rollback fault injection PASS; an installed taskbar canary with stable direct-child geometry; live elevated R21 CPU/GPU/storage split telemetry; RTX 3080 temperature/load/VRAM/clocks; three valid storage-temperature sensors; healthprobe PASS; no LibreHardwareMonitor module loaded in the main UI process; and no TBME/Explorer crash or hang event in Windows Event Log since the R21 installation window.
 
 See docs/R21_ACCEPTANCE_STATUS.md and RELEASE_NOTES_v1.1.2.md.
 
