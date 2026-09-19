@@ -14,7 +14,7 @@ using LibreHardwareMonitor.Hardware;
 [assembly: AssemblyDescription("Isolated LibreHardwareMonitor sensor worker for Taskbar Monitor Enhanced")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.1.2-rc3+r21")]
+[assembly: AssemblyInformationalVersion("1.1.2-rc4+r21")]
 [assembly: AssemblyVersion("1.1.2.0")]
 [assembly: AssemblyFileVersion("1.1.2.0")]
 
@@ -266,7 +266,7 @@ namespace TaskbarMonitorSensorBroker
                     {"CpuTemperatureSensors",raw.ToArray()},
                     {"BrokerPid",Process.GetCurrentProcess().Id},
                     {"BrokerMode","CPU"},
-                    {"BrokerVersion","1.1.2-rc3+r21"}
+                    {"BrokerVersion","1.1.2-rc4+r21"}
                 };
             }
             catch(Exception ex)
@@ -282,7 +282,7 @@ namespace TaskbarMonitorSensorBroker
                     {"CpuTemperatureSensors",raw.ToArray()},
                     {"BrokerPid",Process.GetCurrentProcess().Id},
                     {"BrokerMode","CPU"},
-                    {"BrokerVersion","1.1.2-rc3+r21"}
+                    {"BrokerVersion","1.1.2-rc4+r21"}
                 };
             }
         }
@@ -351,7 +351,7 @@ namespace TaskbarMonitorSensorBroker
                 {"StorageTemperatures",records.ToArray()},
                 {"BrokerPid",Process.GetCurrentProcess().Id},
                 {"BrokerMode","STORAGE_ONESHOT"},
-                {"BrokerVersion","1.1.2-rc3+r21"}
+                {"BrokerVersion","1.1.2-rc4+r21"}
             };
         }
 
@@ -504,7 +504,7 @@ namespace TaskbarMonitorSensorBroker
                 {"Gpus",gpuJson.ToArray()},
                 {"BrokerPid",Process.GetCurrentProcess().Id},
                 {"BrokerMode","GPU"},
-                {"BrokerVersion","1.1.2-rc3+r21"}
+                {"BrokerVersion","1.1.2-rc4+r21"}
             };
         }
 
@@ -576,7 +576,7 @@ namespace TaskbarMonitorSensorBroker
                     {"TimestampUtc",DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture)},
                     {"Available",false},{"Error",ex.ToString()},
                     {"Is64BitProcess",Environment.Is64BitProcess},{"IsElevated",IsElevated()},
-                    {"BrokerPid",Process.GetCurrentProcess().Id},{"BrokerMode",mode},{"BrokerVersion","1.1.2-rc3+r21"}
+                    {"BrokerPid",Process.GetCurrentProcess().Id},{"BrokerMode",mode},{"BrokerVersion","1.1.2-rc4+r21"}
                 }));
             }
             catch{}

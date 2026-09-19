@@ -1,14 +1,23 @@
-# R21 Acceptance Status — Taskbar Monitor Enhanced 1.1.2-rc3
+# R21 Acceptance Status — Taskbar Monitor Enhanced 1.1.2-rc4
 
 Status: RELEASE CANDIDATE / NOT STABLE
 
 Authority baseline: Git commit 539c8f7 (R20 process-isolation baseline).
-Development branch: audit/r21-final-hardening-rc3.
+Development branch: audit/r21-final-hardening-rc4.
 R21 release-source authority: 9211aa5.
 R21 runtime-code authority: 7a89368.
 R21 transactional-installer authority: d9953d5.
 R21 build-pipeline authority: bdcd2b4.
 
+
+## RC4-specific status
+
+- RC3 installed baseline before RC4 mutation: PASS; exact hashes, SensorLayerStatus READY, healthprobe PASS, ProcessContainment=true, task policy healthy and recent relevant Event Log errors = 0.
+- RC4 Main self-heal logic/self-test: PASS in source build; READY-only policy, 90-second startup/stale threshold and 180-second cooldown.
+- RC4 SPDX 2.3 SBOM generator: PASS locally (3 packages, 4 release files, 7 relationships).
+- RC4 CI workflow syntax/pinning: PASS locally; provenance/SBOM attestation execution requires a GitHub Actions run after push.
+- RC4 deterministic clean-clone build: PENDING after RC4 identity commit.
+- RC4 installed canary and forced Supervisor-stop auto-recovery: PENDING.
 
 ## RC3-specific status
 
@@ -69,13 +78,14 @@ The elevated installation gate is now closed on the validation machine. The rema
 
 ## Remaining release gates
 
-1. Run the RC3 protected-sensor completion step with administrator/UAC approval; require exact RC3 broker/supervisor hashes, Job Object containment and healthprobe PASS.
-2. Re-run exact installed hashes, task policy, module isolation, taskbar geometry and Windows Event Log after the protected upgrade.
-3. Continue the fully installed RC3 soak for a substantially longer window.
-4. Include at least one real suspend/resume cycle and require automatic native-worker recycle/recovery without restart storm or stale UI data.
-5. Re-run healthprobe, taskbar geometry, module isolation and Event Log checks after resume.
-6. Before public Stable/Latest publication, enable GitHub immutable releases for the repository and publish finalized assets through the immutable-release workflow.
-7. Only after those gates may R21 be promoted from release candidate to Stable/Latest.
+1. Commit RC4 identity and require full zero-warning build, self-test, Setup verification, SPDX SBOM generation and byte-for-byte clean-clone determinism.
+2. Install RC4 transactionally and verify exact installed hashes, READY/healthprobe PASS, ProcessContainment, task policy, module isolation, taskbar geometry and Windows Event Log.
+3. Fault-inject a Sensor Supervisor stop and require Main self-heal to restart the existing Scheduled Task without UAC, duplicate workers or restart storm.
+4. Run the updated GitHub Actions workflow and require provenance/SBOM attestation success for the release artifacts.
+5. Continue the fully installed RC4 soak for a substantially longer window.
+6. Include at least one real suspend/resume cycle and require automatic native-worker recycle/recovery without restart storm or stale UI data.
+7. Before public Stable/Latest publication, enable GitHub immutable releases and publish finalized assets through the immutable-release workflow.
+8. Only after those gates may R21 be promoted from release candidate to Stable/Latest.
 
 ## Dependency decision
 

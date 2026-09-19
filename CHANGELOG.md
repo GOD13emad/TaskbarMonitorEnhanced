@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.2-rc4 — R21 Self-Heal + Supply-Chain Finalization (candidate; not Stable)
+
+- add conservative non-elevated automatic recovery when a READY Sensor Supervisor state is missing/stale for more than 90 seconds
+- use the existing pre-authorized Scheduled Task only; no ACL, task-definition or protected-binary mutation is performed by Main
+- enforce a 90-second startup grace and 180-second retry cooldown to prevent restart loops
+- add self-heal policy coverage to the built-in self-test and Diagnostics report
+- generate an SPDX 2.3 SBOM from the pinned dependency lock and deterministic build manifest
+- add GitHub/Sigstore build-provenance and Setup SBOM attestations for non-PR CI builds
+- pin checkout/setup-dotnet/attest/upload-artifact Actions to exact commit SHAs
+- inherit the RC3 OS-level Job Object kill-on-close containment and full installed healthy baseline
+- release gates: deterministic RC4 clean-clone build, RC4 installed canary including forced Supervisor-stop auto-recovery, then extended real suspend/resume soak before Stable/Latest
+
 ## 1.1.2-rc3 — R21 Production Hardening (candidate; not Stable)
 
 - isolate LibreHardwareMonitor CPU, GPU and storage access into independent worker processes

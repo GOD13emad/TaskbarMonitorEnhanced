@@ -1,0 +1,94 @@
+{
+  "Version": "1.1.2-rc4",
+  "Status": "RELEASE_CANDIDATE_SOURCE_BUILT_DETERMINISM_PENDING",
+  "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC4",
+  "Rc3BaselineAuthority": "39a6ade",
+  "Rc4SelfHealSupplyChainAuthority": "8e0bf86",
+  "BinarySourceAuthorityCommit": "PENDING_RC4_IDENTITY_COMMIT",
+  "Dependencies": {
+    "LibreHardwareMonitor": {
+      "Version": "0.9.6",
+      "Url": "https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/download/v0.9.6/LibreHardwareMonitor.zip",
+      "SHA256": "086D9F1B5A99E643EDC2CFAAAC16051685B551E4C5AC0B32A57C58C0E529C001"
+    },
+    "PawnIO": {
+      "Version": "2.2.0",
+      "Url": "https://github.com/namazso/PawnIO.Setup/releases/download/2.2.0/PawnIO_setup.exe",
+      "SHA256": "1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032"
+    }
+  },
+  "Outputs": [
+    {
+      "Name": "TaskbarMonitorEnhanced.exe",
+      "Bytes": 276992,
+      "SHA256": "5F5B70F0AEE76D61369E0E78CB0EB4388453ADB9A515C550E1E98A11F2DD0E7A"
+    },
+    {
+      "Name": "TaskbarMonitorSensorBroker.exe",
+      "Bytes": 22528,
+      "SHA256": "064C422D5AC22277573B6290C1A7ADAC4C66C83262B2D9490D2FCF4B6147F5C1"
+    },
+    {
+      "Name": "TaskbarMonitorSensorSupervisor.exe",
+      "Bytes": 26112,
+      "SHA256": "9AEB79F40CE10434F06A4E5244648DC08EC95AB13696FA15015711263C349E37"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc4.exe",
+      "Bytes": 10969088,
+      "SHA256": "B51D3BB9DF5E7DA74FB7D1FA7403F62025E90333BD5F70A8286299FA7DA1CBD8"
+    }
+  ],
+  "Reproducibility": {
+    "PrimaryBuild": "PASS",
+    "CleanCloneBuild": "PENDING",
+    "ByteIdenticalAcrossIndependentPaths": false,
+    "AutomatedVerifier": "build/Verify-Determinism.ps1",
+    "DependencyLock": "build/dependencies.lock.json",
+    "SbomGenerator": "build/Generate-Sbom.ps1",
+    "SbomGeneration": "PASS",
+    "SbomPath": "artifacts/R21_SBOM.spdx.json"
+  },
+  "Rc4Additions": {
+    "SensorSupervisorAutoHeal": true,
+    "AutoHealReadyLayerOnly": true,
+    "AutoHealStartupGraceSeconds": 90,
+    "AutoHealStateStaleSeconds": 90,
+    "AutoHealRetryCooldownSeconds": 180,
+    "Spdx23Sbom": true,
+    "GithubSigstoreProvenanceAttestation": true,
+    "GithubSigstoreSbomAttestation": true,
+    "PinnedGithubActionsByCommitSha": true
+  },
+  "InheritedRc3Hardening": {
+    "AtomicConfigWrite": true,
+    "ConfigBackupRecovery": true,
+    "MainLogRetentionDays": 30,
+    "SensorLogRotationBytes": 4194304,
+    "SensorLogBackupCount": 3,
+    "ExactVersionInstallerAssetRequired": true,
+    "StrictGithubSha256Digest64HexRequired": true,
+    "HealthResilienceState": true,
+    "WorkerFailureRecoveryTimestamps": true,
+    "OptionalCpuPackagePower": true,
+    "OptionalGpuPowerFanTelemetry": true,
+    "GpuPowerFanLiveProbe": "PASS_RTX3080",
+    "SupervisorSteadyState": "PASS",
+    "SupervisorStaleIsolation": "PASS",
+    "SupervisorLongGapRecycle": "PASS_18_5_SECONDS",
+    "SupervisorLogRotation": "PASS",
+    "FailureToRecoveryObservability": "PASS",
+    "KillOnCloseJobContainment": true,
+    "AbruptSupervisorDeathTest": "PASS_CHILDREN_EXITED_AUTOMATICALLY"
+  },
+  "BaselineBeforeRc4": {
+    "Version": "1.1.2-rc3",
+    "Installed": "PASS",
+    "SensorLayerStatus": "READY",
+    "HealthProbe": "PASS",
+    "ProcessContainment": true,
+    "MainBrokerSupervisorHashes": "MATCH_RC3_CANDIDATE",
+    "RecentRelevantEventErrors": 0
+  },
+  "RemainingGate": "Build/determinism -> install RC4 -> forced Supervisor-stop auto-heal canary -> GitHub attestation run -> extended real suspend/resume soak"
+}

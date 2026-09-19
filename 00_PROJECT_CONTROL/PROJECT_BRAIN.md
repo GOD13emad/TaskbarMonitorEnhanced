@@ -4,7 +4,7 @@
 
 - Public stable release remains v1.1.1.
 - R20 rollback authority: local commit 539c8f7 — process-isolated sensor-access baseline.
-- Active candidate: v1.1.2-rc3 / R21 Production Hardening on audit/r21-final-hardening-rc3.
+- Active candidate: v1.1.2-rc4 / R21 Self-Heal + Supply-Chain Finalization on audit/r21-final-hardening-rc4.
 - Do not claim public FINAL/STABLE until the extended installed soak including suspend/resume passes.
 
 ## R21 objective
@@ -15,6 +15,8 @@ Increase long-run stability and observability without regressing the accepted ta
 
 - Independent CPU/GPU/storage LHM worker processes.
 - RC3 OS-level kill-on-close Job Object containment prevents orphan sensor workers after abrupt Supervisor termination.
+- RC4 Main self-heal restarts only the existing pre-authorized Sensor Supervisor task after conservative stale-state thresholds.
+- RC4 CI produces SPDX 2.3 SBOM plus GitHub/Sigstore build provenance/SBOM attestations with Actions pinned by commit SHA.
 - Staggered worker startup and bounded retry/backoff.
 - Fresh transport health separated from data availability.
 - Power-aware telemetry pause/reset/recycle.
@@ -49,13 +51,14 @@ See docs/R21_ACCEPTANCE_STATUS.md and local r21_evidence/. Core builds and deter
 
 ## Open blocker
 
-RC3 source/build hardening and clean-clone determinism are complete. The RC3 main UI is installed and accepted locally (exact hash, taskbar geometry, module isolation, recent Event Log), while the protected Broker/Supervisor remain the healthy RC2 layer because the noninteractive UAC request timed out. The immediate gate is one explicit admin/UAC completion of the protected RC3 layer; public Stable/Latest additionally requires an extended fully-installed soak with one real suspend/resume cycle.
+RC3 is now fully installed with exact Main/Broker/Supervisor hashes, healthprobe PASS, SensorLayerStatus READY and ProcessContainment=true. RC4 adds Main-driven conservative Supervisor self-heal and CI provenance/SBOM attestations. RC4 still needs its own deterministic clean-clone build and installed fault-injection canary. Public Stable/Latest additionally requires an extended fully-installed soak with one real suspend/resume cycle.
 
 ## Next authoritative actions
 
-- Run COMPLETE_RC3_ADMIN.ps1 with administrator/UAC approval and require exact protected-binary hashes plus ProcessContainment=true/healthprobe PASS.
-- Re-run installed hashes/health/module/taskbar/EventLog gates after protected-layer completion.
-- Keep the installed RC3 candidate running for a longer soak.
+- Complete RC4 deterministic build, manifest/SBOM generation and clean-clone verification.
+- Install RC4 transactionally and verify exact installed hashes/health/module/taskbar/EventLog gates.
+- Fault-inject a Sensor Supervisor stop and require Main self-heal to restart the existing task without UAC, duplicate workers or restart storm.
+- Continue the fully installed RC4 candidate soak.
 - Exercise one real suspend/resume cycle when operationally safe, then re-run healthprobe/module/taskbar/EventLog gates.
 - Keep public Stable/Latest at v1.1.1 until those gates pass.
-- For the eventual public R21 release, enable GitHub immutable releases and publish finalized assets through the immutable-release workflow.
+- Before public R21 publication, enable GitHub immutable releases and publish finalized assets through the immutable-release workflow.
