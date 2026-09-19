@@ -1,76 +1,83 @@
-# Taskbar Monitor Enhanced v1.1.2-rc6 — R21 Production Hardening
+# Taskbar Monitor Enhanced v1.1.2-rc8 — R21 Production Hardening
 
-Release-candidate engineering build focused on long-run stability, lower telemetry overhead, sensor failure containment, diagnostics, and update trust.
+RC8 is the current engineering candidate for the next v1.1.2 release. It is installed and passes the available local runtime, reproducibility and supply-chain gates; public Stable/Latest remains v1.1.1 until one real suspend/resume post-check is accepted.
 
-## Runtime and sensor architecture
+## Runtime architecture
 
-- LibreHardwareMonitor is no longer loaded in the main UI process.
-- CPU and GPU native sensor reads run in independent broker processes.
+- LibreHardwareMonitor is not loaded in the Main UI process.
+- CPU and GPU hardware reads run in independent protected broker workers.
 - Storage temperature probing runs as a bounded one-shot worker.
-- Supervisor health distinguishes fresh transport from actual sensor-data availability.
-- CPU, GPU, and storage workers start in a staggered sequence to reduce low-level hardware contention.
-- Stale/hung workers use bounded exponential backoff and termination-pending protection to prevent restart storms.
-- All isolated workers are attached to a Windows Job Object with kill-on-close semantics, so abrupt Supervisor termination also tears down children at the OS boundary.
-- Long suspend/resume gaps recycle native sensor workers before reuse.
+- A protected Supervisor owns worker lifecycle, freshness, bounded backoff and recovery.
+- All sensor children are attached to a kill-on-close Windows Job Object.
+- CPU/GPU/storage transport health is separated from actual sensor-data availability.
+- Static CPU/disk/RAM/network topology is cached; power/resume paths invalidate or recycle the appropriate state.
+- Main remains a normal user application at Medium integrity.
 
-## Performance
+## RC7 sensor stability and windowless hardening retained by RC8
 
-- CPU usage uses Windows GetSystemTimes instead of Processor PerformanceCounter polling.
-- Static CPU topology is cached for five minutes.
-- Static disk topology is cached for five minutes and RAM-module topology for ten minutes; suspend/resume invalidates these caches immediately.
-- Network-interface topology is cached for 30 seconds.
-- GPU WDDM/WMI telemetry is now fallback-only when the isolated GPU broker has no usable load data.
-- User telemetry sampling is clamped to 1000–5000 ms.
-- CPU temperature data automatically becomes unavailable when it is stale instead of displaying an old value as current.
-- CPU broker JSON now uses the same shared-read/retry path as GPU and storage, eliminating brief file-sharing races while the broker atomically replaces telemetry output.
+RC7 fixed the repeated `NO_CURRENT_OUTPUT_AFTER_GRACE` false positive: after a worker has produced valid output, a transient missing/unobservable file observation is tolerated while the last-known-good sample remains within the existing 15-second freshness budget. A persistent gap beyond that budget still causes bounded restart. A dedicated regression reproduced the RC6 short-gap failure and proved that RC7 tolerates a 3-second gap but restarts after a persistent >15-second gap.
 
-## Diagnostics and updates
+Broker and Supervisor are now built as `WinExe` / PE `WINDOWS_GUI` subsystem=2. Build-R21 explicitly rejects any regression back to a console subsystem. On the installed machine, the live sensor process tree has zero sensor-owned `conhost/OpenConsole` children.
 
-- Added --healthprobe <json> for machine-readable supervisor and broker freshness/transport checks.
-- Added an explicit Repair protected sensors action in Diagnostics; elevation is requested only after user confirmation.
-- Bounded the administrator-consent launch itself: if UAC/ShellExecute does not complete within 30 seconds, Setup continues as a clearly marked DEGRADED install instead of remaining half-installed indefinitely.
-- install_state.json records SensorLayerStatus so a degraded/mixed sensor layer cannot be mistaken for a fully healthy R21 installation.
-- Protected sensor installation is transactional: the previous Program Files sensor payload and Scheduled Task definition are captured before mutation and restored automatically if R21 task setup or transport-health validation fails.
-- Rollback deletes R21 split telemetry before restarting the previous sensor layer, preventing stale GPU/storage/supervisor JSON from leaking across architectures.
-- Added a Diagnostics tab and taskbar-menu shortcut.
-- Diagnostics show runtime paths, sensor supervisor state, telemetry freshness, build identity, and current hardware availability.
-- Diagnostic reports can be saved as text for support/auditing.
-- Automatic update installation now requires both GitHub SHA-256 asset metadata and an immutable GitHub Release. Mutable releases remain available for manual review only.
+RC8 preserves the exact accepted RC7 protected hashes:
+- Broker: `DBB2AF15D116564E3C287D1F5EC04B62D5BBE803048E52B855D9B5BF37316FCB`
+- Supervisor: `1A9AAA02D7FBA3DAF876A6399000BCA8A21CEC158F9FD5D5E2D0D2F99FF68DF9`
 
-## RC6 hardening additions
+## RC8 Main integrity boundary
 
-- Configuration persistence now uses atomic replacement with a recoverable backup instead of direct overwrite.
-- Main logs have bounded retention; protected sensor logs rotate at 4 MiB with bounded backup generations.
-- Automatic updates require the exact setup filename for the advertised version and an exact sha256:64-hex digest.
-- Health output includes supervisor uptime, worker age, last-failure reason/time, last-recovery time and a resilience state.
-- CPU package power and GPU power/fan telemetry are optional fields produced only by the isolated brokers; missing/invalid values remain unavailable instead of being guessed.
-- Live RC6 broker validation on the RTX 3080 produced valid power and fan telemetry; the CPU zero-watt false-positive found during testing was rejected by a >0.1 W validity guard.
-- Supervisor test lanes pass steady state, stale-worker isolation, long-gap recycle, log rotation and failure-to-recovery timestamp propagation.
+RC8 fixes a least-privilege edge case in whole-Setup elevation. If Setup itself is elevated, it no longer auto-launches Main from that elevated token. Normal non-elevated Setup still auto-launches Main.
 
-## RC6 final log-pressure hardening
+The installed acceptance path used normal non-elevated Setup, reused the exact protected RC7 sensor pair without UAC, and recorded:
+- `SensorLayerStatus=READY`
+- `SensorLayerMode=REUSED_EXACT_RC7_FOR_RC8`
+- `MainLaunchMode=LAUNCHED_NON_ELEVATED_SETUP`
 
-- GPU stale-state logging is normalized so a changing age value no longer creates a new log state every telemetry poll.
-- Repeated GPU stale-state messages are bounded to one every 30 seconds while immediate READY/STALE transitions remain observable.
-- The production-threshold RC4 Supervisor-stop fault injection proved the inherited Main self-heal path end to end before this narrow logging change.
+The running Main was independently measured at Medium integrity (RID 8192).
 
-## RC6 least-privilege component reuse
+## Installed acceptance
 
-- Normal install/update first checks whether the existing protected Broker/Supervisor pair is an exact allowlisted SHA-256 pair and whether its live state is younger than 15 seconds, version-matched, Job-contained and healthy on CPU/GPU/storage transport and data lanes.
-- If those gates pass, Setup reuses the protected layer without requesting administrator consent; unknown, modified, stale or unhealthy layers still use the transactional elevated install/rollback path.
-- Explicit Repair Hardware Sensors still forces the current protected payload and therefore remains an administrator operation.
-- The live RC4-protected -> RC6-Main canary completed in 2.38 seconds with no UAC. install_state recorded READY / REUSED_COMPATIBLE_RC4, the RC4 protected hashes remained unchanged, healthprobe stayed PASS and the transient prior CPU recovery state cleared to zero active failures.
+PASS:
+- exact RC8 Main SHA-256: `5172A2AC11B356D678122C0FD196CA24E8636648B63894D05BDD9C126D53E000`
+- exact RC8 Setup SHA-256: `12BCA03A9BEA803269712694B5FC3EAFAB5BDE514C60E2D520142B022BC496F4`
+- HealthProbe PASS / R21 / Job containment / STABLE
+- CPU/GPU/storage transport and data available
+- zero sensor-owned console-host children
+- taskbar geometry 24/24 stable at 1100x48 with correct `Shell_TrayWnd` parenting
+- Main module isolation 300/300 samples with no LibreHardwareMonitor
+- zero recent relevant Application/TaskScheduler errors
+- 90-second live soak: 19/19 healthy snapshots; no CPU/GPU restart-counter change
+- no `NO_CURRENT_OUTPUT_AFTER_GRACE` or observation-gap failure after protected RC7 installation
+- Start Menu, Desktop, HKCU Run startup, uninstall registration and protected-sensor Repair entry verified
+- protected Program Files Broker/Supervisor reject non-elevated GENERIC_WRITE access
 
-## Dependency decision
+Two CPU `WORKER_EXIT_-1` events occurred in the first two minutes after protected RC7 installation. No broker fatal exception or Windows application/.NET crash accompanied them, and they have not recurred. Their exact external termination cause remains unverified; the events remain recorded as a regression watch item rather than being silently discarded.
 
-- LibreHardwareMonitor 0.9.6 remains the pinned production backend for this candidate.
-- A current upstream nightly was tested separately during R21 engineering but did not improve the observed CPU worker behavior, so it was not promoted into the production dependency set.
+## Build and supply-chain verification
 
-## Validation status
+PASS:
+- zero-warning/zero-error App/Broker/Supervisor/Setup build
+- built-in self-test
+- Setup resource/policy verification
+- explicit PE subsystem=2 sensor guard
+- clean-clone byte-for-byte determinism
+- SPDX 2.3 SBOM
+- GitHub self-hosted finalization run `35452831037`
+- GitHub provenance attestations for Main/Broker/Supervisor/Setup
+- GitHub SBOM attestation for Setup
+- independent repository API read-back of persisted attestations
+- RC8 draft prerelease evidence upload
+- immutable-release repository policy enabled
 
-Engineering evidence includes zero-warning builds of the app/broker/supervisor/setup, self-test PASS, 14-theme proof PASS, compact proof at 592/500 px with zero overflow, deterministic stale-worker recovery PASS, and a no-screen Windows taskbar canary with 24/24 stable direct-child geometry samples. Live validation read CPU temperature through the elevated broker, full RTX 3080 telemetry including temperature through the isolated GPU broker, and three elevated storage-temperature sensors on the validation machine.
+Public Stable/Latest remains v1.1.1. RC8 is not promoted publicly until the remaining physical suspend/resume validation passes.
 
-This is a release candidate, not a final public release. RC6 build/self-test/SBOM/determinism gates pass and its Main canary is installed with exact hash; the protected Broker/Supervisor are still RC4 because the RC6 administrator/UAC completion was not approved: healthprobe reports PASS, CPU/GPU/storage transport and data availability are healthy, the isolated RTX 3080 lane reports temperature/load/VRAM/clocks, three storage-temperature records are available, the installed main UI contains no LibreHardwareMonitor module, taskbar geometry remains stable, and Windows Event Log shows no TBME/Explorer crash or hang event in the observed post-install window.
+## Remaining acceptance gate
 
-After the one contained CPU worker recovery, the supervisor returned to HEALTHY_DATA and recorded no further worker failures during the observed installed window. The shared-read main patch then ran without CPU broker read/stale/unavailable log events.
+One real suspend/resume cycle must be performed on the installed RC8 system, followed immediately by:
+- HealthProbe / freshness / Job containment
+- taskbar geometry and parenting
+- Main module isolation
+- sensor windowless process-tree check
+- Event Log check
+- restart-counter comparison
 
-RC6 promotion remains blocked on protected-layer administrator completion, GitHub-side provenance/SBOM attestation execution, and then a longer soak that includes a real suspend/resume cycle; this RC is not yet declared Stable/Latest.
+If those checks pass, RC8 is eligible for final v1.1.2 Stable/Latest promotion. If they fail, the exact observed power-transition failure becomes the next isolated mutation objective.

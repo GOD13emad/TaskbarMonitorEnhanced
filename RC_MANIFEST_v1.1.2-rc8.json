@@ -1,6 +1,6 @@
 {
   "Version": "1.1.2-rc8",
-  "Status": "BUILD_DETERMINISM_SBOM_PASS_INSTALL_PENDING",
+  "Status": "INSTALLED_RUNTIME_GITHUB_PASS_PHYSICAL_SUSPEND_PENDING",
   "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC8",
   "ParentRc7Authority": "4b9c7ce47f37cb6ade4ef5b90f4c43137d1923c1",
   "ChangeObjective": "PREVENT_ELEVATED_SETUP_FROM_LAUNCHING_HIGH_INTEGRITY_MAIN",
@@ -34,11 +34,8 @@
     }
   ],
   "RemainingGates": [
-    "NON_ELEVATED_INSTALL_REUSE_RC7",
-    "MAIN_MEDIUM_INTEGRITY",
-    "RUNTIME_REGRESSION",
-    "GITHUB_ATTESTATION",
-    "REAL_SUSPEND_RESUME"
+    "REAL_SUSPEND_RESUME_POSTCHECK",
+    "PUBLIC_IMMUTABLE_STABLE_PROMOTION"
   ],
   "SourceAuthorityCommit": "6965f3852b5361169d480bab984c9bef065e1e70",
   "Verification": {
@@ -50,5 +47,35 @@
     "SbomGeneration": "PASS",
     "ProtectedSensorHashesUnchangedFromAcceptedRc7": true
   },
-  "UpdatedUtc": "2026-09-19T15:43:03.999733+00:00"
+  "UpdatedUtc": "2026-09-19T16:22:11.147Z",
+  "InstalledAcceptance": {
+    "MainSha256": "5172A2AC11B356D678122C0FD196CA24E8636648B63894D05BDD9C126D53E000",
+    "SensorLayerStatus": "READY",
+    "SensorLayerMode": "REUSED_EXACT_RC7_FOR_RC8",
+    "MainLaunchMode": "LAUNCHED_NON_ELEVATED_SETUP",
+    "MainIntegrity": "MEDIUM_RID_8192",
+    "WindowlessSensorTree": "PASS_ZERO_SENSOR_CONSOLE_CHILDREN",
+    "Health": "PASS_STABLE_JOB_CONTAINED",
+    "TaskbarCanary": "PASS_24_OF_24_1100x48",
+    "MainModuleIsolation": "PASS_300_OF_300_NO_LHM",
+    "RelevantRecentEventErrors": 0,
+    "LiveSoak90s": "PASS_19_OF_19_HEALTHY_RESTART_COUNTS_STABLE",
+    "PostRc7ObservationGapFailures": 0,
+    "EarlyInstallWorkerExitMinus1": "OBSERVED_TWICE_NONRECURRENT_ROOT_CAUSE_UNVERIFIED"
+  },
+  "GitHubAcceptance": {
+    "WorkflowRunId": 35452831037,
+    "WorkflowResult": "SUCCESS",
+    "AttestationsPersisted": true,
+    "DraftReleaseId": 392123940,
+    "DraftOnly": true,
+    "PublicStableLatest": "v1.1.1"
+  },
+  "InstallSurface": {
+    "StartMenu": "PASS",
+    "DesktopShortcut": "PASS",
+    "Startup": "HKCU_RUN_SINGLE_PATH_PASS",
+    "UninstallRegistration": "PASS_1.1.2-rc8",
+    "ProtectedWriteBoundary": "PASS_ACCESS_DENIED_5"
+  }
 }
