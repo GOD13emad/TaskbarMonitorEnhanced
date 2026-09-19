@@ -1,6 +1,6 @@
 # R21 reproducible build
 
-Build-R21.ps1 is the authoritative local and CI build path for the 1.1.2-rc4 R21 candidate.
+Build-R21.ps1 is the authoritative local and CI build path for the 1.1.2-rc5 R21 candidate.
 
 It performs the following gates:
 

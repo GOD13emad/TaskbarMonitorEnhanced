@@ -1,14 +1,21 @@
-# R21 Acceptance Status — Taskbar Monitor Enhanced 1.1.2-rc4
+# R21 Acceptance Status — Taskbar Monitor Enhanced 1.1.2-rc5
 
 Status: RELEASE CANDIDATE / NOT STABLE
 
 Authority baseline: Git commit 539c8f7 (R20 process-isolation baseline).
-Development branch: audit/r21-final-hardening-rc4.
+Development branch: audit/r21-final-hardening-rc5.
 R21 release-source authority: 9211aa5.
 R21 runtime-code authority: 7a89368.
 R21 transactional-installer authority: d9953d5.
 R21 build-pipeline authority: bdcd2b4.
 
+
+## RC5-specific status
+
+- RC4 fully installed baseline: PASS; exact hashes, READY, healthprobe PASS and ProcessContainment=true.
+- RC4 production-threshold forced Supervisor-stop self-heal: PASS; Main emitted SENSOR_SUPERVISOR_AUTOHEAL_TRIGGER and START_TASK_PASS, new Supervisor became fresh, exactly one Supervisor/two persistent brokers remained and final healthprobe passed.
+- RC5 GPU stale-log throttle source build/self-test: PASS; final RC5 build/determinism/install gates pending.
+- RC5 objective is deliberately narrow: remove log amplification without changing the proven recovery architecture.
 
 ## RC4-specific status
 
@@ -78,14 +85,13 @@ The elevated installation gate is now closed on the validation machine. The rema
 
 ## Remaining release gates
 
-1. Commit RC4 identity and require full zero-warning build, self-test, Setup verification, SPDX SBOM generation and byte-for-byte clean-clone determinism.
-2. Install RC4 transactionally and verify exact installed hashes, READY/healthprobe PASS, ProcessContainment, task policy, module isolation, taskbar geometry and Windows Event Log.
-3. Fault-inject a Sensor Supervisor stop and require Main self-heal to restart the existing Scheduled Task without UAC, duplicate workers or restart storm.
-4. Run the updated GitHub Actions workflow and require provenance/SBOM attestation success for the release artifacts.
-5. Continue the fully installed RC4 soak for a substantially longer window.
-6. Include at least one real suspend/resume cycle and require automatic native-worker recycle/recovery without restart storm or stale UI data.
-7. Before public Stable/Latest publication, enable GitHub immutable releases and publish finalized assets through the immutable-release workflow.
-8. Only after those gates may R21 be promoted from release candidate to Stable/Latest.
+1. Require RC5 zero-warning build, self-test, Setup verification, SPDX SBOM and clean-clone byte-for-byte determinism.
+2. Install RC5 and verify exact hashes, READY/healthprobe PASS and ProcessContainment.
+3. Repeat forced Supervisor-stop self-heal and require GPU stale logging bounded to the 30-second policy while recovery remains PASS.
+4. Re-run taskbar geometry, module isolation and recent Windows Event Log checks.
+5. Run the updated GitHub Actions workflow after push and require provenance/SBOM attestation success.
+6. Complete an extended real suspend/resume soak before public Stable/Latest.
+7. Enable GitHub immutable releases before public R21 publication.
 
 ## Dependency decision
 

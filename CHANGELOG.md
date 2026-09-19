@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.2-rc5 — R21 Final Log-Pressure Hardening (candidate; not Stable)
+
+- retain RC4 automatic Sensor Supervisor self-heal and signed provenance/SBOM CI
+- fix GPU stale-state log amplification during a protected-sensor outage by normalizing dynamic age states
+- throttle repeated GPU stale-state logs to at most one every 30 seconds while preserving immediate state-transition logging
+- RC4 live fault injection proved Main-driven task recovery, one Supervisor, correct broker parenting and healthprobe PASS
+- release gates: deterministic RC5 build, installed RC5 canary, repeat self-heal fault injection with bounded stale logging, then real suspend/resume soak before Stable/Latest
+
 ## 1.1.2-rc4 — R21 Self-Heal + Supply-Chain Finalization (candidate; not Stable)
 
 - add conservative non-elevated automatic recovery when a READY Sensor Supervisor state is missing/stale for more than 90 seconds

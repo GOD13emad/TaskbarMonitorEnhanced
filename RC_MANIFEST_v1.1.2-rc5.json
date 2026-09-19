@@ -1,0 +1,75 @@
+{
+  "Version": "1.1.2-rc5",
+  "Status": "RELEASE_CANDIDATE_SOURCE_BUILT_DETERMINISM_PENDING",
+  "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC5",
+  "Rc4BaselineAuthority": "8943a59",
+  "Rc5LogThrottleAuthority": "23e079e",
+  "BinarySourceAuthorityCommit": "PENDING_RC5_IDENTITY_COMMIT",
+  "Dependencies": {
+    "LibreHardwareMonitor": {
+      "Version": "0.9.6",
+      "Url": "https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/download/v0.9.6/LibreHardwareMonitor.zip",
+      "SHA256": "086D9F1B5A99E643EDC2CFAAAC16051685B551E4C5AC0B32A57C58C0E529C001"
+    },
+    "PawnIO": {
+      "Version": "2.2.0",
+      "Url": "https://github.com/namazso/PawnIO.Setup/releases/download/2.2.0/PawnIO_setup.exe",
+      "SHA256": "1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032"
+    }
+  },
+  "Outputs": [
+    {
+      "Name": "TaskbarMonitorEnhanced.exe",
+      "Bytes": 276992,
+      "SHA256": "10747E76B898F79E16F475CD907A8C201906D56C96EDD387F8B8A17F32388AE9"
+    },
+    {
+      "Name": "TaskbarMonitorSensorBroker.exe",
+      "Bytes": 22528,
+      "SHA256": "200564F182F26FE2D977188566837C65ED88F866A53EB563F80F7595F33B427F"
+    },
+    {
+      "Name": "TaskbarMonitorSensorSupervisor.exe",
+      "Bytes": 26112,
+      "SHA256": "D58F174F8AD64563A3AB8051FED969DC6F05D91145E2FCEF9B75288BF1D26F4C"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc5.exe",
+      "Bytes": 10969600,
+      "SHA256": "34A7FECB564721B49A4F89C93D5D08AB327D0C8A8BB1A2384F2D27695299743C"
+    }
+  ],
+  "Reproducibility": {
+    "PrimaryBuild": "PASS",
+    "CleanCloneBuild": "PENDING",
+    "ByteIdenticalAcrossIndependentPaths": false,
+    "AutomatedVerifier": "build/Verify-Determinism.ps1",
+    "DependencyLock": "build/dependencies.lock.json",
+    "SbomGenerator": "build/Generate-Sbom.ps1",
+    "SbomGeneration": "PASS",
+    "SbomPath": "artifacts/R21_SBOM.spdx.json"
+  },
+  "Rc5Additions": {
+    "GpuDynamicStaleStateNormalized": true,
+    "GpuRepeatedStaleLogThrottleSeconds": 30
+  },
+  "InheritedRc4Additions": {
+    "SensorSupervisorAutoHeal": true,
+    "AutoHealReadyLayerOnly": true,
+    "AutoHealStartupGraceSeconds": 90,
+    "AutoHealStateStaleSeconds": 90,
+    "AutoHealRetryCooldownSeconds": 180,
+    "Spdx23Sbom": true,
+    "GithubSigstoreProvenanceAttestation": true,
+    "GithubSigstoreSbomAttestation": true,
+    "PinnedGithubActionsByCommitSha": true
+  },
+  "BaselineBeforeRc5": {
+    "Version": "1.1.2-rc4",
+    "Installed": "PASS",
+    "ForcedSupervisorStopSelfHeal": "PASS",
+    "HealthProbeAfterRecovery": "PASS",
+    "ProcessContainment": true
+  },
+  "RemainingGate": "Build/determinism -> install RC5 -> repeat live self-heal with bounded logging -> GitHub attestation run -> real suspend/resume soak"
+}

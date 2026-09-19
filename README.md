@@ -21,9 +21,9 @@ v1.1.1 includes:
 Accepted assets and hashes are published in `SHA256SUMS_v1.1.1.txt` and `RELEASE_MANIFEST_v1.1.1.json`.
 
 
-## Development candidate: v1.1.2-rc4 (R21)
+## Development candidate: v1.1.2-rc5 (R21)
 
-v1.1.2-rc4 is the active engineering release candidate, not the current Stable/Latest release. It builds on the fully installed/healthy RC3 baseline and adds conservative automatic Sensor Supervisor recovery plus CI build-provenance/SBOM attestations. RC4 must complete its own deterministic build and installed canary before public promotion; Stable/Latest additionally requires the extended real suspend/resume soak.
+v1.1.2-rc5 is the active engineering release candidate, not the current Stable/Latest release. It builds on the fully installed/healthy RC4 baseline, preserves automatic Sensor Supervisor recovery and CI build-provenance/SBOM attestations, and fixes GPU stale-state log amplification discovered during the RC4 live recovery test. RC5 must complete its own deterministic build and installed canary before public promotion; Stable/Latest additionally requires the extended real suspend/resume soak.
 
 R21 adds:
 
@@ -47,7 +47,7 @@ R21 adds:
 - machine-readable failure/recovery timestamps, worker ages and STABLE / RECOVERING / RECOVERED_RECENTLY resilience state
 - optional isolated CPU package-power and GPU power/fan telemetry; unsupported sensors remain N/A
 
-Current RC4 engineering evidence includes zero-warning primary builds for the main app, broker, supervisor and setup; self-test PASS; all 14 full-width themes PASS; 14 themes at 592 px and 500 px with zero layout overflow; process-isolation and transactional-rollback fault injection PASS; an installed taskbar canary with stable direct-child geometry; live elevated R21 CPU/GPU/storage split telemetry; RTX 3080 temperature/load/VRAM/clocks; three valid storage-temperature sensors; healthprobe PASS; no LibreHardwareMonitor module loaded in the main UI process; the fully installed RC3 baseline passed exact-hash, ProcessContainment, healthprobe, taskbar geometry, module-isolation and recent Event Log checks. RC4 installed acceptance is intentionally not claimed until its canary is deployed.
+Current RC5 engineering evidence includes zero-warning primary builds for the main app, broker, supervisor and setup; self-test PASS; all 14 full-width themes PASS; 14 themes at 592 px and 500 px with zero layout overflow; process-isolation and transactional-rollback fault injection PASS; an installed taskbar canary with stable direct-child geometry; live elevated R21 CPU/GPU/storage split telemetry; RTX 3080 temperature/load/VRAM/clocks; three valid storage-temperature sensors; healthprobe PASS; no LibreHardwareMonitor module loaded in the main UI process; the fully installed RC3 baseline passed exact-hash, ProcessContainment, healthprobe, taskbar geometry, module-isolation and recent Event Log checks. RC4 installed self-heal fault-injection passed; RC5 installed acceptance is intentionally not claimed until its canary is deployed.
 
 See docs/R21_ACCEPTANCE_STATUS.md and RELEASE_NOTES_v1.1.2.md.
 
