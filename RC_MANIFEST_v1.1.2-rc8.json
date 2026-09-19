@@ -1,6 +1,6 @@
 {
   "Version": "1.1.2-rc8",
-  "Status": "SOURCE_MUTATED_BUILD_PENDING",
+  "Status": "BUILD_DETERMINISM_SBOM_PASS_INSTALL_PENDING",
   "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC8",
   "ParentRc7Authority": "4b9c7ce47f37cb6ade4ef5b90f4c43137d1923c1",
   "ChangeObjective": "PREVENT_ELEVATED_SETUP_FROM_LAUNCHING_HIGH_INTEGRITY_MAIN",
@@ -11,15 +11,44 @@
     "ReusePolicy": "EXACT_HASH_PLUS_FRESH_HEALTH"
   },
   "Method": "If Setup token is elevated, skip Main autolaunch; outer/non-elevated caller or normal shortcut starts Main. Avoid token duplication or privilege-bearing launch machinery.",
-  "Outputs": [],
+  "Outputs": [
+    {
+      "Name": "TaskbarMonitorEnhanced.exe",
+      "Bytes": 276992,
+      "SHA256": "5172A2AC11B356D678122C0FD196CA24E8636648B63894D05BDD9C126D53E000"
+    },
+    {
+      "Name": "TaskbarMonitorSensorBroker.exe",
+      "Bytes": 22528,
+      "SHA256": "DBB2AF15D116564E3C287D1F5EC04B62D5BBE803048E52B855D9B5BF37316FCB"
+    },
+    {
+      "Name": "TaskbarMonitorSensorSupervisor.exe",
+      "Bytes": 26624,
+      "SHA256": "1A9AAA02D7FBA3DAF876A6399000BCA8A21CEC158F9FD5D5E2D0D2F99FF68DF9"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc8.exe",
+      "Bytes": 10980864,
+      "SHA256": "12BCA03A9BEA803269712694B5FC3EAFAB5BDE514C60E2D520142B022BC496F4"
+    }
+  ],
   "RemainingGates": [
-    "ZERO_WARNING_BUILD",
-    "DETERMINISM",
-    "SETUP_VERIFY",
     "NON_ELEVATED_INSTALL_REUSE_RC7",
     "MAIN_MEDIUM_INTEGRITY",
     "RUNTIME_REGRESSION",
     "GITHUB_ATTESTATION",
     "REAL_SUSPEND_RESUME"
-  ]
+  ],
+  "SourceAuthorityCommit": "6965f3852b5361169d480bab984c9bef065e1e70",
+  "Verification": {
+    "PrimaryBuild": "PASS_0_WARNINGS_0_ERRORS",
+    "BuiltInSelfTest": "PASS_PUBLIC_VERSION_RC8",
+    "SetupVerify": "PASS_RC8_APP_REUSES_EXACT_RC7_SENSOR",
+    "SensorWindowlessPeGuard": "PASS",
+    "CleanCloneDeterminism": "PASS",
+    "SbomGeneration": "PASS",
+    "ProtectedSensorHashesUnchangedFromAcceptedRc7": true
+  },
+  "UpdatedUtc": "2026-09-19T15:43:03.999733+00:00"
 }
