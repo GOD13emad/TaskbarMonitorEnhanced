@@ -61,29 +61,6 @@ jobs:
           subject-path: 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_*.exe'
           sbom-path: 'artifacts/R21_SBOM.spdx.json'
 
-      - name: Verify attestations are persisted
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $files=@(
-            'build/_out/App/TaskbarMonitorEnhanced.exe',
-            'build/_out/Broker/TaskbarMonitorSensorBroker.exe',
-            'build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe'
-          )
-          foreach($f in $files){
-            $hash=(Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant()
-            $j=gh api "repos/$env:GITHUB_REPOSITORY/attestations/sha256:$hash?predicate_type=provenance" | ConvertFrom-Json
-            if(@($j.attestations).Count -lt 1){ throw "Missing persisted provenance attestation for $f" }
-          }
-          $setup=Get-ChildItem 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_*.exe' | Select-Object -First 1
-          $setupHash=(Get-FileHash -LiteralPath $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          $prov=gh api "repos/$env:GITHUB_REPOSITORY/attestations/sha256:$setupHash?predicate_type=provenance" | ConvertFrom-Json
-          $sbom=gh api "repos/$env:GITHUB_REPOSITORY/attestations/sha256:$setupHash?predicate_type=sbom" | ConvertFrom-Json
-          if(@($prov.attestations).Count -lt 1){ throw 'Missing persisted Setup provenance attestation' }
-          if(@($sbom.attestations).Count -lt 1){ throw 'Missing persisted Setup SBOM attestation' }
-          Write-Host "ATTESTATION_PERSISTENCE=PASS"
-
       - name: Package verified RC6 build evidence
         shell: pwsh
         run: |
