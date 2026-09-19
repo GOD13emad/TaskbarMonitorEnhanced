@@ -11,6 +11,9 @@ on:
 
 permissions:
   contents: read
+  id-token: write
+  attestations: write
+  artifact-metadata: write
 
 jobs:
   build:
@@ -18,10 +21,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: 10.0.400
 
@@ -36,6 +39,36 @@ jobs:
       - name: Verify deterministic clean-clone build
         shell: pwsh
         run: ./build/Verify-Determinism.ps1
+
+      - name: Generate SPDX 2.3 SBOM
+        shell: pwsh
+        run: ./build/Generate-Sbom.ps1
+
+      - name: Attest binary build provenance
+        if: github.event_name != 'pull_request'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: 'build/_out/**/*.exe'
+
+      - name: Attest Setup SBOM
+        if: github.event_name != 'pull_request'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_*.exe'
+          sbom-path: 'artifacts/R21_SBOM.spdx.json'
+
+      - name: Upload verified build evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: r21-build-evidence
+          if-no-files-found: error
+          path: |
+            artifacts/R21_BUILD_MANIFEST.json
+            artifacts/R21_SBOM.spdx.json
+            build/_out/App/TaskbarMonitorEnhanced.exe
+            build/_out/Broker/TaskbarMonitorSensorBroker.exe
+            build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe
+            build/_out/Setup/TaskbarMonitorEnhanced_Setup_*.exe
 
       - name: Print build manifest
         shell: pwsh

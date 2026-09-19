@@ -68,8 +68,106 @@ namespace TaskbarMonitorEnhanced
         public static readonly string GpuBrokerData = Path.Combine(Root, "gpu_temp_broker.json");
         public static readonly string StorageBrokerData = Path.Combine(Root, "storage_temp_broker.json");
         public static readonly string SensorSupervisorState = Path.Combine(Root, "sensor_supervisor_state.json");
+        public static readonly string InstallState = Path.Combine(Root, "install_state.json");
         public static readonly string Updates = Path.Combine(Root, "Updates");
         public static readonly string Log = Path.Combine(Logs, "tbme_csharp_" + DateTime.Now.ToString("yyyyMMdd") + ".log");
+    }
+
+    internal static class SensorSupervisorSelfHeal
+    {
+        public const int StartupGraceSeconds=90;
+        public const int StateStaleSeconds=90;
+        public const int RetryCooldownSeconds=180;
+        public const string TaskName="TaskbarMonitorEnhanced Sensor Broker";
+
+        static bool ProtectedLayerReady(string installStatePath)
+        {
+            try
+            {
+                if(String.IsNullOrWhiteSpace(installStatePath)||!File.Exists(installStatePath))return false;
+                string json;
+                using(FileStream fs=new FileStream(installStatePath,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete))
+                using(StreamReader sr=new StreamReader(fs,Encoding.UTF8,true))
+                    json=sr.ReadToEnd();
+                if(String.IsNullOrWhiteSpace(json))return false;
+                Dictionary<string,object> d=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(json);
+                object value;
+                return d!=null&&d.TryGetValue("SensorLayerStatus",out value)&&
+                    String.Equals(Convert.ToString(value,CultureInfo.InvariantCulture),"READY",StringComparison.OrdinalIgnoreCase);
+            }
+            catch{return false;}
+        }
+
+        public static bool ShouldAttempt(
+            string installStatePath,
+            string supervisorStatePath,
+            DateTime nowUtc,
+            DateTime appStartedUtc,
+            DateTime lastAttemptUtc,
+            out string reason)
+        {
+            reason="";
+            if((nowUtc-appStartedUtc).TotalSeconds<StartupGraceSeconds)return false;
+            if(lastAttemptUtc!=DateTime.MinValue&&(nowUtc-lastAttemptUtc).TotalSeconds<RetryCooldownSeconds)return false;
+            if(!ProtectedLayerReady(installStatePath))return false;
+            try
+            {
+                if(String.IsNullOrWhiteSpace(supervisorStatePath)||!File.Exists(supervisorStatePath))
+                {
+                    reason="STATE_MISSING_AFTER_GRACE";
+                    return true;
+                }
+                DateTime writeUtc=File.GetLastWriteTimeUtc(supervisorStatePath);
+                double age=(nowUtc-writeUtc).TotalSeconds;
+                if(age>StateStaleSeconds)
+                {
+                    reason="STATE_STALE_"+age.ToString("0",CultureInfo.InvariantCulture)+"S";
+                    return true;
+                }
+            }
+            catch(Exception ex)
+            {
+                reason="STATE_CHECK_ERROR_"+ex.GetType().Name;
+                return true;
+            }
+            return false;
+        }
+
+        public static int TryRunExistingTask(out string detail)
+        {
+            detail="";
+            try
+            {
+                string system=Environment.GetFolderPath(Environment.SpecialFolder.System);
+                string exe=Path.Combine(system,"schtasks.exe");
+                if(!File.Exists(exe))exe="schtasks.exe";
+                ProcessStartInfo psi=new ProcessStartInfo();
+                psi.FileName=exe;
+                psi.Arguments="/Run /TN \""+TaskName+"\"";
+                psi.UseShellExecute=false;
+                psi.CreateNoWindow=true;
+                psi.RedirectStandardOutput=true;
+                psi.RedirectStandardError=true;
+                Process x=Process.Start(psi);
+                if(x==null){detail="START_RETURNED_NULL";return -2;}
+                if(!x.WaitForExit(8000))
+                {
+                    try{x.Kill();}catch{}
+                    detail="SCHTASKS_TIMEOUT";
+                    return -3;
+                }
+                string stdout="";string stderr="";
+                try{stdout=x.StandardOutput.ReadToEnd();}catch{}
+                try{stderr=x.StandardError.ReadToEnd();}catch{}
+                detail=(stdout+" "+stderr).Trim();
+                return x.ExitCode;
+            }
+            catch(Exception ex)
+            {
+                detail=ex.GetType().Name+": "+ex.Message;
+                return -1;
+            }
+        }
     }
 
     internal static class Log
@@ -3335,6 +3433,10 @@ namespace TaskbarMonitorEnhanced
         private DateTime lastTransientPlacementSkip=DateTime.MinValue;
         private DateTime lastStyleIntegrityAt=DateTime.MinValue;
         private int styleRepairCount=0;
+        private readonly DateTime appStartedUtc=DateTime.UtcNow;
+        private DateTime nextSensorSelfHealCheckUtc=DateTime.MinValue;
+        private DateTime lastSensorSelfHealAttemptUtc=DateTime.MinValue;
+        private int sensorSelfHealInFlight=0;
 
         // R13: independent no-activate hover flyout; never parented to Explorer.
         private HardwareFlyoutForm hardwareFlyout;
@@ -4634,10 +4736,41 @@ namespace TaskbarMonitorEnhanced
             // The upstream Windows 11 taskbar-child compositing recipe is authoritative.
         }
 
+        private void SensorSupervisorSelfHealWatchdog()
+        {
+            DateTime now=DateTime.UtcNow;
+            if(now<nextSensorSelfHealCheckUtc)return;
+            nextSensorSelfHealCheckUtc=now.AddSeconds(15);
+            string reason;
+            if(!SensorSupervisorSelfHeal.ShouldAttempt(
+                AppPaths.InstallState,
+                AppPaths.SensorSupervisorState,
+                now,
+                appStartedUtc,
+                lastSensorSelfHealAttemptUtc,
+                out reason))return;
+            if(Interlocked.CompareExchange(ref sensorSelfHealInFlight,1,0)!=0)return;
+            lastSensorSelfHealAttemptUtc=now;
+            Log.Write("WARN","SENSOR_SUPERVISOR_AUTOHEAL_TRIGGER reason="+reason);
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                try
+                {
+                    string detail;
+                    int exit=SensorSupervisorSelfHeal.TryRunExistingTask(out detail);
+                    if(exit==0)Log.Write("INFO","SENSOR_SUPERVISOR_AUTOHEAL_START_TASK_PASS reason="+reason+" detail="+detail);
+                    else Log.Write("WARN","SENSOR_SUPERVISOR_AUTOHEAL_START_TASK_FAIL reason="+reason+" exit="+exit+" detail="+detail);
+                }
+                catch(Exception ex){Log.Write("WARN","SENSOR_SUPERVISOR_AUTOHEAL_EXCEPTION "+ex.Message);}
+                finally{Interlocked.Exchange(ref sensorSelfHealInFlight,0);}
+            });
+        }
+
         private void VisibilityWatchdog()
         {
             try
             {
+                SensorSupervisorSelfHealWatchdog();
                 IntPtr currentTaskbar=Native.FindWindow("Shell_TrayWnd",null);
 
                 if(currentTaskbar==IntPtr.Zero)
@@ -5616,6 +5749,7 @@ namespace TaskbarMonitorEnhanced
             b.AppendLine("- TransportHealthy means the worker is alive and producing fresh output.");
             b.AppendLine("- DataAvailable is separate: a healthy worker can legitimately report no supported/privileged sensor data.");
             b.AppendLine("- Automatic updates require immutable GitHub Releases plus GitHub SHA-256 asset digest metadata.");
+            b.AppendLine("- Sensor supervisor self-heal is conservative: READY layer only, 90s startup grace/staleness threshold, 180s retry cooldown.");
             return b.ToString();
         }
 
@@ -6638,7 +6772,35 @@ namespace TaskbarMonitorEnhanced
                 if(UpdateManager.IsStrictSha256Digest("sha256:"+new string('A',63)))throw new Exception("strict sha256 short");
                 if(UpdateManager.IsStrictSha256Digest("sha256:"+new string('G',64)))throw new Exception("strict sha256 nonhex");
                 if(UpdateManager.ExpectedSetupAssetName("1.2.3")!="TaskbarMonitorEnhanced_Setup_1.2.3.exe")throw new Exception("strict setup asset name");
-                Console.WriteLine("TBME_V1_1_2_R21_SELFTEST=PASS PUBLIC_VERSION=1.1.2-rc3 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE THEMES=14 WIDTH=1100 HISTORY=60 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE CREATEPARAMS_NOACTIVATE=TRUE");
+                string healDir=Path.Combine(Path.GetTempPath(),"tbme_heal_selftest_"+Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture));
+                string healInstall=Path.Combine(healDir,"install_state.json");
+                string healState=Path.Combine(healDir,"sensor_supervisor_state.json");
+                try
+                {
+                    Directory.CreateDirectory(healDir);
+                    File.WriteAllText(healInstall,"{\"SensorLayerStatus\":\"READY\"}",Encoding.UTF8);
+                    File.WriteAllText(healState,"{}",Encoding.UTF8);
+                    string healReason;
+                    DateTime healNow=DateTime.UtcNow;
+                    if(SensorSupervisorSelfHeal.ShouldAttempt(healInstall,healState,healNow,healNow.AddMinutes(-5),DateTime.MinValue,out healReason))
+                        throw new Exception("sensor selfheal fresh state");
+                    File.SetLastWriteTimeUtc(healState,healNow.AddMinutes(-3));
+                    if(!SensorSupervisorSelfHeal.ShouldAttempt(healInstall,healState,healNow,healNow.AddMinutes(-5),DateTime.MinValue,out healReason)||
+                       !healReason.StartsWith("STATE_STALE_",StringComparison.Ordinal))
+                        throw new Exception("sensor selfheal stale state");
+                    if(SensorSupervisorSelfHeal.ShouldAttempt(healInstall,healState,healNow,healNow.AddMinutes(-5),healNow.AddSeconds(-30),out healReason))
+                        throw new Exception("sensor selfheal cooldown");
+                    File.WriteAllText(healInstall,"{\"SensorLayerStatus\":\"DEGRADED\"}",Encoding.UTF8);
+                    if(SensorSupervisorSelfHeal.ShouldAttempt(healInstall,healState,healNow,healNow.AddMinutes(-5),DateTime.MinValue,out healReason))
+                        throw new Exception("sensor selfheal degraded layer");
+                    File.WriteAllText(healInstall,"{\"SensorLayerStatus\":\"READY\"}",Encoding.UTF8);
+                    File.Delete(healState);
+                    if(!SensorSupervisorSelfHeal.ShouldAttempt(healInstall,healState,healNow,healNow.AddMinutes(-5),DateTime.MinValue,out healReason)||
+                       healReason!="STATE_MISSING_AFTER_GRACE")
+                        throw new Exception("sensor selfheal missing state");
+                }
+                finally{try{Directory.Delete(healDir,true);}catch{}}
+                Console.WriteLine("TBME_V1_1_2_R21_SELFTEST=PASS PUBLIC_VERSION=1.1.2-rc3 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE THEMES=14 WIDTH=1100 HISTORY=60 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE SENSOR_SUPERVISOR_AUTOHEAL=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE CREATEPARAMS_NOACTIVATE=TRUE");
                 return 0;
             }
             catch(Exception ex){Console.Error.WriteLine("TBME_V1_1_2_R21_SELFTEST=FAIL " + ex);return 2;}
