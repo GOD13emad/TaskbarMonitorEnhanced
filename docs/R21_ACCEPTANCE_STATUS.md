@@ -1,13 +1,23 @@
-# R21 Acceptance Status — Taskbar Monitor Enhanced 1.1.2-rc2
+# R21 Acceptance Status — Taskbar Monitor Enhanced 1.1.2-rc3
 
 Status: RELEASE CANDIDATE / NOT STABLE
 
 Authority baseline: Git commit 539c8f7 (R20 process-isolation baseline).
-Development branch: audit/r21-production-hardening.
+Development branch: audit/r21-final-hardening-rc3.
 R21 release-source authority: 9211aa5.
 R21 runtime-code authority: 7a89368.
 R21 transactional-installer authority: d9953d5.
 R21 build-pipeline authority: bdcd2b4.
+
+
+## RC3-specific status
+
+- RC3 primary reproducible-build path: PASS, all four binaries 0 warnings / 0 errors; Setup resource verification and app self-test PASS.
+- RC3 atomic-config, strict-updater and optional power/fan self-test assertions: PASS.
+- RC3 live isolated RTX 3080 power/fan probe: PASS.
+- RC3 supervisor steady/stale/18.5-second long-gap/log-rotation/failure-to-recovery observability tests: PASS.
+- RC3 clean-clone determinism: PENDING until the RC3 release-identity commit becomes HEAD.
+- RC3 installed canary: PENDING. Installed evidence below predating RC3 remains useful regression evidence but is not relabeled as RC3 acceptance.
 
 ## Evidence-backed PASS gates
 
@@ -34,7 +44,7 @@ R21 build-pipeline authority: bdcd2b4.
 - Reproducible clean-clone build: PASS from release-source commit 9211aa5 using the pinned dependency lock; an earlier clean clone also re-downloaded and verified the official dependencies.
 - Binary determinism: PASS; main app, broker, supervisor and setup are byte-for-byte identical between the primary workspace and a separate clean clone.
 - Automated determinism verifier: PASS from committed HEAD using build/Verify-Determinism.ps1 and build/dependencies.lock.json.
-- Setup assembly identity: PASS; app, broker, supervisor and setup all expose ProductVersion 1.1.2-rc2+r21.
+- Setup assembly identity: PASS; app, broker, supervisor and setup all expose ProductVersion 1.1.2-rc3+r21.
 - Bounded-UAC regression: PASS; the noninteractive install path that previously stalled returned in 31.31 seconds, wrote SensorLayerStatus=DEGRADED, left no Setup orphan, and healthprobe correctly remained DEGRADED.
 - Transactional sensor rollback fault-injection: PASS; after forced failure following candidate file replacement, the previous sensor sentinel was restored exactly, no candidate files remained, stale CPU/GPU/storage/supervisor test telemetry was removed, and the helper emitted DEGRADED_ROLLED_BACK with RollbackSucceeded=true.
 - Stable rollback after the bounded-UAC test: PASS; installed v1.1.1 app SHA-256 restored exactly to 408D5DFA73871579A3FF46F9D681BE78B9AF882CFE569D0750260ACA5694D139 and resumed as a visible direct taskbar child with fresh elevated CPU telemetry.
@@ -58,11 +68,13 @@ The elevated installation gate is now closed on the validation machine. The rema
 
 ## Remaining release gates
 
-1. Continue the installed R21 soak for a substantially longer window.
-2. Include at least one real suspend/resume cycle and require automatic native-worker recycle/recovery without restart storm or stale UI data.
-3. Re-run healthprobe, taskbar geometry, module isolation and Event Log checks after resume.
-4. Before public Stable/Latest publication, enable GitHub immutable releases for the repository and publish the finalized assets through the immutable-release workflow.
-5. Only after those gates may R21 be promoted from release candidate to Stable/Latest.
+1. Commit the RC3 release identity/metadata and require clean-clone byte-for-byte determinism.
+2. Install RC3 transactionally and verify exact installed hashes, healthprobe, task policy, module isolation, taskbar geometry and Windows Event Log.
+3. Continue the installed RC3 soak for a substantially longer window.
+4. Include at least one real suspend/resume cycle and require automatic native-worker recycle/recovery without restart storm or stale UI data.
+5. Re-run healthprobe, taskbar geometry, module isolation and Event Log checks after resume.
+6. Before public Stable/Latest publication, enable GitHub immutable releases for the repository and publish finalized assets through the immutable-release workflow.
+7. Only after those gates may R21 be promoted from release candidate to Stable/Latest.
 
 ## Dependency decision
 

@@ -53,7 +53,7 @@ Copy-Item (Join-Path $Out 'Broker\TaskbarMonitorSensorBroker.exe') $Package
 Copy-Item (Join-Path $Out 'Supervisor\TaskbarMonitorSensorSupervisor.exe') $Package
 
 Build (Join-Path $PSScriptRoot 'TaskbarMonitorEnhanced_Setup.csproj')
-$Setup=Join-Path $Out 'Setup\TaskbarMonitorEnhanced_Setup_1.1.2-rc2.exe'
+$Setup=Join-Path $Out 'Setup\TaskbarMonitorEnhanced_Setup_1.1.2-rc3.exe'
 if(!(Test-Path -LiteralPath $Setup)){throw 'Setup output missing.'}
 
 $Verify=Join-Path $Out 'setup_verify.json'
@@ -69,8 +69,8 @@ $Self=Join-Path $Out 'selftest.txt'
 if($LASTEXITCODE -ne 0){throw 'Application self-test failed.'}
 
 $manifest=[ordered]@{
-    Version='1.1.2-rc2'
-    Build='V1_1_2_R21_PRODUCTION_HARDENING_RC2'
+    Version='1.1.2-rc3'
+    Build='V1_1_2_R21_PRODUCTION_HARDENING_RC3'
     GeneratedUtc=[datetime]::UtcNow.ToString('o')
     Dependencies=[ordered]@{
         LibreHardwareMonitor=[ordered]@{Version=[string]$Lock.dependencies.LibreHardwareMonitor.version;Url=$LhmUrl;SHA256=$LhmSha}

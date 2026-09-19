@@ -1,0 +1,106 @@
+{
+  "Version": "1.1.2-rc3",
+  "Status": "RELEASE_CANDIDATE_SOURCE_VALIDATED_INSTALL_CANARY_PENDING",
+  "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC3",
+  "Rc3HardeningAuthorityCommit": "017f56d",
+  "BinarySourceAuthorityCommit": "PENDING_RC3_RELEASE_IDENTITY_COMMIT",
+  "Dependencies": {
+    "LibreHardwareMonitor": {
+      "Version": "0.9.6",
+      "Url": "https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/download/v0.9.6/LibreHardwareMonitor.zip",
+      "SHA256": "086D9F1B5A99E643EDC2CFAAAC16051685B551E4C5AC0B32A57C58C0E529C001"
+    },
+    "PawnIO": {
+      "Version": "2.2.0",
+      "Url": "https://github.com/namazso/PawnIO.Setup/releases/download/2.2.0/PawnIO_setup.exe",
+      "SHA256": "1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032"
+    }
+  },
+  "Outputs": [
+    {
+      "Name": "TaskbarMonitorEnhanced.exe",
+      "Bytes": 271872,
+      "SHA256": "BEFAD8DC021BA0A8432BC458782B24D9434D9945225678A86F05D6BFD4FFE8B6"
+    },
+    {
+      "Name": "TaskbarMonitorSensorBroker.exe",
+      "Bytes": 22528,
+      "SHA256": "C985487DFC30A4C41C6F4059FA1FF1BF469956B193C33740788642EAA8C906CC"
+    },
+    {
+      "Name": "TaskbarMonitorSensorSupervisor.exe",
+      "Bytes": 23552,
+      "SHA256": "608ED54CC8494E792977132EAEB50B4597FD3A92C8DA6C892CF61CC15C84C757"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc3.exe",
+      "Bytes": 10944512,
+      "SHA256": "C9987A8CC86551659E74617A90AE4B1DB48811337286A13AE9FF6DAD6B6A2D5E"
+    }
+  ],
+  "Reproducibility": {
+    "PrimaryBuild": "PASS",
+    "CleanCloneBuild": "PENDING_AFTER_RC3_COMMIT",
+    "ByteIdenticalAcrossIndependentPaths": false,
+    "AutomatedVerifier": "build/Verify-Determinism.ps1",
+    "DependencyLock": "build/dependencies.lock.json"
+  },
+  "Rc3Hardening": {
+    "AtomicConfigWrite": true,
+    "ConfigBackupRecovery": true,
+    "MainLogRetentionDays": 30,
+    "SensorLogRotationBytes": 4194304,
+    "SensorLogBackupCount": 3,
+    "ExactVersionInstallerAssetRequired": true,
+    "StrictGithubSha256Digest64HexRequired": true,
+    "HealthResilienceState": true,
+    "WorkerFailureRecoveryTimestamps": true,
+    "OptionalCpuPackagePower": true,
+    "OptionalGpuPowerFanTelemetry": true,
+    "GpuPowerFanLiveProbe": "PASS_RTX3080",
+    "SupervisorSteadyState": "PASS",
+    "SupervisorStaleIsolation": "PASS",
+    "SupervisorLongGapRecycle": "PASS_18_5_SECONDS",
+    "SupervisorLogRotation": "PASS",
+    "FailureToRecoveryObservability": "PASS"
+  },
+  "PriorR21InstallerSafetyEvidence": {
+    "BoundedUacLaunch": "PASS",
+    "NonInteractiveReturnSeconds": 31.31,
+    "DegradedStateRecorded": true,
+    "StableRollbackVerified": true,
+    "StableRollbackVersion": "1.1.1",
+    "StableRollbackAppSHA256": "408D5DFA73871579A3FF46F9D681BE78B9AF882CFE569D0750260ACA5694D139",
+    "TransactionalSensorRollback": "PASS",
+    "ForcedFaultRollbackTest": "PASS",
+    "RollbackClearsSplitTelemetry": true
+  },
+  "PriorR21InstalledValidation": {
+    "AppliesTo": "pre-RC3 R21 candidate only; retained as regression evidence, not RC3 installed acceptance",
+    "Evidence": {
+      "Status": "PASS",
+      "SensorLayerStatus": "READY",
+      "HealthProbe": "PASS",
+      "ArchitectureR21": true,
+      "TaskRestartCount": 3,
+      "TaskMultipleInstances": "IgnoreNew",
+      "CpuTransportHealthy": true,
+      "GpuTransportHealthy": true,
+      "StorageTransportHealthy": true,
+      "GpuRecords": 1,
+      "StorageRecords": 3,
+      "MainLoadsLibreHardwareMonitor": false,
+      "TaskbarDirectChildStable": true,
+      "ExplorerRecovery": "PASS_2_SECONDS_APP_PID_STABLE",
+      "PostExplorerSoak": "PASS_18_OF_18",
+      "ApplicationEventLogErrorsSinceInstall": 0,
+      "ExplorerEventLogErrorsSinceInstall": 0,
+      "ObservedCpuWorkerRecoveryCount": 1,
+      "FurtherWorkerFailuresAfterRecovery": 0,
+      "SharedReadMainLogErrorsAfterPatch": 0,
+      "SyntheticMainPowerPath": "PASS",
+      "SyntheticSupervisorLongGap": "PASS_18_5_SECONDS_STAGGERED_RECYCLE"
+    }
+  },
+  "RemainingGate": "Install RC3 transactionally, verify exact installed hashes/health/module isolation/taskbar behavior/Event Log, then complete extended soak including one real suspend/resume before public Stable/Latest promotion"
+}

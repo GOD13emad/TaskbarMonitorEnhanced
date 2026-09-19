@@ -21,9 +21,9 @@ v1.1.1 includes:
 Accepted assets and hashes are published in `SHA256SUMS_v1.1.1.txt` and `RELEASE_MANIFEST_v1.1.1.json`.
 
 
-## Development candidate: v1.1.2-rc2 (R21)
+## Development candidate: v1.1.2-rc3 (R21)
 
-v1.1.2-rc2 is an engineering release candidate, not the current Stable/Latest release. Elevated R21 installation and live split-sensor validation now pass on the validation machine; public promotion remains blocked on an extended soak including suspend/resume coverage.
+v1.1.2-rc3 is an engineering release candidate, not the current Stable/Latest release. Its source/build/hardening gates pass; the RC3 installed-canary gate is tracked separately and must pass before RC3 can inherit installed acceptance. Public Stable/Latest promotion additionally remains blocked on an extended soak including a real suspend/resume cycle.
 
 R21 adds:
 
@@ -38,8 +38,13 @@ R21 adds:
 - a --healthprobe JSON command for machine-readable sensor-supervisor health
 - automatic update installation gated by both GitHub SHA-256 asset metadata and immutable GitHub Releases
 - installer task policy hardened to RestartCount=3 and MultipleInstances=IgnoreNew
+- atomic configuration writes with automatic backup recovery after interrupted/corrupt saves
+- bounded log retention/rotation for long-running main and protected sensor logs
+- exact-version installer-asset matching plus strict sha256:64-hex validation in the updater
+- machine-readable failure/recovery timestamps, worker ages and STABLE / RECOVERING / RECOVERED_RECENTLY resilience state
+- optional isolated CPU package-power and GPU power/fan telemetry; unsupported sensors remain N/A
 
-Current R21 engineering evidence includes zero-warning deterministic builds for the main app, broker, supervisor and setup; self-test PASS; all 14 full-width themes PASS; 14 themes at 592 px and 500 px with zero layout overflow; process-isolation and transactional-rollback fault injection PASS; an installed taskbar canary with stable direct-child geometry; live elevated R21 CPU/GPU/storage split telemetry; RTX 3080 temperature/load/VRAM/clocks; three valid storage-temperature sensors; healthprobe PASS; no LibreHardwareMonitor module loaded in the main UI process; and no TBME/Explorer crash or hang event in Windows Event Log since the R21 installation window.
+Current RC3 engineering evidence includes zero-warning primary builds for the main app, broker, supervisor and setup; self-test PASS; all 14 full-width themes PASS; 14 themes at 592 px and 500 px with zero layout overflow; process-isolation and transactional-rollback fault injection PASS; an installed taskbar canary with stable direct-child geometry; live elevated R21 CPU/GPU/storage split telemetry; RTX 3080 temperature/load/VRAM/clocks; three valid storage-temperature sensors; healthprobe PASS; no LibreHardwareMonitor module loaded in the main UI process; prior R21 installed evidence also recorded no TBME/Explorer crash or hang event in its observed Windows Event Log window. RC3 installed evidence is intentionally not claimed until the RC3 canary is deployed.
 
 See docs/R21_ACCEPTANCE_STATUS.md and RELEASE_NOTES_v1.1.2.md.
 

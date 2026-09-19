@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.2-rc2 — R21 Production Hardening (candidate; not Stable)
+## 1.1.2-rc3 — R21 Production Hardening (candidate; not Stable)
 
 - isolate LibreHardwareMonitor CPU, GPU and storage access into independent worker processes
 - stagger sensor-worker startup and apply bounded exponential backoff / termination-pending protection
@@ -18,8 +18,13 @@
 - bound the UAC/ShellExecute launch phase and record degraded sensor-layer status instead of allowing an unanswered elevation prompt to leave Setup indefinitely half-complete
 - transactionally snapshot and restore the previous protected sensor binaries and Scheduled Task when R21 sensor setup or transport-health validation fails
 - keep LibreHardwareMonitor 0.9.6 pinned after a current upstream nightly failed to improve the CPU-worker behavior in validation
-- engineering gates: zero-warning build PASS, self-test PASS, theme/compact proof PASS, deterministic supervisor fault-injection PASS, no-screen taskbar canary PASS
-- remaining release gate: elevated R21 split-supervisor install/health validation plus installed soak
+- atomic config write + backup recovery prevents interrupted saves from silently reverting to defaults
+- rotate sensor logs at 4 MiB with bounded backups; retain main daily logs for 30 days
+- require the exact versioned setup asset and a strict 64-hex GitHub SHA-256 digest before automatic installation
+- expose supervisor uptime, worker age, last failure/recovery timestamps and resilience state in machine-readable health output
+- add optional isolated CPU package-power and GPU power/fan telemetry without loading LibreHardwareMonitor into the UI process
+- engineering gates: zero-warning primary build PASS, self-test PASS, real RTX 3080 power/fan probe PASS, steady/stale/long-gap/log-rotation/recovery-observability supervisor tests PASS
+- remaining RC3 gates: clean-clone determinism after commit, transactional installed canary, then extended soak with a real suspend/resume before Stable/Latest
 
 ## 1.1.1 — Stable (R18)
 

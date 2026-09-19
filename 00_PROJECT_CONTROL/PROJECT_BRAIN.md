@@ -4,7 +4,7 @@
 
 - Public stable release remains v1.1.1.
 - R20 rollback authority: local commit 539c8f7 — process-isolated sensor-access baseline.
-- Active candidate: v1.1.2-rc2 / R21 Production Hardening on audit/r21-production-hardening.
+- Active candidate: v1.1.2-rc3 / R21 Production Hardening on audit/r21-final-hardening-rc3.
 - Do not claim public FINAL/STABLE until the extended installed soak including suspend/resume passes.
 
 ## R21 objective
@@ -30,6 +30,9 @@ Increase long-run stability and observability without regressing the accepted ta
 - Elevated sensor mutation has an internal rollback transaction: previous Program Files payload + Scheduled Task XML are captured before mutation and restored on R21 setup/health failure.
 - install_state SensorLayerStatus prevents a mixed old-sensor/new-UI installation from masquerading as healthy R21.
 - Pinned LHM 0.9.6 production dependency; newer nightly tested but not promoted.
+- RC3 atomic config replacement + backup recovery, bounded log retention/rotation, exact-version updater asset matching and strict 64-hex SHA-256 parsing.
+- RC3 health state records supervisor/worker age plus last failure/recovery timestamps and resilience state.
+- RC3 optional CPU package-power and GPU power/fan telemetry stays inside the isolated broker boundary; RTX 3080 live probe PASS.
 
 ## Evidence summary
 
@@ -45,11 +48,13 @@ See docs/R21_ACCEPTANCE_STATUS.md and local r21_evidence/. Core builds and deter
 
 ## Open blocker
 
-The elevated installation gate is closed. The only remaining acceptance blocker is an extended installed soak that includes a real suspend/resume cycle and post-resume verification.
+RC3 source/build hardening is complete through the primary build and focused runtime tests. RC3 clean-clone determinism and the RC3 transactional installed canary are the immediate open gates. Public Stable/Latest additionally requires an extended installed soak with one real suspend/resume cycle.
 
 ## Next authoritative actions
 
-- Keep the current installed R21 candidate running for a longer soak.
+- Commit RC3 release identity and metadata, then re-run clean-clone byte-for-byte determinism.
+- Deploy RC3 through the transactional installer and verify installed hashes/health/module/taskbar/EventLog gates.
+- Keep the installed RC3 candidate running for a longer soak.
 - Exercise one real suspend/resume cycle when operationally safe, then re-run healthprobe/module/taskbar/EventLog gates.
-- Keep public Stable/Latest at v1.1.1 until that power-transition soak passes.
+- Keep public Stable/Latest at v1.1.1 until those gates pass.
 - For the eventual public R21 release, enable GitHub immutable releases and publish finalized assets through the immutable-release workflow.
