@@ -21,6 +21,7 @@ Release-candidate engineering build focused on long-run stability, lower telemet
 - GPU WDDM/WMI telemetry is now fallback-only when the isolated GPU broker has no usable load data.
 - User telemetry sampling is clamped to 1000–5000 ms.
 - CPU temperature data automatically becomes unavailable when it is stale instead of displaying an old value as current.
+- CPU broker JSON now uses the same shared-read/retry path as GPU and storage, eliminating brief file-sharing races while the broker atomically replaces telemetry output.
 
 ## Diagnostics and updates
 

@@ -11,6 +11,7 @@
 - cache disk topology for five minutes and RAM-module topology for ten minutes, with explicit resume invalidation
 - use isolated GPU telemetry first; run WDDM fallback only when needed
 - invalidate stale CPU temperature and throttle expensive WMI/ACPI temperature fallback
+- read CPU broker JSON with shared-read/retry semantics to avoid transient file-lock gaps during atomic broker output replacement
 - add Diagnostics UI, support-report export, repair action and --healthprobe
 - require immutable GitHub Releases in addition to asset SHA-256 metadata for automatic installation
 - harden Scheduled Task restart policy to RestartCount=3 and MultipleInstances=IgnoreNew
