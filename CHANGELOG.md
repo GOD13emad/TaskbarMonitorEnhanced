@@ -15,6 +15,7 @@
 - require immutable GitHub Releases in addition to asset SHA-256 metadata for automatic installation
 - harden Scheduled Task restart policy to RestartCount=3 and MultipleInstances=IgnoreNew
 - bound the UAC/ShellExecute launch phase and record degraded sensor-layer status instead of allowing an unanswered elevation prompt to leave Setup indefinitely half-complete
+- transactionally snapshot and restore the previous protected sensor binaries and Scheduled Task when R21 sensor setup or transport-health validation fails
 - keep LibreHardwareMonitor 0.9.6 pinned after a current upstream nightly failed to improve the CPU-worker behavior in validation
 - engineering gates: zero-warning build PASS, self-test PASS, theme/compact proof PASS, deterministic supervisor fault-injection PASS, no-screen taskbar canary PASS
 - remaining release gate: elevated R21 split-supervisor install/health validation plus installed soak

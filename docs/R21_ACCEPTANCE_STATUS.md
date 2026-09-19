@@ -34,6 +34,7 @@ R21 build-pipeline authority: bdcd2b4.
 - Automated determinism verifier: PASS from committed HEAD using build/Verify-Determinism.ps1 and build/dependencies.lock.json.
 - Setup assembly identity: PASS; app, broker, supervisor and setup all expose ProductVersion 1.1.2-rc2+r21.
 - Bounded-UAC regression: PASS; the noninteractive install path that previously stalled returned in 31.31 seconds, wrote SensorLayerStatus=DEGRADED, left no Setup orphan, and healthprobe correctly remained DEGRADED.
+- Transactional sensor rollback fault-injection: PASS; after forced failure following candidate file replacement, the previous sensor sentinel was restored exactly, no candidate files remained, stale CPU/GPU/storage/supervisor test telemetry was removed, and the helper emitted DEGRADED_ROLLED_BACK with RollbackSucceeded=true.
 - Stable rollback after the bounded-UAC test: PASS; installed v1.1.1 app SHA-256 restored exactly to 408D5DFA73871579A3FF46F9D681BE78B9AF882CFE569D0750260ACA5694D139 and resumed as a visible direct taskbar child with fresh elevated CPU telemetry.
 - Short same-machine A/B UI benchmark: R21 process CPU time decreased by about 47.4% and median working set by about 23.9% versus the installed v1.1.1 across a 15-second post-warm-up window. This is a local directional benchmark, not a universal performance claim.
 

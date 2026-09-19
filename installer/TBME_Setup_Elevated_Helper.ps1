@@ -21,6 +21,13 @@ $CpuTransportHealthy=$false
 $GpuTransportHealthy=$false
 $StorageTransportHealthy=$false
 $CpuDataAvailable=$false
+$RollbackPerformed=$false
+$RollbackSucceeded=$false
+$PreviousSensorLayerPresent=$false
+$ActiveArchitecture='R21_PROCESS_ISOLATED'
+$RollbackRoot=Join-Path $PayloadDir '_sensor_rollback'
+$RollbackBrokerRoot=Join-Path $RollbackRoot 'SensorBroker'
+$RollbackTaskXml=Join-Path $RollbackRoot 'task.xml'
 
 function Write-Log([string]$Message){
     $line=(Get-Date).ToString('o')+' '+$Message
@@ -48,7 +55,10 @@ function Write-Result(
         GpuTransportHealthy=$GpuTransportHealthy
         StorageTransportHealthy=$StorageTransportHealthy
         CpuDataAvailable=$CpuDataAvailable
-        Architecture='R21_PROCESS_ISOLATED'
+        Architecture=$ActiveArchitecture
+        RollbackPerformed=$RollbackPerformed
+        RollbackSucceeded=$RollbackSucceeded
+        PreviousSensorLayerPresent=$PreviousSensorLayerPresent
         Time=(Get-Date).ToString('o')
         LogPath=$LogPath
     } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ResultPath -Encoding UTF8
@@ -66,6 +76,64 @@ function Get-PawnIOVersion {
         }catch{}
     }
     return ''
+}
+
+function Capture-PreviousSensorLayer {
+    try{
+        Remove-Item -LiteralPath $RollbackRoot -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Force -Path $RollbackRoot|Out-Null
+
+        if(Test-Path -LiteralPath $BrokerRoot){
+            $script:PreviousSensorLayerPresent=$true
+            Copy-Item -LiteralPath $BrokerRoot -Destination $RollbackBrokerRoot -Recurse -Force
+        }
+
+        Import-Module ScheduledTasks
+        $oldTask=Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+        if($oldTask){
+            $script:PreviousSensorLayerPresent=$true
+            Export-ScheduledTask -TaskName $TaskName | Set-Content -LiteralPath $RollbackTaskXml -Encoding Unicode
+        }
+        Write-Log ("ROLLBACK_CAPTURE_PASS previous="+$PreviousSensorLayerPresent)
+        return $true
+    }catch{
+        Write-Log ('ROLLBACK_CAPTURE_FAIL '+$_.Exception.ToString())
+        return $false
+    }
+}
+
+function Restore-PreviousSensorLayer([string]$Reason){
+    $script:RollbackPerformed=$true
+    $script:RollbackSucceeded=$false
+    try{
+        Write-Log ("ROLLBACK_BEGIN reason="+$Reason+" previous="+$PreviousSensorLayerPresent)
+        Get-Process TaskbarMonitorSensorSupervisor,TaskbarMonitorSensorBroker -ErrorAction SilentlyContinue |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 500
+        Remove-Item -LiteralPath $BrokerRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $LiveJson,$GpuJson,$StorageJson,$SupervisorState -Force -ErrorAction SilentlyContinue
+
+        if(Test-Path -LiteralPath $RollbackBrokerRoot){
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $BrokerRoot)|Out-Null
+            Copy-Item -LiteralPath $RollbackBrokerRoot -Destination $BrokerRoot -Recurse -Force
+        }
+
+        if(Test-Path -LiteralPath $RollbackTaskXml){
+            $xml=Get-Content -LiteralPath $RollbackTaskXml -Raw
+            Register-ScheduledTask -TaskName $TaskName -Xml $xml -Force|Out-Null
+            Start-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+        }
+
+        $script:ActiveArchitecture=$(if($PreviousSensorLayerPresent){'PREVIOUS_SENSOR_LAYER_RESTORED'}else{'NO_PROTECTED_SENSOR_LAYER'})
+        $script:RollbackSucceeded=$true
+        Write-Log ("ROLLBACK_PASS architecture="+$ActiveArchitecture)
+        return $true
+    }catch{
+        $script:ActiveArchitecture='ROLLBACK_FAILED'
+        Write-Log ('ROLLBACK_FAIL '+$_.Exception.ToString())
+        return $false
+    }
 }
 
 Write-Log "BEGIN mode=$Mode user=$UserId"
@@ -106,7 +174,13 @@ foreach($required in @(
     }
 }
 if(-not$requiredOk){
-    Write-Result 'DEGRADED' 'Hardware sensor payload is incomplete. The main application can still run; CPU temperature will show N/A.' 'NOT_STARTED' $null $false $false $false
+    Write-Result 'DEGRADED' 'Hardware sensor payload is incomplete. The main application can still run; protected temperature fields will show N/A.' 'NOT_STARTED' $null $false $false $false
+    exit 0
+}
+
+if(-not(Capture-PreviousSensorLayer)){
+    $ActiveArchitecture='PREVIOUS_SENSOR_LAYER_UNCHANGED'
+    Write-Result 'DEGRADED' 'Setup could not capture a rollback snapshot of the existing protected sensor layer, so it did not modify that layer.' 'NOT_STARTED' $null $false $false $false
     exit 0
 }
 
@@ -192,6 +266,8 @@ try{
     Write-Log 'SUPERVISOR_TASK_INSTALLED_AND_STARTED restartCount=3 restartInterval=PT1M multipleInstances=IgnoreNew'
 }catch{
     Write-Log ('SUPERVISOR_TASK_SETUP_WARNING '+$_.Exception.ToString())
+    Restore-PreviousSensorLayer 'TASK_SETUP_EXCEPTION'|Out-Null
+    $taskInstalled=$false
 }
 
 $healthy=$false
@@ -248,6 +324,22 @@ if($taskInstalled -and -not$rebootRequired){
             }
         }
     }
+}
+
+if($taskInstalled -and -not$SupervisorHealthy -and -not$rebootRequired){
+    Restore-PreviousSensorLayer 'R21_HEALTH_GATE_FAILED'|Out-Null
+    $taskInstalled=$false
+}
+
+if($RollbackPerformed){
+    if($RollbackSucceeded){
+        Write-Log 'R21_INSTALL_DEGRADED_ROLLED_BACK'
+        Write-Result 'DEGRADED_ROLLED_BACK' 'R21 protected sensor validation did not pass, so the previous protected sensor layer was restored automatically. The main application remains usable; use Repair protected sensors to retry R21 later.' $pawnStatus $pawnExit $false $false $false
+    }else{
+        Write-Log 'R21_INSTALL_DEGRADED_ROLLBACK_FAILED'
+        Write-Result 'DEGRADED_ROLLBACK_FAILED' 'R21 protected sensor validation did not pass and automatic rollback also failed. The main application remains usable, but protected telemetry requires repair.' $pawnStatus $pawnExit $false $false $false
+    }
+    exit 0
 }
 
 if($SupervisorHealthy -and $healthy){
