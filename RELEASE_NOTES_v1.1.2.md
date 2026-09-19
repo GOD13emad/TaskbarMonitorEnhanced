@@ -16,6 +16,7 @@ Release-candidate engineering build focused on long-run stability, lower telemet
 
 - CPU usage uses Windows GetSystemTimes instead of Processor PerformanceCounter polling.
 - Static CPU topology is cached for five minutes.
+- Static disk topology is cached for five minutes and RAM-module topology for ten minutes; suspend/resume invalidates these caches immediately.
 - Network-interface topology is cached for 30 seconds.
 - GPU WDDM/WMI telemetry is now fallback-only when the isolated GPU broker has no usable load data.
 - User telemetry sampling is clamped to 1000–5000 ms.

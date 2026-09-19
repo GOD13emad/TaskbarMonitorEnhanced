@@ -8,6 +8,7 @@
 - recycle native sensor workers across long suspend/resume gaps
 - replace hot-loop Processor PerformanceCounter CPU usage with Windows GetSystemTimes
 - cache static CPU topology for five minutes and active network topology for 30 seconds
+- cache disk topology for five minutes and RAM-module topology for ten minutes, with explicit resume invalidation
 - use isolated GPU telemetry first; run WDDM fallback only when needed
 - invalidate stale CPU temperature and throttle expensive WMI/ACPI temperature fallback
 - add Diagnostics UI, support-report export, repair action and --healthprobe
