@@ -17,8 +17,8 @@ R21 build-pipeline authority: bdcd2b4.
 - RC3 live isolated RTX 3080 power/fan probe: PASS.
 - RC3 supervisor steady/stale/18.5-second long-gap/log-rotation/failure-to-recovery observability tests: PASS.
 - RC3 abrupt-supervisor-death containment: PASS; test Supervisor was terminated with TerminateProcess and both CPU/GPU child workers exited automatically via Windows Job Object within the next observation interval.
-- RC3 clean-clone determinism: PENDING until the RC3 release-identity commit becomes HEAD.
-- RC3 installed canary: PENDING. Installed evidence below predating RC3 remains useful regression evidence but is not relabeled as RC3 acceptance.
+- RC3 clean-clone determinism: PASS; all four outputs are byte-for-byte identical from independent workspace paths.
+- RC3 main installed canary: PASS; exact main hash, 24/24 stable direct-taskbar-child geometry samples, 300/300 module-isolation samples with no LHM, and zero relevant recent Application Event errors. Protected Broker/Supervisor remain RC2 until an explicit administrator/UAC completion step, so RC3 health correctly reports DEGRADED with ProcessContainment=false.
 
 ## Evidence-backed PASS gates
 
@@ -69,9 +69,9 @@ The elevated installation gate is now closed on the validation machine. The rema
 
 ## Remaining release gates
 
-1. Commit the RC3 release identity/metadata and require clean-clone byte-for-byte determinism.
-2. Install RC3 transactionally and verify exact installed hashes, healthprobe, task policy, module isolation, taskbar geometry and Windows Event Log.
-3. Continue the installed RC3 soak for a substantially longer window.
+1. Run the RC3 protected-sensor completion step with administrator/UAC approval; require exact RC3 broker/supervisor hashes, Job Object containment and healthprobe PASS.
+2. Re-run exact installed hashes, task policy, module isolation, taskbar geometry and Windows Event Log after the protected upgrade.
+3. Continue the fully installed RC3 soak for a substantially longer window.
 4. Include at least one real suspend/resume cycle and require automatic native-worker recycle/recovery without restart storm or stale UI data.
 5. Re-run healthprobe, taskbar geometry, module isolation and Event Log checks after resume.
 6. Before public Stable/Latest publication, enable GitHub immutable releases for the repository and publish finalized assets through the immutable-release workflow.

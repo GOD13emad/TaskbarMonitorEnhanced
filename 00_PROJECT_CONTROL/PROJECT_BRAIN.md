@@ -49,12 +49,12 @@ See docs/R21_ACCEPTANCE_STATUS.md and local r21_evidence/. Core builds and deter
 
 ## Open blocker
 
-RC3 source/build hardening is complete through the primary build and focused runtime tests. RC3 clean-clone determinism and the RC3 transactional installed canary are the immediate open gates. Public Stable/Latest additionally requires an extended installed soak with one real suspend/resume cycle.
+RC3 source/build hardening and clean-clone determinism are complete. The RC3 main UI is installed and accepted locally (exact hash, taskbar geometry, module isolation, recent Event Log), while the protected Broker/Supervisor remain the healthy RC2 layer because the noninteractive UAC request timed out. The immediate gate is one explicit admin/UAC completion of the protected RC3 layer; public Stable/Latest additionally requires an extended fully-installed soak with one real suspend/resume cycle.
 
 ## Next authoritative actions
 
-- Commit RC3 release identity and metadata, then re-run clean-clone byte-for-byte determinism.
-- Deploy RC3 through the transactional installer and verify installed hashes/health/module/taskbar/EventLog gates.
+- Run COMPLETE_RC3_ADMIN.ps1 with administrator/UAC approval and require exact protected-binary hashes plus ProcessContainment=true/healthprobe PASS.
+- Re-run installed hashes/health/module/taskbar/EventLog gates after protected-layer completion.
 - Keep the installed RC3 candidate running for a longer soak.
 - Exercise one real suspend/resume cycle when operationally safe, then re-run healthprobe/module/taskbar/EventLog gates.
 - Keep public Stable/Latest at v1.1.1 until those gates pass.

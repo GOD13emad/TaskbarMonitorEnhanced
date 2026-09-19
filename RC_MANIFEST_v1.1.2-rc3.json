@@ -1,9 +1,9 @@
 {
   "Version": "1.1.2-rc3",
-  "Status": "RELEASE_CANDIDATE_SOURCE_VALIDATED_INSTALL_CANARY_PENDING",
+  "Status": "RELEASE_CANDIDATE_MAIN_INSTALLED_PROTECTED_RC3_UPGRADE_PENDING_ELEVATION",
   "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC3",
   "Rc3HardeningAuthorityCommit": "017f56d",
-  "BinarySourceAuthorityCommit": "PENDING_RC3_RELEASE_IDENTITY_COMMIT",
+  "BinarySourceAuthorityCommit": "9b49a3e",
   "Dependencies": {
     "LibreHardwareMonitor": {
       "Version": "0.9.6",
@@ -19,8 +19,8 @@
   "Outputs": [
     {
       "Name": "TaskbarMonitorEnhanced.exe",
-      "Bytes": 271872,
-      "SHA256": "BEFAD8DC021BA0A8432BC458782B24D9434D9945225678A86F05D6BFD4FFE8B6"
+      "Bytes": 272384,
+      "SHA256": "A0357460DCA9010FA4DDDAE4572F11867FC7DE8655D3C27C1A71DAF8ABA66F8E"
     },
     {
       "Name": "TaskbarMonitorSensorBroker.exe",
@@ -29,19 +29,19 @@
     },
     {
       "Name": "TaskbarMonitorSensorSupervisor.exe",
-      "Bytes": 23552,
-      "SHA256": "608ED54CC8494E792977132EAEB50B4597FD3A92C8DA6C892CF61CC15C84C757"
+      "Bytes": 26112,
+      "SHA256": "3D170D1549E1C6B401BBBDC7C1AE94188D3E05C0D1E1C35EEE08D7156C1B776D"
     },
     {
       "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc3.exe",
-      "Bytes": 10944512,
-      "SHA256": "C9987A8CC86551659E74617A90AE4B1DB48811337286A13AE9FF6DAD6B6A2D5E"
+      "Bytes": 10955264,
+      "SHA256": "EE72F87C7E1E891D12AA507C2D7EF78E0022D4ACE76D6FC7D5A1821B629CD9F8"
     }
   ],
   "Reproducibility": {
     "PrimaryBuild": "PASS",
-    "CleanCloneBuild": "PENDING_AFTER_RC3_COMMIT",
-    "ByteIdenticalAcrossIndependentPaths": false,
+    "CleanCloneBuild": "PASS",
+    "ByteIdenticalAcrossIndependentPaths": true,
     "AutomatedVerifier": "build/Verify-Determinism.ps1",
     "DependencyLock": "build/dependencies.lock.json"
   },
@@ -62,7 +62,9 @@
     "SupervisorStaleIsolation": "PASS",
     "SupervisorLongGapRecycle": "PASS_18_5_SECONDS",
     "SupervisorLogRotation": "PASS",
-    "FailureToRecoveryObservability": "PASS"
+    "FailureToRecoveryObservability": "PASS",
+    "KillOnCloseJobContainment": true,
+    "AbruptSupervisorDeathTest": "PASS_CHILDREN_EXITED_AUTOMATICALLY"
   },
   "PriorR21InstallerSafetyEvidence": {
     "BoundedUacLaunch": "PASS",
@@ -102,5 +104,18 @@
       "SyntheticSupervisorLongGap": "PASS_18_5_SECONDS_STAGGERED_RECYCLE"
     }
   },
-  "RemainingGate": "Install RC3 transactionally, verify exact installed hashes/health/module isolation/taskbar behavior/Event Log, then complete extended soak including one real suspend/resume before public Stable/Latest promotion"
+  "RemainingGate": "Run COMPLETE_RC3_ADMIN.ps1 with UAC/admin approval, require exact RC3 broker/supervisor hashes + ProcessContainment=true + healthprobe PASS; public Stable/Latest additionally requires extended soak including one real suspend/resume.",
+  "CurrentInstalledCanary": {
+    "MainPublicVersion": "1.1.2-rc3",
+    "MainHashMatchesCandidate": true,
+    "MainSHA256": "A0357460DCA9010FA4DDDAE4572F11867FC7DE8655D3C27C1A71DAF8ABA66F8E",
+    "TaskbarGeometry": "PASS_24_OF_24_1100x48_DIRECT_CHILD",
+    "MainModuleIsolation": "PASS_300_OF_300_NO_LHM",
+    "RecentRelevantApplicationEventErrors": 0,
+    "ProtectedSensorLayer": "RC2_CURRENTLY_HEALTHY_RC3_UPGRADE_PENDING_ELEVATION",
+    "HealthProbe": "DEGRADED_EXPECTED_PROCESS_CONTAINMENT_FALSE_UNTIL_PROTECTED_RC3_UPGRADE",
+    "CurrentCpuGpuStorageTransport": "FRESH_HEALTHY_RC2_SENSOR_LAYER",
+    "BoundedUacInstallSeconds": 32.5,
+    "SensorLayerStatus": "DEGRADED"
+  }
 }
