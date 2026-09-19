@@ -1,0 +1,66 @@
+name: R21 RC6 Self-Hosted Finalize
+
+on:
+  push:
+    branches:
+      - 'audit/r21-final-hardening-rc6'
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+  artifact-metadata: write
+
+jobs:
+  finalize:
+    if: github.repository == 'GOD13emad/TaskbarMonitorEnhanced' && github.ref == 'refs/heads/audit/r21-final-hardening-rc6'
+    runs-on: [self-hosted, Windows, X64, tbme-rc6-final]
+    timeout-minutes: 25
+    steps:
+      - name: Checkout sealed RC6 branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Git whitespace check
+        shell: pwsh
+        run: git diff --check HEAD^
+
+      - name: Reproducible R21 build
+        shell: pwsh
+        run: ./build/Build-R21.ps1
+
+      - name: Verify deterministic clean-clone build
+        shell: pwsh
+        run: ./build/Verify-Determinism.ps1
+
+      - name: Generate SPDX 2.3 SBOM
+        shell: pwsh
+        run: ./build/Generate-Sbom.ps1
+
+      - name: Attest binary build provenance
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: 'build/_out/**/*.exe'
+
+      - name: Attest Setup SBOM
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_*.exe'
+          sbom-path: 'artifacts/R21_SBOM.spdx.json'
+
+      - name: Upload verified RC6 build evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: r21-rc6-selfhosted-evidence
+          if-no-files-found: error
+          path: |
+            artifacts/R21_BUILD_MANIFEST.json
+            artifacts/R21_SBOM.spdx.json
+            build/_out/App/TaskbarMonitorEnhanced.exe
+            build/_out/Broker/TaskbarMonitorSensorBroker.exe
+            build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe
+            build/_out/Setup/TaskbarMonitorEnhanced_Setup_*.exe
