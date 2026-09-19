@@ -20,10 +20,13 @@ jobs:
       - name: Checkout sealed RC6 branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
-        with:
-          dotnet-version: 10.0.400
+      - name: Validate installed .NET SDK
+        shell: pwsh
+        run: |
+          $v=(dotnet --version).Trim()
+          Write-Host "DOTNET_SDK=$v"
+          if($v -ne '10.0.400'){ throw "Expected .NET SDK 10.0.400, got $v" }
+          dotnet --info
 
       - name: Git whitespace check
         shell: pwsh
