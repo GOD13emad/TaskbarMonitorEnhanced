@@ -1,14 +1,23 @@
-# R21 Acceptance Status — Taskbar Monitor Enhanced 1.1.2-rc5
+# R21 Acceptance Status — Taskbar Monitor Enhanced 1.1.2-rc6
 
 Status: RELEASE CANDIDATE / NOT STABLE
 
 Authority baseline: Git commit 539c8f7 (R20 process-isolation baseline).
-Development branch: audit/r21-final-hardening-rc5.
+Development branch: audit/r21-final-hardening-rc6.
 R21 release-source authority: 9211aa5.
 R21 runtime-code authority: 7a89368.
 R21 transactional-installer authority: d9953d5.
 R21 build-pipeline authority: bdcd2b4.
 
+
+## RC6-specific status
+
+- RC4->RC5 protected-source diff audit: PASS; Broker/Supervisor differences are version identity only.
+- RC6 installer compatible-reuse policy: exact hash pair + matching BrokerVersion + <15s state + Job containment + CPU/GPU/storage transport/data health; otherwise elevation path remains mandatory.
+- Explicit Repair Hardware Sensors still forces the current elevated protected payload.
+- RC6 primary zero-warning build, Setup policy verify and SPDX SBOM: PASS; final clean-clone determinism pending identity commit.
+- RC6 live compatible-reuse install: PASS; 2.38s, no UAC, Main exact candidate hash, protected RC4 hashes unchanged, SensorLayerStatus=READY, SensorLayerVersion=1.1.2-rc4+r21, SensorLayerMode=REUSED_COMPATIBLE_RC4.
+- RC6 post-install health stabilization: PASS; healthprobe stayed PASS and ActiveConsecutiveFailures returned from 1 to 0 with RECOVERED_RECENTLY.
 
 ## RC5-specific status
 
@@ -89,13 +98,12 @@ The elevated installation gate is now closed on the validation machine. The rema
 
 ## Remaining release gates
 
-1. Require RC5 zero-warning build, self-test, Setup verification, SPDX SBOM and clean-clone byte-for-byte determinism.
-2. Install RC5 and verify exact hashes, READY/healthprobe PASS and ProcessContainment.
-3. Repeat forced Supervisor-stop self-heal and require GPU stale logging bounded to the 30-second policy while recovery remains PASS.
-4. Re-run taskbar geometry, module isolation and recent Windows Event Log checks.
-5. Run the updated GitHub Actions workflow after push and require provenance/SBOM attestation success.
-6. Complete an extended real suspend/resume soak before public Stable/Latest.
-7. Enable GitHub immutable releases before public R21 publication.
+1. Require RC6 zero-warning build, self-test, Setup verification, SPDX SBOM and clean-clone byte-for-byte determinism.
+2. Install RC6 on the current machine and require exact Main hash plus READY / SensorLayerMode=REUSED_COMPATIBLE_RC4 without an administrator prompt.
+3. Re-run forced Supervisor-stop self-heal/log-pressure, taskbar geometry, module isolation and recent Event Log checks.
+4. Resolve the GitHub account billing lock and require the already-pushed workflow to complete build provenance + SBOM attestations.
+5. Complete an extended real suspend/resume soak before public Stable/Latest.
+6. Enable GitHub immutable releases before public R21 publication.
 
 ## Dependency decision
 

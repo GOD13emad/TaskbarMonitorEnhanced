@@ -4,7 +4,7 @@
 
 - Public stable release remains v1.1.1.
 - R20 rollback authority: local commit 539c8f7 — process-isolated sensor-access baseline.
-- Active candidate: v1.1.2-rc5 / R21 Final Log-Pressure Hardening on audit/r21-final-hardening-rc5.
+- Active candidate: v1.1.2-rc6 / R21 Component-Aware Least-Privilege Finalization on audit/r21-final-hardening-rc6.
 - Do not claim public FINAL/STABLE until the extended installed soak including suspend/resume passes.
 
 ## R21 objective
@@ -17,6 +17,7 @@ Increase long-run stability and observability without regressing the accepted ta
 - RC3 OS-level kill-on-close Job Object containment prevents orphan sensor workers after abrupt Supervisor termination.
 - RC4 Main self-heal restarts only the existing pre-authorized Sensor Supervisor task after conservative stale-state thresholds.
 - RC5 normalizes dynamic GPU stale-age state keys and throttles repeated stale logs to 30 seconds.
+- RC6 installer can reuse only exact hash-pinned/fresh/healthy compatible R21 protected sensor pairs, avoiding unnecessary UAC while preserving Program Files privilege separation.
 - RC4 CI produces SPDX 2.3 SBOM plus GitHub/Sigstore build provenance/SBOM attestations with Actions pinned by commit SHA.
 - Staggered worker startup and bounded retry/backoff.
 - Fresh transport health separated from data availability.
@@ -52,13 +53,13 @@ See docs/R21_ACCEPTANCE_STATUS.md and local r21_evidence/. Core builds and deter
 
 ## Open blocker
 
-RC5 source/build/self-test/SPDX SBOM/final clean-clone determinism are PASS from authority commit 5f87c2e. RC5 Main is installed with exact hash and passes taskbar/module/EventLog canaries. The protected Broker/Supervisor remain the healthy RC4 layer because the bounded RC5 UAC attempts were not approved, so install_state correctly remains DEGRADED. GitHub-side attestation execution and a real suspend/resume soak also remain external gates.
+RC6 component-aware reuse passed end to end on the validation machine: the RC6 Main installed in 2.38 seconds without UAC while the exact allowlisted healthy RC4 protected layer remained byte-identical; install_state is READY / REUSED_COMPATIBLE_RC4 and healthprobe is PASS with zero active failures after stabilization. Local remaining gates are final identity/determinism, repeated Supervisor-stop/log-throttle regression, taskbar/module/EventLog canaries and delivery packaging. GitHub Actions remains externally blocked because the account reports a billing lock; a real suspend/resume soak also remains external.
 
 ## Next authoritative actions
 
-- Complete RC5 deterministic build and install exact RC5 artifacts.
-- Repeat forced Supervisor-stop auto-recovery and require bounded GPU stale logs plus healthprobe PASS.
-- Re-run taskbar geometry, module isolation and Event Log checks.
-- Push/run the updated GitHub Actions workflow and require provenance/SBOM attestation success.
-- Complete one real suspend/resume soak when operationally safe.
-- Keep public Stable/Latest at v1.1.1 until the remaining external/real-power gates pass.
+- Build/seal RC6 and require zero-warning build, self-test, Setup verification, SPDX SBOM and clean-clone determinism.
+- Install RC6 over the current healthy RC4 protected layer and require READY + SensorLayerMode=REUSED_COMPATIBLE_RC4 with no UAC/elevated mutation.
+- Repeat Supervisor-stop self-heal/log-pressure and taskbar/module/EventLog gates.
+- Keep Repair Hardware Sensors as the explicit path for upgrading the protected binaries to RC6 when administrator approval is desired.
+- Resolve the GitHub account billing lock, then require the pushed Actions workflow to produce provenance/SBOM attestations.
+- Complete one real suspend/resume post-check before Stable/Latest.

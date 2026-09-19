@@ -1,0 +1,98 @@
+{
+  "Version": "1.1.2-rc6",
+  "Status": "RELEASE_CANDIDATE_BUILT_COMPAT_REUSE_INSTALLED_DETERMINISM_PENDING",
+  "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC6",
+  "Rc5BaselineAuthority": "9c16fac",
+  "Rc6ComponentReusePolicy": "HASH_PINNED_LIVE_HEALTH_GATED",
+  "BinarySourceAuthorityCommit": "PENDING_RC6_IDENTITY_COMMIT",
+  "Dependencies": {
+    "LibreHardwareMonitor": {
+      "Version": "0.9.6",
+      "Url": "https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/download/v0.9.6/LibreHardwareMonitor.zip",
+      "SHA256": "086D9F1B5A99E643EDC2CFAAAC16051685B551E4C5AC0B32A57C58C0E529C001"
+    },
+    "PawnIO": {
+      "Version": "2.2.0",
+      "Url": "https://github.com/namazso/PawnIO.Setup/releases/download/2.2.0/PawnIO_setup.exe",
+      "SHA256": "1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032"
+    }
+  },
+  "Outputs": [
+    {
+      "Name": "TaskbarMonitorEnhanced.exe",
+      "Bytes": 276992,
+      "SHA256": "AE80C88058E7729690782476981B0D66E9163AFA36E023CD1FE49A81F165336B"
+    },
+    {
+      "Name": "TaskbarMonitorSensorBroker.exe",
+      "Bytes": 22528,
+      "SHA256": "57A4EC9EE64326A3A3217BDEC0CF66FAEB15C2ED1A40A6DD8D571490C29F8EE0"
+    },
+    {
+      "Name": "TaskbarMonitorSensorSupervisor.exe",
+      "Bytes": 26112,
+      "SHA256": "B8F7647FA8FD29DAB865764379869B5AD1C124B76EC6428807FE96D33F423EAD"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc6.exe",
+      "Bytes": 10981376,
+      "SHA256": "E2F9FB0EEF80F7D47AB04AB5106EFCFFD6EA7C46BB4609F313042FB7CA1DD5E8"
+    }
+  ],
+  "Reproducibility": {
+    "PrimaryBuild": "PASS",
+    "CleanCloneBuild": "PENDING",
+    "ByteIdenticalAcrossIndependentPaths": false,
+    "AutomatedVerifier": "build/Verify-Determinism.ps1",
+    "DependencyLock": "build/dependencies.lock.json",
+    "SbomGenerator": "build/Generate-Sbom.ps1",
+    "BuiltInSelfTest": "PASS",
+    "SetupVerify": "PASS_HASH_PINNED_COMPATIBLE_REUSE",
+    "SbomGeneration": "PASS",
+    "SbomPath": "artifacts/R21_SBOM.spdx.json"
+  },
+  "Rc6Additions": {
+    "CompatibleProtectedReuse": true,
+    "CompatibleStateFreshSeconds": 15,
+    "RequireExactHashPair": true,
+    "RequireMatchingBrokerVersion": true,
+    "RequireJobContainment": true,
+    "RequireCpuGpuStorageTransport": true,
+    "RequireCpuGpuStorageData": true,
+    "ExplicitRepairStillElevated": true,
+    "AllowlistedRc4BrokerSha256": "064C422D5AC22277573B6290C1A7ADAC4C66C83262B2D9490D2FCF4B6147F5C1",
+    "AllowlistedRc4SupervisorSha256": "9AEB79F40CE10434F06A4E5244648DC08EC95AB13696FA15015711263C349E37",
+    "AllowlistedRc5BrokerSha256": "200564F182F26FE2D977188566837C65ED88F866A53EB563F80F7595F33B427F",
+    "AllowlistedRc5SupervisorSha256": "D58F174F8AD64563A3AB8051FED969DC6F05D91145E2FCEF9B75288BF1D26F4C"
+  },
+  "BaselineBeforeRc6": {
+    "Main": "1.1.2-rc5 exact installed",
+    "ProtectedLayer": "1.1.2-rc4+r21 healthy",
+    "ProtectedLayerHashes": "known/allowlisted",
+    "HealthProbe": "PASS",
+    "ProcessContainment": true
+  },
+  "ExternalGate": "GitHub Actions currently cannot start because account is locked due to billing issue; real suspend/resume soak also pending",
+  "InstalledCompatibleReuseCanary": {
+    "MainVersion": "1.1.2-rc6",
+    "MainSha256": "AE80C88058E7729690782476981B0D66E9163AFA36E023CD1FE49A81F165336B",
+    "MainHashMatch": true,
+    "InstallElapsedSeconds": 2.38,
+    "UacRequested": false,
+    "SensorLayerStatus": "READY",
+    "SensorLayerVersion": "1.1.2-rc4+r21",
+    "SensorLayerMode": "REUSED_COMPATIBLE_RC4",
+    "ProtectedBrokerSha256": "064C422D5AC22277573B6290C1A7ADAC4C66C83262B2D9490D2FCF4B6147F5C1",
+    "ProtectedSupervisorSha256": "9AEB79F40CE10434F06A4E5244648DC08EC95AB13696FA15015711263C349E37",
+    "ProtectedHashesUnchanged": true,
+    "HealthProbe": "PASS",
+    "PostStabilizationActiveConsecutiveFailures": 0,
+    "PostStabilizationResilienceState": "RECOVERED_RECENTLY"
+  },
+  "GithubActionsState": {
+    "Rc5RunId": 35431499569,
+    "Result": "NOT_STARTED_ACCOUNT_LOCKED_BILLING",
+    "Meaning": "External account/billing blocker; no checkout/build step executed"
+  },
+  "RemainingGate": "Commit/determinism -> RC6 self-heal/log-throttle regression -> taskbar/module/EventLog -> delivery package. External: GitHub billing unlock/attestations + real suspend/resume."
+}

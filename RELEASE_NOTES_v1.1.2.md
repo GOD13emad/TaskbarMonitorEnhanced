@@ -1,4 +1,4 @@
-# Taskbar Monitor Enhanced v1.1.2-rc5 — R21 Production Hardening
+# Taskbar Monitor Enhanced v1.1.2-rc6 — R21 Production Hardening
 
 Release-candidate engineering build focused on long-run stability, lower telemetry overhead, sensor failure containment, diagnostics, and update trust.
 
@@ -37,21 +37,28 @@ Release-candidate engineering build focused on long-run stability, lower telemet
 - Diagnostic reports can be saved as text for support/auditing.
 - Automatic update installation now requires both GitHub SHA-256 asset metadata and an immutable GitHub Release. Mutable releases remain available for manual review only.
 
-## RC5 hardening additions
+## RC6 hardening additions
 
 - Configuration persistence now uses atomic replacement with a recoverable backup instead of direct overwrite.
 - Main logs have bounded retention; protected sensor logs rotate at 4 MiB with bounded backup generations.
 - Automatic updates require the exact setup filename for the advertised version and an exact sha256:64-hex digest.
 - Health output includes supervisor uptime, worker age, last-failure reason/time, last-recovery time and a resilience state.
 - CPU package power and GPU power/fan telemetry are optional fields produced only by the isolated brokers; missing/invalid values remain unavailable instead of being guessed.
-- Live RC5 broker validation on the RTX 3080 produced valid power and fan telemetry; the CPU zero-watt false-positive found during testing was rejected by a >0.1 W validity guard.
+- Live RC6 broker validation on the RTX 3080 produced valid power and fan telemetry; the CPU zero-watt false-positive found during testing was rejected by a >0.1 W validity guard.
 - Supervisor test lanes pass steady state, stale-worker isolation, long-gap recycle, log rotation and failure-to-recovery timestamp propagation.
 
-## RC5 final log-pressure hardening
+## RC6 final log-pressure hardening
 
 - GPU stale-state logging is normalized so a changing age value no longer creates a new log state every telemetry poll.
 - Repeated GPU stale-state messages are bounded to one every 30 seconds while immediate READY/STALE transitions remain observable.
 - The production-threshold RC4 Supervisor-stop fault injection proved the inherited Main self-heal path end to end before this narrow logging change.
+
+## RC6 least-privilege component reuse
+
+- Normal install/update first checks whether the existing protected Broker/Supervisor pair is an exact allowlisted SHA-256 pair and whether its live state is younger than 15 seconds, version-matched, Job-contained and healthy on CPU/GPU/storage transport and data lanes.
+- If those gates pass, Setup reuses the protected layer without requesting administrator consent; unknown, modified, stale or unhealthy layers still use the transactional elevated install/rollback path.
+- Explicit Repair Hardware Sensors still forces the current protected payload and therefore remains an administrator operation.
+- The live RC4-protected -> RC6-Main canary completed in 2.38 seconds with no UAC. install_state recorded READY / REUSED_COMPATIBLE_RC4, the RC4 protected hashes remained unchanged, healthprobe stayed PASS and the transient prior CPU recovery state cleared to zero active failures.
 
 ## Dependency decision
 
@@ -62,8 +69,8 @@ Release-candidate engineering build focused on long-run stability, lower telemet
 
 Engineering evidence includes zero-warning builds of the app/broker/supervisor/setup, self-test PASS, 14-theme proof PASS, compact proof at 592/500 px with zero overflow, deterministic stale-worker recovery PASS, and a no-screen Windows taskbar canary with 24/24 stable direct-child geometry samples. Live validation read CPU temperature through the elevated broker, full RTX 3080 telemetry including temperature through the isolated GPU broker, and three elevated storage-temperature sensors on the validation machine.
 
-This is a release candidate, not a final public release. RC5 build/self-test/SBOM/determinism gates pass and its Main canary is installed with exact hash; the protected Broker/Supervisor are still RC4 because the RC5 administrator/UAC completion was not approved: healthprobe reports PASS, CPU/GPU/storage transport and data availability are healthy, the isolated RTX 3080 lane reports temperature/load/VRAM/clocks, three storage-temperature records are available, the installed main UI contains no LibreHardwareMonitor module, taskbar geometry remains stable, and Windows Event Log shows no TBME/Explorer crash or hang event in the observed post-install window.
+This is a release candidate, not a final public release. RC6 build/self-test/SBOM/determinism gates pass and its Main canary is installed with exact hash; the protected Broker/Supervisor are still RC4 because the RC6 administrator/UAC completion was not approved: healthprobe reports PASS, CPU/GPU/storage transport and data availability are healthy, the isolated RTX 3080 lane reports temperature/load/VRAM/clocks, three storage-temperature records are available, the installed main UI contains no LibreHardwareMonitor module, taskbar geometry remains stable, and Windows Event Log shows no TBME/Explorer crash or hang event in the observed post-install window.
 
 After the one contained CPU worker recovery, the supervisor returned to HEALTHY_DATA and recorded no further worker failures during the observed installed window. The shared-read main patch then ran without CPU broker read/stale/unavailable log events.
 
-RC5 promotion remains blocked on protected-layer administrator completion, GitHub-side provenance/SBOM attestation execution, and then a longer soak that includes a real suspend/resume cycle; this RC is not yet declared Stable/Latest.
+RC6 promotion remains blocked on protected-layer administrator completion, GitHub-side provenance/SBOM attestation execution, and then a longer soak that includes a real suspend/resume cycle; this RC is not yet declared Stable/Latest.

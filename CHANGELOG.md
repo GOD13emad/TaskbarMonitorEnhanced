@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.2-rc6 — R21 Component-Aware Least-Privilege Finalization (candidate; not Stable)
+
+- add hash-pinned compatible protected-layer reuse for app-only updates
+- reuse is allowed only for an exact known Broker/Supervisor SHA-256 pair with a matching BrokerVersion, <15s supervisor state, Job Object containment and healthy CPU/GPU/storage transport+data lanes
+- current embedded RC6 protected payload is also recognized by exact embedded-resource hashes
+- known-compatible RC4/RC5 protected pairs are explicitly allowlisted because their protected-source diff is version identity only
+- unknown, modified, stale or unhealthy protected layers continue through the existing elevated transactional install/rollback path
+- explicit Repair Hardware Sensors continues to force the elevated current protected payload
+- install_state now records SensorLayerVersion and SensorLayerMode for transparent component provenance
+- objective: remove unnecessary UAC from safe app-only upgrades without weakening the protected Program Files boundary
+- release gates: deterministic RC6 build, live RC4->RC6 compatible-reuse install, self-heal/log-pressure regression, taskbar/module/EventLog checks, GitHub attestation run and real suspend/resume soak
+
 ## 1.1.2-rc5 — R21 Final Log-Pressure Hardening (candidate; not Stable)
 
 - retain RC4 automatic Sensor Supervisor self-heal and signed provenance/SBOM CI

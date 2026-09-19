@@ -6,7 +6,7 @@ Taskbar Monitor Enhanced uses third-party open-source components for hardware te
 
 Project: LibreHardwareMonitor  
 Used for hardware sensor access, including CPU temperature telemetry.  
-The project is distributed under its upstream open-source license. Taskbar Monitor Enhanced v1.1.1 and the v1.1.2-rc5 R21 candidate use LibreHardwareMonitor 0.9.6 in the protected sensor backend.
+The project is distributed under its upstream open-source license. Taskbar Monitor Enhanced v1.1.1 and the v1.1.2-rc6 R21 candidate use LibreHardwareMonitor 0.9.6 in the protected sensor backend.
 
 For the R21 reproducible build, the official upstream LibreHardwareMonitor.zip release asset is pinned by SHA-256:
 

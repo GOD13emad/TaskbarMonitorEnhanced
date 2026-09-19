@@ -21,9 +21,9 @@ v1.1.1 includes:
 Accepted assets and hashes are published in `SHA256SUMS_v1.1.1.txt` and `RELEASE_MANIFEST_v1.1.1.json`.
 
 
-## Development candidate: v1.1.2-rc5 (R21)
+## Development candidate: v1.1.2-rc6 (R21)
 
-v1.1.2-rc5 is the active engineering release candidate, not the current Stable/Latest release. Its zero-warning build, self-test, SPDX SBOM and byte-for-byte clean-clone determinism pass. The RC5 Main canary is installed with exact hash and passes taskbar geometry, module isolation and recent Event Log checks; the protected Broker/Supervisor remain RC4 only because the noninteractive UAC completion was not approved. Stable/Latest additionally requires full protected RC5 completion, GitHub-side attestation execution and the extended real suspend/resume soak.
+v1.1.2-rc6 is the active engineering release candidate, not the current Stable/Latest release. RC6 adds hash-pinned compatible protected-layer reuse: app-only updates can reuse a previously accepted R21 Broker/Supervisor without elevation only when the exact binary pair and fresh live health state match the allowlist. The live RC4-protected -> RC6-Main canary passed in 2.38 seconds with no UAC, exact RC6 Main hash, SensorLayerStatus=READY and SensorLayerMode=REUSED_COMPATIBLE_RC4; protected hashes remained unchanged. Repair remains an explicit elevated path. Stable/Latest still requires GitHub-side attestation execution and the extended real suspend/resume soak.
 
 R21 adds:
 
@@ -40,6 +40,8 @@ R21 adds:
 - automatic update installation gated by both GitHub SHA-256 asset metadata and immutable GitHub Releases
 - installer task policy hardened to RestartCount=3 and MultipleInstances=IgnoreNew
 - conservative non-elevated Main self-heal for a stale/missing READY Sensor Supervisor task (90s grace/staleness, 180s retry cooldown)
+- least-privilege component-aware installer: exact hash-pinned healthy R21 sensor layers can be reused without UAC on app-only updates; unknown/stale layers still require elevated transactional repair
+- RC6 compatible-reuse live canary: PASS; install 2.38s, no UAC, READY, REUSED_COMPATIBLE_RC4, protected RC4 hashes unchanged, post-install health recovery returned to zero active failures
 - SPDX 2.3 SBOM generation plus GitHub/Sigstore build-provenance and SBOM attestations in CI, with third-party actions pinned to immutable commit SHAs
 - atomic configuration writes with automatic backup recovery after interrupted/corrupt saves
 - bounded log retention/rotation for long-running main and protected sensor logs
@@ -47,7 +49,7 @@ R21 adds:
 - machine-readable failure/recovery timestamps, worker ages and STABLE / RECOVERING / RECOVERED_RECENTLY resilience state
 - optional isolated CPU package-power and GPU power/fan telemetry; unsupported sensors remain N/A
 
-Current RC5 engineering evidence includes zero-warning builds for the app/broker/supervisor/setup, self-test PASS, SPDX 2.3 SBOM PASS, clean-clone byte-identical determinism PASS, all prior 14-theme/compact proofs, RC4 live Supervisor-stop self-heal PASS, RC5 Main exact-hash install PASS, 24/24 stable direct-taskbar-child geometry samples, 300/300 main-process module samples with no LibreHardwareMonitor, and zero relevant recent Application Event errors. Full RC5 protected-layer acceptance is intentionally not claimed until administrator/UAC completion replaces the still-healthy RC4 Broker/Supervisor.
+Current RC6 engineering evidence includes zero-warning builds for the app/broker/supervisor/setup, self-test PASS, SPDX 2.3 SBOM PASS, clean-clone byte-identical determinism PASS, all prior 14-theme/compact proofs, RC4 live Supervisor-stop self-heal PASS, RC5 Main exact-hash install PASS, 24/24 stable direct-taskbar-child geometry samples, 300/300 main-process module samples with no LibreHardwareMonitor, and zero relevant recent Application Event errors. Full RC5 protected-layer acceptance is intentionally not claimed until administrator/UAC completion replaces the still-healthy RC4 Broker/Supervisor.
 
 See docs/R21_ACCEPTANCE_STATUS.md and RELEASE_NOTES_v1.1.2.md.
 

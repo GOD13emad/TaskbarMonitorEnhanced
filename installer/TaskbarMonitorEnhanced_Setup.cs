@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Globalization;
 using System.IO.Compression;
 using System.Reflection;
 using System.Security.Principal;
@@ -18,15 +19,20 @@ using Microsoft.Win32;
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
 [assembly: AssemblyVersion("1.1.2.0")]
 [assembly: AssemblyFileVersion("1.1.2.0")]
-[assembly: AssemblyInformationalVersion("1.1.2-rc5+r21")]
+[assembly: AssemblyInformationalVersion("1.1.2-rc6+r21")]
 
 internal static class SetupProgram
 {
     const string Product="Taskbar Monitor Enhanced";
-    const string Version="1.1.2-rc5";
+    const string Version="1.1.2-rc6";
     const string Publisher="Dr. Ali-Akbar Emadeddin";
     const string AppFolder="TaskbarMonitorEnhanced";
     const string UninstallKey=@"Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced";
+    const string CompatibleRc4BrokerSha256="064C422D5AC22277573B6290C1A7ADAC4C66C83262B2D9490D2FCF4B6147F5C1";
+    const string CompatibleRc4SupervisorSha256="9AEB79F40CE10434F06A4E5244648DC08EC95AB13696FA15015711263C349E37";
+    const string CompatibleRc5BrokerSha256="200564F182F26FE2D977188566837C65ED88F866A53EB563F80F7595F33B427F";
+    const string CompatibleRc5SupervisorSha256="D58F174F8AD64563A3AB8051FED969DC6F05D91145E2FCEF9B75288BF1D26F4C";
+    const int CompatibleSensorStateFreshSeconds=15;
 
     static readonly string[] RequiredResources=new string[] {
       "Payload.TaskbarMonitorEnhanced.exe",
@@ -60,6 +66,8 @@ internal static class SetupProgram
         public string Message="Hardware sensor status is unknown.";
         public bool RebootRequired=false;
         public bool IsHealthy=false;
+        public string LayerVersion="";
+        public string LayerMode="";
     }
 
     static Stream Resource(string name)
@@ -175,6 +183,21 @@ internal static class SetupProgram
         }
     }
 
+    static string Sha256Resource(string resourceName)
+    {
+        using(Stream s=Resource(resourceName))
+        {
+            if(s==null)throw new InvalidOperationException("Missing embedded resource: "+resourceName);
+            using(SHA256 sha=SHA256.Create())
+            {
+                byte[] hash=sha.ComputeHash(s);
+                StringBuilder b=new StringBuilder();
+                foreach(byte x in hash)b.Append(x.ToString("X2"));
+                return b.ToString();
+            }
+        }
+    }
+
     static void WriteBackendState(string backendRoot)
     {
         string library=Path.Combine(backendRoot,"LibreHardwareMonitorLib.dll");
@@ -193,13 +216,17 @@ internal static class SetupProgram
     static void WriteInstallState(SensorOutcome sensorOutcome)
     {
         string sensorStatus=sensorOutcome==null?"UNKNOWN":(sensorOutcome.Status??"UNKNOWN");
+        string sensorVersion=sensorOutcome==null?"":(sensorOutcome.LayerVersion??"");
+        string sensorMode=sensorOutcome==null?"":(sensorOutcome.LayerMode??"");
         string json="{\r\n"+
           "  \"App\": \"Taskbar Monitor Enhanced\",\r\n"+
           "  \"Version\": \"RC_1.1.2_R21\",\r\n"+
-          "  \"PublicVersion\": \"1.1.2-rc5\",\r\n"+
-          "  \"InternalRuntimeBaseline\": \"V1_1_2_R21_PRODUCTION_HARDENING_RC5\",\r\n"+
+          "  \"PublicVersion\": \"1.1.2-rc6\",\r\n"+
+          "  \"InternalRuntimeBaseline\": \"V1_1_2_R21_PRODUCTION_HARDENING_RC6\",\r\n"+
           "  \"SensorSupervisor\": \"V1_1_2_R21_STAGGERED_HEALTH_SUPERVISOR\",\r\n"+
           "  \"SensorLayerStatus\": \""+sensorStatus.Replace("\\","\\\\").Replace("\"","\\\"")+"\",\r\n"+
+          "  \"SensorLayerVersion\": \""+sensorVersion.Replace("\\","\\\\").Replace("\"","\\\"")+"\",\r\n"+
+          "  \"SensorLayerMode\": \""+sensorMode.Replace("\\","\\\\").Replace("\"","\\\"")+"\",\r\n"+
           "  \"ProductIdentity\": \"LOCKED\",\r\n"+
           "  \"ShortcutName\": \"Taskbar Monitor Enhanced\",\r\n"+
           "  \"Publisher\": \"Dr. Ali-Akbar Emadeddin\",\r\n"+
@@ -233,6 +260,11 @@ internal static class SetupProgram
             outcome.Message=JsonString(json,"Message");
             outcome.RebootRequired=JsonBool(json,"RebootRequired");
             outcome.IsHealthy=String.Equals(outcome.Status,"READY",StringComparison.OrdinalIgnoreCase);
+            if(outcome.IsHealthy)
+            {
+                outcome.LayerVersion="1.1.2-rc6+r21";
+                outcome.LayerMode="INSTALLED_CURRENT";
+            }
             if(String.IsNullOrEmpty(outcome.Status))outcome.Status="UNKNOWN";
             if(String.IsNullOrEmpty(outcome.Message))outcome.Message="Hardware sensor status is unknown.";
         }catch{}
@@ -275,6 +307,75 @@ internal static class SetupProgram
         p+=marker.Length;
         while(p<json.Length && Char.IsWhiteSpace(json[p]))p++;
         return p+4<=json.Length && String.Equals(json.Substring(p,4),"true",StringComparison.OrdinalIgnoreCase);
+    }
+
+    static bool TryReuseCompatibleSensorLayer(out SensorOutcome outcome)
+    {
+        outcome=null;
+        try
+        {
+            string sensorRoot=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"TaskbarMonitorEnhanced","SensorBroker");
+            string broker=Path.Combine(sensorRoot,"TaskbarMonitorSensorBroker.exe");
+            string supervisor=Path.Combine(sensorRoot,"TaskbarMonitorSensorSupervisor.exe");
+            string statePath=Path.Combine(AppRoot,"sensor_supervisor_state.json");
+            if(!File.Exists(broker)||!File.Exists(supervisor)||!File.Exists(statePath))return false;
+
+            string brokerSha=Sha256File(broker);
+            string supervisorSha=Sha256File(supervisor);
+            string expectedVersion="";
+            string mode="";
+
+            string currentBrokerSha=Sha256Resource("Payload.TaskbarMonitorSensorBroker.exe");
+            string currentSupervisorSha=Sha256Resource("Payload.TaskbarMonitorSensorSupervisor.exe");
+            if(String.Equals(brokerSha,currentBrokerSha,StringComparison.OrdinalIgnoreCase)&&
+               String.Equals(supervisorSha,currentSupervisorSha,StringComparison.OrdinalIgnoreCase))
+            {
+                expectedVersion="1.1.2-rc6+r21";
+                mode="CURRENT_EXACT";
+            }
+            else if(String.Equals(brokerSha,CompatibleRc5BrokerSha256,StringComparison.OrdinalIgnoreCase)&&
+                    String.Equals(supervisorSha,CompatibleRc5SupervisorSha256,StringComparison.OrdinalIgnoreCase))
+            {
+                expectedVersion="1.1.2-rc6+r21";
+                mode="REUSED_COMPATIBLE_RC6";
+            }
+            else if(String.Equals(brokerSha,CompatibleRc4BrokerSha256,StringComparison.OrdinalIgnoreCase)&&
+                    String.Equals(supervisorSha,CompatibleRc4SupervisorSha256,StringComparison.OrdinalIgnoreCase))
+            {
+                expectedVersion="1.1.2-rc4+r21";
+                mode="REUSED_COMPATIBLE_RC4";
+            }
+            else return false;
+
+            string json;
+            using(FileStream fs=new FileStream(statePath,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete))
+            using(StreamReader sr=new StreamReader(fs,Encoding.UTF8,true))
+                json=sr.ReadToEnd();
+            string tsText=JsonString(json,"TimestampUtc");
+            DateTime ts;
+            if(!DateTime.TryParse(tsText,CultureInfo.InvariantCulture,DateTimeStyles.AssumeUniversal|DateTimeStyles.AdjustToUniversal,out ts))
+                return false;
+            double age=(DateTime.UtcNow-ts).TotalSeconds;
+            if(age<0||age>=CompatibleSensorStateFreshSeconds)return false;
+            if(!String.Equals(JsonString(json,"BrokerVersion"),expectedVersion,StringComparison.OrdinalIgnoreCase))return false;
+
+            bool healthy=
+                JsonBool(json,"ChildJobKillOnClose")&&
+                JsonBool(json,"CpuJobContained")&&JsonBool(json,"GpuJobContained")&&JsonBool(json,"StorageJobContained")&&
+                JsonBool(json,"CpuTransportHealthy")&&JsonBool(json,"GpuTransportHealthy")&&JsonBool(json,"StorageTransportHealthy")&&
+                JsonBool(json,"CpuDataAvailable")&&JsonBool(json,"GpuDataAvailable")&&JsonBool(json,"StorageDataAvailable");
+            if(!healthy)return false;
+
+            outcome=new SensorOutcome();
+            outcome.Status="READY";
+            outcome.IsHealthy=true;
+            outcome.RebootRequired=false;
+            outcome.LayerVersion=expectedVersion;
+            outcome.LayerMode=mode;
+            outcome.Message="Existing protected sensor layer "+expectedVersion+" passed exact-hash and live-health compatibility gates; Setup reused it without administrator changes.";
+            return true;
+        }
+        catch{return false;}
     }
 
     static SensorOutcome InstallSensorLayer()
@@ -325,7 +426,7 @@ internal static class SetupProgram
     static SensorOutcome Install(bool desktop,bool startup)
     {
         if(!Environment.Is64BitOperatingSystem)
-            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.1.2-rc5 requires 64-bit Windows.");
+            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.1.2-rc6 requires 64-bit Windows.");
 
         StopProcess("TaskbarMonitorEnhanced");
 
@@ -358,7 +459,9 @@ internal static class SetupProgram
         try{File.Delete(lhmZip);}catch{}
         WriteBackendState(backendRoot);
 
-        SensorOutcome sensorOutcome=InstallSensorLayer();
+        SensorOutcome sensorOutcome;
+        if(!TryReuseCompatibleSensorLayer(out sensorOutcome))
+            sensorOutcome=InstallSensorLayer();
 
         string uninstaller=Path.Combine(AppRoot,"Uninstall.exe");
         File.Copy(Application.ExecutablePath,uninstaller,true);
@@ -445,7 +548,7 @@ internal static class SetupProgram
                 }
             }
             if(!String.IsNullOrEmpty(path)){
-                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+",\"Version\":\"1.1.2-rc5\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\",\"SensorArchitecture\":\"R21_PROCESS_ISOLATED\"}";
+                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+",\"Version\":\"1.1.2-rc6\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\",\"SensorArchitecture\":\"R21_PROCESS_ISOLATED\",\"SensorUpgradePolicy\":\"HASH_PINNED_COMPATIBLE_REUSE\"}";
                 File.WriteAllText(path,json,Encoding.UTF8);
             }
             return 0;
@@ -482,7 +585,7 @@ internal static class SetupProgram
             Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
             Label title=new Label();
-            title.Text=Product+"  1.1.2-rc5";
+            title.Text=Product+"  1.1.2-rc6";
             title.Font=new Font(Font.FontFamily,18,FontStyle.Bold);
             title.Left=28;title.Top=22;title.AutoSize=true;Controls.Add(title);
 
@@ -517,12 +620,12 @@ internal static class SetupProgram
                     progress.Visible=false;
                     status.Text="Installation completed.";
                     if(outcome.IsHealthy){
-                        MessageBox.Show(Product+" 1.1.2-rc5 was installed successfully.\r\n\r\nProtected hardware sensor monitoring is active.",
+                        MessageBox.Show(Product+" 1.1.2-rc6 was installed successfully.\r\n\r\nProtected hardware sensor monitoring is active.",
                           "Setup complete",MessageBoxButtons.OK,MessageBoxIcon.Information);
                     }else{
                         string extra=outcome.RebootRequired ? "\r\n\r\nRestart Windows, then use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors if needed." :
                           "\r\n\r\nThe application is installed and usable. The sensor supervisor continues in the background. If protected CPU/GPU/storage telemetry is still unavailable after a short wait or restart, use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors.";
-                        MessageBox.Show(Product+" 1.1.2-rc5 was installed successfully.\r\n\r\n"+outcome.Message+extra,
+                        MessageBox.Show(Product+" 1.1.2-rc6 was installed successfully.\r\n\r\n"+outcome.Message+extra,
                           "Setup complete - sensor warning",MessageBoxButtons.OK,MessageBoxIcon.Warning);
                     }
                     Close();

@@ -296,7 +296,7 @@ if($taskInstalled -and -not$rebootRequired){
                     )
                     $SupervisorHealthy=(
                         $stateAge -ge 0 -and $stateAge -lt 15 -and
-                        $version -eq '1.1.2-rc5+r21' -and
+                        $version -eq '1.1.2-rc6+r21' -and
                         $JobContainmentHealthy -and
                         $CpuTransportHealthy -and $GpuTransportHealthy -and $StorageTransportHealthy
                     )
