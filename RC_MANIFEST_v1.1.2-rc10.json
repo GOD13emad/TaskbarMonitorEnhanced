@@ -1,0 +1,71 @@
+{
+  "Version": "1.1.2-rc10",
+  "Status": "BUILD_CI_PASS_PROTECTED_INSTALL_PENDING",
+  "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC10",
+  "SourceAuthorityCommit": "e89aebd9012f95d050771283562069f9cb5f5515",
+  "ParentRc9Authority": "220e49824a8ccb89192e0ab173860e016c2ca7d9",
+  "ChangeObjective": "CPU_TRANSIENT_SLOW_READ_TOLERANCE_WITH_15S_DATA_FRESHNESS_AND_60S_HARD_WATCHDOG",
+  "RootCauseEvidence": [
+    "r21_evidence/RC9_POST_S3_SOAK_90S.json",
+    "r21_evidence/rc9_contention_probe/RC9_SENSOR_CONTENTION_PROBE.json"
+  ],
+  "Design": {
+    "UiDataFreshnessSeconds": 15,
+    "CpuHardStallSeconds": 60,
+    "CpuStartupGraceSeconds": 60,
+    "GpuHardStallSeconds": 15,
+    "Principle": "Stale CPU telemetry becomes unavailable after 15s; process restart is delayed until a 60s hard stall so transient LHM/PawnIO delays do not create restart storms."
+  },
+  "Outputs": [
+    {
+      "Name": "TaskbarMonitorEnhanced.exe",
+      "Bytes": 276992,
+      "SHA256": "6BBD6BF7A559DE4C2C59FE4027FA2BA30EC82765B3C6F4000FF34375C72B2550"
+    },
+    {
+      "Name": "TaskbarMonitorSensorBroker.exe",
+      "Bytes": 22528,
+      "SHA256": "7BA4E75514D69EC20D7FD478C3F8769A2D22BB48AC1B19900D946DF4FB64D907"
+    },
+    {
+      "Name": "TaskbarMonitorSensorSupervisor.exe",
+      "Bytes": 31232,
+      "SHA256": "FE5EB08FC2ED2D2C7CAA70F7EA48965C409E2093E3BB054CE8AE60003D85D97D"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc10.exe",
+      "Bytes": 10983936,
+      "SHA256": "488FAC9FE5C98943F8A90DE58EBF70B999EE0C4AD4E01933B0090FDEA73BC400"
+    }
+  ],
+  "Verification": {
+    "PrimaryBuild": "PASS_0_WARNINGS_0_ERRORS",
+    "BuiltInSelfTest": "PASS_RC10_CPU_HARD_STALL_WATCHDOG_SEC_60",
+    "SetupVerify": "PASS_CURRENT_EXACT_ONLY_RC10",
+    "SensorWindowlessPeGuard": "PASS",
+    "CleanCloneDeterminism": "PASS",
+    "SbomGeneration": "PASS",
+    "SbomSha256": "E3659486DA78AE92E9F079EE76E10DF65518A3A5C25E00811A1B78C1958D894B",
+    "GitHubSelfHostedRun": 35460297804,
+    "GitHubSelfHostedResult": "SUCCESS",
+    "DraftReleaseTarget": "e89aebd9012f95d050771283562069f9cb5f5515",
+    "DraftOnly": true
+  },
+  "InstalledState": {
+    "MainRc10Hash": "6BBD6BF7A559DE4C2C59FE4027FA2BA30EC82765B3C6F4000FF34375C72B2550",
+    "ProtectedBrokerStillRc9": "5D4824409E34794467340741A88EE0B1EC390ADE9F090D33B5746DD92081CB9C",
+    "ProtectedSupervisorStillRc9": "A0A7C711BEC1F920DB8107E4700FCA886EF7E6869E987546D0938DBEA69DFDB5",
+    "SensorLayerStatus": "DEGRADED_PENDING_ADMIN_CONSENT",
+    "PublicStableLatest": "v1.1.1"
+  },
+  "RemainingGates": [
+    "INSTALL_EXACT_PROTECTED_RC10",
+    "SOFT_STALL_25S_FAULT_INJECTION",
+    "HARD_STALL_GT60S_FAULT_INJECTION",
+    "POST_FAULT_SOAK",
+    "REAL_S3_REGRESSION_RC10",
+    "TASKBAR_MODULE_EVENTLOG_REGRESSION",
+    "BRAIN_FINAL_ACCEPTANCE_UPDATE",
+    "FINAL_V1.1.2_IDENTITY_BUILD_INSTALL_ATTEST_PROMOTE"
+  ]
+}

@@ -1,112 +1,194 @@
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
-Brain Version: PB-2026-09-19-R21-RC8-INSTALLED1
+Brain Version: PB-2026-09-19-R21-RC10-PENDING-INSTALL1
 Status: CURRENT
-Updated: 2026-09-19T19:55:00+03:30
+Updated: 2026-09-19T21:44:26+03:30
 
-## Authority
+## Project definition
 
-- Public Stable/Latest remains v1.1.1.
-- Current engineering candidate: v1.1.2-rc8 / R21 Main Integrity Boundary Hardening on `audit/r21-final-hardening-rc8`.
-- Binary source authority: `6965f3852b5361169d480bab984c9bef065e1e70`.
-- Build-evidence authority before installed acceptance: `d7c8d4f66b84b36949019c6789be96514f73a0b5`.
-- Installed Main SHA-256: `5172A2AC11B356D678122C0FD196CA24E8636648B63894D05BDD9C126D53E000`.
-- Protected Broker SHA-256: `DBB2AF15D116564E3C287D1F5EC04B62D5BBE803048E52B855D9B5BF37316FCB`.
-- Protected Supervisor SHA-256: `1A9AAA02D7FBA3DAF876A6399000BCA8A21CEC158F9FD5D5E2D0D2F99FF68DF9`.
-- RC8 Setup SHA-256: `12BCA03A9BEA803269712694B5FC3EAFAB5BDE514C60E2D520142B022BC496F4`.
-- Do not claim public FINAL/STABLE until one real suspend/resume post-check passes and the accepted immutable public release is promoted.
+Taskbar Monitor Enhanced is a Windows taskbar-integrated hardware/system monitor. R21 hardens the product for long-run daily use: isolated native hardware-sensor access, bounded self-healing, windowless protected sensor workers, least-privilege Main UI, deterministic builds, auditable supply-chain provenance and safe installation/update behavior.
 
-## Objective / DoD
+## Final Objective / DoD
 
-Deliver a long-run-stable Windows taskbar monitor with truthful telemetry, no LibreHardwareMonitor in Main, process-isolated protected sensor access, bounded self-healing, no persistent sensor console windows, a Medium-integrity Main UI, deterministic/reproducible release outputs, auditable update trust, and an install/uninstall surface suitable for normal daily use.
+Release immutable public v1.1.2 only when the exact final source/build/install identity has:
+- zero-warning/zero-error reproducible build and clean-clone byte determinism;
+- pinned LibreHardwareMonitor/PawnIO dependency hashes and SPDX SBOM;
+- Main at Medium integrity with no LibreHardwareMonitor loaded in Main;
+- protected Broker/Supervisor in Program Files, windowless PE GUI subsystem, correct Job containment and scheduled-task policy;
+- truthful CPU/GPU/storage telemetry with 15-second UI freshness;
+- bounded recovery from transient sensor stalls without restart storms and a hard watchdog for true stalls;
+- real S3 suspend/resume acceptance with no false freshness failure;
+- taskbar geometry/module/EventLog/runtime soak acceptance;
+- exact GitHub provenance/SBOM attestations and immutable release assets;
+- clean Start Menu/startup/uninstall surface;
+- current cumulative Brain and acceptance evidence sufficient for account transfer.
 
-## Accepted architecture
+## Current authority
 
-- Main UI runs non-elevated at Medium integrity.
-- CPU/GPU persistent sensor reads and storage one-shot reads run in isolated Broker processes under a Supervisor.
-- Supervisor/Broker live in protected Program Files and are launched by the pre-authorized Scheduled Task at Highest run level.
-- Child sensor workers are Job-contained with kill-on-close semantics.
-- LibreHardwareMonitor 0.9.6 and PawnIO 2.2.0 remain dependency-lock pinned by URL and SHA-256.
-- Broker and Supervisor are `WinExe` / PE `WINDOWS_GUI` subsystem=2, preventing persistent console surfaces.
-- Main never loads LibreHardwareMonitor.
-- RC8 reuses the exact accepted RC7 protected pair only after hash + fresh versioned health + Job containment + transport/data gates pass.
-- Whole-Setup elevation does not auto-launch Main; normal non-elevated Setup launches Main at Medium integrity.
-- Public update installation requires exact asset identity, SHA-256 metadata and immutable-release policy.
+- Public Stable/Latest: **v1.1.1**. Do not supersede until final v1.1.2 gates close.
+- Current engineering candidate: **v1.1.2-rc10 / R21 CPU slow-read hardening**.
+- Current branch: `audit/r21-final-hardening-rc10`.
+- Source authority: `e89aebd9012f95d050771283562069f9cb5f5515`.
+- Parent accepted source before RC10 mutation: RC9 `220e49824a8ccb89192e0ab173860e016c2ca7d9`.
+- RC10 self-hosted GitHub run: `35460297804` = SUCCESS.
+- RC10 draft prerelease target: `e89aebd9012f95d050771283562069f9cb5f5515`, draft/prerelease only.
+- Repository immutable releases policy is enabled.
+- Local project root: `C:\Users\Aa.Emad\source\repos\TaskbarMonitorEnhanced_R20`.
+- Protected sensor root: `C:\Program Files\TaskbarMonitorEnhanced\SensorBroker`.
+- User runtime root: `C:\Users\Aa.Emad\AppData\Local\TaskbarMonitorEnhanced`.
 
-## Root causes closed in RC7/RC8
+## Current RC10 deterministic outputs
 
-### Repeated NO_CURRENT_OUTPUT_AFTER_GRACE restarts
-RC6 Supervisor treated a single missing/unobservable output timestamp after a healthy sample as immediate failure. Baseline regression reproduced a false restart during a 3-second output gap. RC7 now honors the existing 15-second last-known-good freshness budget; a 3-second gap is tolerated while a persistent >15-second gap still restarts.
+- Main: `6BBD6BF7A559DE4C2C59FE4027FA2BA30EC82765B3C6F4000FF34375C72B2550`
+- Broker: `7BA4E75514D69EC20D7FD478C3F8769A2D22BB48AC1B19900D946DF4FB64D907`
+- Supervisor: `FE5EB08FC2ED2D2C7CAA70F7EA48965C409E2093E3BB054CE8AE60003D85D97D`
+- Setup: `488FAC9FE5C98943F8A90DE58EBF70B999EE0C4AD4E01933B0090FDEA73BC400`
+- SPDX SBOM: `E3659486DA78AE92E9F079EE76E10DF65518A3A5C25E00811A1B78C1958D894B`
+- Manifest: `RC_MANIFEST_v1.1.2-rc10.json`
+- Hash list: `SHA256SUMS_v1.1.2-rc10.txt`
 
-### Persistent sensor console window
-The Scheduled Task directly launched a CUI Supervisor. RC7 changes both Broker and Supervisor to `WinExe` / `WINDOWS_GUI` and Build-R21 now fails unless both PE subsystem values equal 2.
+## Roadmap and current position
 
-### Elevated Main inheritance
-A whole-Setup elevated fallback could launch Main with the elevated parent token. RC8 skips Main auto-launch when Setup is elevated; normal non-elevated Setup launches Main itself. This follows Windows UAC least-privilege process-boundary guidance.
+Lifecycle:
+DISCOVERY → DEFINITION → BASELINE → DEVELOPMENT → VERIFICATION → **VALIDATION/ACCEPTANCE (CURRENT)** → DELIVERY/RELEASE → CLOSURE → FINAL
 
-## Installed acceptance evidence
+Evidence-backed completed:
+1. R21 architecture/process isolation and protected sensor boundary.
+2. Deterministic build pipeline, dependency lock, SBOM generator, self-hosted attestations.
+3. Main taskbar/UI feature baseline and module isolation.
+4. RC7 transient output-observation-gap fix and windowless Broker/Supervisor.
+5. RC8 least-privilege Main launch boundary.
+6. RC9 official Windows suspend/resume notification integration.
+7. RC9 deterministic Setup canonical text staging.
+8. RC9 installer single-instance/state-integrity hardening.
+9. RC9 real S3 test: physical suspend/wake occurred; resume notification observed; no worker failure during resume; post-health PASS.
+10. RC10 source/build/determinism/SBOM/self-hosted GitHub supply-chain gates.
 
-PASS:
-- RC8 non-elevated install completed in 2.17 s without UAC.
-- `install_state.json`: `SensorLayerStatus=READY`, `SensorLayerMode=REUSED_EXACT_RC7_FOR_RC8`, `MainLaunchMode=LAUNCHED_NON_ELEVATED_SETUP`.
-- Protected Broker/Supervisor hashes remained byte-for-byte unchanged from accepted RC7.
-- Main process integrity: Medium, RID 8192.
-- Healthprobe: PASS; R21=true; Job containment=true; ResilienceState=STABLE; CPU/GPU/storage transport and data all healthy.
-- Windowless runtime proof: one Supervisor, persistent Brokers parented to it, zero sensor-owned `conhost/OpenConsole` children.
-- Taskbar canary after RC8: 24/24 samples stable, visible and direct child of `Shell_TrayWnd`; geometry 1100x48.
-- Main module isolation: 300/300 samples with zero LibreHardwareMonitor module load.
-- Recent relevant Application/TaskScheduler errors: 0.
-- 90-second live soak: 19/19 samples healthy; CPU/GPU restart counters unchanged; zero post-RC7 `NO_CURRENT_OUTPUT_AFTER_GRACE` / observation-gap failures.
-- Since the final RC7 CPU restart at 15:29:40Z, the CPU worker remained stable through the later RC8 acceptance window.
+Current critical gate:
+**Install exact protected RC10 pair and execute fault-injection/runtime acceptance.**
 
-Observed but not overclaimed:
-- Two CPU `WORKER_EXIT_-1` events occurred during the first two minutes after protected RC7 installation. Broker log had no `BROKER_FATAL`, Event Log had no application/.NET crash, and the condition has not recurred. Root cause remains UNVERIFIED; retained as installation-transition evidence/regression watch item.
+Remaining after RC10 protected install:
+- 25-second soft-stall fault injection: no CPU restart; UI freshness remains truthful; same worker recovers.
+- >60-second hard-stall fault injection: hard watchdog must restart stuck CPU worker and recover.
+- post-fault runtime soak with stable restart counters and zero new failures.
+- real S3 regression on installed RC10.
+- taskbar/module/EventLog/windowless/integrity regressions on installed RC10.
+- update acceptance/Brain to RC10 accepted state.
+- derive exact final v1.1.2 identity from accepted RC10, rebuild/determinism/install/attest/revalidate and only then publish immutable Stable/Latest.
 
-## Install surface
+## Current installed state — IMPORTANT
 
-PASS:
-- Start Menu main shortcut points to the installed Main.
-- Start Menu protected-sensor Repair shortcut points to `Uninstall.exe /repair-sensors`.
-- Desktop shortcut points to installed Main.
-- HKCU uninstall registration shows version 1.1.2-rc8.
-- Startup uses a single HKCU Run entry; `config.json StartWithWindows=true`; no duplicate Startup-folder launcher.
-- Scheduled Task is Running, Highest, Interactive, IgnoreNew, restart count=3, restart interval=PT1M.
-- Non-elevated GENERIC_WRITE open on Broker and Supervisor fails with Win32 Access Denied (5).
+The machine is temporarily in a **mixed RC10/RC9 state**, intentionally marked non-accepted:
+- Main is RC10 hash `6BBD6BF7...`.
+- protected Broker is still RC9 hash `5D482440...`.
+- protected Supervisor is still RC9 hash `A0A7C711...`.
+- `install_state.json`: PublicVersion RC10 but `SensorLayerStatus=DEGRADED`; protected RC10 install is pending Windows Secure Desktop administrator consent.
+- Do not run RC10 fault-injection or claim installed RC10 acceptance until protected hashes equal the RC10 manifest.
 
-## Build / release-chain evidence
+## Why RC10 exists
 
-PASS:
-- App/Broker/Supervisor/Setup builds: 0 warnings / 0 errors.
-- Built-in self-test: PASS / PUBLIC_VERSION=1.1.2-rc8.
-- Setup resource/policy verify: PASS / RC8_APP_REUSES_EXACT_RC7_SENSOR.
+After RC9's real-S3 resume race was fixed, a post-S3 90-second soak found a separate recurring CPU sensor stall:
+- `17:55:35Z WORKER_FAILURE CPU STALE_OUTPUT_16.0S`
+- `17:56:12Z WORKER_FAILURE CPU NO_CURRENT_OUTPUT_AFTER_GRACE`
+- recovery at `17:57:41Z`.
+
+Broker log showed no `BROKER_FATAL`; the worker stayed alive and was likely blocked in LibreHardwareMonitor/PawnIO hardware access. An isolated 8-case CPU/storage contention probe did not reproduce a timeout, so simple storage concurrency is UNPROVEN. Active MSI Center/Mystic Light services are a possible external contention source but are not proven root cause and must not be disabled automatically.
+
+Windows ACPI thermal-zone fallback was rejected: available ACPI temperature was not representative of CPU Package temperature.
+
+RC10 therefore separates data freshness from process-watchdog policy:
+- UI/Main CPU temperature freshness remains **15 seconds**; stale data becomes unavailable/N/A.
+- CPU Supervisor hard-stall budget is **60 seconds**.
+- CPU startup grace is **60 seconds**.
+- GPU keeps the established 15-second hard behavior.
+- soft CPU stalls are observable via `CpuSlowOutputActive` / `WORKER_SLOW_OUTPUT`;
+- recovery logs `WORKER_SLOW_OUTPUT_RECOVERED`;
+- true >60s stalls still cause bounded restart.
+
+This avoids hiding stale telemetry while reducing restart storms caused by transient low-level sensor delays.
+
+## Verification state
+
+RC10 PASS:
+- App/Broker/Supervisor/Setup: 0 warnings / 0 errors.
+- Main self-test: PASS, includes `CPU_HARD_STALL_WATCHDOG_SEC=60`.
+- Setup resource/policy verify: PASS.
 - Sensor PE windowless guard: PASS.
-- Clean-clone byte-for-byte determinism: PASS.
+- Canonical text payload gate: PASS.
+- Clean-clone byte determinism: PASS.
 - SPDX 2.3 SBOM generation: PASS.
-- GitHub self-hosted RC8 finalize run `35452831037`: SUCCESS at `d7c8d4f66b84b36949019c6789be96514f73a0b5`.
-- Independent API read-back: Main provenance=1, RC8 Setup provenance=1, Setup SBOM=1; Broker/Supervisor provenance counts=2 because their exact RC7 bytes were attested in both RC7 and RC8 workflows.
-- RC8 draft prerelease exists and is not public; public Stable/Latest remains v1.1.1.
-- Repository Immutable Releases is enabled.
+- GitHub self-hosted run `35460297804`: SUCCESS.
+- GitHub steps build/determinism/SBOM/provenance/Setup-SBOM/evidence-upload: SUCCESS.
+- RC10 draft evidence assets uploaded; public release not promoted.
 
-## Critical Path <- CURRENT
+RC10 UNPROVEN/PENDING:
+- exact protected RC10 install;
+- soft/hard watchdog fault injection;
+- post-fault soak;
+- real S3 on installed RC10;
+- final installed RC10 taskbar/module/EventLog regression;
+- final public v1.1.2 identity/release.
 
-1. Keep RC8 installed and avoid further source/runtime mutation unless evidence shows a new defect.
-2. Perform one real suspend/resume cycle and immediately rerun health/taskbar/module/EventLog/windowless checks.
-3. If that physical validation passes, update acceptance records and promote the already-attested RC8 candidate through the immutable public release path.
-4. If the physical validation fails, treat the exact observed failure as the single next mutation objective; do not blindly rerun or broaden the architecture.
+## Historical failure / prevention record
 
-## Evidence
+- RC6 false `NO_CURRENT_OUTPUT_AFTER_GRACE`: single transient missing file observation triggered restart. Prevention: last-known-good freshness handling; regression protects short gaps.
+- RC7 CUI console window: Scheduled Task launched console-subsystem Supervisor. Prevention: Broker/Supervisor WinExe + PE subsystem build guard.
+- RC8 elevation inheritance: whole elevated Setup could auto-launch high-integrity Main. Prevention: elevated Setup never auto-launches Main; normal Setup keeps Main Medium integrity.
+- RC8 real-S3 race: stale GPU evaluation occurred before long-gap detection. Prevention: Windows suspend/resume callback plus transition deferral; RC9 physical S3 passed.
+- RC9 Setup determinism: raw CRLF/LF text resources changed Setup bytes across checkout policies. Prevention: canonical UTF-8/LF embedded-text staging.
+- RC9 installer state race: parallel Setup invocations could delete shared sensor result and write DEGRADED after successful helper. Prevention: single-instance Setup mutex + unified sensor version constant.
+- RC9 post-S3 CPU stalls: recurring ~15s LHM/PawnIO CPU read stalls caused restarts. RC10 prevention under validation: 15s data freshness, 60s CPU hard watchdog.
+- Do not disable MSI Center/Mystic Light or other unrelated user services without separate evidence/approval.
 
-- `r21_evidence/RC8_LIVE_SOAK_90S.json`
-- `r21_evidence/INSTALLED_R21_TASKBAR_CANARY.json`
-- `r21_evidence/INSTALLED_R21_MODULE_ISOLATION.json`
-- Local cumulative evidence/knowledge under `%LOCALAPPDATA%\TaskbarMonitorEnhanced\00_PROJECT_CONTROL`.
-- GitHub RC8 run `35452831037` and draft release evidence assets.
+## Authoritative vs superseded
+
+Authoritative/current:
+- branch `audit/r21-final-hardening-rc10`
+- commit `e89aebd9012f95d050771283562069f9cb5f5515`
+- `build/Build-R21.ps1`
+- `build/Verify-Determinism.ps1`
+- `build/Generate-Sbom.ps1`
+- `.github/workflows/r21-rc10-selfhosted-finalize.yml`
+- `RC_MANIFEST_v1.1.2-rc10.json`
+- `SHA256SUMS_v1.1.2-rc10.txt`
+
+SUPERSEDED — DO NOT RUN as current candidate:
+- RC6/RC7/RC8/RC9 release workflows, manifests and runners.
+They remain historical provenance/evidence only.
+- Public v1.1.1 remains valid rollback/stable authority until v1.1.2 is actually accepted and promoted.
+
+## Key evidence
+
+- `r21_evidence/RC9_REAL_SUSPEND_RESUME.json` — RC9 physical S3 PASS.
+- `r21_evidence/RC9_POST_S3_SOAK_90S.json` — RC9 CPU-stall failure evidence; must be preserved.
+- `r21_evidence/rc9_contention_probe/RC9_SENSOR_CONTENTION_PROBE.json` — simple storage contention not reproduced.
+- GitHub RC10 run `35460297804`.
+- RC10 draft prerelease and its build manifest/SBOM/evidence ZIP.
+- Local cumulative knowledge/evidence under `%LOCALAPPDATA%\TaskbarMonitorEnhanced\00_PROJECT_CONTROL`.
+
+## Risks / hinges
+
+- Windows Secure Desktop UAC is the current owner gate for replacing Program Files protected binaries. Remote Commander cannot click or bypass Secure Desktop.
+- LibreHardwareMonitor/PawnIO may experience transient hardware-access stalls on this MSI Z790 environment; RC10 watchdog semantics require real fault-injection and soak proof.
+- Public Stable/Latest promotion is irreversible in practice under immutable-release policy; promotion is forbidden until exact final v1.1.2 identity is revalidated.
+
+## Exact next action
+
+1. Approve the currently requested Windows administrator consent for the hash-pinned RC10 Setup, or run that exact Setup interactively if the prompt was dismissed.
+2. Verify installed Broker/Supervisor hashes equal the RC10 manifest and `install_state=READY/CURRENT_EXACT_RC10`.
+3. Run RC10 soft-stall and hard-stall fault injections, then post-fault soak.
+4. Run real S3 and full installed regressions.
+5. If all PASS, record accepted RC10, derive final v1.1.2 identity, rebuild/determinism/install/attest/revalidate, then publish immutable Stable/Latest.
+
+## Account-Transfer Test
+
+PASS for understanding/continuation: a new account can identify project goal, root, current branch/commit, installed mixed state, historical failures, current blocker, release-chain status, remaining gates and exact next action from this Brain alone.
 
 ## HISTORY
 
-- v1.1.1 remains the public rollback/stable authority.
-- R20/R21 isolated native sensor access from Main and added bounded supervision, diagnostics, reproducible builds and release-chain hardening.
-- RC6 introduced component-aware least-privilege reuse but retained false positive output-gap restarts.
-- RC7 fixed transient output-gap restarts and CUI sensor console windows; exact windowless protected pair was installed and accepted.
-- RC8 preserves that exact protected pair and hardens Main launch integrity; installed RC8 acceptance and GitHub release-chain gates pass.
-- Physical suspend/resume validation is the only remaining acceptance gate before public Stable/Latest promotion.
+- v1.1.1: current public stable/rollback authority.
+- R21: process-isolated protected sensors, deterministic builds, supply-chain hardening and diagnostics.
+- RC7: output-gap and windowless sensor fixes.
+- RC8: Main integrity/elevation boundary.
+- RC9: official power notification, deterministic Setup and installer state-integrity fixes; real S3 PASS but post-S3 CPU stall recurrence.
+- RC10: CPU 15s freshness / 60s hard-stall separation. Build/CI PASS; exact protected install and runtime validation pending.

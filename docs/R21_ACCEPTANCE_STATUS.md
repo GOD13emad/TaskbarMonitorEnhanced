@@ -1,122 +1,80 @@
-# R21 Acceptance Status — Taskbar Monitor Enhanced 1.1.2-rc6
+# R21 Acceptance Status — Taskbar Monitor Enhanced 1.1.2-rc10
 
 Status: RELEASE CANDIDATE / NOT STABLE
+Updated: 2026-09-19T21:44:26+03:30
 
-Authority baseline: Git commit 539c8f7 (R20 process-isolation baseline).
-Development branch: audit/r21-final-hardening-rc6.
-R21 release-source authority: 9211aa5.
-R21 runtime-code authority: 7a89368.
-R21 transactional-installer authority: d9953d5.
-R21 build-pipeline authority: bdcd2b4.
+## Authority
 
+- Branch: `audit/r21-final-hardening-rc10`
+- Source authority: `e89aebd9012f95d050771283562069f9cb5f5515`
+- Public Stable/Latest: `v1.1.1`
+- RC10 GitHub self-hosted finalize run: `35460297804` = SUCCESS
+- RC10 draft prerelease target: exact source authority above; draft/prerelease only.
 
-## RC6 final local acceptance
+## RC10 objective
 
-- Clean-clone byte-for-byte determinism: PASS at build-input authority e343648.
-- Live compatible protected-layer reuse: PASS; 2.38-second install, no UAC, READY / REUSED_COMPATIBLE_RC4, protected hashes unchanged.
-- Post-install stabilization: PASS; healthprobe remained PASS and ActiveConsecutiveFailures returned to 0.
-- Forced Supervisor-stop production-threshold recovery: PASS at STATE_STALE_98S; existing Scheduled Task restarted by Main, one Supervisor/two persistent brokers, correct parenting, final health PASS/STABLE.
-- GPU stale-log pressure: PASS; repeated stale messages were bounded to approximately 30-second intervals.
-- Installed taskbar canary: PASS, 24/24 samples at 1100x48, visible and direct taskbar child.
-- Installed Main module isolation: PASS, 300/300 samples with no LibreHardwareMonitor module in the UI process.
-- Recent relevant Application/Explorer Event Log errors: 0.
-- All local RC6 source/build/runtime acceptance gates are PASS.
+Preserve 15-second CPU temperature freshness while preventing transient LibreHardwareMonitor/PawnIO CPU read stalls from causing repeated worker restart storms. CPU hard process watchdog = 60 seconds; GPU behavior remains unchanged.
 
-## RC6-specific status
+## Evidence-backed PASS
 
-- RC4->RC5 protected-source diff audit: PASS; Broker/Supervisor differences are version identity only.
-- RC6 installer compatible-reuse policy: exact hash pair + matching BrokerVersion + <15s state + Job containment + CPU/GPU/storage transport/data health; otherwise elevation path remains mandatory.
-- Explicit Repair Hardware Sensors still forces the current elevated protected payload.
-- RC6 primary zero-warning build, Setup policy verify and SPDX SBOM: PASS; final clean-clone determinism pending identity commit.
-- RC6 live compatible-reuse install: PASS; 2.38s, no UAC, Main exact candidate hash, protected RC4 hashes unchanged, SensorLayerStatus=READY, SensorLayerVersion=1.1.2-rc4+r21, SensorLayerMode=REUSED_COMPATIBLE_RC4.
-- RC6 post-install health stabilization: PASS; healthprobe stayed PASS and ActiveConsecutiveFailures returned from 1 to 0 with RECOVERED_RECENTLY.
+- Four-component build: 0 warnings / 0 errors.
+- Built-in self-test: PASS; RC10 identity and CPU 60-second watchdog marker present.
+- Setup embedded-resource/policy verification: PASS.
+- Broker/Supervisor PE windowless guard: PASS.
+- Canonical embedded-text payload: PASS.
+- Clean-clone byte-for-byte determinism: PASS.
+- SPDX 2.3 SBOM: PASS.
+- GitHub self-hosted RC10 build/determinism/SBOM/provenance/Setup-SBOM/evidence upload: PASS.
+- Draft prerelease is non-public and points at the exact RC10 source authority.
+- Main RC10 binary has been installed in user space.
 
-## RC5-specific status
+## RC10 deterministic outputs
 
-- RC4 fully installed baseline: PASS; exact hashes, READY, healthprobe PASS and ProcessContainment=true.
-- RC4 production-threshold forced Supervisor-stop self-heal: PASS; Main emitted SENSOR_SUPERVISOR_AUTOHEAL_TRIGGER and START_TASK_PASS, new Supervisor became fresh, exactly one Supervisor/two persistent brokers remained and final healthprobe passed.
-- RC5 GPU stale-log throttle source build/self-test: PASS.
-- RC5 objective is deliberately narrow: remove log amplification without changing the proven recovery architecture.
-- RC5 clean-clone determinism: PASS; all four outputs byte-identical across independent workspace paths.
-- RC5 final deterministic authority: PASS at 5f87c2e.
-- RC5 Main installed canary: PASS for exact Main hash, 24/24 taskbar geometry, 300/300 no-LHM module samples and zero relevant recent Application Event errors.
-- RC5 protected Broker/Supervisor completion: PENDING administrator/UAC approval; currently healthy RC4 protected binaries remain active and RC5 install_state correctly reports DEGRADED.
+- Main: `6BBD6BF7A559DE4C2C59FE4027FA2BA30EC82765B3C6F4000FF34375C72B2550`
+- Broker: `7BA4E75514D69EC20D7FD478C3F8769A2D22BB48AC1B19900D946DF4FB64D907`
+- Supervisor: `FE5EB08FC2ED2D2C7CAA70F7EA48965C409E2093E3BB054CE8AE60003D85D97D`
+- Setup: `488FAC9FE5C98943F8A90DE58EBF70B999EE0C4AD4E01933B0090FDEA73BC400`
+- SBOM: `E3659486DA78AE92E9F079EE76E10DF65518A3A5C25E00811A1B78C1958D894B`
 
-## RC4-specific status
+## Current installed acceptance
 
-- RC3 installed baseline before RC4 mutation: PASS; exact hashes, SensorLayerStatus READY, healthprobe PASS, ProcessContainment=true, task policy healthy and recent relevant Event Log errors = 0.
-- RC4 Main self-heal logic/self-test: PASS in source build; READY-only policy, 90-second startup/stale threshold and 180-second cooldown.
-- RC4 SPDX 2.3 SBOM generator: PASS locally (3 packages, 4 release files, 7 relationships).
-- RC4 CI workflow syntax/pinning: PASS locally; provenance/SBOM attestation execution requires a GitHub Actions run after push.
-- RC4 deterministic clean-clone build: PASS; all four outputs are byte-for-byte identical across independent workspace paths.
-- RC4 installed canary and forced Supervisor-stop auto-recovery: PENDING.
+**FAIL-CLOSED / MIXED STATE — NOT ACCEPTED**
 
-## RC3-specific status
+- Main is RC10.
+- protected Broker/Supervisor remain RC9.
+- `install_state.json` reports `SensorLayerStatus=DEGRADED`.
+- Exact protected RC10 installation is waiting for Windows Secure Desktop administrator consent.
+- Fault-injection and RC10 physical S3 acceptance must not run until the protected hashes match RC10.
 
-- RC3 primary reproducible-build path: PASS, all four binaries 0 warnings / 0 errors; Setup resource verification and app self-test PASS.
-- RC3 atomic-config, strict-updater and optional power/fan self-test assertions: PASS.
-- RC3 live isolated RTX 3080 power/fan probe: PASS.
-- RC3 supervisor steady/stale/18.5-second long-gap/log-rotation/failure-to-recovery observability tests: PASS.
-- RC3 abrupt-supervisor-death containment: PASS; test Supervisor was terminated with TerminateProcess and both CPU/GPU child workers exited automatically via Windows Job Object within the next observation interval.
-- RC3 clean-clone determinism: PASS; all four outputs are byte-for-byte identical from independent workspace paths.
-- RC3 main installed canary: PASS; exact main hash, 24/24 stable direct-taskbar-child geometry samples, 300/300 module-isolation samples with no LHM, and zero relevant recent Application Event errors. Protected Broker/Supervisor remain RC2 until an explicit administrator/UAC completion step, so RC3 health correctly reports DEGRADED with ProcessContainment=false.
+## Root-cause chain leading to RC10
 
-## Evidence-backed PASS gates
+1. RC8 physical S3 exposed resume-ordering race.
+2. RC9 official Windows resume callback fixed the race; real S3 passed with no worker failure.
+3. RC9 post-S3 soak exposed a separate CPU worker stall: STALE_OUTPUT then NO_CURRENT_OUTPUT_AFTER_GRACE.
+4. Broker emitted no fatal exception; isolated storage-contention probe did not reproduce a hang.
+5. UI freshness already rejects CPU data older than 15 seconds.
+6. RC10 therefore keeps freshness=15s but changes CPU hard-stall watchdog/startup grace to 60s, with explicit slow-output observability.
 
-- Main application build: 0 warnings / 0 errors.
-- Sensor broker build: 0 warnings / 0 errors.
-- Sensor supervisor build: 0 warnings / 0 errors.
-- Setup build: 0 warnings / 0 errors.
-- Setup embedded-resource verification: PASS, 19 resources.
-- Main self-test: PASS.
-- Git whitespace/error check: PASS.
-- Legacy R20/rc1/250ms/RestartCount=99 scan in R21 source/installer: no matches.
-- PowerShell elevated-helper parser: 0 syntax errors.
-- Deterministic supervisor steady-state test: CPU HEALTHY_NO_DATA, GPU HEALTHY_DATA, storage HEALTHY_NO_DATA; no unnecessary restarts.
-- Deterministic stale CPU worker test: stale detected at about 15.1 s, 5 s backoff, one controlled restart; GPU/storage stayed independent.
-- Full-width theme proof: 14/14 themes, no synthetic metric data.
-- Compact proof: 14 themes at 592 px and 500 px, zero layout overflows.
-- Runtime no-screen canary: direct taskbar child, visible, 1100x48, 24/24 stable geometry/parent samples while Start was stimulated; candidate stayed alive and prior installed UI was restored.
-- Live hardware probe: CPU=1, GPU=1, physical disks=4, network adapters=1.
-- Live CPU temperature: elevated broker available.
-- Candidate isolated GPU broker: RTX 3080 load/temperature/VRAM/clocks available in non-elevated test.
-- Existing elevated monolithic broker evidence: three storage temperature records available (Crucial BX500, Samsung 980 PRO, Samsung 990 PRO).
-- Historical downgrade/regression gate: --healthprobe correctly identified the pre-R21 installation as DEGRADED / ArchitectureR21=false rather than falsely passing it.
-- Current GitHub public release v1.1.1 has SHA-256 asset metadata but is mutable; R21 automatic-install policy correctly blocks mutable releases.
-- Reproducible clean-clone build: PASS from release-source commit 9211aa5 using the pinned dependency lock; an earlier clean clone also re-downloaded and verified the official dependencies.
-- Binary determinism: PASS; main app, broker, supervisor and setup are byte-for-byte identical between the primary workspace and a separate clean clone.
-- Automated determinism verifier: PASS from committed HEAD using build/Verify-Determinism.ps1 and build/dependencies.lock.json.
-- Setup assembly identity: PASS; app, broker, supervisor and setup all expose ProductVersion 1.1.2-rc3+r21.
-- Bounded-UAC regression: PASS; the noninteractive install path that previously stalled returned in 31.31 seconds, wrote SensorLayerStatus=DEGRADED, left no Setup orphan, and healthprobe correctly remained DEGRADED.
-- Transactional sensor rollback fault-injection: PASS; after forced failure following candidate file replacement, the previous sensor sentinel was restored exactly, no candidate files remained, stale CPU/GPU/storage/supervisor test telemetry was removed, and the helper emitted DEGRADED_ROLLED_BACK with RollbackSucceeded=true.
-- Stable rollback after the bounded-UAC test: PASS; installed v1.1.1 app SHA-256 restored exactly to 408D5DFA73871579A3FF46F9D681BE78B9AF882CFE569D0750260ACA5694D139 and resumed as a visible direct taskbar child with fresh elevated CPU telemetry.
-- Short same-machine A/B UI benchmark: R21 process CPU time decreased by about 47.4% and median working set by about 23.9% versus the installed v1.1.1 across a 15-second post-warm-up window. This is a local directional benchmark, not a universal performance claim.
-- Windows Event Log post-install check: PASS; no TBME/LHM or Explorer Application Error/.NET Runtime/Application Hang/WER events were found in the observed R21 install window.
-- Test-only supervisor long-gap path: PASS; an 18.5-second suspended supervisor loop triggered POWER_RESUME_OR_LONG_GAP_DETECTED, bounded staggered CPU/GPU recycle, stable transport and zero consecutive failures.
-- Synthetic main power-message path: PASS; WM suspend/resume produced TELEMETRY_PAUSE, static-topology reset/invalidation, TELEMETRY_RESUME, taskbar recovery and healthprobe PASS.
-- Post-Explorer soak: PASS; 18/18 five-second samples kept CPU/GPU restart counts fixed, failure counts at zero, healthy reasons, visibility and taskbar geometry.
-- Explorer recovery: PASS; the taskbar shell process was deliberately restarted, the R21 UI process PID stayed unchanged, and it reattached to the new taskbar within 2 seconds at 1100x48.
-- CPU worker containment: PASS; one NO_CURRENT_OUTPUT_AFTER_GRACE event produced one bounded restart with 5-second backoff, then WORKER_RECOVERY_STABLE; no further worker failures were recorded in the observed window.
-- Shared-read CPU broker fix: PASS; after deployment, new main-log lines contain no CPU_TEMP_BROKER_READ, broker-stale or CPU-temperature-unavailable events in the observed window.
-- Installed main-process isolation: PASS; current 100-sample module audit found no LibreHardwareMonitor module in the UI process.
-- Installed live CPU/GPU/storage telemetry: PASS; CPU, RTX 3080 and three storage records are fresh and data-available.
-- Installed Scheduled Task policy: PASS; RestartCount=3 and MultipleInstances=IgnoreNew.
-- Installed file identity: PASS; Main/Broker/Supervisor SHA-256 values match the current deterministic candidate outputs.
-- Installed elevated R21 split supervisor: PASS; install_state SensorLayerStatus=READY and healthprobe reports PASS.
+## Open acceptance gates
 
-## Environment/test limitation
+1. Exact protected RC10 install / READY state.
+2. Soft-stall 25s fault injection: no restart; recovery required.
+3. Hard-stall >60s fault injection: bounded restart required.
+4. Post-fault 90s soak: restart counters stable; all samples healthy; zero new failures.
+5. Real S3 on installed RC10: notification + recovery + no false worker failure.
+6. Taskbar geometry, Main no-LHM module isolation, windowless process tree, Medium integrity and Event Log regression.
+7. Current Brain/manifest acceptance update.
+8. Final v1.1.2 identity build/determinism/install/attestation and immutable publication.
 
-The elevated installation gate is now closed on the validation machine. The remaining limitation is duration/power-transition coverage: the observed installed run is healthy, but a longer soak that includes an actual suspend/resume cycle has not yet been completed in this acceptance record. This is intentionally not substituted with a synthetic claim.
+## Promotion rule
 
-## Remaining release gates
+RC10 is not the public release. Stable/Latest promotion is prohibited until a separate exact final `v1.1.2` identity is built, installed and accepted with all gates above PASS.
 
-All local RC6 engineering gates are PASS. The remaining gates are external/physical:
+## Evidence
 
-1. Resolve the GitHub account billing lock. The pushed Actions run did not start any job/checkout/build step, so provenance/SBOM attestations could not execute.
-2. Re-run the pinned GitHub Actions workflow and require build-provenance plus SBOM attestation success.
-3. Complete one real suspend/resume cycle and re-run healthprobe, taskbar/module and Event Log checks.
-4. Enable GitHub immutable releases before public Stable/Latest publication.
-
-## Dependency decision
-
-LibreHardwareMonitor 0.9.6 remains pinned for this candidate. A master/nightly build pinned to commit dc51e75bd97b15ce17ded0885e67bad47be0765b was built and tested separately; it did not improve the CPU worker startup/hang behavior and was not promoted into the production dependency set.
+- `RC_MANIFEST_v1.1.2-rc10.json`
+- `SHA256SUMS_v1.1.2-rc10.txt`
+- `r21_evidence/RC9_REAL_SUSPEND_RESUME.json`
+- `r21_evidence/RC9_POST_S3_SOAK_90S.json`
+- `r21_evidence/rc9_contention_probe/RC9_SENSOR_CONTENTION_PROBE.json`
+- GitHub run `35460297804`
