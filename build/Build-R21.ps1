@@ -29,6 +29,16 @@ function Build([string]$Project){
     & dotnet build $Project -c Release --nologo -p:RestoreIgnoreFailedSources=true
     if($LASTEXITCODE -ne 0){throw "Build failed: $Project"}
 }
+function Assert-PeSubsystem([string]$Path,[int]$Expected){
+    if(!(Test-Path -LiteralPath $Path)){throw "PE subsystem check missing file: $Path"}
+    [byte[]]$bytes=[IO.File]::ReadAllBytes($Path)
+    if($bytes.Length -lt 256){throw "PE subsystem check invalid file: $Path"}
+    $pe=[BitConverter]::ToInt32($bytes,0x3C)
+    if($pe -lt 0 -or ($pe+96) -ge $bytes.Length){throw "PE header offset invalid: $Path"}
+    if($bytes[$pe] -ne 0x50 -or $bytes[$pe+1] -ne 0x45 -or $bytes[$pe+2] -ne 0 -or $bytes[$pe+3] -ne 0){throw "PE signature invalid: $Path"}
+    $subsystem=[BitConverter]::ToUInt16($bytes,$pe+24+68)
+    if($subsystem -ne $Expected){throw "Unexpected PE subsystem for $Path; expected $Expected (WINDOWS_GUI), actual $subsystem"}
+}
 
 New-Item -ItemType Directory -Force -Path $Deps,$Out,$Package,$Artifacts|Out-Null
 if(!$NoDownload){
@@ -48,6 +58,9 @@ New-Item -ItemType Directory -Force -Path $Out,$Package|Out-Null
 Build (Join-Path $PSScriptRoot 'TaskbarMonitorEnhanced.csproj')
 Build (Join-Path $PSScriptRoot 'TaskbarMonitorSensorBroker.csproj')
 Build (Join-Path $PSScriptRoot 'TaskbarMonitorSensorSupervisor.csproj')
+Assert-PeSubsystem (Join-Path $Out 'Broker\TaskbarMonitorSensorBroker.exe') 2
+Assert-PeSubsystem (Join-Path $Out 'Supervisor\TaskbarMonitorSensorSupervisor.exe') 2
+Write-Host 'R21_SENSOR_WINDOWLESS_PE=PASS'
 Copy-Item (Join-Path $Out 'App\TaskbarMonitorEnhanced.exe') $Package
 Copy-Item (Join-Path $Out 'Broker\TaskbarMonitorSensorBroker.exe') $Package
 Copy-Item (Join-Path $Out 'Supervisor\TaskbarMonitorSensorSupervisor.exe') $Package
