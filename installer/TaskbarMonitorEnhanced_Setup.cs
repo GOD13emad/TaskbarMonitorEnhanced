@@ -25,6 +25,7 @@ internal static class SetupProgram
 {
     const string Product="Taskbar Monitor Enhanced";
     const string Version="1.1.2-rc9";
+    const string SensorLayerVersion="1.1.2-rc9+r21";
     const string Publisher="Dr. Ali-Akbar Emadeddin";
     const string AppFolder="TaskbarMonitorEnhanced";
     const string UninstallKey=@"Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced";
@@ -260,7 +261,7 @@ internal static class SetupProgram
             outcome.IsHealthy=String.Equals(outcome.Status,"READY",StringComparison.OrdinalIgnoreCase);
             if(outcome.IsHealthy)
             {
-                outcome.LayerVersion="1.1.2-rc7+r21";
+                outcome.LayerVersion=SensorLayerVersion;
                 outcome.LayerMode="INSTALLED_CURRENT";
             }
             if(String.IsNullOrEmpty(outcome.Status))outcome.Status="UNKNOWN";
@@ -328,7 +329,7 @@ internal static class SetupProgram
             if(String.Equals(brokerSha,currentBrokerSha,StringComparison.OrdinalIgnoreCase)&&
                String.Equals(supervisorSha,currentSupervisorSha,StringComparison.OrdinalIgnoreCase))
             {
-                expectedVersion="1.1.2-rc9+r21";
+                expectedVersion=SensorLayerVersion;
                 mode="CURRENT_EXACT_RC9";
             }
             else return false;
@@ -655,6 +656,21 @@ internal static class SetupProgram
 
     [STAThread]
     static int Main(string[] args)
+    {
+        bool createdNew=false;
+        using(Mutex mutex=new Mutex(true,@"Local\TaskbarMonitorEnhanced_Setup_1_1_2",out createdNew))
+        {
+            if(!createdNew)
+            {
+                if(!Has(args,"/quiet"))
+                    MessageBox.Show("Another Taskbar Monitor Enhanced Setup instance is already running.","Setup already running",MessageBoxButtons.OK,MessageBoxIcon.Information);
+                return 40;
+            }
+            return RunMain(args);
+        }
+    }
+
+    static int RunMain(string[] args)
     {
         if(Has(args,"/verify"))
             return Verify(Value(args,"/verifyfile="));
