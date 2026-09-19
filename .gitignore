@@ -45,6 +45,7 @@ r21_upstream/
 build/_deps/
 build/_out/
 build/_package/
+build/_package_text/
 artifacts/
 r21_perf_canary/
 r21_supply_chain/

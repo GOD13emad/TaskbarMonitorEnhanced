@@ -1,0 +1,13 @@
+src/TaskbarMonitorEnhanced.cs text eol=lf
+src/sensors/TaskbarMonitorSensorBroker.cs text eol=lf
+src/sensors/TaskbarMonitorSensorSupervisor.cs text eol=lf
+installer/TBME_Setup_Elevated_Helper.ps1 text eol=lf
+installer/TaskbarMonitorEnhanced_Setup.cs text eol=lf
+LICENSE text eol=lf
+README.md text eol=lf
+AUTHORS.md text eol=lf
+COPYRIGHT_AND_ATTRIBUTION.md text eol=lf
+AI_ASSISTED_DEVELOPMENT.md text eol=lf
+THIRD_PARTY_NOTICES.md text eol=lf
+RELEASE_NOTES_v1.1.2.md text eol=lf
+UPSTREAM_REFERENCE_GPL_NOTICE.md text eol=lf

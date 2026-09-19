@@ -3,19 +3,19 @@
   <ItemGroup><Compile Include="..\installer\TaskbarMonitorEnhanced_Setup.cs" /><Reference Include="System.IO.Compression" /><Reference Include="System.IO.Compression.FileSystem" /></ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="_package\TaskbarMonitorEnhanced.exe" LogicalName="Payload.TaskbarMonitorEnhanced.exe" />
-    <EmbeddedResource Include="..\src\TaskbarMonitorEnhanced.cs" LogicalName="Payload.TaskbarMonitorEnhanced.cs" />
+    <EmbeddedResource Include="_package_text\TaskbarMonitorEnhanced.cs" LogicalName="Payload.TaskbarMonitorEnhanced.cs" />
     <EmbeddedResource Include="_package\TaskbarMonitorSensorBroker.exe" LogicalName="Payload.TaskbarMonitorSensorBroker.exe" />
-    <EmbeddedResource Include="..\src\sensors\TaskbarMonitorSensorBroker.cs" LogicalName="Payload.TaskbarMonitorSensorBroker.cs" />
+    <EmbeddedResource Include="_package_text\TaskbarMonitorSensorBroker.cs" LogicalName="Payload.TaskbarMonitorSensorBroker.cs" />
     <EmbeddedResource Include="_package\TaskbarMonitorSensorSupervisor.exe" LogicalName="Payload.TaskbarMonitorSensorSupervisor.exe" />
-    <EmbeddedResource Include="..\src\sensors\TaskbarMonitorSensorSupervisor.cs" LogicalName="Payload.TaskbarMonitorSensorSupervisor.cs" />
+    <EmbeddedResource Include="_package_text\TaskbarMonitorSensorSupervisor.cs" LogicalName="Payload.TaskbarMonitorSensorSupervisor.cs" />
     <EmbeddedResource Include="assets\TaskbarMonitorEnhanced.ico" LogicalName="Payload.TaskbarMonitorEnhanced.ico" />
     <EmbeddedResource Include="_deps\LibreHardwareMonitor.zip" LogicalName="Payload.LibreHardwareMonitor.zip" />
     <EmbeddedResource Include="_deps\PawnIO_setup.exe" LogicalName="Payload.PawnIO_setup.exe" />
-    <EmbeddedResource Include="..\installer\TBME_Setup_Elevated_Helper.ps1" LogicalName="Payload.TBME_Setup_Elevated_Helper.ps1" />
-    <EmbeddedResource Include="..\LICENSE" LogicalName="Payload.LICENSE" /><EmbeddedResource Include="..\README.md" LogicalName="Payload.README.md" />
-    <EmbeddedResource Include="..\AUTHORS.md" LogicalName="Payload.AUTHORS.md" /><EmbeddedResource Include="..\COPYRIGHT_AND_ATTRIBUTION.md" LogicalName="Payload.COPYRIGHT_AND_ATTRIBUTION.md" />
-    <EmbeddedResource Include="..\AI_ASSISTED_DEVELOPMENT.md" LogicalName="Payload.AI_ASSISTED_DEVELOPMENT.md" /><EmbeddedResource Include="..\THIRD_PARTY_NOTICES.md" LogicalName="Payload.THIRD_PARTY_NOTICES.md" />
-    <EmbeddedResource Include="..\RELEASE_NOTES_v1.1.2.md" LogicalName="Payload.RELEASE_NOTES_v1.1.2.md" /><EmbeddedResource Include="..\UPSTREAM_REFERENCE_GPL_NOTICE.md" LogicalName="Payload.UPSTREAM_REFERENCE_GPL_NOTICE.md" />
-    <EmbeddedResource Include="..\installer\TaskbarMonitorEnhanced_Setup.cs" LogicalName="Payload.TaskbarMonitorEnhanced_Setup.cs" />
+    <EmbeddedResource Include="_package_text\TBME_Setup_Elevated_Helper.ps1" LogicalName="Payload.TBME_Setup_Elevated_Helper.ps1" />
+    <EmbeddedResource Include="_package_text\LICENSE" LogicalName="Payload.LICENSE" /><EmbeddedResource Include="_package_text\README.md" LogicalName="Payload.README.md" />
+    <EmbeddedResource Include="_package_text\AUTHORS.md" LogicalName="Payload.AUTHORS.md" /><EmbeddedResource Include="_package_text\COPYRIGHT_AND_ATTRIBUTION.md" LogicalName="Payload.COPYRIGHT_AND_ATTRIBUTION.md" />
+    <EmbeddedResource Include="_package_text\AI_ASSISTED_DEVELOPMENT.md" LogicalName="Payload.AI_ASSISTED_DEVELOPMENT.md" /><EmbeddedResource Include="_package_text\THIRD_PARTY_NOTICES.md" LogicalName="Payload.THIRD_PARTY_NOTICES.md" />
+    <EmbeddedResource Include="_package_text\RELEASE_NOTES_v1.1.2.md" LogicalName="Payload.RELEASE_NOTES_v1.1.2.md" /><EmbeddedResource Include="_package_text\UPSTREAM_REFERENCE_GPL_NOTICE.md" LogicalName="Payload.UPSTREAM_REFERENCE_GPL_NOTICE.md" />
+    <EmbeddedResource Include="_package_text\TaskbarMonitorEnhanced_Setup.cs" LogicalName="Payload.TaskbarMonitorEnhanced_Setup.cs" />
   </ItemGroup>
 </Project>
