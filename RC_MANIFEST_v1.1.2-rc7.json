@@ -1,6 +1,6 @@
 {
   "Version": "1.1.2-rc7",
-  "Status": "BUILD_DETERMINISM_SBOM_PASS_INSTALL_PENDING",
+  "Status": "BUILD_DETERMINISM_SBOM_WINDOWLESS_PASS_INSTALL_PENDING",
   "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC7",
   "ParentRc6Authority": "154fc70d58d70b076127e1430aeebdcf11da67aa",
   "ChangeObjective": "SUPERVISOR_OUTPUT_OBSERVATION_GAP_DEBOUNCE",
@@ -19,17 +19,17 @@
     {
       "Name": "TaskbarMonitorSensorBroker.exe",
       "Bytes": 22528,
-      "SHA256": "288183EBA4ABCAE7A0401E637C7E5ACEA48977D74736D32338554065082EA237"
+      "SHA256": "DBB2AF15D116564E3C287D1F5EC04B62D5BBE803048E52B855D9B5BF37316FCB"
     },
     {
       "Name": "TaskbarMonitorSensorSupervisor.exe",
       "Bytes": 26624,
-      "SHA256": "0985B8D8608D4E3CB9A6F105AF9A3969604DA626F9DF272B854DCAD6F817AA89"
+      "SHA256": "1A9AAA02D7FBA3DAF876A6399000BCA8A21CEC158F9FD5D5E2D0D2F99FF68DF9"
     },
     {
       "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc7.exe",
       "Bytes": 10979840,
-      "SHA256": "EDA1960C64554560FF4C3912422CDC51015EDCF0B16C3F6B5E94CB3AA6A595BE"
+      "SHA256": "459F2805633B526B5044622E187A661974540481A44BF99998D68439FF131557"
     }
   ],
   "RemainingGates": [
@@ -38,7 +38,7 @@
     "REAL_SUSPEND_RESUME",
     "GITHUB_ATTESTATION"
   ],
-  "SourceAuthorityCommit": "2a5f5e3faa09e70dc22eb110c7ec20ff2b0dd18f",
+  "SourceAuthorityCommit": "13918d13498bdd27012fe40b542e5eb9315e1173",
   "Reproducibility": {
     "PrimaryBuild": "PASS_0_WARNINGS_0_ERRORS",
     "BuiltInSelfTest": "PASS",
@@ -48,5 +48,14 @@
     "SbomGeneration": "PASS",
     "SbomPath": "artifacts/R21_SBOM.spdx.json"
   },
-  "UpdatedUtc": "2026-09-19T11:50:48.292752+00:00"
+  "UpdatedUtc": "2026-09-19T12:04:32.848Z",
+  "PreviousBuildEvidenceCommit": "21941f2",
+  "WindowlessSensors": {
+    "Method": "Broker and Supervisor built as WinExe / PE WINDOWS_GUI subsystem",
+    "BuildGuard": "Build-R21 Assert-PeSubsystem requires subsystem=2 for both binaries",
+    "BinaryGate": "PASS",
+    "BrokerSubsystem": 2,
+    "SupervisorSubsystem": 2,
+    "InvalidArgsExitContract": "PASS_EXIT_2"
+  }
 }
