@@ -48,11 +48,15 @@ jobs:
 
       - name: Attest binary build provenance
         uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        env:
+          INPUT_PRIVATE-SIGNING: 'true'
         with:
           subject-path: 'build/_out/**/*.exe'
 
       - name: Attest Setup SBOM
         uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        env:
+          INPUT_PRIVATE-SIGNING: 'true'
         with:
           subject-path: 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_*.exe'
           sbom-path: 'artifacts/R21_SBOM.spdx.json'
