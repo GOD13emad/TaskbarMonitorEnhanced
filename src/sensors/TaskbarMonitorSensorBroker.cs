@@ -37,12 +37,18 @@ namespace TaskbarMonitorSensorBroker
         public bool TemperatureValid;
         public bool CoreClockValid;
         public bool MemoryClockValid;
+        public bool PowerValid;
+        public bool FanRpmValid;
+        public bool FanPercentValid;
         public float Load;
         public float Temperature;
         public float VramUsedGb;
         public float VramTotalGb;
         public float CoreClockMHz;
         public float MemoryClockMHz;
+        public float PowerW;
+        public float FanRpm;
+        public float FanPercent;
         public int PcieGeneration;
         public int PcieWidth;
         public string Source="";
@@ -157,11 +163,22 @@ namespace TaskbarMonitorSensorBroker
             return 20;
         }
 
+        private static int CpuPowerPriority(string name)
+        {
+            string n=(name??"").ToLowerInvariant();
+            if(n.Contains("cpu package"))return 100;
+            if(n=="package"||n.Contains("package power"))return 98;
+            if(n.Contains("cpu total"))return 95;
+            if(n.Contains("cores"))return 70;
+            return 40;
+        }
+
         private static Dictionary<string,object> ReadCpu(Computer computer)
         {
             DateTime ts=DateTime.UtcNow;
             string cpuName="";
             List<Tuple<string,float>> temps=new List<Tuple<string,float>>();
+            List<Tuple<string,float>> powers=new List<Tuple<string,float>>();
             List<string> raw=new List<string>();
             try
             {
@@ -172,20 +189,34 @@ namespace TaskbarMonitorSensorBroker
                     cpuName=hw.Name??"";
                     foreach(ISensor sensor in hw.Sensors)
                     {
-                        if(sensor.SensorType!=SensorType.Temperature)continue;
-                        string value=sensor.Value.HasValue?sensor.Value.Value.ToString("0.0",CultureInfo.InvariantCulture):"NULL";
-                        raw.Add(sensor.Name+"="+value);
-                        if(ValidTemp(sensor.Value))temps.Add(Tuple.Create(sensor.Name,sensor.Value.Value));
+                        if(sensor.SensorType==SensorType.Temperature)
+                        {
+                            string value=sensor.Value.HasValue?sensor.Value.Value.ToString("0.0",CultureInfo.InvariantCulture):"NULL";
+                            raw.Add(sensor.Name+"="+value);
+                            if(ValidTemp(sensor.Value))temps.Add(Tuple.Create(sensor.Name,sensor.Value.Value));
+                        }
+                        else if(sensor.SensorType==SensorType.Power && sensor.Value.HasValue)
+                        {
+                            float v=sensor.Value.Value;
+                            if(!Single.IsNaN(v)&&!Single.IsInfinity(v)&&v>0.1f&&v<1000) powers.Add(Tuple.Create(sensor.Name??"",v));
+                        }
                     }
                     foreach(IHardware sub in hw.SubHardware)
                     {
                         foreach(ISensor sensor in sub.Sensors)
                         {
-                            if(sensor.SensorType!=SensorType.Temperature)continue;
                             string name=sub.Name+"/"+sensor.Name;
-                            string value=sensor.Value.HasValue?sensor.Value.Value.ToString("0.0",CultureInfo.InvariantCulture):"NULL";
-                            raw.Add(name+"="+value);
-                            if(ValidTemp(sensor.Value))temps.Add(Tuple.Create(name,sensor.Value.Value));
+                            if(sensor.SensorType==SensorType.Temperature)
+                            {
+                                string value=sensor.Value.HasValue?sensor.Value.Value.ToString("0.0",CultureInfo.InvariantCulture):"NULL";
+                                raw.Add(name+"="+value);
+                                if(ValidTemp(sensor.Value))temps.Add(Tuple.Create(name,sensor.Value.Value));
+                            }
+                            else if(sensor.SensorType==SensorType.Power && sensor.Value.HasValue)
+                            {
+                                float v=sensor.Value.Value;
+                                if(!Single.IsNaN(v)&&!Single.IsInfinity(v)&&v>0.1f&&v<1000)powers.Add(Tuple.Create(name,v));
+                            }
                         }
                     }
                 }
@@ -208,6 +239,16 @@ namespace TaskbarMonitorSensorBroker
                     maximum=temps.Where(x=>x.Item1.IndexOf("distance",StringComparison.OrdinalIgnoreCase)<0).Select(x=>x.Item2).DefaultIfEmpty(current).Max();
                 }
 
+                bool powerAvailable=powers.Count>0;
+                float packagePower=0f;
+                string powerSensor="";
+                if(powerAvailable)
+                {
+                    Tuple<string,float> pwr=powers.OrderByDescending(x=>CpuPowerPriority(x.Item1)).ThenByDescending(x=>x.Item2).First();
+                    packagePower=pwr.Item2;
+                    powerSensor=pwr.Item1;
+                }
+
                 return new Dictionary<string,object>{
                     {"TimestampUtc",ts.ToString("o",CultureInfo.InvariantCulture)},
                     {"Available",available},
@@ -216,6 +257,9 @@ namespace TaskbarMonitorSensorBroker
                     {"MaximumC",maximum},
                     {"Sensor",chosenName},
                     {"CpuName",cpuName},
+                    {"PackagePowerAvailable",powerAvailable},
+                    {"PackagePowerW",packagePower},
+                    {"PackagePowerSensor",powerSensor},
                     {"Error",available?"":"No valid CPU temperature values."},
                     {"Is64BitProcess",Environment.Is64BitProcess},
                     {"IsElevated",IsElevated()},
@@ -231,6 +275,7 @@ namespace TaskbarMonitorSensorBroker
                     {"TimestampUtc",ts.ToString("o",CultureInfo.InvariantCulture)},
                     {"Available",false},
                     {"CurrentC",0f},{"AverageC",0f},{"MaximumC",0f},{"Sensor",""},{"CpuName",cpuName},
+                    {"PackagePowerAvailable",false},{"PackagePowerW",0f},{"PackagePowerSensor",""},
                     {"Error",ex.ToString()},
                     {"Is64BitProcess",Environment.Is64BitProcess},
                     {"IsElevated",IsElevated()},
@@ -332,6 +377,16 @@ namespace TaskbarMonitorSensorBroker
             return 60;
         }
 
+        private static int GpuPowerPriority(string name)
+        {
+            string n=(name??"").ToLowerInvariant();
+            if(n.Contains("gpu package"))return 100;
+            if(n=="gpu power"||n.Contains("board power"))return 98;
+            if(n.Contains("gpu core"))return 90;
+            if(n.Contains("power"))return 70;
+            return 40;
+        }
+
         private static float ToGb(SensorType type,float value)
         {
             if(type==SensorType.SmallData)return value/1024f;
@@ -360,6 +415,9 @@ namespace TaskbarMonitorSensorBroker
                     List<Tuple<string,float>> loads=new List<Tuple<string,float>>();
                     List<Tuple<string,float>> temps=new List<Tuple<string,float>>();
                     List<Tuple<string,float>> clocks=new List<Tuple<string,float>>();
+                    List<Tuple<string,float>> powers=new List<Tuple<string,float>>();
+                    List<Tuple<string,float>> fans=new List<Tuple<string,float>>();
+                    List<Tuple<string,float>> fanControls=new List<Tuple<string,float>>();
                     float dedicatedUsed=0,dedicatedTotal=0,sharedUsed=0,sharedTotal=0,genericUsed=0,genericTotal=0;
                     bool hasDedicatedUsed=false,hasDedicatedTotal=false,hasSharedUsed=false,hasSharedTotal=false,hasGenericUsed=false,hasGenericTotal=false;
 
@@ -372,6 +430,9 @@ namespace TaskbarMonitorSensorBroker
                         if(sensor.SensorType==SensorType.Load && value>=0 && value<=100)loads.Add(Tuple.Create(name,value));
                         else if(sensor.SensorType==SensorType.Temperature && value>=5 && value<=130)temps.Add(Tuple.Create(name,value));
                         else if(sensor.SensorType==SensorType.Clock && value>0 && value<100000)clocks.Add(Tuple.Create(name,value));
+                        else if(sensor.SensorType==SensorType.Power && value>0.1f && value<2000)powers.Add(Tuple.Create(name,value));
+                        else if(sensor.SensorType==SensorType.Fan && value>=0 && value<100000)fans.Add(Tuple.Create(name,value));
+                        else if(sensor.SensorType==SensorType.Control && name.IndexOf("fan",StringComparison.OrdinalIgnoreCase)>=0 && value>=0 && value<=100)fanControls.Add(Tuple.Create(name,value));
                         else if(sensor.SensorType==SensorType.SmallData || sensor.SensorType==SensorType.Data)
                         {
                             float gb=ToGb(sensor.SensorType,value);
@@ -406,6 +467,12 @@ namespace TaskbarMonitorSensorBroker
                     if(coreClock!=null&&coreClock.Item2>0){g.CoreClockMHz=coreClock.Item2;g.CoreClockValid=true;}
                     Tuple<string,float> memClock=clocks.Where(x=>x.Item1.IndexOf("memory",StringComparison.OrdinalIgnoreCase)>=0).OrderByDescending(x=>x.Item2).FirstOrDefault();
                     if(memClock!=null&&memClock.Item2>0){g.MemoryClockMHz=memClock.Item2;g.MemoryClockValid=true;}
+                    Tuple<string,float> power=powers.OrderByDescending(x=>GpuPowerPriority(x.Item1)).ThenByDescending(x=>x.Item2).FirstOrDefault();
+                    if(power!=null){g.PowerW=power.Item2;g.PowerValid=true;}
+                    Tuple<string,float> fan=fans.OrderByDescending(x=>x.Item2).FirstOrDefault();
+                    if(fan!=null){g.FanRpm=fan.Item2;g.FanRpmValid=true;}
+                    Tuple<string,float> fanPct=fanControls.OrderByDescending(x=>x.Item2).FirstOrDefault();
+                    if(fanPct!=null){g.FanPercent=fanPct.Item2;g.FanPercentValid=true;}
                     g.VramUsedGb=hasGenericUsed?genericUsed:(hasDedicatedUsed?dedicatedUsed:0)+(hasSharedUsed?sharedUsed:0);
                     g.VramTotalGb=hasGenericTotal?genericTotal:(hasDedicatedTotal?dedicatedTotal:0)+(hasSharedTotal?sharedTotal:0);
                     records.Add(g);
@@ -419,8 +486,10 @@ namespace TaskbarMonitorSensorBroker
                 gpuJson.Add(new Dictionary<string,object>{
                     {"Available",g.Available},{"LoadValid",g.LoadValid},{"TemperatureValid",g.TemperatureValid},
                     {"CoreClockValid",g.CoreClockValid},{"MemoryClockValid",g.MemoryClockValid},
+                    {"PowerValid",g.PowerValid},{"FanRpmValid",g.FanRpmValid},{"FanPercentValid",g.FanPercentValid},
                     {"Load",g.Load},{"Temperature",g.Temperature},{"VramUsedGb",g.VramUsedGb},{"VramTotalGb",g.VramTotalGb},
                     {"CoreClockMHz",g.CoreClockMHz},{"MemoryClockMHz",g.MemoryClockMHz},
+                    {"PowerW",g.PowerW},{"FanRpm",g.FanRpm},{"FanPercent",g.FanPercent},
                     {"PcieGeneration",g.PcieGeneration},{"PcieWidth",g.PcieWidth},
                     {"Source",g.Source},{"HardwareName",g.HardwareName},{"HardwareId",g.HardwareId},{"AdapterIndex",g.AdapterIndex}
                 });

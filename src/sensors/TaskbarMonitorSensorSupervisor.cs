@@ -19,6 +19,8 @@ internal static class TaskbarMonitorSensorSupervisor
     const int StartupGraceSeconds=30;
     const int StorageIntervalSeconds=60;
     const int StorageTimeoutSeconds=12;
+    const long MaxSensorLogBytes=4L*1024L*1024L;
+    const int SensorLogBackups=3;
 
     sealed class Worker
     {
@@ -36,11 +38,16 @@ internal static class TaskbarMonitorSensorSupervisor
         public bool DataAvailable;
         public string OutputError="";
         public string LastReason="";
+        public DateTime LastFailureUtc=DateTime.MinValue;
+        public DateTime LastRecoveryUtc=DateTime.MinValue;
+        public string LastFailureReason="";
     }
 
     static string LogPath="";
+    static string BrokerLogPath="";
     static string StatePath="";
     static string BrokerPath="";
+    static DateTime SupervisorStartedUtc=DateTime.UtcNow;
     static string CpuOutput="";
     static string GpuOutput="";
     static string StorageOutput="";
@@ -56,6 +63,9 @@ internal static class TaskbarMonitorSensorSupervisor
     static bool StorageTransportHealthy;
     static bool StorageDataAvailable;
     static string StorageOutputError="";
+    static DateTime StorageLastFailureUtc=DateTime.MinValue;
+    static DateTime StorageLastRecoveryUtc=DateTime.MinValue;
+    static string StorageLastFailureReason="";
 
     static void Log(string message)
     {
@@ -67,6 +77,34 @@ internal static class TaskbarMonitorSensorSupervisor
             );
         }
         catch{}
+    }
+
+    static void RotateLogFile(string path)
+    {
+        try
+        {
+            if(String.IsNullOrWhiteSpace(path)||!File.Exists(path)||new FileInfo(path).Length<MaxSensorLogBytes)return;
+            for(int i=SensorLogBackups;i>=1;i--)
+            {
+                string dst=path+"."+i.ToString(CultureInfo.InvariantCulture);
+                if(i==SensorLogBackups)
+                {
+                    try{if(File.Exists(dst))File.Delete(dst);}catch{}
+                }
+                string src=i==1?path:path+"."+(i-1).ToString(CultureInfo.InvariantCulture);
+                if(File.Exists(src))
+                {
+                    try{File.Move(src,dst);}catch{}
+                }
+            }
+        }
+        catch{}
+    }
+
+    static void MaintainLogs()
+    {
+        RotateLogFile(LogPath);
+        RotateLogFile(BrokerLogPath);
     }
 
     static string JsonEscape(string s)
@@ -91,8 +129,12 @@ internal static class TaskbarMonitorSensorSupervisor
             string json="{"+
                 "\"TimestampUtc\":\""+DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture)+"\","+
                 "\"SupervisorPid\":"+Process.GetCurrentProcess().Id+","+
+                "\"SupervisorStartedUtc\":\""+SupervisorStartedUtc.ToString("o",CultureInfo.InvariantCulture)+"\","+
+                "\"SupervisorUptimeSeconds\":"+Math.Max(0,(DateTime.UtcNow-SupervisorStartedUtc).TotalSeconds).ToString("0.0",CultureInfo.InvariantCulture)+","+
                 "\"Reason\":\""+JsonEscape(reason)+"\","+
                 "\"CpuWorkerPid\":"+Pid(Cpu)+","+
+                "\"CpuWorkerStartedUtc\":\""+(Cpu.StartedUtc==DateTime.MinValue?"":Cpu.StartedUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
+                "\"CpuWorkerAgeSeconds\":"+(Cpu.StartedUtc==DateTime.MinValue?"0":Math.Max(0,(DateTime.UtcNow-Cpu.StartedUtc).TotalSeconds).ToString("0.0",CultureInfo.InvariantCulture))+","+
                 "\"CpuRestartCount\":"+Cpu.RestartCount+","+
                 "\"CpuConsecutiveFailures\":"+Cpu.ConsecutiveFailures+","+
                 "\"CpuLastReason\":\""+JsonEscape(Cpu.LastReason)+"\","+
@@ -100,7 +142,12 @@ internal static class TaskbarMonitorSensorSupervisor
                 "\"CpuDataAvailable\":"+(Cpu.DataAvailable?"true":"false")+","+
                 "\"CpuLastOutputUtc\":\""+(Cpu.LastOutputUtc==DateTime.MinValue?"":Cpu.LastOutputUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
                 "\"CpuOutputError\":\""+JsonEscape(Cpu.OutputError)+"\","+
+                "\"CpuLastFailureUtc\":\""+(Cpu.LastFailureUtc==DateTime.MinValue?"":Cpu.LastFailureUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
+                "\"CpuLastFailureReason\":\""+JsonEscape(Cpu.LastFailureReason)+"\","+
+                "\"CpuLastRecoveryUtc\":\""+(Cpu.LastRecoveryUtc==DateTime.MinValue?"":Cpu.LastRecoveryUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
                 "\"GpuWorkerPid\":"+Pid(Gpu)+","+
+                "\"GpuWorkerStartedUtc\":\""+(Gpu.StartedUtc==DateTime.MinValue?"":Gpu.StartedUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
+                "\"GpuWorkerAgeSeconds\":"+(Gpu.StartedUtc==DateTime.MinValue?"0":Math.Max(0,(DateTime.UtcNow-Gpu.StartedUtc).TotalSeconds).ToString("0.0",CultureInfo.InvariantCulture))+","+
                 "\"GpuRestartCount\":"+Gpu.RestartCount+","+
                 "\"GpuConsecutiveFailures\":"+Gpu.ConsecutiveFailures+","+
                 "\"GpuLastReason\":\""+JsonEscape(Gpu.LastReason)+"\","+
@@ -108,7 +155,12 @@ internal static class TaskbarMonitorSensorSupervisor
                 "\"GpuDataAvailable\":"+(Gpu.DataAvailable?"true":"false")+","+
                 "\"GpuLastOutputUtc\":\""+(Gpu.LastOutputUtc==DateTime.MinValue?"":Gpu.LastOutputUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
                 "\"GpuOutputError\":\""+JsonEscape(Gpu.OutputError)+"\","+
+                "\"GpuLastFailureUtc\":\""+(Gpu.LastFailureUtc==DateTime.MinValue?"":Gpu.LastFailureUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
+                "\"GpuLastFailureReason\":\""+JsonEscape(Gpu.LastFailureReason)+"\","+
+                "\"GpuLastRecoveryUtc\":\""+(Gpu.LastRecoveryUtc==DateTime.MinValue?"":Gpu.LastRecoveryUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
                 "\"StorageWorkerPid\":"+StoragePid()+","+
+                "\"StorageWorkerStartedUtc\":\""+(StorageStartedUtc==DateTime.MinValue?"":StorageStartedUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
+                "\"StorageWorkerAgeSeconds\":"+(StorageProcess==null||StorageStartedUtc==DateTime.MinValue?"0":Math.Max(0,(DateTime.UtcNow-StorageStartedUtc).TotalSeconds).ToString("0.0",CultureInfo.InvariantCulture))+","+
                 "\"StorageAttemptCount\":"+StorageAttemptCount+","+
                 "\"StorageConsecutiveFailures\":"+StorageConsecutiveFailures+","+
                 "\"StorageLastReason\":\""+JsonEscape(StorageLastReason)+"\","+
@@ -116,6 +168,9 @@ internal static class TaskbarMonitorSensorSupervisor
                 "\"StorageDataAvailable\":"+(StorageDataAvailable?"true":"false")+","+
                 "\"StorageLastOutputUtc\":\""+(StorageLastOutputUtc==DateTime.MinValue?"":StorageLastOutputUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
                 "\"StorageOutputError\":\""+JsonEscape(StorageOutputError)+"\","+
+                "\"StorageLastFailureUtc\":\""+(StorageLastFailureUtc==DateTime.MinValue?"":StorageLastFailureUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
+                "\"StorageLastFailureReason\":\""+JsonEscape(StorageLastFailureReason)+"\","+
+                "\"StorageLastRecoveryUtc\":\""+(StorageLastRecoveryUtc==DateTime.MinValue?"":StorageLastRecoveryUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
                 "\"BrokerVersion\":\"1.1.2-rc2+r21\""+
                 "}";
             string tmp=StatePath+".tmp";
@@ -226,6 +281,8 @@ internal static class TaskbarMonitorSensorSupervisor
     {
         w.TransportHealthy=false;w.DataAvailable=false;
         w.ConsecutiveFailures++;
+        w.LastFailureUtc=DateTime.UtcNow;
+        w.LastFailureReason=reason;
         if(!TryTerminateWorker(w))
         {
             w.NextStartUtc=DateTime.MaxValue;
@@ -318,6 +375,7 @@ internal static class TaskbarMonitorSensorSupervisor
         if((now-w.HealthySinceUtc).TotalSeconds>=60 && w.ConsecutiveFailures>0)
         {
             Log("WORKER_RECOVERY_STABLE name="+w.Name+" priorFailures="+w.ConsecutiveFailures);
+            w.LastRecoveryUtc=now;
             w.ConsecutiveFailures=0;
         }
         w.LastReason=data?"HEALTHY_DATA":"HEALTHY_NO_DATA";
@@ -345,6 +403,8 @@ internal static class TaskbarMonitorSensorSupervisor
             catch(Exception ex)
             {
                 w.ConsecutiveFailures++;
+                w.LastFailureUtc=DateTime.UtcNow;
+                w.LastFailureReason="START_EXCEPTION";
                 int delay=BackoffSeconds(w.ConsecutiveFailures);
                 w.NextStartUtc=now.AddSeconds(delay);
                 w.LastReason="START_EXCEPTION_BACKOFF_"+delay+"S";
@@ -431,6 +491,8 @@ internal static class TaskbarMonitorSensorSupervisor
     {
         StorageTransportHealthy=false;StorageDataAvailable=false;
         StorageConsecutiveFailures++;
+        StorageLastFailureUtc=DateTime.UtcNow;
+        StorageLastFailureReason=reason;
         if(!TryTerminateStorage())
         {
             StorageNextUtc=DateTime.MaxValue;
@@ -483,6 +545,8 @@ internal static class TaskbarMonitorSensorSupervisor
             catch(Exception ex)
             {
                 StorageConsecutiveFailures++;
+                StorageLastFailureUtc=DateTime.UtcNow;
+                StorageLastFailureReason="START_EXCEPTION";
                 int delay=StorageBackoffSeconds(StorageConsecutiveFailures);
                 StorageNextUtc=now.AddSeconds(delay);
                 StorageLastReason="START_EXCEPTION_BACKOFF_"+delay+"S";
@@ -513,6 +577,11 @@ internal static class TaskbarMonitorSensorSupervisor
                 StorageOutputError=StorageDataAvailable?"":storageError;
                 StorageTransportHealthy=true;
                 StorageLastOutputUtc=writeUtc;
+                if(StorageConsecutiveFailures>0)
+                {
+                    StorageLastRecoveryUtc=now;
+                    Log("STORAGE_RECOVERY priorFailures="+StorageConsecutiveFailures);
+                }
                 StorageConsecutiveFailures=0;
                 StorageLastReason=StorageDataAvailable?"HEALTHY_DATA":"HEALTHY_NO_DATA";
                 StorageNextUtc=now.AddSeconds(StorageIntervalSeconds);
@@ -573,6 +642,9 @@ internal static class TaskbarMonitorSensorSupervisor
 
             string root=AppDomain.CurrentDomain.BaseDirectory;
             LogPath=Path.Combine(root,"sensor_supervisor.log");
+            BrokerLogPath=Path.Combine(root,"sensor_broker.log");
+            SupervisorStartedUtc=DateTime.UtcNow;
+            MaintainLogs();
             string outputRoot=Path.GetDirectoryName(CpuOutput);
             StatePath=Path.Combine(outputRoot,"sensor_supervisor_state.json");
 
@@ -607,6 +679,7 @@ internal static class TaskbarMonitorSensorSupervisor
                     double loopGap=(loopNow-lastLoopUtc).TotalSeconds;
                     lastLoopUtc=loopNow;
                     ticks++;
+                    if(ticks%60==0)MaintainLogs();
 
                     if(loopGap>15)
                     {
