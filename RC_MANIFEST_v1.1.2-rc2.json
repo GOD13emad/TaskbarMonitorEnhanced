@@ -2,7 +2,7 @@
   "Version": "1.1.2-rc2",
   "Status": "RELEASE_CANDIDATE_NOT_STABLE",
   "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC2",
-  "BinarySourceAuthorityCommit": "9ea1886",
+  "BinarySourceAuthorityCommit": "357a2ba",
   "Dependencies": {
     "LibreHardwareMonitor": {
       "Version": "0.9.6",
@@ -19,7 +19,7 @@
     {
       "Name": "TaskbarMonitorEnhanced.exe",
       "Bytes": 264192,
-      "SHA256": "450F1C3ACBDA9CE34C27087B69F88028DBD05AC5805B7F9020D0E070624A9009"
+      "SHA256": "4B2959C9E1D55CCE61D217D12636CD7B5EF3ACBA2BA8847718F84A03A9A13656"
     },
     {
       "Name": "TaskbarMonitorSensorBroker.exe",
@@ -33,15 +33,35 @@
     },
     {
       "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc2.exe",
-      "Bytes": 10898944,
-      "SHA256": "1FEF2C2380EC9114FB58B4082B3FF7EDB1246D371264F3443DB5356A8EE2AD08"
+      "Bytes": 10903040,
+      "SHA256": "C19B0DC0DD0784FB8C7AC2C2AB3DD0C298509A9002618941EDF15A6CFA67AD44"
     }
   ],
   "Reproducibility": {
+    "PrimaryBuild": "PASS",
     "CleanCloneBuild": "PASS",
     "ByteIdenticalAcrossIndependentPaths": true,
-    "PrimaryWorkspace": "TaskbarMonitorEnhanced_R20",
-    "CleanVerificationWorkspace": "TaskbarMonitorEnhanced_R21_CLEAN_VERIFY_49f66ff"
+    "AutomatedVerifier": "build/Verify-Determinism.ps1",
+    "DependencyLock": "build/dependencies.lock.json"
   },
-  "RemainingGate": "Interactive UAC elevated split-supervisor installation plus installed healthprobe/soak"
+  "RemainingGate": "Interactive UAC-approved R21 split-supervisor installation, healthprobe PASS, and installed long soak",
+  "InstallerSafety": {
+    "BoundedUacLaunch": "PASS",
+    "NonInteractiveReturnSeconds": 31.31,
+    "DegradedStateRecorded": true,
+    "StableRollbackVerified": true,
+    "StableRollbackVersion": "1.1.1",
+    "StableRollbackAppSHA256": "408D5DFA73871579A3FF46F9D681BE78B9AF882CFE569D0750260ACA5694D139"
+  },
+  "BuildPipelineAuthorityCommit": "bdcd2b4",
+  "PerformanceHardening": {
+    "CpuUsage": "GetSystemTimes",
+    "CpuTopologyCacheMinutes": 5,
+    "DiskTopologyCacheMinutes": 5,
+    "RamModuleTopologyCacheMinutes": 10,
+    "NetworkTopologyCacheSeconds": 30,
+    "ResumeInvalidatesStaticTopology": true,
+    "GpuWddmFallbackOnDemand": true,
+    "CpuTemperatureFallbackThrottleSeconds": 15
+  }
 }

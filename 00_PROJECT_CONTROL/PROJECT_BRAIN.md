@@ -25,6 +25,9 @@ Increase long-run stability and observability without regressing the accepted ta
 - Immutable-release + SHA-256 automatic-update trust gate.
 - Installer task restart/multiple-instance hardening.
 - Installer multi-lane R21 supervisor health gate.
+- Dependency lock is authoritative for LHM/PawnIO versions, URLs and SHA-256; CI rechecks deterministic output hashes in a clean clone.
+- Bounded UAC launch; unanswered/noninteractive consent returns DEGRADED instead of leaving Setup half-installed.
+- install_state SensorLayerStatus prevents a mixed old-sensor/new-UI installation from masquerading as healthy R21.
 - Pinned LHM 0.9.6 production dependency; newer nightly tested but not promoted.
 
 ## Evidence summary

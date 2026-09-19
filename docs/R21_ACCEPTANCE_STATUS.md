@@ -4,6 +4,8 @@ Status: RELEASE CANDIDATE / NOT STABLE
 
 Authority baseline: Git commit 539c8f7 (R20 process-isolation baseline).
 Development branch: audit/r21-production-hardening.
+R21 binary-source authority: 357a2ba.
+R21 build-pipeline authority: bdcd2b4.
 
 ## Evidence-backed PASS gates
 
@@ -27,8 +29,12 @@ Development branch: audit/r21-production-hardening.
 - Existing elevated monolithic broker evidence: three storage temperature records available (Crucial BX500, Samsung 980 PRO, Samsung 990 PRO).
 - --healthprobe correctly identifies the current older installation as DEGRADED / ArchitectureR21=false rather than falsely passing it.
 - Current GitHub public release v1.1.1 has SHA-256 asset metadata but is mutable; R21 automatic-install policy correctly blocks mutable releases.
-- Reproducible clean-clone build: PASS from commit 9ea1886 using freshly downloaded official dependencies.
+- Reproducible clean-clone build: PASS from commit 43d166a using freshly downloaded official dependencies.
 - Binary determinism: PASS; main app, broker, supervisor and setup are byte-for-byte identical between the primary workspace and a separate clean clone.
+- Automated determinism verifier: PASS from committed HEAD using build/Verify-Determinism.ps1 and build/dependencies.lock.json.
+- Setup assembly identity: PASS; app, broker, supervisor and setup all expose ProductVersion 1.1.2-rc2+r21.
+- Bounded-UAC regression: PASS; the noninteractive install path that previously stalled returned in 31.31 seconds, wrote SensorLayerStatus=DEGRADED, left no Setup orphan, and healthprobe correctly remained DEGRADED.
+- Stable rollback after the bounded-UAC test: PASS; installed v1.1.1 app SHA-256 restored exactly to 408D5DFA73871579A3FF46F9D681BE78B9AF882CFE569D0750260ACA5694D139 and resumed as a visible direct taskbar child with fresh elevated CPU telemetry.
 - Short same-machine A/B UI benchmark: R21 process CPU time decreased by about 47.4% and median working set by about 23.9% versus the installed v1.1.1 across a 15-second post-warm-up window. This is a local directional benchmark, not a universal performance claim.
 
 ## Environment/test limitation
