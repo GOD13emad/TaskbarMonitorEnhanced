@@ -1,0 +1,25 @@
+{
+  "Version": "1.1.2-rc9",
+  "Status": "SOURCE_MUTATED_BUILD_PENDING",
+  "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC9",
+  "ParentRc8Authority": "3684b7b43a816d5d6fbd1a54f9e27d88af8de363",
+  "ChangeObjective": "POWER_RESUME_NOTIFICATION_BEFORE_WORKER_FRESHNESS",
+  "RootCauseEvidence": "R21_RC8_REAL_SUSPEND_FAILURE_20260919.json",
+  "Method": {
+    "Primary": "RegisterSuspendResumeNotification callback / PBT_APMRESUMEAUTOMATIC",
+    "Ordering": "resume callback -> recycle -> continue; worker freshness evaluated only after transition is complete",
+    "Fallback": "existing >15-second loop-gap recycle remains"
+  },
+  "ProtectedReusePolicy": "CURRENT_EXACT_ONLY_RC9",
+  "Outputs": [],
+  "RemainingGates": [
+    "ZERO_WARNING_BUILD",
+    "POWER_NOTIFICATION_PROBE",
+    "DETERMINISM",
+    "SETUP_VERIFY",
+    "INSTALL_PROTECTED_RC9",
+    "REAL_S3_REGRESSION",
+    "RUNTIME_REGRESSION",
+    "GITHUB_ATTESTATION"
+  ]
+}

@@ -21,9 +21,9 @@ v1.1.1 includes:
 Accepted assets and hashes are published in `SHA256SUMS_v1.1.1.txt` and `RELEASE_MANIFEST_v1.1.1.json`.
 
 
-## Development candidate: v1.1.2-rc8 (R21)
+## Development candidate: v1.1.2-rc9 (R21)
 
-v1.1.2-rc8 is the active engineering release candidate, not the current Stable/Latest release. RC8 keeps the exact accepted RC7 protected sensor layer and changes only the app/setup lane: it prevents an elevated whole-Setup fallback from auto-launching Main at High integrity, while normal non-elevated installs still launch Main automatically. Stable/Latest remains v1.1.1 pending physical suspend/resume acceptance.
+v1.1.2-rc9 is the active engineering release candidate, not the current Stable/Latest release. RC9 fixes the real-S3 resume ordering race found in RC8 by registering the official Windows suspend/resume callback and consuming resume before worker freshness checks. Stable/Latest remains v1.1.1 until the RC9 physical suspend/resume acceptance and final publication gates pass.
 
 R21 adds:
 

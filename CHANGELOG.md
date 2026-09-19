@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.2-rc9 — R21 Resume-Notification Ordering Hardening (candidate; not Stable)
+
+- register the official Windows suspend/resume callback and treat PBT_APMRESUMEAUTOMATIC as the primary early resume signal
+- defer worker freshness checks across the suspend transition and consume resume before CPU/GPU/storage health evaluation
+- recycle CPU/GPU/storage on resume before stale-output decisions; retain the existing >15-second loop-gap detector as a fallback
+- expose power-notification registration/count in supervisor state and add a bounded registration probe
+- RC8 real S3 evidence is retained as a failed gate: GPU stale output was reported one iteration before the old wall-clock long-gap detector fired
+- protected Broker/Supervisor are versioned and hash-pinned as an exact RC9 pair; older RC7/RC8 protected pairs are not reused as compatible
+
 ## 1.1.2-rc8 — R21 Main Integrity Boundary Hardening (candidate; not Stable)
 
 - preserve the exact accepted RC7 Broker/Supervisor binaries and windowless sensor behavior

@@ -8,7 +8,7 @@ The current Stable/Latest public release remains v1.1.1.
 
 ## R21 candidate
 
-The installer source in this branch targets v1.1.2-rc7 / R21 Production Hardening. It is a release candidate and must not be promoted to Stable until the elevated split-supervisor installation and installed soak gates pass.
+The installer source in this branch targets v1.1.2-rc9 / R21 Production Hardening. It is a release candidate and must not be promoted to Stable until the elevated split-supervisor installation and installed soak gates pass.
 
 R21 installer behavior includes:
 

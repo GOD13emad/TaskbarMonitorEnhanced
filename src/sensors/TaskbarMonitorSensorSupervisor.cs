@@ -10,7 +10,7 @@ using System.Threading;
 [assembly: AssemblyDescription("Failure-contained sensor worker supervisor for Taskbar Monitor Enhanced")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.1.2-rc7+r21")]
+[assembly: AssemblyInformationalVersion("1.1.2-rc9+r21")]
 [assembly: AssemblyVersion("1.1.2.0")]
 [assembly: AssemblyFileVersion("1.1.2.0")]
 
@@ -101,6 +101,153 @@ internal static class TaskbarMonitorSensorSupervisor
         {
             IntPtr h=Handle;Handle=IntPtr.Zero;Active=false;
             if(h!=IntPtr.Zero)try{CloseHandle(h);}catch{}
+        }
+    }
+
+    static class PowerResumeNotifications
+    {
+        const uint DEVICE_NOTIFY_CALLBACK=2;
+        const uint PBT_APMSUSPEND=4;
+        const uint PBT_APMRESUMEAUTOMATIC=18;
+
+        [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+        delegate uint DeviceNotifyCallback(IntPtr context,uint type,IntPtr setting);
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS
+        {
+            public IntPtr Callback;
+            public IntPtr Context;
+        }
+
+        [DllImport("user32.dll",SetLastError=true)]
+        static extern IntPtr RegisterSuspendResumeNotification(IntPtr recipient,uint flags);
+        [DllImport("user32.dll",SetLastError=true)]
+        static extern bool UnregisterSuspendResumeNotification(IntPtr handle);
+
+        static readonly object Sync=new object();
+        static readonly DeviceNotifyCallback CallbackRoot=OnPowerEvent;
+        static IntPtr ParametersMemory=IntPtr.Zero;
+        static IntPtr RegistrationHandle=IntPtr.Zero;
+        static int TransitionActive;
+        static int ResumePending;
+        static int SuspendDeferralTicks;
+        static int LastResumeType;
+        static long LastResumeHandledUtcTicks;
+        public static bool Active;
+        public static int LastError;
+        public static int ResumeNotificationCount;
+
+        static uint OnPowerEvent(IntPtr context,uint type,IntPtr setting)
+        {
+            if(type==PBT_APMSUSPEND)
+            {
+                Interlocked.Exchange(ref TransitionActive,1);
+                Interlocked.Exchange(ref SuspendDeferralTicks,0);
+                return 0;
+            }
+            if(type==PBT_APMRESUMEAUTOMATIC)
+            {
+                long now=DateTime.UtcNow.Ticks;
+                long last=Interlocked.Read(ref LastResumeHandledUtcTicks);
+                if(last>0 && now>=last && now-last<TimeSpan.TicksPerSecond*10)
+                {
+                    Interlocked.Exchange(ref TransitionActive,0);
+                    return 0;
+                }
+                Interlocked.Exchange(ref TransitionActive,1);
+                Interlocked.Exchange(ref SuspendDeferralTicks,0);
+                Interlocked.Exchange(ref LastResumeType,(int)type);
+                Interlocked.Exchange(ref ResumePending,1);
+                Interlocked.Increment(ref ResumeNotificationCount);
+            }
+            return 0;
+        }
+
+        static bool Register(out IntPtr handle,out IntPtr parameters,out int error)
+        {
+            handle=IntPtr.Zero;parameters=IntPtr.Zero;error=0;
+            try
+            {
+                DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS p=new DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS();
+                p.Callback=Marshal.GetFunctionPointerForDelegate(CallbackRoot);
+                p.Context=IntPtr.Zero;
+                parameters=Marshal.AllocHGlobal(Marshal.SizeOf(typeof(DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS)));
+                Marshal.StructureToPtr(p,parameters,false);
+                handle=RegisterSuspendResumeNotification(parameters,DEVICE_NOTIFY_CALLBACK);
+                if(handle==IntPtr.Zero)
+                {
+                    error=Marshal.GetLastWin32Error();
+                    Marshal.FreeHGlobal(parameters);
+                    parameters=IntPtr.Zero;
+                    return false;
+                }
+                return true;
+            }
+            catch
+            {
+                error=Marshal.GetLastWin32Error();
+                if(parameters!=IntPtr.Zero)try{Marshal.FreeHGlobal(parameters);}catch{}
+                parameters=IntPtr.Zero;
+                handle=IntPtr.Zero;
+                return false;
+            }
+        }
+
+        public static bool Initialize(out int error)
+        {
+            lock(Sync)
+            {
+                if(RegistrationHandle!=IntPtr.Zero){error=0;return true;}
+                IntPtr h,p;
+                if(!Register(out h,out p,out error))
+                {
+                    LastError=error;
+                    Active=false;
+                    return false;
+                }
+                RegistrationHandle=h;
+                ParametersMemory=p;
+                LastError=0;
+                Active=true;
+                return true;
+            }
+        }
+
+        public static bool ProbeRegistration()
+        {
+            IntPtr h,p;int error;
+            if(!Register(out h,out p,out error))return false;
+            try{return UnregisterSuspendResumeNotification(h);}
+            finally{if(p!=IntPtr.Zero)Marshal.FreeHGlobal(p);}
+        }
+
+        public static bool TryConsumeResume(out int type)
+        {
+            type=0;
+            if(Interlocked.Exchange(ref ResumePending,0)==0)return false;
+            type=Volatile.Read(ref LastResumeType);
+            return true;
+        }
+
+        public static bool ShouldDeferHealthChecks()
+        {
+            if(Volatile.Read(ref TransitionActive)==0)return false;
+            if(Volatile.Read(ref ResumePending)!=0)return true;
+            int ticks=Interlocked.Increment(ref SuspendDeferralTicks);
+            if(ticks>30)
+            {
+                Interlocked.Exchange(ref TransitionActive,0);
+                return false;
+            }
+            return true;
+        }
+
+        public static void CompleteResume()
+        {
+            Interlocked.Exchange(ref LastResumeHandledUtcTicks,DateTime.UtcNow.Ticks);
+            Interlocked.Exchange(ref TransitionActive,0);
+            Interlocked.Exchange(ref SuspendDeferralTicks,0);
         }
     }
 
@@ -225,6 +372,9 @@ internal static class TaskbarMonitorSensorSupervisor
                 "\"Reason\":\""+JsonEscape(reason)+"\","+
                 "\"ChildJobKillOnClose\":"+(ChildJobContainment.Active?"true":"false")+","+
                 "\"ChildJobLastError\":"+ChildJobContainment.LastError+","+
+                "\"PowerNotificationRegistered\":"+(PowerResumeNotifications.Active?"true":"false")+","+
+                "\"PowerNotificationLastError\":"+PowerResumeNotifications.LastError+","+
+                "\"PowerResumeNotificationCount\":"+PowerResumeNotifications.ResumeNotificationCount+","+
                 "\"CpuJobContained\":"+(Cpu.JobContained?"true":"false")+","+
                 "\"GpuJobContained\":"+(Gpu.JobContained?"true":"false")+","+
                 "\"StorageJobContained\":"+(StorageJobContained?"true":"false")+","+
@@ -267,7 +417,7 @@ internal static class TaskbarMonitorSensorSupervisor
                 "\"StorageLastFailureUtc\":\""+(StorageLastFailureUtc==DateTime.MinValue?"":StorageLastFailureUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
                 "\"StorageLastFailureReason\":\""+JsonEscape(StorageLastFailureReason)+"\","+
                 "\"StorageLastRecoveryUtc\":\""+(StorageLastRecoveryUtc==DateTime.MinValue?"":StorageLastRecoveryUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
-                "\"BrokerVersion\":\"1.1.2-rc7+r21\""+
+                "\"BrokerVersion\":\"1.1.2-rc9+r21\""+
                 "}";
             string tmp=StatePath+".tmp";
             File.WriteAllText(tmp,json);
@@ -752,6 +902,8 @@ internal static class TaskbarMonitorSensorSupervisor
     {
         try
         {
+            if(args!=null && args.Length==1 && String.Equals(args[0],"--power-notify-probe",StringComparison.OrdinalIgnoreCase))
+                return PowerResumeNotifications.ProbeRegistration()?0:7;
             if(!ParseArgs(args))return 2;
             if(!File.Exists(BrokerPath))return 3;
 
@@ -775,6 +927,11 @@ internal static class TaskbarMonitorSensorSupervisor
                 bool jobReady=ChildJobContainment.Initialize();
                 Log("CHILD_JOB_KILL_ON_CLOSE active="+jobReady+" win32="+ChildJobContainment.LastError);
                 if(!jobReady)return 4;
+
+                int powerNotifyError;
+                bool powerNotifyReady=PowerResumeNotifications.Initialize(out powerNotifyError);
+                Log("POWER_NOTIFICATION_REGISTERED active="+powerNotifyReady+" win32="+powerNotifyError);
+                if(!powerNotifyReady)return 5;
 
                 Log("SUPERVISOR_START R21_PRODUCTION_HARDENING pid="+Process.GetCurrentProcess().Id+
                     " broker="+BrokerPath+
@@ -800,6 +957,19 @@ internal static class TaskbarMonitorSensorSupervisor
                     ticks++;
                     if(ticks%60==0)MaintainLogs();
 
+                    int powerEventType;
+                    if(PowerResumeNotifications.TryConsumeResume(out powerEventType))
+                    {
+                        Log("POWER_RESUME_NOTIFICATION_DETECTED type="+powerEventType);
+                        RecycleWorkerAfterResume(Cpu,0);
+                        RecycleWorkerAfterResume(Gpu,3);
+                        RecycleStorageAfterResume(6);
+                        WriteState("POWER_RESUME_NOTIFICATION_RECYCLE");
+                        PowerResumeNotifications.CompleteResume();
+                        lastLoopUtc=DateTime.UtcNow;
+                        continue;
+                    }
+
                     if(loopGap>15)
                     {
                         Log("POWER_RESUME_OR_LONG_GAP_DETECTED seconds="+loopGap.ToString("0.0",CultureInfo.InvariantCulture));
@@ -807,6 +977,15 @@ internal static class TaskbarMonitorSensorSupervisor
                         RecycleWorkerAfterResume(Gpu,3);
                         RecycleStorageAfterResume(6);
                         WriteState("POWER_RESUME_RECYCLE");
+                        PowerResumeNotifications.CompleteResume();
+                        lastLoopUtc=DateTime.UtcNow;
+                        continue;
+                    }
+
+                    if(PowerResumeNotifications.ShouldDeferHealthChecks())
+                    {
+                        if(ticks%5==0)WriteState("POWER_TRANSITION_PENDING");
+                        continue;
                     }
 
                     if(!legacyClear)
