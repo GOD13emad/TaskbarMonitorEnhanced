@@ -1,21 +1,52 @@
 {
   "Version": "1.1.2-rc7",
-  "Status": "SOURCE_MUTATED_BUILD_PENDING",
+  "Status": "BUILD_DETERMINISM_SBOM_PASS_INSTALL_PENDING",
   "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC7",
   "ParentRc6Authority": "154fc70d58d70b076127e1430aeebdcf11da67aa",
   "ChangeObjective": "SUPERVISOR_OUTPUT_OBSERVATION_GAP_DEBOUNCE",
   "ProtectedReusePolicy": "CURRENT_EXACT_ONLY_RC7",
   "Regression": {
     "BaselineShortGapFalseRestart": "PASS_REPRODUCED",
-    "Rc7ShortGapToleranceAndPersistentGapRestart": "PASS_PREBUILD_SOURCE_HARNESS"
+    "Rc7ShortGapToleranceAndPersistentGapRestart": "PASS_PREBUILD_SOURCE_HARNESS",
+    "Rc7PostIdentityGapHarness": "PASS_SHORT_GAP_TOLERATED_PERSISTENT_15_5S_RESTARTED"
   },
-  "Outputs": [],
+  "Outputs": [
+    {
+      "Name": "TaskbarMonitorEnhanced.exe",
+      "Bytes": 276992,
+      "SHA256": "A8766C6D76B2D57803E0B24141A3ECB5D510C8530610058FD4F2CFCEBCB99AF5"
+    },
+    {
+      "Name": "TaskbarMonitorSensorBroker.exe",
+      "Bytes": 22528,
+      "SHA256": "288183EBA4ABCAE7A0401E637C7E5ACEA48977D74736D32338554065082EA237"
+    },
+    {
+      "Name": "TaskbarMonitorSensorSupervisor.exe",
+      "Bytes": 26624,
+      "SHA256": "0985B8D8608D4E3CB9A6F105AF9A3969604DA626F9DF272B854DCAD6F817AA89"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.1.2-rc7.exe",
+      "Bytes": 10979840,
+      "SHA256": "EDA1960C64554560FF4C3912422CDC51015EDCF0B16C3F6B5E94CB3AA6A595BE"
+    }
+  ],
   "RemainingGates": [
-    "ZERO_WARNING_BUILD",
-    "DETERMINISM",
     "INSTALL_PROTECTED_RC7",
     "LONG_RUN_RESTART_REGRESSION",
     "REAL_SUSPEND_RESUME",
     "GITHUB_ATTESTATION"
-  ]
+  ],
+  "SourceAuthorityCommit": "2a5f5e3faa09e70dc22eb110c7ec20ff2b0dd18f",
+  "Reproducibility": {
+    "PrimaryBuild": "PASS_0_WARNINGS_0_ERRORS",
+    "BuiltInSelfTest": "PASS",
+    "SetupVerify": "PASS_CURRENT_EXACT_ONLY_RC7",
+    "CleanCloneBuild": "PASS",
+    "ByteIdenticalAcrossIndependentPaths": true,
+    "SbomGeneration": "PASS",
+    "SbomPath": "artifacts/R21_SBOM.spdx.json"
+  },
+  "UpdatedUtc": "2026-09-19T11:50:48.292752+00:00"
 }
