@@ -1,10 +1,10 @@
 {
   "Version": "1.1.2-rc4",
-  "Status": "RELEASE_CANDIDATE_SOURCE_BUILT_DETERMINISM_PENDING",
+  "Status": "RELEASE_CANDIDATE_DETERMINISTIC_INSTALL_CANARY_PENDING",
   "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING_RC4",
   "Rc3BaselineAuthority": "39a6ade",
   "Rc4SelfHealSupplyChainAuthority": "8e0bf86",
-  "BinarySourceAuthorityCommit": "PENDING_RC4_IDENTITY_COMMIT",
+  "BinarySourceAuthorityCommit": "7e1b138",
   "Dependencies": {
     "LibreHardwareMonitor": {
       "Version": "0.9.6",
@@ -41,8 +41,8 @@
   ],
   "Reproducibility": {
     "PrimaryBuild": "PASS",
-    "CleanCloneBuild": "PENDING",
-    "ByteIdenticalAcrossIndependentPaths": false,
+    "CleanCloneBuild": "PASS",
+    "ByteIdenticalAcrossIndependentPaths": true,
     "AutomatedVerifier": "build/Verify-Determinism.ps1",
     "DependencyLock": "build/dependencies.lock.json",
     "SbomGenerator": "build/Generate-Sbom.ps1",

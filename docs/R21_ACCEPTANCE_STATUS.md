@@ -16,7 +16,7 @@ R21 build-pipeline authority: bdcd2b4.
 - RC4 Main self-heal logic/self-test: PASS in source build; READY-only policy, 90-second startup/stale threshold and 180-second cooldown.
 - RC4 SPDX 2.3 SBOM generator: PASS locally (3 packages, 4 release files, 7 relationships).
 - RC4 CI workflow syntax/pinning: PASS locally; provenance/SBOM attestation execution requires a GitHub Actions run after push.
-- RC4 deterministic clean-clone build: PENDING after RC4 identity commit.
+- RC4 deterministic clean-clone build: PASS; all four outputs are byte-for-byte identical across independent workspace paths.
 - RC4 installed canary and forced Supervisor-stop auto-recovery: PENDING.
 
 ## RC3-specific status
