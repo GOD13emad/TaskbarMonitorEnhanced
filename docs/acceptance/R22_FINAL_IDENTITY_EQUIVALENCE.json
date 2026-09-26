@@ -1,0 +1,76 @@
+{
+  "At": "2026-09-26T15:41:48.5676816+03:30",
+  "Status": "PASS",
+  "Scope": "Final v1.1.2 identity validation-only R4",
+  "ProductSourceMutation": "NONE",
+  "ExactPoststate": {
+    "InstallerSHA256": "986E8918D90B2DC4ABEF9C060390E8F8186D4F05600F925A0D1D3B068814FDA0",
+    "ReadmeSHA256": "6BDB70EC821D32FFAA960C8814CA64CDD8735DFB363C036E09A025ECAB82407D",
+    "ChangelogSHA256": "CE91B618E3C046E3014DA416FED54CD7FB48A5BDFC2529F6237BBF12A9EA0C33"
+  },
+  "RequiredInstallerMarkers": {
+    "Missing": [],
+    "Pass": true
+  },
+  "Main": {
+    "Label": "Main",
+    "Equal": true,
+    "CanonicalSHA256": "BA6C90C798F8B839F08D150B41F1125053AB98CC7CD671139B7ECB31299CD70D",
+    "CurrentSHA256": "5431A492D14AA1A3BB0FF480CC89FFEA947328E8BC4D4F1BDD87348D8B23FEF3",
+    "CanonicalNormalizedSHA256": "082E95825DBCAE86F697160BAA7903B762227852286BA1296CDE5E9AE2148123",
+    "CurrentNormalizedSHA256": "082E95825DBCAE86F697160BAA7903B762227852286BA1296CDE5E9AE2148123",
+    "FirstDifference": null
+  },
+  "Installer": {
+    "Label": "Installer",
+    "Equal": true,
+    "CanonicalSHA256": "E05185EED1FC0C9231030B1E75D553B96AC1A29063078731B5C30B45C3B79661",
+    "CurrentSHA256": "986E8918D90B2DC4ABEF9C060390E8F8186D4F05600F925A0D1D3B068814FDA0",
+    "CanonicalNormalizedSHA256": "09E9021F3EFC13A7744F19AB1E18FEFDDFAC9EA2DEF495763C2DE59D18E936CA",
+    "CurrentNormalizedSHA256": "09E9021F3EFC13A7744F19AB1E18FEFDDFAC9EA2DEF495763C2DE59D18E936CA",
+    "FirstDifference": null
+  },
+  "OtherFive": [
+    {
+      "Path": "src\\sensors\\TaskbarMonitorSensorBroker.cs",
+      "Equal": true,
+      "NormalizedSHA256": "36E0A971C7A9ED2CE845AAE2803F2FE3AB50CE7FB4FACBF470482E91EE284162"
+    },
+    {
+      "Path": "src\\sensors\\TaskbarMonitorSensorSupervisor.cs",
+      "Equal": true,
+      "NormalizedSHA256": "9A5EE3FAADFF4EFA4E66080F05FCEB76A4B00C0FE0A64E5E74A67A9B72671AB1"
+    },
+    {
+      "Path": "installer\\TBME_Setup_Elevated_Helper.ps1",
+      "Equal": true,
+      "NormalizedSHA256": "E3707E1440E5978BBA55BC4373A9428055B0EB85FE9EC946B1DB0DB7C5F043B4"
+    },
+    {
+      "Path": "build\\Build-R21.ps1",
+      "Equal": true,
+      "NormalizedSHA256": "E334CDEBDE80EB3FB560F4A3CA6CBC8208A52E086EED3266E3E219A3AE456636"
+    },
+    {
+      "Path": "build\\TaskbarMonitorEnhanced_Setup.csproj",
+      "Equal": true,
+      "NormalizedSHA256": "69F55ADC727A54B9806F713F8BF935106870DB1D19DE44B5821DE29A7CBFC872"
+    }
+  ],
+  "OtherFivePass": true,
+  "CoveredFiles": 7,
+  "ForbiddenCandidateTokenHits": [],
+  "Documentation": {
+    "ReadmeFinalAssets": true,
+    "ChangelogSpacing": true
+  },
+  "GitDiffCheck": "PASS",
+  "BehaviorEquivalent": true,
+  "Method": "Main and Installer compared to canonical accepted RC10 package text using only public/build identity substitutions plus BOM/line-ending normalization. RC_ internal marker is preserved, not normalized. Other five inherit unchanged-file R1 equality.",
+  "PriorFailuresAndPrevention": [
+    "R0 nested-quote mutation failure: prevented by standalone runners and exact SHA-256 prestate.",
+    "R1 line-ending false negative: prevented by actual LF character normalization.",
+    "R1/R2 git native Unicode mojibake: prevented by canonical build/_package_text for Main and Installer.",
+    "R3 escaped C# string assertion false negative: prevented by checking exact escaped source tokens."
+  ]
+}

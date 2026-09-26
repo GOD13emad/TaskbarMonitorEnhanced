@@ -1,16 +1,17 @@
 # Official downloads — Taskbar Monitor Enhanced
 
-## Latest stable
+## v1.1.2 release
 
-Current stable release: **v1.1.1**
+https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.2
 
-https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.1
+Primary assets:
 
-Assets:
+- TaskbarMonitorEnhanced_Setup_1.1.2.exe
+- SHA256SUMS_v1.1.2.txt
+- RELEASE_MANIFEST_v1.1.2.json
+- R21_SBOM.spdx.json
+- final acceptance/evidence package
 
-- `TaskbarMonitorEnhanced_Setup_1.1.1.exe`
-- `TaskbarMonitorEnhanced_1.1.1_SOURCE.zip`
-- `SHA256SUMS_v1.1.1.txt`
-- `RELEASE_MANIFEST_v1.1.1.json`
+Stable/Latest publication occurs only after the exact final build, installed runtime and GitHub supply-chain gates in docs/R21_ACCEPTANCE_STATUS.md pass.
 
-Previous stable release v1.1.0 remains available in GitHub Releases.
+Previous stable releases remain available in GitHub Releases.

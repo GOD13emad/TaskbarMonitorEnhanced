@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.2 — R21 Production Hardening
+
+- finalize the RC10-accepted 15-second truthful UI freshness / 60-second CPU hard-stall watchdog behavior
+- retain process-isolated protected sensors, Medium-integrity Main, official Windows resume notification handling, WINDOWS_GUI sensor processes and Job containment
+- complete controlled CPU soft/hard stall acceptance, corrected post-fault soak, real S3 acceptance and downstream taskbar/module/integrity/EventLog validation
+- publish all 14 live-data theme proofs plus compact 592/500-pixel zero-overflow evidence
+- derive final v1.1.2 from accepted RC10 with release-identity/documentation changes only and guard affected source against behavior drift
+
 ## 1.1.2-rc9 — R21 Resume-Notification Ordering Hardening (candidate; not Stable)
 
 - register the official Windows suspend/resume callback and treat PBT_APMRESUMEAUTOMATIC as the primary early resume signal

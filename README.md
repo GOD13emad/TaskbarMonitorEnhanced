@@ -2,15 +2,15 @@
 
 A lightweight Windows taskbar system monitor for live CPU, RAM, disk, network, GPU, VRAM and temperature telemetry.
 
-## Latest stable release: v1.1.1
+## v1.1.2 — R21 final release identity
 
-Version **v1.1.1** is the current Stable/Latest release.
+Version **v1.1.2** is the final R21 release identity, derived from the accepted RC10 behavior with release-identity and documentation changes only. GitHub Stable/Latest publication occurs only after exact final build, install, runtime and supply-chain gates pass.
 
 Existing users can update directly through the application's built-in GitHub update flow, or download the installer from:
 
-https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.1
+https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.2
 
-v1.1.1 includes:
+v1.1.2 retains the established taskbar integration and adds the R21 production-hardening line:
 
 - removal of default NVIDIA-SMI realtime polling that caused repeated console-host launches on the validation system
 - low-pressure taskbar-child shell integration
@@ -18,12 +18,12 @@ v1.1.1 includes:
 - event/geometry-driven Safe Placement work
 - single-instance Settings behavior
 
-Accepted assets and hashes are published in `SHA256SUMS_v1.1.1.txt` and `RELEASE_MANIFEST_v1.1.1.json`.
+Release assets and hashes are published in `SHA256SUMS_v1.1.2.txt` and `RELEASE_MANIFEST_v1.1.2.json`.
 
 
-## Development candidate: v1.1.2-rc10 (R21)
+## R21 acceptance and reliability
 
-v1.1.2-rc10 is the active engineering release candidate, not the current Stable/Latest release. RC10 retains the RC9 real-S3 power-notification fix and adds a CPU-specific 60-second hard stall watchdog while keeping the 15-second UI freshness boundary. This prevents short LibreHardwareMonitor/PawnIO CPU read stalls from causing restart storms while still terminating a truly stuck worker. Stable/Latest remains v1.1.1 until RC10 fault-injection, soak, physical suspend/resume, reproducibility and publication gates pass.
+The final v1.1.2 identity retains the RC10-accepted runtime behavior: 15-second truthful UI freshness, a CPU-specific 60-second hard-stall watchdog, official Windows suspend/resume notification handling, process-isolated protected sensors, and bounded recovery. RC10 passed exact protected installation, controlled soft/hard stall injection, post-fault soak, real S3 suspend/resume, taskbar geometry, module isolation, windowless sensor, integrity, Event Log and health gates before the final identity was derived.
 
 R21 adds:
 
@@ -49,15 +49,27 @@ R21 adds:
 - machine-readable failure/recovery timestamps, worker ages and STABLE / RECOVERING / RECOVERED_RECENTLY resilience state
 - optional isolated CPU package-power and GPU power/fan telemetry; unsupported sensors remain N/A
 
-Current RC6 engineering evidence includes zero-warning builds for the app/broker/supervisor/setup, self-test PASS, SPDX 2.3 SBOM PASS, clean-clone byte-identical determinism PASS, all prior 14-theme/compact proofs, RC4 live Supervisor-stop self-heal PASS, RC5 Main exact-hash install PASS, 24/24 stable direct-taskbar-child geometry samples, 300/300 main-process module samples with no LibreHardwareMonitor, and zero relevant recent Application Event errors. Full RC5 protected-layer acceptance is intentionally not claimed until administrator/UAC completion replaces the still-healthy RC4 Broker/Supervisor.
+Final R21 validation includes all 14 live-data theme renders, compact 592/500-pixel proofs with zero overflow, exact protected-sensor hashes, CPU soft/hard watchdog fault injection, corrected post-fault soak, physical S3 resume with zero new worker failures, 24/24 stable taskbar geometry samples, 300/300 Main module-isolation samples with no LibreHardwareMonitor loaded, Medium-integrity Main, WINDOWS_GUI Broker/Supervisor, zero sensor-owned console hosts, and PASS/STABLE health.
 
 See docs/R21_ACCEPTANCE_STATUS.md and RELEASE_NOTES_v1.1.2.md.
 
+## Visual gallery
+
+Real Windows 11 taskbar capture:
+
+![Taskbar Monitor Enhanced on Windows 11](docs/screenshots/desktops/desktop-dark-minimal.webp)
+
+All 14 themes, rendered by the real application with live sampled metrics during final qualification:
+
+![All 14 themes](docs/screenshots/themes/theme-contact-sheet.png)
+
+See the [full screenshot gallery](docs/screenshots/README.md) for representative desktop captures and individual theme proofs.
+
 ## Code signing status
 
-The published 1.1.1 installer is **not Authenticode-signed**, so Windows Defender SmartScreen may show **Unknown publisher** on first launch.
+The v1.1.2 release does not assume an Authenticode signature; an unsigned installer may show **Unknown publisher** in Windows Defender SmartScreen on first launch.
 
-The project has applied / is applying for the SignPath Foundation open-source code-signing program for future releases: **Free code signing provided by SignPath.io, certificate by SignPath Foundation.** This statement is conditional on project acceptance by SignPath Foundation; the current 1.1.1 release remains unsigned.
+The project has applied / is applying for the SignPath Foundation open-source code-signing program for future releases: **Free code signing provided by SignPath.io, certificate by SignPath Foundation.** This statement is conditional on project acceptance by SignPath Foundation; release acceptance does not depend on signing status.
 
 See [`CODE_SIGNING.md`](CODE_SIGNING.md) for the signing policy and [`PRIVACY.md`](PRIVACY.md) for the privacy statement.
 

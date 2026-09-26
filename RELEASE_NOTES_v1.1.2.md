@@ -1,83 +1,37 @@
-# Taskbar Monitor Enhanced v1.1.2-rc8 — R21 Production Hardening
+# Taskbar Monitor Enhanced v1.1.2 — R21 Production Hardening
 
-RC8 is the current engineering candidate for the next v1.1.2 release. It is installed and passes the available local runtime, reproducibility and supply-chain gates; public Stable/Latest remains v1.1.1 until one real suspend/resume post-check is accepted.
+v1.1.2 is the final R21 release identity. It is derived from the RC10 runtime behavior that completed hardware, watchdog, suspend/resume, taskbar, integrity and stability acceptance. The final identity changes release/version metadata and documentation only; it does not introduce new sensor, watchdog or rendering behavior.
 
-## Runtime architecture
+## Reliability architecture
 
-- LibreHardwareMonitor is not loaded in the Main UI process.
-- CPU and GPU hardware reads run in independent protected broker workers.
-- Storage temperature probing runs as a bounded one-shot worker.
-- A protected Supervisor owns worker lifecycle, freshness, bounded backoff and recovery.
-- All sensor children are attached to a kill-on-close Windows Job Object.
-- CPU/GPU/storage transport health is separated from actual sensor-data availability.
-- Static CPU/disk/RAM/network topology is cached; power/resume paths invalidate or recycle the appropriate state.
-- Main remains a normal user application at Medium integrity.
+- Main remains Medium integrity; LibreHardwareMonitor stays out of Main.
+- CPU, GPU and storage hardware access remains process-isolated behind the protected Supervisor.
+- Broker/Supervisor remain WINDOWS_GUI and sensor children remain under kill-on-close Job containment.
+- CPU UI freshness remains 15 seconds; stale temperature becomes unavailable instead of being presented as current.
+- CPU hard-stall watchdog remains 60 seconds.
+- Windows suspend/resume notifications recycle or invalidate affected sensor state before freshness decisions.
+- LibreHardwareMonitor 0.9.6 and PawnIO 2.2.0 remain pinned.
 
-## RC7 sensor stability and windowless hardening retained by RC8
+## Evidence-backed acceptance inherited from RC10
 
-RC7 fixed the repeated `NO_CURRENT_OUTPUT_AFTER_GRACE` false positive: after a worker has produced valid output, a transient missing/unobservable file observation is tolerated while the last-known-good sample remains within the existing 15-second freshness budget. A persistent gap beyond that budget still causes bounded restart. A dedicated regression reproduced the RC6 short-gap failure and proved that RC7 tolerates a 3-second gap but restarts after a persistent >15-second gap.
+- all 14 live-data theme renders passed; compact 592 px and 500 px proofs had zero overflow;
+- 25-second CPU soft stall caused no restart and the same worker recovered;
+- >60-second CPU hard stall triggered bounded replacement and healthy recovery;
+- corrected 90-second post-fault soak passed 45/45 samples;
+- real S3 suspend/resume observed the resume notification, zero new worker/storage failures and a 45-sample post-S3 soak PASS;
+- taskbar geometry/parenting passed 24/24 at 1100x48;
+- Main module isolation passed 300/300 with zero LibreHardwareMonitor modules;
+- Main integrity was Medium / RID 8192;
+- Broker/Supervisor PE subsystem was WINDOWS_GUI / 2 with zero sensor-owned console hosts;
+- relevant Application and TaskScheduler error count was zero;
+- HealthProbe was PASS / STABLE.
 
-Broker and Supervisor are now built as `WinExe` / PE `WINDOWS_GUI` subsystem=2. Build-R21 explicitly rejects any regression back to a console subsystem. On the installed machine, the live sensor process tree has zero sensor-owned `conhost/OpenConsole` children.
+Two apparent qualification failures were confirmed as test-harness defects: an early hard-stall recovery criterion that ignored the deliberate 60-second stable-recovery counter, and a PowerShell DateTime offset double-application in the first soak harness. Both causes were corrected and preserved in evidence.
 
-RC8 preserves the exact accepted RC7 protected hashes:
-- Broker: `DBB2AF15D116564E3C287D1F5EC04B62D5BBE803048E52B855D9B5BF37316FCB`
-- Supervisor: `1A9AAA02D7FBA3DAF876A6399000BCA8A21CEC158F9FD5D5E2D0D2F99FF68DF9`
+A post-S3 active-beacon screen-capture probe ran while Windows Default Lock Screen was foreground. Win32 structural checks still reported the taskbar overlay visible, uncloaked, correctly parented and 1100x48; the capture miss is retained as an environmental false negative.
 
-## RC8 Main integrity boundary
+## Final release gates
 
-RC8 fixes a least-privilege edge case in whole-Setup elevation. If Setup itself is elevated, it no longer auto-launches Main from that elevated token. Normal non-elevated Setup still auto-launches Main.
+The final identity still requires zero-warning/zero-error build, Setup /verify, self-test, clean-clone byte determinism, SPDX 2.3 SBOM, exact installed hash match, proportional runtime regression, and GitHub provenance/SBOM attestation before immutable Stable/Latest publication.
 
-The installed acceptance path used normal non-elevated Setup, reused the exact protected RC7 sensor pair without UAC, and recorded:
-- `SensorLayerStatus=READY`
-- `SensorLayerMode=REUSED_EXACT_RC7_FOR_RC8`
-- `MainLaunchMode=LAUNCHED_NON_ELEVATED_SETUP`
-
-The running Main was independently measured at Medium integrity (RID 8192).
-
-## Installed acceptance
-
-PASS:
-- exact RC8 Main SHA-256: `5172A2AC11B356D678122C0FD196CA24E8636648B63894D05BDD9C126D53E000`
-- exact RC8 Setup SHA-256: `12BCA03A9BEA803269712694B5FC3EAFAB5BDE514C60E2D520142B022BC496F4`
-- HealthProbe PASS / R21 / Job containment / STABLE
-- CPU/GPU/storage transport and data available
-- zero sensor-owned console-host children
-- taskbar geometry 24/24 stable at 1100x48 with correct `Shell_TrayWnd` parenting
-- Main module isolation 300/300 samples with no LibreHardwareMonitor
-- zero recent relevant Application/TaskScheduler errors
-- 90-second live soak: 19/19 healthy snapshots; no CPU/GPU restart-counter change
-- no `NO_CURRENT_OUTPUT_AFTER_GRACE` or observation-gap failure after protected RC7 installation
-- Start Menu, Desktop, HKCU Run startup, uninstall registration and protected-sensor Repair entry verified
-- protected Program Files Broker/Supervisor reject non-elevated GENERIC_WRITE access
-
-Two CPU `WORKER_EXIT_-1` events occurred in the first two minutes after protected RC7 installation. No broker fatal exception or Windows application/.NET crash accompanied them, and they have not recurred. Their exact external termination cause remains unverified; the events remain recorded as a regression watch item rather than being silently discarded.
-
-## Build and supply-chain verification
-
-PASS:
-- zero-warning/zero-error App/Broker/Supervisor/Setup build
-- built-in self-test
-- Setup resource/policy verification
-- explicit PE subsystem=2 sensor guard
-- clean-clone byte-for-byte determinism
-- SPDX 2.3 SBOM
-- GitHub self-hosted finalization run `35452831037`
-- GitHub provenance attestations for Main/Broker/Supervisor/Setup
-- GitHub SBOM attestation for Setup
-- independent repository API read-back of persisted attestations
-- RC8 draft prerelease evidence upload
-- immutable-release repository policy enabled
-
-Public Stable/Latest remains v1.1.1. RC8 is not promoted publicly until the remaining physical suspend/resume validation passes.
-
-## Remaining acceptance gate
-
-One real suspend/resume cycle must be performed on the installed RC8 system, followed immediately by:
-- HealthProbe / freshness / Job containment
-- taskbar geometry and parenting
-- Main module isolation
-- sensor windowless process-tree check
-- Event Log check
-- restart-counter comparison
-
-If those checks pass, RC8 is eligible for final v1.1.2 Stable/Latest promotion. If they fail, the exact observed power-transition failure becomes the next isolated mutation objective.
+See docs/R21_ACCEPTANCE_STATUS.md and docs/acceptance/R22_RC10_ACCEPTED_PRECURSOR_20260926.md.
