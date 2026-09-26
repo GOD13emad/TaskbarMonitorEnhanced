@@ -97,3 +97,15 @@
 - Immutability: v1.1.2 tag remains `aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0`; Setup SHA256 remains `25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB`.
 - Confidence/Status: Repository readiness Confirmed/PASS; external SignPath application submission BLOCKED by direct-user GUI gate; SignPath Foundation acceptance/public trust PENDING.
 - Prevention: never substitute self-signed trust, install a development root to manufacture a PASS, rewrite immutable v1.1.2, or invent/accept external identity/legal fields. Public signing must start on a new release after external provider acceptance.
+
+## 2026-09-26 — R24 default-branch publication and CI
+
+- Readiness authority: commit `b6c13838624e99d1d6ba4811b295834e22e45947`.
+- Default branch prestate: `main` at `ce657da44cb68590c73fafb4030a0abddb428685`; ancestry check proved it was an ancestor of the readiness authority.
+- Mutation: ordinary non-force fast-forward `git push origin HEAD:main`; poststate `origin/main` and `origin/maintenance/signpath-readiness` both equal `b6c13838624e99d1d6ba4811b295834e22e45947`.
+- GitHub Actions run `36250864888` at exact head SHA `b6c13838624e99d1d6ba4811b295834e22e45947`: completed success.
+- CI evidence: every step in job `build` succeeded, including reproducible build, deterministic clean-clone verification, SPDX 2.3 SBOM, binary provenance attestation, Setup SBOM attestation and evidence upload.
+- Release immutability remained PASS after main publication: tag `v1.1.2` -> `aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0`; public Setup digest remains `sha256:25744a0a0f78b787a5fc3601577748b80353adc9dafb9fe91a111a53c56216fb`.
+- Decision: repository-side prerequisites for SignPath Foundation application are accepted. This is not provider acceptance and not a public-trust signature.
+- External gate: official SignPath HubSpot application is loaded but Remote Commander input is blocked by `WORKFLOW_GUI_TAKEOVER_REQUIRES_DIRECT_USER_SESSION`; application remains NOT SUBMITTED.
+- Confidence/Status: Confirmed / repository readiness PASS / default branch PASS / CI PASS / external provider submission PENDING direct-user GUI action.

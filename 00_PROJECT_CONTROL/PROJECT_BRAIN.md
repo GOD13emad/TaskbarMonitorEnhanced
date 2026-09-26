@@ -2,7 +2,7 @@
 
 Brain Version: PB-2026-09-26-R24-SIGNPATH-READINESS
 Status: CURRENT
-Updated: 2026-09-26T18:34:00+03:30
+Updated: 2026-09-26T18:40:00+03:30
 
 
 ## CURRENT AUTHORITY — 2026-09-26 FINAL RUNTIME ACCEPTED
@@ -315,3 +315,15 @@ This section supersedes R23 as the current maintenance authority where they conf
 - Immutable release regression remains PASS: tag v1.1.2 -> `aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0`; Setup SHA256 `25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB`.
 - Publicly trusted signature status: PENDING. Development Authenticode pipeline remains PASS but does not provide public publisher trust.
 - Current critical path: commit/push readiness docs -> fast-forward default `main` to the accepted readiness commit without force -> verify immutable release -> user/direct-GUI submission of SignPath application -> SignPath Foundation review/acceptance -> create a NEW signed release, never rewrite v1.1.2.
+
+## R24 REPOSITORY-SIDE READINESS CLOSEOUT
+
+- Repository readiness commit: `b6c13838624e99d1d6ba4811b295834e22e45947`.
+- `origin/main` and `origin/maintenance/signpath-readiness` were both verified at that commit after an ordinary non-force fast-forward of main.
+- GitHub Actions exact run `36250864888` for head SHA `b6c13838624e99d1d6ba4811b295834e22e45947`: COMPLETED / SUCCESS.
+- CI job `build`: all steps PASS, including checkout, whitespace, reproducible build, deterministic clean-clone verification, SPDX SBOM generation, binary provenance attestation, Setup SBOM attestation and evidence upload.
+- Repository-side SignPath Foundation readiness: PASS.
+- External application state: NOT SUBMITTED. Remote Commander browser input is blocked by `WORKFLOW_GUI_TAKEOVER_REQUIRES_DIRECT_USER_SESSION`; this platform gate cannot be bypassed by chat authorization.
+- Publicly trusted Authenticode release state: PENDING external SignPath Foundation review/acceptance and a future NEW release. Development self-signed signing remains test-only.
+- Immutable public v1.1.2 remains unchanged: tag `aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0`, Setup SHA256 `25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB`.
+- Exact next action: in a direct user browser session, submit the already-prepared SignPath application using `docs/security/SIGNPATH_APPLICATION_PACKET.json`; after external acceptance, create and validate a separately versioned signed release. Never rewrite v1.1.2.
