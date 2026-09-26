@@ -1,6 +1,6 @@
 {
   "Version": "1.1.2",
-  "Status": "GITHUB_ATTESTED_PUBLICATION_READY",
+  "Status": "FINAL_PUBLIC_RELEASE_ACCEPTED",
   "GeneratedAt": "2026-09-26T15:52:48.9568111+03:30",
   "SourceAuthority": {
     "Commit": "5916db0ef7fe19fea8cc13ebde73d01021d7c3d6",
@@ -72,13 +72,20 @@
     "GitHubBinaryArtifactHashes": "PASS_4_OF_4_EXACT",
     "GitHubSbomRawSHA256": "1C3D36B725BAC33A61BE9D886C4C6AA6E78ECAE58D5815DDA13E4F68229B1B9B",
     "SbomSemanticEquivalence": "PASS_NORMALIZED_BFBB7FB00FF3C8DD9ED26DBD17C0E3CAED5B4F666BE5373E7C329549AEEB7BAA",
-    "GitHubAttestationAcceptanceSHA256": "E74D58BD912643A3330998DEB6A96A4A71556575CA5D42073A76A1248DFDE0F4"
+    "GitHubAttestationAcceptanceSHA256": "E74D58BD912643A3330998DEB6A96A4A71556575CA5D42073A76A1248DFDE0F4",
+    "FinalPublicRelease": "PASS",
+    "PublicReleaseTag": "v1.1.2",
+    "PublicReleaseTagSHA": "aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0",
+    "PublicReleaseUrl": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.2",
+    "PublicReleaseVerificationSHA256": "E1E87345C6AC430420DBE56FF7B5150BA4ED71AE0E4380919F41D11334DE95FC",
+    "PublicReleaseAcceptanceSHA256": "E731D3E94BC593D338792BBA3AE0C901CACD0ABC3791074BE85E8C6254B12E69"
   },
   "Promotion": {
     "InstalledFinalRuntime": "PASS",
     "ProportionalRuntimeRegression": "PASS",
     "GitHubAttestation": "PASS",
-    "GitHubStableLatest": "PENDING",
-    "ProjectBrainClosure": "PARTIAL_PUBLICATION_READY"
+    "GitHubStableLatest": "PASS",
+    "ProjectBrainClosure": "PASS",
+    "PublicRelease": "PASS"
   }
 }

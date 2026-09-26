@@ -54,3 +54,17 @@
 - Confidence/Status: Confirmed / PASS / publication-ready.
 - Reuse Targets: public release notes, release manifest, audit report, Project Brain, future CI/release design.
 - Limitation: runtime acceptance is on the validated Windows 11 workstation and is not a claim of universal hardware compatibility.
+## 2026-09-26 — v1.1.2 immutable public release accepted
+
+- Date/Context: final publication and post-verification of Taskbar Monitor Enhanced v1.1.2.
+- Claim/Decision: v1.1.2 is the accepted immutable public Stable/Latest release.
+- Evidence/Source: tag v1.1.2 resolves to aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0; release https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.2 is non-draft/non-prerelease; default latest release is v1.1.2.
+- Asset verification: 8/8 assets uploaded; GitHub asset digest equals local SHA256 for every asset; GitHub size equals local size for every asset.
+- Setup artifact: SHA256 25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB.
+- Release evidence SHA256: E1E87345C6AC430420DBE56FF7B5150BA4ED71AE0E4380919F41D11334DE95FC.
+- Authority model: behavior/build authority is 5916db0ef7fe19fea8cc13ebde73d01021d7c3d6; immutable release/tag authority is aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0; branch closeout may advance but must never move tag v1.1.2.
+- CI lesson: shallow checkout failure was prevented with minimum sufficient fetch-depth 2 because the workflow uses HEAD^; fresh exact-commit CI subsequently passed.
+- SBOM lesson: compare document-instance fields separately from substantive package/file/dependency payload when generator intentionally embeds commit/time; normalized semantic equivalence was PASS.
+- Confidence/Status: Confirmed / PASS / FINAL.
+- Reuse Targets: future release checklist, CI design, audit/report, user-facing verification instructions.
+- Limitation: runtime acceptance applies to the validated Windows 11 workstation; universal hardware compatibility remains outside this release claim.

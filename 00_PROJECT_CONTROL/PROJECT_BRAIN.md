@@ -1,8 +1,8 @@
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
-Brain Version: PB-2026-09-26-R22-GITHUB-ATTESTED
+Brain Version: PB-2026-09-26-R22-FINAL-V1.1.2
 Status: CURRENT
-Updated: 2026-09-26T17:38:19.1485489+03:30
+Updated: 2026-09-26T17:45:52.6601678+03:30
 
 
 ## CURRENT AUTHORITY — 2026-09-26 FINAL RUNTIME ACCEPTED
@@ -45,6 +45,27 @@ This section supersedes older current-state sections where they conflict; histor
 - Public v1.1.2 tag/release was absent at pre-publication audit.
 - Critical path: create immutable v1.1.2 at exact attested commit -> verify assets/Latest -> final Brain/Knowledge closeout.
 - Exact next action: publish v1.1.2 once at aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0 with exact accepted assets; never move/force the tag.
+
+## CURRENT AUTHORITY — FINAL v1.1.2 PUBLIC RELEASE ACCEPTED
+
+This section is the final current authority for v1.1.2 and supersedes older current-state/open-gate sections where they conflict. Historical sections remain provenance.
+
+- Project lifecycle: FINAL for v1.1.2 Definition of Done.
+- Brain Status: CURRENT
+- Behavior/build authority: 5916db0ef7fe19fea8cc13ebde73d01021d7c3d6.
+- Immutable public release authority: tag v1.1.2 -> aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0.
+- Publication-control commit before release: d9f3ed150abab77d0ecce7a88cc71ed150f9a42d.
+- Public release: https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.2.
+- Release is non-draft, non-prerelease and Latest/Stable.
+- Release assets: 8/8 uploaded; 0 digest mismatches; 0 size mismatches.
+- Exact Setup SHA256: 25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB.
+- GitHub CI/provenance/SBOM attestation: PASS.
+- Local install/runtime acceptance: PASS.
+- RC10 soft/hard watchdog, post-fault soak and physical S3 remain inherited PASS via tracked 7/7 behavior equivalence.
+- SPDX raw document hashes differ only by documentNamespace/git-head and creation timestamp; semantic-normalized hash is identical and PASS.
+- Open blockers: none.
+- Open gates: none.
+- Exact next action: none for v1.1.2. Any future change starts a new maintenance/release scope; do not move or overwrite tag v1.1.2.
 ## Project definition
 
 Taskbar Monitor Enhanced is a Windows taskbar-integrated hardware/system monitor. R21 hardens the product for long-run daily use: isolated native hardware-sensor access, bounded self-healing, windowless protected sensor workers, least-privilege Main UI, deterministic builds, auditable supply-chain provenance and safe installation/update behavior.
@@ -255,3 +276,5 @@ PASS for understanding/continuation: a new account can identify project goal, ro
 - Prevention: keep the pinned checkout action and add only fetch-depth: 2, the minimum history required by the official actions/checkout HEAD^ scenario.
 - Regression: a fresh push run must pass whitespace, build, determinism, SBOM, provenance, Setup-SBOM and evidence upload; downloaded artifact hashes must match the already accepted final hashes.
 - The failed run is not rerun blindly. Critical path remains GitHub attestation -> immutable v1.1.2 publication -> final closeout.
+
+- 2026-09-26 R22 FINAL: v1.1.2 published and post-verified as immutable Latest/Stable at aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0; 8/8 release assets digest/size verified; no open DoD gate.
