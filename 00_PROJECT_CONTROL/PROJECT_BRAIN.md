@@ -2,7 +2,7 @@
 
 Brain Version: PB-2026-09-26-R22-FINAL-RUNTIME-ACCEPTED
 Status: CURRENT
-Updated: 2026-09-26T16:37:45.1467688+03:30
+Updated: 2026-09-26 — R22 CI root-cause fix
 
 
 ## CURRENT AUTHORITY — 2026-09-26 FINAL RUNTIME ACCEPTED
@@ -228,3 +228,15 @@ PASS for understanding/continuation: a new account can identify project goal, ro
 - RC10: CPU 15s freshness / 60s hard-stall separation. Build/determinism/SBOM/self-hosted CI PASS; protected-install consent was canceled, live system was rolled back cleanly to accepted RC9, and RC10 runtime validation remains pending.
 
 - 2026-09-26 R22: final v1.1.2 identity equivalence 7/7 PASS; deterministic build/SBOM PASS; exact final install PASS with config preserved; proportional runtime R2 PASS after correcting known PowerShell timestamp harness false negative. GitHub publication remains the critical path.
+
+
+## CI FAILURE / PREVENTION — 2026-09-26 RUN 36244394685
+
+- Status: confirmed CI workflow failure; product/build/runtime acceptance remains PASS.
+- Failed GitHub run: 36244394685 at control commit 483367af265eae8bd6043c11570f8f6be58531de.
+- Failure point: Git whitespace check before any build or attestation step.
+- Exact error: fatal: ambiguous argument HEAD^: unknown revision or path not in the working tree.
+- Root cause: actions/checkout defaults to fetch-depth 1, while the next step requires parent commit HEAD^.
+- Prevention: keep the pinned checkout action and add only fetch-depth: 2, the minimum history required by the official actions/checkout HEAD^ scenario.
+- Regression: a fresh push run must pass whitespace, build, determinism, SBOM, provenance, Setup-SBOM and evidence upload; downloaded artifact hashes must match the already accepted final hashes.
+- The failed run is not rerun blindly. Critical path remains GitHub attestation -> immutable v1.1.2 publication -> final closeout.

@@ -29,3 +29,15 @@
 - Reuse Targets: all future JSON timestamp harnesses in this project.
 
 - Open Gate: GitHub provenance/SBOM attestation and immutable v1.1.2 Stable/Latest publication remain PENDING. No public-release PASS is claimed yet.
+
+## 2026-09-26 — GitHub run 36244394685 shallow-checkout failure
+
+- Date/Context: first exact-final GitHub attestation push at control commit 483367af265eae8bd6043c11570f8f6be58531de.
+- Claim/Decision: failure is in CI checkout depth, not in product build/runtime.
+- Evidence/Source: GitHub job 108410742894; Checkout and .NET setup succeeded; Git whitespace check failed because HEAD^ was unavailable; build/determinism/SBOM/attestation/upload were skipped.
+- Root Cause: r21-ci.yml used actions/checkout default fetch-depth 1 but executed git diff --check HEAD^.
+- External Method Evidence: official actions/checkout v7 documentation prescribes fetch-depth: 2 for HEAD^; action input documentation states default fetch-depth is 1.
+- Prevention/Guard: add only fetch-depth: 2 to the pinned Checkout step; fetch-depth 0 is unnecessary.
+- Regression: fresh exact-commit run; require every CI step PASS and artifact hashes equal accepted final hashes.
+- Confidence/Status: Confirmed root cause / fix applied / regression pending.
+- Reuse Targets: CI design, release audit, Project Brain, future workflow review.
