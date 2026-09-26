@@ -1,8 +1,8 @@
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
-Brain Version: PB-2026-09-26-R22-FINAL-RUNTIME-ACCEPTED
+Brain Version: PB-2026-09-26-R22-GITHUB-ATTESTED
 Status: CURRENT
-Updated: 2026-09-26 — R22 CI root-cause fix
+Updated: 2026-09-26T17:38:19.1485489+03:30
 
 
 ## CURRENT AUTHORITY — 2026-09-26 FINAL RUNTIME ACCEPTED
@@ -30,6 +30,21 @@ This section supersedes older Current authority, Current installed state, Curren
 - Current critical path: GitHub exact-final attestation → accepted control commit/push → immutable v1.1.2 Stable/Latest publication → final Brain/Knowledge closeout.
 - Public Stable/Latest remains v1.1.1 until the publication gate closes.
 - Exact next action: run/verify exact-final GitHub provenance+SBOM workflow from the accepted final authority/control commit; do not rebuild or reinstall locally unless an attestation discrepancy requires it.
+
+## CURRENT AUTHORITY — 2026-09-26 GITHUB ATTESTED / PUBLICATION READY
+
+This section supersedes older current-state sections where they conflict; historical sections remain provenance.
+
+- Immutable v1.1.2 release authority: aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0.
+- Behavior/build authority: 5916db0ef7fe19fea8cc13ebde73d01021d7c3d6.
+- Final local build/runtime: PASS.
+- GitHub workflow run 36244774522: PASS, including deterministic clean-clone build, SPDX generation, binary provenance attestation, Setup-SBOM attestation and evidence upload.
+- GitHub evidence artifact 10907450490: binary hashes PASS 4/4 exact.
+- SBOM raw hash differs by document-instance fields only; semantic normalized hash PASS at BFBB7FB00FF3C8DD9ED26DBD17C0E3CAED5B4F666BE5373E7C329549AEEB7BAA.
+- Initial GitHub run 36244394685 failed before build from shallow checkout; root cause fixed with minimum sufficient fetch-depth 2 and fresh run PASS.
+- Public v1.1.2 tag/release was absent at pre-publication audit.
+- Critical path: create immutable v1.1.2 at exact attested commit -> verify assets/Latest -> final Brain/Knowledge closeout.
+- Exact next action: publish v1.1.2 once at aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0 with exact accepted assets; never move/force the tag.
 ## Project definition
 
 Taskbar Monitor Enhanced is a Windows taskbar-integrated hardware/system monitor. R21 hardens the product for long-run daily use: isolated native hardware-sensor access, bounded self-healing, windowless protected sensor workers, least-privilege Main UI, deterministic builds, auditable supply-chain provenance and safe installation/update behavior.
@@ -232,7 +247,7 @@ PASS for understanding/continuation: a new account can identify project goal, ro
 
 ## CI FAILURE / PREVENTION — 2026-09-26 RUN 36244394685
 
-- Status: confirmed CI workflow failure; product/build/runtime acceptance remains PASS.
+- Status: CURRENT
 - Failed GitHub run: 36244394685 at control commit 483367af265eae8bd6043c11570f8f6be58531de.
 - Failure point: Git whitespace check before any build or attestation step.
 - Exact error: fatal: ambiguous argument HEAD^: unknown revision or path not in the working tree.

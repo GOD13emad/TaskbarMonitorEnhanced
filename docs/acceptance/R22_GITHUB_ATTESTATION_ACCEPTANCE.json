@@ -1,0 +1,100 @@
+{
+  "Version": "1.1.2",
+  "Status": "PASS",
+  "AcceptedAt": "2026-09-26T17:38:19.1485489+03:30",
+  "ReleaseAuthorityCommit": "aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0",
+  "BehaviorAuthorityCommit": "5916db0ef7fe19fea8cc13ebde73d01021d7c3d6",
+  "GitHub": {
+    "Repository": "GOD13emad/TaskbarMonitorEnhanced",
+    "Workflow": "R21 Build and Verification",
+    "RunId": 36244774522,
+    "RunUrl": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/36244774522",
+    "HeadSha": "aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0",
+    "Event": "push",
+    "JobId": 108411834610,
+    "JobConclusion": "success",
+    "RequiredSteps": {
+      "Checkout": "success",
+      "SetupDotNet": "success",
+      "GitWhitespaceCheck": "success",
+      "ReproducibleBuild": "success",
+      "DeterministicCleanClone": "success",
+      "GenerateSpdx23Sbom": "success",
+      "BinaryBuildProvenanceAttestation": "success",
+      "SetupSbomAttestation": "success",
+      "UploadVerifiedBuildEvidence": "success",
+      "PrintBuildManifest": "success"
+    },
+    "Artifact": {
+      "Id": 10907450490,
+      "Name": "r21-build-evidence",
+      "SizeBytes": 10174137,
+      "Digest": "sha256:09cd3846e054007b736be16ffee4c9865de923526940ae474b43d20bdf099dd6",
+      "ExpiresAt": "2026-12-25T13:19:23Z"
+    }
+  },
+  "ArtifactHashVerification": {
+    "Main": {
+      "SHA256": "DFF69CFC96C0A0567DD32C04EBD45414CFF045172A76A84EE1060814921DFE9E",
+      "Expected": "DFF69CFC96C0A0567DD32C04EBD45414CFF045172A76A84EE1060814921DFE9E",
+      "Match": true
+    },
+    "Broker": {
+      "SHA256": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833",
+      "Expected": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833",
+      "Match": true
+    },
+    "Supervisor": {
+      "SHA256": "38553CCE30D5D3F1A22AC6765C4A0F5D4D204970A3DAD7BA9467A326235FC196",
+      "Expected": "38553CCE30D5D3F1A22AC6765C4A0F5D4D204970A3DAD7BA9467A326235FC196",
+      "Match": true
+    },
+    "Setup": {
+      "SHA256": "25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB",
+      "Expected": "25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB",
+      "Match": true
+    },
+    "GitHubSbomRaw": {
+      "SHA256": "1C3D36B725BAC33A61BE9D886C4C6AA6E78ECAE58D5815DDA13E4F68229B1B9B",
+      "LocalRawSHA256": "B324745F6041FA8E8C8FA888977B40B41100B787C6A8E087ED80EB23AC148578",
+      "RawMatch": false
+    },
+    "SbomSemantic": {
+      "GitHubNormalizedSHA256": "BFBB7FB00FF3C8DD9ED26DBD17C0E3CAED5B4F666BE5373E7C329549AEEB7BAA",
+      "LocalNormalizedSHA256": "BFBB7FB00FF3C8DD9ED26DBD17C0E3CAED5B4F666BE5373E7C329549AEEB7BAA",
+      "Match": true,
+      "NormalizedFields": [
+        "documentNamespace",
+        "creationInfo.created"
+      ]
+    },
+    "GitHubBuildManifestSHA256": "C1CDCD698609476D4322897FACC4AE49D734954151145005269E77DF6783E0C7"
+  },
+  "SbomInterpretation": "Raw SPDX document hashes differ only because the generator intentionally binds documentNamespace to Git HEAD and creationInfo.created to build-manifest time. After normalizing exactly those document-instance fields, all remaining SBOM bytes are identical.",
+  "InitialFailedRun": {
+    "RunId": 36244394685,
+    "Status": "FAIL_BEFORE_BUILD",
+    "RootCause": "actions/checkout default fetch-depth=1 while git diff --check HEAD^ required the parent commit",
+    "Prevention": "Pinned checkout retained; minimum-sufficient fetch-depth: 2 added",
+    "Regression": "Fresh run 36244774522 PASS; failed run not blindly rerun"
+  },
+  "SupportingEvidence": {
+    "IdentityEquivalence": {
+      "Path": "docs\\acceptance\\R22_FINAL_IDENTITY_EQUIVALENCE.json",
+      "SHA256": "BB36ED05A84105A5E4D584B7E06F2951C25AF39D5FAFB1BCF161043FEB8884DB"
+    },
+    "FinalBuild": {
+      "Path": "docs\\acceptance\\R22_FINAL_BUILD_ACCEPTANCE.json",
+      "SHA256": "5D31DCDD1F25F3C58773084C368B176C17A0C57A3057A124901261431225F6CC"
+    },
+    "FinalRuntime": {
+      "Path": "docs\\acceptance\\R22_FINAL_RUNTIME_ACCEPTANCE.json",
+      "SHA256": "678A2CFE50C37CD62D032B9BD5F980533A91D3D48E856A9B998E5C74255D207D"
+    },
+    "SbomSemantic": {
+      "Path": "r21_evidence\\R22_SBOM_SEMANTIC_EQUIVALENCE.json",
+      "SHA256": "6506AAEEBB0FDCDC904BD5BD4939B4B42D8FBF0DF03505B216EAD068407DC465"
+    }
+  },
+  "PublicationState": "READY_FOR_IMMUTABLE_V1.1.2_RELEASE"
+}
