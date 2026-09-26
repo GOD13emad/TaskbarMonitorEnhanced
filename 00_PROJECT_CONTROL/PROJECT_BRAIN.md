@@ -1,9 +1,35 @@
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
-Brain Version: PB-2026-09-19-R21-RC10-UAC-ROLLBACK1
+Brain Version: PB-2026-09-26-R22-FINAL-RUNTIME-ACCEPTED
 Status: CURRENT
-Updated: 2026-09-19T21:56:24+03:30
+Updated: 2026-09-26T16:37:45.1467688+03:30
 
+
+## CURRENT AUTHORITY — 2026-09-26 FINAL RUNTIME ACCEPTED
+
+This section supersedes older Current authority, Current installed state, Current critical gate, UNPROVEN/PENDING, and Exact next action sections below where they conflict. Those older sections are retained as historical provenance.
+
+- Final objective remains immutable public v1.1.2 with deterministic build, exact install/runtime acceptance, GitHub provenance/SBOM attestation, immutable publication, then control-plane closeout.
+- Current branch: release/v1.1.2-final.
+- Final source authority: 5916db0ef7fe19fea8cc13ebde73d01021d7c3d6.
+- Accepted RC10 precursor: eac234860c31d8e2a6c0ba7d61c7bf5248717db5.
+- Final identity behavior equivalence: PASS 7/7.
+- Final build/determinism/SBOM: PASS.
+- Exact installed v1.1.2 identity/hashes/config preservation: PASS.
+- Proportional final runtime regression R2: PASS.
+- Installed identity: 1.1.2 / V1_1_2_R21_PRODUCTION_HARDENING / 1.1.2+r21 / READY.
+- Exact final hashes:
+  - Main DFF69CFC96C0A0567DD32C04EBD45414CFF045172A76A84EE1060814921DFE9E
+  - Broker 182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833
+  - Supervisor 38553CCE30D5D3F1A22AC6765C4A0F5D4D204970A3DAD7BA9467A326235FC196
+  - Setup 25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB
+  - SBOM B324745F6041FA8E8C8FA888977B40B41100B787C6A8E087ED80EB23AC148578
+- Runtime: freshness R2 6/6 healthy (0.188–4.573 s); taskbar 12/12 direct Shell_TrayWnd 1100x48; Main RID8192; LHM-in-Main=0; protected PE GUI=2/2; sensor conhost=0; relevant Application/TaskScheduler errors=0.
+- RC10 soft/hard stall, post-fault soak and real S3 acceptance are inherited via 7/7 behavior equivalence and were not blindly rerun.
+- Known harness failure/prevention: ConvertFrom-Json timestamp auto-conversion plus local string reparse created +03:30 false age. Prevention: -DateKind String plus round-trip DateTimeOffset.
+- Current critical path: GitHub exact-final attestation → accepted control commit/push → immutable v1.1.2 Stable/Latest publication → final Brain/Knowledge closeout.
+- Public Stable/Latest remains v1.1.1 until the publication gate closes.
+- Exact next action: run/verify exact-final GitHub provenance+SBOM workflow from the accepted final authority/control commit; do not rebuild or reinstall locally unless an attestation discrepancy requires it.
 ## Project definition
 
 Taskbar Monitor Enhanced is a Windows taskbar-integrated hardware/system monitor. R21 hardens the product for long-run daily use: isolated native hardware-sensor access, bounded self-healing, windowless protected sensor workers, least-privilege Main UI, deterministic builds, auditable supply-chain provenance and safe installation/update behavior.
@@ -200,3 +226,5 @@ PASS for understanding/continuation: a new account can identify project goal, ro
 - RC8: Main integrity/elevation boundary.
 - RC9: official power notification, deterministic Setup and installer state-integrity fixes; real S3 PASS but post-S3 CPU stall recurrence.
 - RC10: CPU 15s freshness / 60s hard-stall separation. Build/determinism/SBOM/self-hosted CI PASS; protected-install consent was canceled, live system was rolled back cleanly to accepted RC9, and RC10 runtime validation remains pending.
+
+- 2026-09-26 R22: final v1.1.2 identity equivalence 7/7 PASS; deterministic build/SBOM PASS; exact final install PASS with config preserved; proportional runtime R2 PASS after correcting known PowerShell timestamp harness false negative. GitHub publication remains the critical path.

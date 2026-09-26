@@ -1,0 +1,76 @@
+{
+  "Version": "1.1.2",
+  "Status": "RUNTIME_ACCEPTED_GITHUB_PUBLICATION_PENDING",
+  "GeneratedAt": "2026-09-26T15:52:48.9568111+03:30",
+  "SourceAuthority": {
+    "Commit": "5916db0ef7fe19fea8cc13ebde73d01021d7c3d6",
+    "Branch": "release/v1.1.2-final",
+    "IdentityEquivalenceEvidence": "docs/acceptance/R22_FINAL_IDENTITY_EQUIVALENCE.json",
+    "IdentityEquivalenceSHA256": "BB36ED05A84105A5E4D584B7E06F2951C25AF39D5FAFB1BCF161043FEB8884DB",
+    "ParentRc10Commit": "eac234860c31d8e2a6c0ba7d61c7bf5248717db5"
+  },
+  "RuntimeBuild": "V1_1_2_R21_PRODUCTION_HARDENING",
+  "Dependencies": {
+    "LockFile": "build/dependencies.lock.json",
+    "LockSHA256": "97A832D58B8FB63E727EE26EFC0FDEE8CA84E83C5B74C462441FACCFE394AACD",
+    "LibreHardwareMonitor": {
+      "Version": "0.9.6",
+      "SHA256": "086D9F1B5A99E643EDC2CFAAAC16051685B551E4C5AC0B32A57C58C0E529C001"
+    },
+    "PawnIO": {
+      "Version": "2.2.0",
+      "SHA256": "1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032"
+    }
+  },
+  "Outputs": [
+    {
+      "Name": "TaskbarMonitorEnhanced.exe",
+      "Bytes": 276992,
+      "SHA256": "DFF69CFC96C0A0567DD32C04EBD45414CFF045172A76A84EE1060814921DFE9E"
+    },
+    {
+      "Name": "TaskbarMonitorSensorBroker.exe",
+      "Bytes": 22528,
+      "SHA256": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833"
+    },
+    {
+      "Name": "TaskbarMonitorSensorSupervisor.exe",
+      "Bytes": 31232,
+      "SHA256": "38553CCE30D5D3F1A22AC6765C4A0F5D4D204970A3DAD7BA9467A326235FC196"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.1.2.exe",
+      "Bytes": 10981888,
+      "SHA256": "25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB"
+    }
+  ],
+  "SBOM": {
+    "Name": "R21_SBOM.spdx.json",
+    "SPDXVersion": "SPDX-2.3",
+    "SHA256": "B324745F6041FA8E8C8FA888977B40B41100B787C6A8E087ED80EB23AC148578"
+  },
+  "Verification": {
+    "PrimaryBuild": "PASS_0_NONZERO_WARNINGS_0_ERRORS",
+    "BuildSucceededCount": 4,
+    "SensorWindowlessPeGuard": "PASS",
+    "CanonicalTextPayload": "PASS",
+    "SetupVerify": "PASS_FINAL_1.1.2_CURRENT_EXACT_ONLY_1_1_2",
+    "BuiltInSelfTest": "PASS_FINAL_1.1.2_CPU_HARD_STALL_WATCHDOG_SEC_60",
+    "SbomGeneration": "PASS",
+    "CleanCloneDeterminism": "PASS",
+    "BuildManifestSHA256": "2B7A400F80427F3904FE2568B57B8D718DD1E4D885E58799B008A20B0EEE4E4A",
+    "PrimaryLogSHA256": "F546A61F4C8CB93FABDB0EE61D75E9D871A4B09E5C0F67A01C4DD46375BDCB17",
+    "SbomLogSHA256": "63C918F48FDDC0DEEF0FCA1B028D02061789B2999A38C8FE2D901F64A2E9445D",
+    "DeterminismLogSHA256": "42915105A6A0060A1723879550EA46AF2DB3589D97821529734BE7601F41AD21",
+    "FinalInstalledIdentity": "PASS_EXACT_HASH_CONFIG_PRESERVED",
+    "FinalRuntimeRegression": "PASS_PROPORTIONAL_R2",
+    "FinalRuntimeAcceptanceSHA256": "678A2CFE50C37CD62D032B9BD5F980533A91D3D48E856A9B998E5C74255D207D"
+  },
+  "Promotion": {
+    "InstalledFinalRuntime": "PASS",
+    "ProportionalRuntimeRegression": "PASS",
+    "GitHubAttestation": "PENDING",
+    "GitHubStableLatest": "PENDING",
+    "ProjectBrainClosure": "PARTIAL_CURRENT_RUNTIME_ACCEPTED"
+  }
+}

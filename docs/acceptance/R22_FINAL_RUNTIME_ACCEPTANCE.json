@@ -1,0 +1,79 @@
+{
+  "Version": "1.1.2",
+  "Status": "PASS",
+  "AcceptedAt": "2026-09-26T16:37:45.0514885+03:30",
+  "SourceAuthority": {
+    "Commit": "5916db0ef7fe19fea8cc13ebde73d01021d7c3d6",
+    "Branch": "release/v1.1.2-final"
+  },
+  "Evidence": {
+    "IdentityEquivalence": {
+      "Path": "docs\\acceptance\\R22_FINAL_IDENTITY_EQUIVALENCE.json",
+      "SHA256": "BB36ED05A84105A5E4D584B7E06F2951C25AF39D5FAFB1BCF161043FEB8884DB",
+      "Status": "PASS_7_OF_7_BEHAVIOR_EQUIVALENT"
+    },
+    "FinalBuild": {
+      "Path": "docs\\acceptance\\R22_FINAL_BUILD_ACCEPTANCE.json",
+      "SHA256": "5D31DCDD1F25F3C58773084C368B176C17A0C57A3057A124901261431225F6CC",
+      "Status": "PASS_DETERMINISM_SBOM"
+    },
+    "InstalledIdentity": {
+      "Path": "r21_evidence\\R22_FINAL_INSTALLED_IDENTITY.json",
+      "SHA256": "0528164956E250A4D112407FFA3BBC1EF880BA7A39D59356762C5C444537532D",
+      "Status": "PASS_EXACT_HASHES_CONFIG_PRESERVED"
+    },
+    "RuntimeRegression": {
+      "Path": "r21_evidence\\R22_FINAL_RUNTIME_REGRESSION_R2.json",
+      "SHA256": "7F53FEF9BCFD81D5B7862CB30DAFAAF7F659937013D6EA895AB89182023C30D7",
+      "Status": "PASS"
+    },
+    "Rc10AcceptedPrecursor": {
+      "Path": "docs\\acceptance\\R22_RC10_ACCEPTED_PRECURSOR_20260926.md",
+      "SHA256": "E88A481568EC315A87D0BEFE9DC33A124634088ECD53B6D6F7F20C751D9699E9",
+      "Status": "ACCEPTED_PRECURSOR"
+    }
+  },
+  "Installed": {
+    "PublicVersion": "1.1.2",
+    "RuntimeBaseline": "V1_1_2_R21_PRODUCTION_HARDENING",
+    "SensorLayerVersion": "1.1.2+r21",
+    "SensorLayerStatus": "READY",
+    "MainSHA256": "DFF69CFC96C0A0567DD32C04EBD45414CFF045172A76A84EE1060814921DFE9E",
+    "BrokerSHA256": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833",
+    "SupervisorSHA256": "38553CCE30D5D3F1A22AC6765C4A0F5D4D204970A3DAD7BA9467A326235FC196",
+    "ConfigPreserved": true
+  },
+  "Runtime": {
+    "FreshnessSamples": 6,
+    "FreshnessBad": 0,
+    "FreshnessAgeMinSec": 0.188,
+    "FreshnessAgeMaxSec": 4.573,
+    "CpuGpuRestartsStable": true,
+    "Taskbar12Of12": true,
+    "MainIntegrityMedium": true,
+    "MainNoLibreHardwareMonitor": true,
+    "BrokerWindowsGui": true,
+    "SupervisorWindowsGui": true,
+    "SensorOwnedConhostZero": true,
+    "ApplicationRelevantErrorsZero": true,
+    "TaskSchedulerRelevantErrorsZero": true
+  },
+  "InheritedValidation": {
+    "CpuSoftStall25s": "INHERITED_PASS_FROM_RC10",
+    "CpuHardStallGt60s": "INHERITED_PASS_FROM_RC10",
+    "PostFaultSoak": "INHERITED_PASS_FROM_RC10",
+    "RealS3": "INHERITED_PASS_FROM_RC10",
+    "Rationale": "Final behavior/build inputs are 7-of-7 equivalent to accepted RC10 after approved identity-only normalization; blind rerun would add cost/risk without new coverage."
+  },
+  "HarnessFailurePrevention": {
+    "Failure": "PowerShell ConvertFrom-Json timestamp materialization plus string/local reparsing created a +03:30 false age.",
+    "RootCause": "Default JSON timestamp conversion produced DateTime; later string roundtrip lost explicit UTC semantics.",
+    "Prevention": "PowerShell 7.5+ ConvertFrom-Json -DateKind String, then DateTimeOffset ParseExact round-trip.",
+    "MethodSource": "Microsoft Learn ConvertFrom-Json documentation, PowerShell 7.5/7.6 DateKind."
+  },
+  "OpenGates": [
+    "GITHUB_PROVENANCE_SBOM_ATTESTATION",
+    "IMMUTABLE_V1.1.2_RELEASE_PUBLISH_STABLE_LATEST",
+    "FINAL_BRAIN_RELEASE_CLOSEOUT"
+  ]
+}

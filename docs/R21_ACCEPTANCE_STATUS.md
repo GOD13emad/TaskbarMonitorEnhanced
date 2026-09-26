@@ -1,84 +1,66 @@
-# R21 Acceptance Status — Taskbar Monitor Enhanced 1.1.2-rc10
+# R21 Acceptance Status — Taskbar Monitor Enhanced v1.1.2
 
-Status: RELEASE CANDIDATE / NOT STABLE
-Updated: 2026-09-19T22:01:00+03:30
+Status: FINAL RUNTIME ACCEPTED / GITHUB PUBLICATION PENDING
+Updated: 2026-09-26T16:37:45.1467688+03:30
 
-## Authority
+## Current authority
 
-- Branch: `audit/r21-final-hardening-rc10`
-- Source authority: `e89aebd9012f95d050771283562069f9cb5f5515`
-- Public Stable/Latest: `v1.1.1`
-- RC10 binary-source GitHub self-hosted run: `35460297804` = SUCCESS at `e89aebd...`
-- RC10 control-head GitHub self-hosted run: `35460716964` = SUCCESS at `238d93e...`
-- RC10 draft prerelease target: control head `238d93eeeadd83e31aa1de002cf00dee0778da41`; binary source authority remains `e89aebd...`; draft/prerelease only.
+- Branch: release/v1.1.2-final
+- Source authority commit: 5916db0ef7fe19fea8cc13ebde73d01021d7c3d6
+- Accepted precursor: RC10 commit eac234860c31d8e2a6c0ba7d61c7bf5248717db5
+- Public Stable/Latest remains v1.1.1 until the immutable v1.1.2 GitHub publication gate closes.
+- Final v1.1.2 identity equivalence: PASS, 7/7 behavior/build inputs.
+- Final deterministic build/SBOM: PASS.
+- Exact final installed runtime: PASS.
+- Proportional final runtime regression: PASS.
 
-## RC10 objective
+## Exact final outputs
 
-Preserve 15-second CPU temperature freshness while preventing transient LibreHardwareMonitor/PawnIO CPU read stalls from causing repeated worker restart storms. CPU hard process watchdog = 60 seconds; GPU behavior remains unchanged.
+- Main: DFF69CFC96C0A0567DD32C04EBD45414CFF045172A76A84EE1060814921DFE9E
+- Broker: 182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833
+- Supervisor: 38553CCE30D5D3F1A22AC6765C4A0F5D4D204970A3DAD7BA9467A326235FC196
+- Setup: 25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB
+- SPDX 2.3 SBOM: B324745F6041FA8E8C8FA888977B40B41100B787C6A8E087ED80EB23AC148578
 
-## Evidence-backed PASS
+## Final installed state
 
-- Four-component build: 0 warnings / 0 errors.
-- Built-in self-test: PASS; RC10 identity and CPU 60-second watchdog marker present.
-- Setup embedded-resource/policy verification: PASS.
-- Broker/Supervisor PE windowless guard: PASS.
-- Canonical embedded-text payload: PASS.
-- Clean-clone byte-for-byte determinism: PASS.
-- SPDX 2.3 SBOM: PASS.
-- GitHub self-hosted RC10 build/determinism/SBOM/provenance/Setup-SBOM/evidence upload: PASS.
-- Draft prerelease is non-public and points at the exact RC10 source authority.
-- Main RC10 binary has been installed in user space.
+- PublicVersion=1.1.2
+- InternalRuntimeBaseline=V1_1_2_R21_PRODUCTION_HARDENING
+- SensorLayerVersion=1.1.2+r21
+- SensorLayerStatus=READY
+- Main/Broker/Supervisor installed SHA-256 values exactly match the final release manifest.
+- Existing user config SHA-256 was preserved across final installation.
 
-## RC10 deterministic outputs
+## Runtime acceptance
 
-- Main: `6BBD6BF7A559DE4C2C59FE4027FA2BA30EC82765B3C6F4000FF34375C72B2550`
-- Broker: `7BA4E75514D69EC20D7FD478C3F8769A2D22BB48AC1B19900D946DF4FB64D907`
-- Supervisor: `FE5EB08FC2ED2D2C7CAA70F7EA48965C409E2093E3BB054CE8AE60003D85D97D`
-- Setup: `488FAC9FE5C98943F8A90DE58EBF70B999EE0C4AD4E01933B0090FDEA73BC400`
-- SBOM: `E3659486DA78AE92E9F079EE76E10DF65518A3A5C25E00811A1B78C1958D894B`
+- Corrected freshness R2: 6/6 healthy samples, age range 0.188–4.573 s, zero bad samples.
+- CPU/GPU restart counters remained stable.
+- Taskbar structural proof: 12/12 visible, direct Shell_TrayWnd parent, 1100x48.
+- Main integrity: Medium / RID 8192.
+- LibreHardwareMonitor modules in Main: 0.
+- Broker/Supervisor PE subsystem: WINDOWS_GUI / 2.
+- Sensor-owned console hosts: 0.
+- Relevant Application errors since final install: 0.
+- Relevant TaskScheduler errors since final install: 0.
 
-## Current installed acceptance
+## Inherited RC10 validation
 
-**RC10 NOT INSTALLED / LIVE SYSTEM SAFELY ROLLED BACK TO ACCEPTED RC9**
+The 25-second soft-stall, greater-than-60-second hard-watchdog, post-fault soak and physical S3 gates are inherited from the accepted RC10 precursor rather than blindly rerun. This is justified by the tracked 7/7 final identity behavior-equivalence gate; final derivation changed release identity/control/docs only.
 
-- The hash-pinned RC10 elevation reached Windows Secure Desktop but Windows returned: `The operation was canceled by the user.`
-- No automatic elevation retry was attempted after that denial.
-- Exact accepted RC9 Setup `48DADB48072344E4627A939971313B931E84365A0311F79E48FC793BB029CBC8` was then used for rollback.
-- Live Main/Broker/Supervisor hashes now exactly match accepted RC9.
-- `install_state.json`: `1.1.2-rc9 / READY / CURRENT_EXACT_RC9`.
-- Post-rollback HealthProbe: `PASS / STABLE`; all CPU/GPU/storage lanes healthy; active consecutive failures = 0.
-- Windowless tree proof: one Supervisor, two Brokers, zero sensor-owned console children.
-- RC10 fault-injection and physical S3 acceptance remain blocked until a **new explicit administrator consent** installs the exact RC10 protected pair.
+The first final-runtime harness incorrectly reported stale supervisor age because a PowerShell JSON timestamp had already materialized to DateTime and was then reparsed through local string semantics. R2 used PowerShell 7.5+ ConvertFrom-Json -DateKind String and round-trip DateTimeOffset parsing; all corrected freshness samples passed. This is a harness false negative, not a product failure.
 
-## Root-cause chain leading to RC10
+## Open gates
 
-1. RC8 physical S3 exposed resume-ordering race.
-2. RC9 official Windows resume callback fixed the race; real S3 passed with no worker failure.
-3. RC9 post-S3 soak exposed a separate CPU worker stall: STALE_OUTPUT then NO_CURRENT_OUTPUT_AFTER_GRACE.
-4. Broker emitted no fatal exception; isolated storage-contention probe did not reproduce a hang.
-5. UI freshness already rejects CPU data older than 15 seconds.
-6. RC10 therefore keeps freshness=15s but changes CPU hard-stall watchdog/startup grace to 60s, with explicit slow-output observability.
-
-## Open acceptance gates
-
-1. New explicit administrator consent, then exact protected RC10 install / READY state.
-2. Soft-stall 25s fault injection: no restart; recovery required.
-3. Hard-stall >60s fault injection: bounded restart required.
-4. Post-fault 90s soak: restart counters stable; all samples healthy; zero new failures.
-5. Real S3 on installed RC10: notification + recovery + no false worker failure.
-6. Taskbar geometry, Main no-LHM module isolation, windowless process tree, Medium integrity and Event Log regression.
-7. Current Brain/manifest acceptance update.
-8. Final v1.1.2 identity build/determinism/install/attestation and immutable publication.
-
-## Promotion rule
-
-RC10 is not the public release. Stable/Latest promotion is prohibited until a separate exact final `v1.1.2` identity is built, installed and accepted with all gates above PASS.
+1. GitHub provenance/SBOM attestation for the exact final authority/artifacts.
+2. Commit and push the accepted final release-control delta.
+3. Create immutable public v1.1.2 release and set Stable/Latest only after attestation PASS.
+4. Final Project Brain / Knowledge / handoff closeout after publication.
 
 ## Evidence
 
-- `RC_MANIFEST_v1.1.2-rc10.json`
-- `SHA256SUMS_v1.1.2-rc10.txt`
-- `r21_evidence/RC9_REAL_SUSPEND_RESUME.json`
-- `r21_evidence/RC9_POST_S3_SOAK_90S.json`
-- `r21_evidence/rc9_contention_probe/RC9_SENSOR_CONTENTION_PROBE.json`
-- GitHub run `35460297804`
+- docs/acceptance/R22_FINAL_IDENTITY_EQUIVALENCE.json
+- docs/acceptance/R22_FINAL_BUILD_ACCEPTANCE.json
+- docs/acceptance/R22_FINAL_RUNTIME_ACCEPTANCE.json
+- docs/acceptance/R22_RC10_ACCEPTED_PRECURSOR_20260926.md
+- RELEASE_MANIFEST_v1.1.2.json
+- SHA256SUMS_v1.1.2.txt
