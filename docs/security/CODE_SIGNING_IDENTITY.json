@@ -1,0 +1,30 @@
+{
+  "SchemaVersion": 1,
+  "Status": "DEVELOPMENT_SIGNING_IDENTITY_READY",
+  "Subject": "CN=Taskbar Monitor Enhanced Development Code Signing",
+  "FriendlyName": "Taskbar Monitor Enhanced DEVELOPMENT Code Signing",
+  "Thumbprint": "4673165CCB579F868EFE5F52FCDA761780F49989",
+  "SerialNumber": "40765E8F2DCFD6B142FDB1B6C603DF29",
+  "NotBefore": "2026-09-26T17:42:46+03:30",
+  "NotAfter": "2029-09-26T17:52:46+03:30",
+  "PublicKeyAlgorithm": "RSA",
+  "CertificateSignatureAlgorithm": "sha256RSA",
+  "EnhancedKeyUsage": [
+    "Code Signing (1.3.6.1.5.5.7.3.3)"
+  ],
+  "Store": "Cert:\\CurrentUser\\My",
+  "HasPrivateKey": true,
+  "PrivateKeyExported": false,
+  "PrivateKeyCommitted": false,
+  "TrustClass": "SELF_SIGNED_DEVELOPMENT_NOT_PUBLICLY_TRUSTED",
+  "PublicCertificatePath": "docs/security/TaskbarMonitorEnhanced_Development_CodeSigning.cer",
+  "PublicCertificateSHA256": "217EC08DF0C2A23F9AEB3925FA40D7561FC21DE61039458514067FAAC0753A10",
+  "ImmutableRelease": {
+    "Version": "1.1.2",
+    "Tag": "v1.1.2",
+    "TagSHA": "aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0",
+    "SetupSHA256": "25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB",
+    "MutationPolicy": "DO_NOT_SIGN_OR_REUPLOAD_EXISTING_RELEASE"
+  },
+  "ProductionUpgrade": "Obtain a CA-issued Code Signing certificate or approved managed signing identity; sign and RFC3161-timestamp a new release version."
+}

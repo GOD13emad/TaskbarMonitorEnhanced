@@ -68,3 +68,15 @@
 - Confidence/Status: Confirmed / PASS / FINAL.
 - Reuse Targets: future release checklist, CI design, audit/report, user-facing verification instructions.
 - Limitation: runtime acceptance applies to the validated Windows 11 workstation; universal hardware compatibility remains outside this release claim.
+## 2026-09-26 — development Authenticode signing identity and pipeline
+
+- Context: post-v1.1.2 maintenance. Immutable public v1.1.2 must not be modified because Authenticode changes executable bytes/hashes.
+- Identity: self-signed DEVELOPMENT Code Signing certificate, subject CN=Taskbar Monitor Enhanced Development Code Signing, thumbprint 4673165CCB579F868EFE5F52FCDA761780F49989, RSA/sha256RSA, Code Signing EKU 1.3.6.1.5.5.7.3.3.
+- Security handling: private key remains in Cert:\CurrentUser\My, was not exported, and no PFX/P12/PVK/KEY material exists in project files. Only the public .cer is committed.
+- Tooling: build/signing/Sign-Authenticode.ps1 uses Windows SDK signtool with SHA256 and optional RFC3161 timestamping; Verify-Authenticode.ps1 validates signed state, signer thumbprint, hash integrity and trust state.
+- Probe evidence: unsigned Setup copy hash 25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB; signed DEVELOPMENT probe hash 65168AD41EAA0C5B562FACE9E3DDEBACDA9EBC38606C94C42D4E9C55AA6AAFCD.
+- Verification: exact signer thumbprint matched; unsigned file rejected; tampered signed copy rejected.
+- Trust interpretation: Get-AuthenticodeSignature returns UnknownError with message that the chain terminates in an untrusted root. This is the expected result for the self-signed development certificate and is not public Publisher trust.
+- Immutability regression: public tag v1.1.2 remains aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0 and release Setup digest remains sha256:25744a0a0f78b787a5fc3601577748b80353adc9dafb9fe91a111a53c56216fb.
+- Production gate: obtain CA-issued Code Signing certificate or approved managed signing identity; sign/timestamp a NEW release version; then regenerate signed hashes, SBOM, provenance and runtime acceptance.
+- Confidence/Status: Confirmed / DEVELOPMENT SIGNING PIPELINE PASS / PUBLIC TRUST PENDING.

@@ -50,3 +50,9 @@ artifacts/
 r21_perf_canary/
 r21_supply_chain/
 r21_preinstall_backup_*/
+
+# Code-signing private material (never commit)
+*.pfx
+*.p12
+*.pvk
+*.key

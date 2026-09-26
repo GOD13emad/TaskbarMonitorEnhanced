@@ -1,0 +1,35 @@
+{
+  "SchemaVersion": 1,
+  "Status": "PASS",
+  "At": "2026-09-26T18:02:38.1269031+03:30",
+  "SigningIdentity": {
+    "Subject": "CN=Taskbar Monitor Enhanced Development Code Signing",
+    "Thumbprint": "4673165CCB579F868EFE5F52FCDA761780F49989",
+    "TrustClass": "SELF_SIGNED_DEVELOPMENT_NOT_PUBLICLY_TRUSTED",
+    "PublicCertificate": "docs/security/TaskbarMonitorEnhanced_Development_CodeSigning.cer",
+    "PublicCertificateSHA256": "217EC08DF0C2A23F9AEB3925FA40D7561FC21DE61039458514067FAAC0753A10",
+    "PrivateKeyLocation": "Cert:\\CurrentUser\\My",
+    "PrivateKeyExported": false,
+    "PrivateKeyCommitted": false
+  },
+  "Probe": {
+    "SourceSetupSHA256": "25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB",
+    "SignedProbeSHA256": "65168AD41EAA0C5B562FACE9E3DDEBACDA9EBC38606C94C42D4E9C55AA6AAFCD",
+    "SignerThumbprint": "4673165CCB579F868EFE5F52FCDA761780F49989",
+    "SignatureStatus": "UnknownError",
+    "SignatureStatusMeaning": "Expected untrusted-root chain for self-signed DEVELOPMENT certificate; signer is present and exact thumbprint matched.",
+    "Timestamped": false,
+    "PubliclyTrustedByWindows": false,
+    "UnsignedRejected": true,
+    "TamperedRejected": true,
+    "RawSignEvidenceSHA256": "7DFC74A73B0AC0944302DB8C4C85B1381F2D6D2A66E1B023A36E851B82450E14",
+    "RawVerifyEvidenceSHA256": "90762596CC06EDA3C729CBA43BD40C14CBCC8BB18E4844413646F569C6F7E4B8"
+  },
+  "ImmutableRelease": {
+    "Tag": "v1.1.2",
+    "TagSHA": "aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0",
+    "PublicSetupDigest": "sha256:25744a0a0f78b787a5fc3601577748b80353adc9dafb9fe91a111a53c56216fb",
+    "Changed": false
+  },
+  "ProductionGate": "Obtain CA-issued Code Signing certificate or approved managed signing identity, enable RFC3161 timestamping, sign a NEW release version, then rerun hashes/SBOM/attestation/runtime gates."
+}

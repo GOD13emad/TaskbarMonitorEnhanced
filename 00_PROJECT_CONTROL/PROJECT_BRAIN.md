@@ -1,8 +1,8 @@
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
-Brain Version: PB-2026-09-26-R22-FINAL-V1.1.2
+Brain Version: PB-2026-09-26-R23-CODE-SIGNING
 Status: CURRENT
-Updated: 2026-09-26T17:45:52.6601678+03:30
+Updated: 2026-09-26T18:02:38.1269031+03:30
 
 
 ## CURRENT AUTHORITY — 2026-09-26 FINAL RUNTIME ACCEPTED
@@ -278,3 +278,21 @@ PASS for understanding/continuation: a new account can identify project goal, ro
 - The failed run is not rerun blindly. Critical path remains GitHub attestation -> immutable v1.1.2 publication -> final closeout.
 
 - 2026-09-26 R22 FINAL: v1.1.2 published and post-verified as immutable Latest/Stable at aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0; 8/8 release assets digest/size verified; no open DoD gate.
+
+## CURRENT MAINTENANCE — R23 DEVELOPMENT CODE SIGNING
+
+This maintenance scope does not modify the immutable v1.1.2 release.
+
+- Branch: maintenance/code-signing.
+- Development Authenticode identity: CN=Taskbar Monitor Enhanced Development Code Signing.
+- Thumbprint: 4673165CCB579F868EFE5F52FCDA761780F49989.
+- Certificate: RSA / sha256RSA / Code Signing EKU.
+- Private key: CurrentUser\My only; not exported and not committed.
+- Public certificate SHA256: 217EC08DF0C2A23F9AEB3925FA40D7561FC21DE61039458514067FAAC0753A10.
+- Signing probe: PASS on an evidence copy only; signed probe SHA256 65168AD41EAA0C5B562FACE9E3DDEBACDA9EBC38606C94C42D4E9C55AA6AAFCD.
+- Verification negative tests: unsigned file rejected; tampered signed copy rejected.
+- Windows trust result: UnknownError because the self-signed development root is not publicly trusted. This is expected and is not presented as Trusted Publisher status.
+- Immutable v1.1.2 Setup remains 25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB; tag remains aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0.
+- Development signing tooling supports SHA256 Authenticode and optional RFC3161 timestamping.
+- Public-trust blocker: obtain a CA-issued Code Signing certificate or approved managed signing identity.
+- Exact next action for a publicly trusted signed release: use the CA identity to sign binaries before packaging, sign/timestamp installer last, regenerate hashes/SBOM/attestation and publish a NEW version. Never rewrite v1.1.2.
