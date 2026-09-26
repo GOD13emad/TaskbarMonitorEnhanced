@@ -2,7 +2,7 @@
 
 Brain Version: PB-2026-09-26-R24-SIGNPATH-READINESS
 Status: CURRENT
-Updated: 2026-09-26T18:40:00+03:30
+Updated: 2026-09-26T19:02:00+03:30
 
 
 ## CURRENT AUTHORITY — 2026-09-26 FINAL RUNTIME ACCEPTED
@@ -327,3 +327,23 @@ This section supersedes R23 as the current maintenance authority where they conf
 - Publicly trusted Authenticode release state: PENDING external SignPath Foundation review/acceptance and a future NEW release. Development self-signed signing remains test-only.
 - Immutable public v1.1.2 remains unchanged: tag `aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0`, Setup SHA256 `25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB`.
 - Exact next action: in a direct user browser session, submit the already-prepared SignPath application using `docs/security/SIGNPATH_APPLICATION_PACKET.json`; after external acceptance, create and validate a separately versioned signed release. Never rewrite v1.1.2.
+
+## R24 FINAL SIGNPATH APPLICATION GATE
+
+- Official application surface re-audited from public SignPath/HubSpot resources: portal `145110231`, form `bf62807d-bb72-4e45-9bde-1f3a53ba2472`, region `eu1`.
+- Public render-definition SHA256: `bf122cf482f6887667fb30661e3be8bafdcdac0c15c05c5a79a72f5337aeb570`.
+- Exact required fields are known and prepared in `docs/security/SIGNPATH_APPLICATION_PACKET.json`, including Project/Repository/Homepage, Tagline, Description, Reputation, Build System, First/Last Name, Email and Discovery Channel.
+- Truthful reputation audit: this new repository currently has 0 stars, 0 forks, 0 subscribers and 0 v1.1.2 release-asset downloads. No adoption claim is made. Declared GPL upstream `leandrosa81/taskbar-monitor` currently has 540 stars, 42 forks and 13 subscribers; those metrics are recorded only as upstream heritage.
+- Trust evidence supplied instead of inflated adoption claims: deterministic clean-clone GitHub Actions build, SPDX 2.3 SBOM, GitHub build/SBOM attestations, immutable SHA256 release manifests and documented Windows runtime acceptance.
+- Required first-person external attestations identified:
+  1. agree to SignPath Foundation Code of Conduct and certificate-revocation terms;
+  2. agree to SignPath storage/processing of personal data.
+- Optional SignPath marketing consent remains intentionally unchecked unless separately requested.
+- Form also contains reCAPTCHA2. It is a human anti-bot control and must not be bypassed or solved programmatically.
+- User explicitly authorized mouse/keyboard use in the current chat. ChatGPT app permission for Remote Commander is already `Allow all actions`; server reports GUI mouse/keyboard capability and `explicit-current-request-only`.
+- Connector limitation: the tool schema exposed to this ChatGPT session for `gui_session_begin` accepts only `ttlSeconds` and always creates an observe-only lease. The server-side intended takeover parameters (`mode=takeover`, `explicitUserAuthorization`) are not exposed through this session. Direct takeover therefore cannot be acquired; workflow takeover is separately blocked by `WORKFLOW_GUI_TAKEOVER_REQUIRES_DIRECT_USER_SESSION`.
+- Security decision: no raw MCP request, SendInput, UIAutomation, Chrome DevTools Protocol or shell-based injection will be used to circumvent the takeover/CAPTCHA gates.
+- Official application and Code of Conduct pages were opened on the user's Windows desktop; application page was reopened as the newest browser tab.
+- Application status: `READY_FOR_EXPLICIT_CONSENT_AND_RECAPTCHA`; Submitted = FALSE.
+- Repository-side public-signing readiness remains PASS. Publicly trusted signing remains PENDING SignPath submission/review/acceptance and a future NEW signed release. v1.1.2 remains immutable.
+- Exact next action: user must personally attest the two mandatory consent statements and complete reCAPTCHA on the already-open official form. After submission evidence is available, update packet/Brain and proceed with SignPath review/acceptance and a new signed release.

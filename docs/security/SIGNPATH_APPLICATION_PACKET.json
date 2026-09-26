@@ -1,6 +1,6 @@
 {
-  "SchemaVersion": 2,
-  "PreparedAt": "2026-09-26T15:03:25.391Z",
+  "SchemaVersion": 3,
+  "PreparedAt": "2026-09-26T15:31:30Z",
   "ProjectName": "Taskbar Monitor Enhanced",
   "Repository": "https://github.com/GOD13emad/TaskbarMonitorEnhanced",
   "Homepage": "https://github.com/GOD13emad/TaskbarMonitorEnhanced",
@@ -13,8 +13,6 @@
   "MaintainerName": "Dr. Ali-Akbar Emadeddin",
   "ContactEmail": "aliemad1324@gmail.com",
   "GitHubTwoFactorAuthenticationVerified": true,
-  "ProjectDescription": "A lightweight Windows taskbar system monitor with CPU, RAM, disk, network, GPU, VRAM, temperatures, live graphs, themes, and protected sensor monitoring.",
-  "Tagline": "A lightweight Windows taskbar monitor for live system and hardware telemetry.",
   "CodeSigningPolicy": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/blob/main/CODE_SIGNING.md",
   "DownloadPage": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/blob/main/DOWNLOAD.md",
   "PrivacyPolicy": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/blob/main/PRIVACY.md",
@@ -44,17 +42,81 @@
   "ApplicationSurface": {
     "Url": "https://signpath.org/apply.html",
     "Provider": "HubSpot embedded form",
+    "Region": "eu1",
     "PortalId": "145110231",
     "FormId": "bf62807d-bb72-4e45-9bde-1f3a53ba2472",
-    "BrowserLoaded": true,
-    "ObservedFields": [
-      "Tagline",
-      "Description"
-    ]
+    "FormDefinitionUrl": "https://forms-eu1.hsforms.com/embed/v4/render-definition/145110231/bf62807d-bb72-4e45-9bde-1f3a53ba2472",
+    "FormDefinitionSHA256": "bf122cf482f6887667fb30661e3be8bafdcdac0c15c05c5a79a72f5337aeb570"
   },
-  "ApplicationStatus": "READY_TO_SUBMIT_DIRECT_USER_GUI_ACTION_REQUIRED",
+  "PreparedFormValues": {
+    "ProjectName": "Taskbar Monitor Enhanced",
+    "RepositoryURL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced",
+    "HomepageURL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced",
+    "DownloadURL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/blob/main/DOWNLOAD.md",
+    "PrivacyPolicyURL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/blob/main/PRIVACY.md",
+    "WikipediaURL": null,
+    "Tagline": "A lightweight Windows taskbar monitor for live system and hardware telemetry.",
+    "Description": "Taskbar Monitor Enhanced is an open-source Windows application that places live system and hardware telemetry directly in the taskbar. It is designed for lightweight at-a-glance monitoring while preserving a non-elevated main application, protected local sensor collection, transparent update behavior, reproducible builds, and auditable release integrity.",
+    "Reputation": "Taskbar Monitor Enhanced is a new public project and does not claim established community adoption: GitHub currently reports 0 stars, 0 forks, 0 subscribers, and 0 v1.1.2 release-asset downloads. Its declared GPL upstream, leandrosa81/taskbar-monitor, has 540 stars, 42 forks, and 13 subscribers as of 2026-09-26; those upstream metrics are cited only as project heritage, not as adoption of Taskbar Monitor Enhanced. Current trust evidence for this project includes deterministic clean-clone GitHub Actions builds, SPDX 2.3 SBOM generation, GitHub build-provenance/SBOM attestations, immutable SHA-256 release manifests, and documented Windows runtime acceptance.",
+    "MaintainerType": "Individual maintainer(s)",
+    "BuildSystem": "GitHub",
+    "FirstName": "Ali-Akbar",
+    "LastName": "Emadeddin",
+    "Email": "aliemad1324@gmail.com",
+    "CompanyName": null,
+    "PrimaryDiscoveryChannel": "AI / LLM tools",
+    "DiscoverySource": "ChatGPT"
+  },
+  "ReputationEvidence": {
+    "ProjectGitHub": {
+      "Stars": 0,
+      "Forks": 0,
+      "Subscribers": 0,
+      "ReleaseAssetDownloadsV1_1_2": 0,
+      "ObservedAt": "2026-09-26"
+    },
+    "UpstreamGitHub": {
+      "Repository": "https://github.com/leandrosa81/taskbar-monitor",
+      "Stars": 540,
+      "Forks": 42,
+      "Subscribers": 13,
+      "ObservedAt": "2026-09-26",
+      "AttributionScope": "UPSTREAM_HERITAGE_ONLY"
+    }
+  },
+  "RequiredHumanAttestations": {
+    "CodeOfConductConsent": {
+      "Required": true,
+      "Status": "PENDING_EXPLICIT_USER_ATTESTATION",
+      "Text": "I have read and agree to the SignPath Foundation Code of Conduct and I understand that certificates are issued in SignPath Foundation's name and may be revoked if terms are violated."
+    },
+    "PersonalDataProcessingConsent": {
+      "Required": true,
+      "Status": "PENDING_EXPLICIT_USER_ATTESTATION",
+      "Text": "I agree to allow SignPath to store and process my personal data."
+    },
+    "OptionalMarketingConsent": {
+      "Required": false,
+      "Status": "DO_NOT_SELECT_WITHOUT_EXPLICIT_REQUEST"
+    },
+    "ReCaptcha2": {
+      "Required": true,
+      "Status": "PENDING_HUMAN_INTERACTION",
+      "AutomationPolicy": "DO_NOT_BYPASS_OR_SOLVE_PROGRAMMATICALLY"
+    }
+  },
+  "ConnectorInteractionState": {
+    "UserMouseKeyboardAuthorizationReceived": true,
+    "ChatGPTPluginPermission": "Allow all actions",
+    "ServerPolicy": "explicit-current-request-only",
+    "ServerReportsGuiMouseKeyboardCapabilities": true,
+    "ExposedGuiSessionBeginSchema": "ttlSeconds only; defaults to observe mode",
+    "DirectTakeoverAttemptResult": "mode and explicitUserAuthorization are rejected by the exposed connector schema; direct session input therefore cannot obtain a takeover lease in this chat",
+    "WorkflowTakeoverResult": "WORKFLOW_GUI_TAKEOVER_REQUIRES_DIRECT_USER_SESSION",
+    "SecurityDecision": "No raw local API, shell SendInput, UIAutomation, CDP, or other bypass is used to circumvent the connector takeover gate."
+  },
+  "ApplicationStatus": "READY_FOR_EXPLICIT_CONSENT_AND_RECAPTCHA",
   "Submitted": false,
-  "SubmissionBlocker": "Remote Commander enforces WORKFLOW_GUI_TAKEOVER_REQUIRES_DIRECT_USER_SESSION for browser input. The application form cannot be truthfully submitted through the current remote-control mode even with chat authorization.",
-  "ExternalAcceptanceStatus": "PENDING_SIGNPATH_FOUNDATION_REVIEW",
+  "ExternalAcceptanceStatus": "NOT_SUBMITTED",
   "ProductionSigningStatus": "PENDING_PUBLIC_TRUST_PROVIDER"
 }

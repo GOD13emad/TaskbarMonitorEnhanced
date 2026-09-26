@@ -109,3 +109,22 @@
 - Decision: repository-side prerequisites for SignPath Foundation application are accepted. This is not provider acceptance and not a public-trust signature.
 - External gate: official SignPath HubSpot application is loaded but Remote Commander input is blocked by `WORKFLOW_GUI_TAKEOVER_REQUIRES_DIRECT_USER_SESSION`; application remains NOT SUBMITTED.
 - Confidence/Status: Confirmed / repository readiness PASS / default branch PASS / CI PASS / external provider submission PENDING direct-user GUI action.
+
+## 2026-09-26 — SignPath exact form schema and final human gate
+
+- Official application page: `https://signpath.org/apply.html`.
+- HubSpot form: EU1 portal `145110231`, form `bf62807d-bb72-4e45-9bde-1f3a53ba2472`.
+- Public render definition: `https://forms-eu1.hsforms.com/embed/v4/render-definition/145110231/bf62807d-bb72-4e45-9bde-1f3a53ba2472`; SHA256 `bf122cf482f6887667fb30661e3be8bafdcdac0c15c05c5a79a72f5337aeb570`.
+- Required factual fields: Project Name, Repository URL, Homepage URL, Tagline, Description, Reputation, Build System, First Name, Last Name, Email, Primary Discovery Channel.
+- Optional factual fields: Download URL, Privacy Policy URL, Wikipedia URL, Maintainer Type, Company Name, exact discovery source.
+- Prepared factual values are stored in `docs/security/SIGNPATH_APPLICATION_PACKET.json`.
+- Reputation measurement for Taskbar Monitor Enhanced at observation time: 0 GitHub stars, 0 forks, 0 subscribers, 0 v1.1.2 asset downloads. The application must not imply established adoption.
+- Declared GPL upstream `leandrosa81/taskbar-monitor`: 540 stars, 42 forks, 13 subscribers. These values are upstream heritage only, not adoption metrics for Taskbar Monitor Enhanced.
+- Required external consent #1: agreement to SignPath Foundation Code of Conduct and understanding that certificates are issued in SignPath Foundation's name and can be revoked if terms are violated.
+- Required external consent #2: agreement to allow SignPath to store/process personal data.
+- Optional marketing communication checkbox is not authorized and remains unchecked.
+- reCAPTCHA2 is present and is a human anti-bot gate. Programmatic solution or bypass is forbidden.
+- User explicitly authorized mouse/keyboard for this current task. Plugin permission is already Allow all actions. However, this ChatGPT session's exposed `gui_session_begin` contract only accepts `ttlSeconds` and returns observe mode; takeover parameters used by the server's newer contract are absent. Workflow GUI takeover is independently rejected with `WORKFLOW_GUI_TAKEOVER_REQUIRES_DIRECT_USER_SESSION`.
+- The official application and Code of Conduct pages have been opened on the desktop and the application page was reopened last.
+- Security boundary: no raw local MCP, Windows SendInput, UIAutomation, CDP or equivalent injection is used to bypass the connector's takeover gate; no CAPTCHA bypass is attempted.
+- Status: repository readiness PASS; application payload READY; submission NOT SUBMITTED; explicit first-person consents + reCAPTCHA remain the only legitimate human gates.
