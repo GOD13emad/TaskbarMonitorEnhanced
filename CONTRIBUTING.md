@@ -6,4 +6,4 @@ Please keep changes focused and explain the user-visible reason for the change. 
 
 Large architectural changes should be discussed before implementation.
 
-By contributing, you agree that your contribution may be distributed under the GNU GPL v3.0 license.
+By contributing, you agree that your contribution may be distributed under the GNU GPL-3.0-or-later license.

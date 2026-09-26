@@ -1,0 +1,60 @@
+{
+  "SchemaVersion": 2,
+  "PreparedAt": "2026-09-26T15:03:25.391Z",
+  "ProjectName": "Taskbar Monitor Enhanced",
+  "Repository": "https://github.com/GOD13emad/TaskbarMonitorEnhanced",
+  "Homepage": "https://github.com/GOD13emad/TaskbarMonitorEnhanced",
+  "License": "GPL-3.0-or-later",
+  "CurrentRelease": "v1.1.2",
+  "CurrentReleaseUrl": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.2",
+  "CurrentReleaseTagSHA": "aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0",
+  "CurrentUnsignedInstallerSHA256": "25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB",
+  "MaintainerGitHub": "GOD13emad",
+  "MaintainerName": "Dr. Ali-Akbar Emadeddin",
+  "ContactEmail": "aliemad1324@gmail.com",
+  "GitHubTwoFactorAuthenticationVerified": true,
+  "ProjectDescription": "A lightweight Windows taskbar system monitor with CPU, RAM, disk, network, GPU, VRAM, temperatures, live graphs, themes, and protected sensor monitoring.",
+  "Tagline": "A lightweight Windows taskbar monitor for live system and hardware telemetry.",
+  "CodeSigningPolicy": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/blob/main/CODE_SIGNING.md",
+  "DownloadPage": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/blob/main/DOWNLOAD.md",
+  "PrivacyPolicy": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/blob/main/PRIVACY.md",
+  "Roles": {
+    "Committer": "GOD13emad",
+    "Reviewer": "GOD13emad",
+    "Approver": "GOD13emad"
+  },
+  "ProviderStatement": "Free code signing provided by SignPath.io, certificate by SignPath Foundation",
+  "ProductMetadataVerification": {
+    "Status": "PASS",
+    "ProductName": "Taskbar Monitor Enhanced",
+    "ProductVersion": "1.1.2+r21",
+    "FileVersion": "1.1.2.0",
+    "Components": [
+      "TaskbarMonitorEnhanced.exe",
+      "TaskbarMonitorSensorBroker.exe",
+      "TaskbarMonitorSensorSupervisor.exe",
+      "TaskbarMonitorEnhanced_Setup_1.1.2.exe"
+    ]
+  },
+  "UninstallVerification": {
+    "Status": "PASS",
+    "WindowsInstalledAppsRegistration": true,
+    "PerUserUninstaller": "%LOCALAPPDATA%\\TaskbarMonitorEnhanced\\Uninstall.exe"
+  },
+  "ApplicationSurface": {
+    "Url": "https://signpath.org/apply.html",
+    "Provider": "HubSpot embedded form",
+    "PortalId": "145110231",
+    "FormId": "bf62807d-bb72-4e45-9bde-1f3a53ba2472",
+    "BrowserLoaded": true,
+    "ObservedFields": [
+      "Tagline",
+      "Description"
+    ]
+  },
+  "ApplicationStatus": "READY_TO_SUBMIT_DIRECT_USER_GUI_ACTION_REQUIRED",
+  "Submitted": false,
+  "SubmissionBlocker": "Remote Commander enforces WORKFLOW_GUI_TAKEOVER_REQUIRES_DIRECT_USER_SESSION for browser input. The application form cannot be truthfully submitted through the current remote-control mode even with chat authorization.",
+  "ExternalAcceptanceStatus": "PENDING_SIGNPATH_FOUNDATION_REVIEW",
+  "ProductionSigningStatus": "PENDING_PUBLIC_TRUST_PROVIDER"
+}

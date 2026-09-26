@@ -1,57 +1,62 @@
 # Code signing policy
 
-Taskbar Monitor Enhanced is an open-source Windows project distributed under the GNU General Public License v3.0.
+Taskbar Monitor Enhanced is an open-source Windows project distributed under **GNU GPL-3.0-or-later**. The authoritative repository is:
+
+https://github.com/GOD13emad/TaskbarMonitorEnhanced
+
+## Provider and current status
+
+**Free code signing provided by SignPath.io, certificate by SignPath Foundation.**
+
+The project is prepared to apply to the SignPath Foundation open-source signing program. **Acceptance is pending; no release is currently claimed to carry a SignPath Foundation signature.** The self-signed development certificate documented under `docs/security/` is for local pipeline validation only and is not public publisher trust.
 
 ## Official release artifacts
 
-Only artifacts attached to the GitHub Releases page are official release binaries/packages.
+Only artifacts attached to the official GitHub Releases page are release binaries/packages:
 
-For release 1.0.2, the accepted artifacts are:
+https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases
 
-- `TaskbarMonitorEnhanced_Setup_1.0.2.exe`
-  - SHA-256: `56DA35F0787A5F0D79E0B46ED4FC9FE9ECACF4547A853105894EA7504A88D5D6`
-- `TaskbarMonitorEnhanced_1.0.2_SOURCE.zip`
-  - SHA-256: `6BC2ED8DA18F5959E9B6780C55ACF204ADC4C41FC7100C1BFEF567E56DE7E571`
+The immutable accepted baseline is **v1.1.2**. Its release tag remains fixed and its published installer SHA-256 is:
 
-GitHub's automatically generated **Source code (zip)** / **Source code (tar.gz)** and the repository **Code > Download ZIP** action are repository snapshots. They are not the byte-exact accepted corresponding-source release artifact.
+`25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB`
 
-## Signing provider
-
-The project intends to use sponsored open-source code signing where available.
-
-Free code signing provided by SignPath.io, certificate by SignPath Foundation, subject to project acceptance by SignPath Foundation and its open-source code-signing conditions.
-
-Until a signed release is explicitly published, users must treat the current release-signature state recorded in the release notes as authoritative.
+v1.1.2 is not retroactively signed or replaced. Public Authenticode signing will begin only on a **new release version** after the SignPath or other trusted-provider gate is satisfied.
 
 ## Team roles
 
-- Committer: `GOD13emad`
+- Committer / maintainer: `GOD13emad`
 - Reviewer: `GOD13emad`
-- Release/signing approver: `GOD13emad`
+- Release and signing approver: `GOD13emad`
 
-For a one-maintainer project these roles are currently held by the same maintainer. If additional maintainers are added, signing approval and source review responsibilities will be separated where practical.
+This is currently a single-maintainer project. Source changes from external contributors require maintainer review. Every production signing request requires explicit manual approval; signing is never an automatic consequence of a build.
 
-## Build and release integrity
+## Build-origin and signing controls
 
-A release intended for signing must:
+A production signing request must:
 
-1. originate from this public repository;
-2. have its version and release metadata committed before signing;
-3. be built using the documented project build process;
-4. preserve GNU GPL and upstream attribution requirements;
-5. contain no unpublished proprietary project code;
-6. pass the project's release acceptance gates before publication;
-7. be signed without modifying the artifact after the signature is applied;
-8. publish cryptographic hashes for the final signed artifacts.
+1. originate from this public repository and an identified commit;
+2. use the repository build scripts and pinned dependency controls;
+3. build the project Main, Sensor Broker, Sensor Supervisor, and installer artifacts from source;
+4. preserve GPL/upstream attribution and documented third-party notices;
+5. pass deterministic build and artifact-equivalence checks applicable to that release;
+6. generate or update SHA-256 manifests and SPDX SBOM evidence;
+7. pass runtime and installer acceptance before public promotion;
+8. receive manual release and signing approval;
+9. be Authenticode-signed and RFC3161-timestamped by the approved public signing service;
+10. be verified after signing and never modified after the signature is applied.
 
-Release binaries are never considered accepted merely because they have a signature. Runtime/lifecycle acceptance and artifact integrity remain separate release gates.
+Third-party and open-source dependencies are documented in `THIRD_PARTY_NOTICES.md`. Project signing credentials must never be used to sign unrelated third-party projects or unpublished proprietary code.
 
-## Privacy
+## Privacy and network behavior
 
-Taskbar Monitor Enhanced does not transmit telemetry, monitoring data, configuration data, or personal information to networked systems unless a future user-requested feature explicitly requires such communication and is separately documented.
+The application does not upload monitoring telemetry, configuration data, or personal content. By default it performs an HTTPS update check against the official GitHub Releases API; users can disable automatic update checks in Settings. Installer download occurs only after the user confirms the **Download & Install** prompt. See [PRIVACY.md](PRIVACY.md) for exact endpoints and behavior.
 
-The application reads local system telemetry for display on the local Windows taskbar. See `PRIVACY.md` for the project privacy statement.
+## Verification and release integrity
 
-## Security and reporting
+Signed status is only one release gate. Users and maintainers must also verify the release tag and commit, published SHA-256 values, SBOM and provenance evidence, and runtime acceptance for the same release identity.
 
-See `SECURITY.md` for vulnerability reporting. A signing certificate must not be used for builds that have not passed the project's release process or for third-party projects.
+Current public release authority remains immutable **v1.1.2** until a separately versioned, accepted, publicly signed release is produced.
+
+## Security reporting
+
+See [SECURITY.md](SECURITY.md) for vulnerability reporting. Suspected signing-key, artifact-origin, or release-integrity incidents must block signing and publication until investigated.

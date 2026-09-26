@@ -80,3 +80,20 @@
 - Immutability regression: public tag v1.1.2 remains aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0 and release Setup digest remains sha256:25744a0a0f78b787a5fc3601577748b80353adc9dafb9fe91a111a53c56216fb.
 - Production gate: obtain CA-issued Code Signing certificate or approved managed signing identity; sign/timestamp a NEW release version; then regenerate signed hashes, SBOM, provenance and runtime acceptance.
 - Confidence/Status: Confirmed / DEVELOPMENT SIGNING PIPELINE PASS / PUBLIC TRUST PENDING.
+
+## 2026-09-26 — R24 SignPath Foundation public-trust readiness
+
+- Context: user authorized full completion of public code signing after the R23 self-signed development Authenticode pipeline passed.
+- Provider research: SignPath Foundation publishes a free open-source signing route with repository ownership, OSI-approved licensing, maintained/released documentation, visible Code signing policy, privacy/uninstall disclosure, MFA, author/reviewer/approver roles, manual approval, and verifiable source-built artifacts. Microsoft Artifact Signing is geographically restricted and therefore was not treated as the universal primary route.
+- Repository evidence: GitHub repository is public; maintainer account `GOD13emad` reports two-factor authentication enabled.
+- License correction: root LICENSE had only a short notice while README/CONTRIBUTING already declared GPL v3-or-later. It was replaced with the already-accepted full GNU GPL v3 license text from local project evidence; declared license family remains GPL-3.0-or-later.
+- Policy/readiness docs: README, CODE_SIGNING.md, DOWNLOAD.md and PRIVACY.md now describe the current immutable v1.1.2 baseline, exact SignPath provider attribution, team roles, manual signing approval, source/build provenance gates, privacy/update behavior and uninstall route without claiming external acceptance.
+- Actual updater evidence: default auto-check uses HTTPS GET to `https://api.github.com/repos/GOD13emad/TaskbarMonitorEnhanced/releases/latest`; setting can disable automatic checks; installer download occurs only after explicit Download & Install confirmation and hash/release checks.
+- Actual PE metadata evidence: Main, Broker, Supervisor and Setup all PASS ProductName `Taskbar Monitor Enhanced`, ProductVersion `1.1.2+r21`, FileVersion `1.1.2.0`, populated CompanyName and FileDescription. Their hashes remain the accepted final hashes.
+- Actual uninstall evidence: installer creates `%LOCALAPPDATA%\TaskbarMonitorEnhanced\Uninstall.exe` and registers DisplayName, DisplayVersion, Publisher, InstallLocation, UninstallString and QuietUninstallString in the per-user Windows uninstall key. README/DOWNLOAD expose Windows Installed apps and direct uninstaller instructions.
+- Application surface evidence: official SignPath apply page is a HubSpot embedded form using portal `145110231` and form `bf62807d-bb72-4e45-9bde-1f3a53ba2472`; page loaded in Chrome and Tagline/Description fields were visibly observed.
+- Submission gate: browser input was rejected by Remote Commander with `WORKFLOW_GUI_TAKEOVER_REQUIRES_DIRECT_USER_SESSION`. This is an enforced platform interaction gate; chat authorization cannot override it. Application is therefore NOT SUBMITTED.
+- Ready packet: `docs/security/SIGNPATH_APPLICATION_PACKET.json` status `READY_TO_SUBMIT_DIRECT_USER_GUI_ACTION_REQUIRED`, with main-branch policy/privacy URLs, verified GitHub 2FA fact, product metadata PASS, uninstall PASS, form identifiers and submitted=false.
+- Immutability: v1.1.2 tag remains `aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0`; Setup SHA256 remains `25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB`.
+- Confidence/Status: Repository readiness Confirmed/PASS; external SignPath application submission BLOCKED by direct-user GUI gate; SignPath Foundation acceptance/public trust PENDING.
+- Prevention: never substitute self-signed trust, install a development root to manufacture a PASS, rewrite immutable v1.1.2, or invent/accept external identity/legal fields. Public signing must start on a new release after external provider acceptance.

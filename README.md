@@ -4,7 +4,7 @@ A lightweight Windows taskbar system monitor for live CPU, RAM, disk, network, G
 
 ## v1.1.2 — R21 final release identity
 
-Version **v1.1.2** is the final R21 release identity, derived from the accepted RC10 behavior with release-identity and documentation changes only. GitHub Stable/Latest publication occurs only after exact final build, install, runtime and supply-chain gates pass.
+Version **v1.1.2** is the final R21 release identity, derived from the accepted RC10 behavior with release-identity and documentation changes only. It is the immutable public Stable/Latest baseline after exact final build, install, runtime and supply-chain acceptance.
 
 Existing users can update directly through the application's built-in GitHub update flow, or download the installer from:
 
@@ -19,6 +19,19 @@ v1.1.2 retains the established taskbar integration and adds the R21 production-h
 - single-instance Settings behavior
 
 Release assets and hashes are published in `SHA256SUMS_v1.1.2.txt` and `RELEASE_MANIFEST_v1.1.2.json`.
+
+## Install and uninstall
+
+Install only from the official GitHub Releases page and verify the published SHA-256 values before running the installer.
+
+The installer registers **Taskbar Monitor Enhanced** in Windows Installed apps and creates a per-user uninstaller at `%LOCALAPPDATA%\TaskbarMonitorEnhanced\Uninstall.exe`.
+
+To uninstall, use either:
+
+- **Windows Settings > Apps > Installed apps > Taskbar Monitor Enhanced > Uninstall**, or
+- run `%LOCALAPPDATA%\TaskbarMonitorEnhanced\Uninstall.exe /uninstall`.
+
+The application, shortcuts, startup entry, and its uninstall registration are removed by the project uninstaller. The PawnIO system component is intentionally not removed automatically because another hardware-monitoring application may depend on it.
 
 
 ## R21 acceptance and reliability
@@ -65,15 +78,17 @@ All 14 themes, rendered by the real application with live sampled metrics during
 
 See the [full screenshot gallery](docs/screenshots/README.md) for representative desktop captures and individual theme proofs.
 
-## Code signing status
+## Code signing policy
 
-The v1.1.2 release does not assume an Authenticode signature; an unsigned installer may show **Unknown publisher** in Windows Defender SmartScreen on first launch.
+The immutable **v1.1.2** release is the accepted unsigned baseline and is not rewritten after publication. Its installer may therefore show **Unknown publisher** in Windows until a future release is signed by a publicly trusted provider.
 
-The project has applied / is applying for the SignPath Foundation open-source code-signing program for future releases: **Free code signing provided by SignPath.io, certificate by SignPath Foundation.** This statement is conditional on project acceptance by SignPath Foundation; release acceptance does not depend on signing status.
+Public-trust signing status: **SignPath Foundation application readiness is prepared; project acceptance and production signing are still pending.** No current release is claimed to be signed by SignPath Foundation.
 
-See [`CODE_SIGNING.md`](CODE_SIGNING.md) for the signing policy and [`PRIVACY.md`](PRIVACY.md) for the privacy statement.
+**Free code signing provided by SignPath.io, certificate by SignPath Foundation.** This provider statement describes the intended open-source signing path and becomes an actual release-signature claim only after SignPath Foundation accepts the project and signs a release artifact.
 
-A signed build will still be subject to the project's full runtime and lifecycle acceptance process before publication; signing alone does not promote a build to an accepted release.
+See the project [Code signing policy](CODE_SIGNING.md) for roles, release-origin controls, approval rules, and signature verification. See [PRIVACY.md](PRIVACY.md) for the exact GitHub update-check network behavior.
+
+The local self-signed development certificate is used only to validate the Authenticode pipeline; it is not a publicly trusted publisher certificate. A future publicly signed build must still pass the full build, runtime, SBOM, provenance, hash, and release acceptance gates before publication.
 
 ## Why this project exists
 

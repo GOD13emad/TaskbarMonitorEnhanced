@@ -1,8 +1,8 @@
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
-Brain Version: PB-2026-09-26-R23-CODE-SIGNING
+Brain Version: PB-2026-09-26-R24-SIGNPATH-READINESS
 Status: CURRENT
-Updated: 2026-09-26T18:02:38.1269031+03:30
+Updated: 2026-09-26T18:34:00+03:30
 
 
 ## CURRENT AUTHORITY — 2026-09-26 FINAL RUNTIME ACCEPTED
@@ -296,3 +296,22 @@ This maintenance scope does not modify the immutable v1.1.2 release.
 - Development signing tooling supports SHA256 Authenticode and optional RFC3161 timestamping.
 - Public-trust blocker: obtain a CA-issued Code Signing certificate or approved managed signing identity.
 - Exact next action for a publicly trusted signed release: use the CA identity to sign binaries before packaging, sign/timestamp installer last, regenerate hashes/SBOM/attestation and publish a NEW version. Never rewrite v1.1.2.
+
+## CURRENT MAINTENANCE — R24 PUBLIC-TRUST SIGNING READINESS
+
+This section supersedes R23 as the current maintenance authority where they conflict. Immutable public v1.1.2 remains unchanged.
+
+- Working branch: `maintenance/signpath-readiness`, based on accepted R23 commit `41963f94013ecb8745897839ccc6e9b220be5d71`.
+- Public-trust route selected: SignPath Foundation open-source signing application. Acceptance is external and PENDING; no release is claimed SignPath-signed.
+- Repository is public; GitHub account `GOD13emad` has 2FA enabled.
+- Root license declaration remains GPL-3.0-or-later; truncated root LICENSE was replaced with the already-accepted full GNU GPL v3 text without changing the declared license family.
+- README and DOWNLOAD now expose the exact Code signing policy terminology, required SignPath provider attribution, privacy link, immutable-release rule, and explicit install/uninstall instructions.
+- Actual updater/privacy audit: default HTTPS release check targets GitHub Releases API and can be disabled; installer download requires user confirmation; monitoring telemetry/config/hardware readings are not uploaded to a project-operated service.
+- Actual PE metadata gate: PASS for Main, Broker, Supervisor and Setup. ProductName = Taskbar Monitor Enhanced; ProductVersion = 1.1.2+r21; FileVersion = 1.1.2.0; Company/FileDescription populated.
+- Actual uninstall gate: PASS from installer source. Windows per-user Installed apps registration includes DisplayName, DisplayVersion, Publisher, UninstallString and QuietUninstallString; uninstaller path is `%LOCALAPPDATA%\TaskbarMonitorEnhanced\Uninstall.exe`.
+- SignPath application surface: `https://signpath.org/apply.html`, HubSpot portal `145110231`, form `bf62807d-bb72-4e45-9bde-1f3a53ba2472`; browser page loaded and Tagline/Description fields were observed.
+- Hard external interaction gate: Remote Commander rejects browser input with `WORKFLOW_GUI_TAKEOVER_REQUIRES_DIRECT_USER_SESSION`. Chat authorization cannot override this platform gate. Application submission therefore remains NOT SUBMITTED.
+- Prepared application packet: `docs/security/SIGNPATH_APPLICATION_PACKET.json`, status `READY_TO_SUBMIT_DIRECT_USER_GUI_ACTION_REQUIRED`.
+- Immutable release regression remains PASS: tag v1.1.2 -> `aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0`; Setup SHA256 `25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB`.
+- Publicly trusted signature status: PENDING. Development Authenticode pipeline remains PASS but does not provide public publisher trust.
+- Current critical path: commit/push readiness docs -> fast-forward default `main` to the accepted readiness commit without force -> verify immutable release -> user/direct-GUI submission of SignPath application -> SignPath Foundation review/acceptance -> create a NEW signed release, never rewrite v1.1.2.
