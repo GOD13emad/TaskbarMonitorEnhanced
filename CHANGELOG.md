@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.3 — Startup Resilience
+
+- add a second, privilege-independent Start-with-Windows recovery registration in the current user's Startup folder
+- add bounded --startup-recovery mode so the fallback exits quickly when the primary HKCU Run launch succeeds
+- make either surviving startup registration repair the other while preserving the existing single-instance mutex
+- remove both startup registrations when Start with Windows is disabled or the product is uninstalled
+- preserve immutable v1.1.2 and the accepted 1.1.2+r21 protected sensor layer
+
+
 ## 1.1.2 — R21 Production Hardening
 
 - finalize the RC10-accepted 15-second truthful UI freshness / 60-second CPU hard-stall watchdog behavior

@@ -1,6 +1,6 @@
 # R21 reproducible build
 
-Build-R21.ps1 is the authoritative local and CI build path for the final 1.1.2 R21 release identity.
+Build-R21.ps1 is the authoritative local and CI build path for the v1.1.3 startup-resilience patch, retaining the accepted R21 sensor architecture.
 
 It performs the following gates:
 

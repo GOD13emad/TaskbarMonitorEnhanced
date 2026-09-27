@@ -85,7 +85,7 @@ $CanonicalTextResources=[ordered]@{
     'COPYRIGHT_AND_ATTRIBUTION.md'=(Join-Path $Root 'COPYRIGHT_AND_ATTRIBUTION.md')
     'AI_ASSISTED_DEVELOPMENT.md'=(Join-Path $Root 'AI_ASSISTED_DEVELOPMENT.md')
     'THIRD_PARTY_NOTICES.md'=(Join-Path $Root 'THIRD_PARTY_NOTICES.md')
-    'RELEASE_NOTES_v1.1.2.md'=(Join-Path $Root 'RELEASE_NOTES_v1.1.2.md')
+    'RELEASE_NOTES_v1.1.3.md'=(Join-Path $Root 'RELEASE_NOTES_v1.1.3.md')
     'UPSTREAM_REFERENCE_GPL_NOTICE.md'=(Join-Path $Root 'UPSTREAM_REFERENCE_GPL_NOTICE.md')
     'TaskbarMonitorEnhanced_Setup.cs'=(Join-Path $Root 'installer\TaskbarMonitorEnhanced_Setup.cs')
 }
@@ -95,7 +95,7 @@ foreach($entry in $CanonicalTextResources.GetEnumerator()){
 Write-Host 'R21_CANONICAL_TEXT_PAYLOAD=PASS'
 
 Build (Join-Path $PSScriptRoot 'TaskbarMonitorEnhanced_Setup.csproj')
-$Setup=Join-Path $Out 'Setup\TaskbarMonitorEnhanced_Setup_1.1.2.exe'
+$Setup=Join-Path $Out 'Setup\TaskbarMonitorEnhanced_Setup_1.1.3.exe'
 if(!(Test-Path -LiteralPath $Setup)){throw 'Setup output missing.'}
 
 $Verify=Join-Path $Out 'setup_verify.json'
@@ -111,8 +111,8 @@ $Self=Join-Path $Out 'selftest.txt'
 if($LASTEXITCODE -ne 0){throw 'Application self-test failed.'}
 
 $manifest=[ordered]@{
-    Version='1.1.2'
-    Build='V1_1_2_R21_PRODUCTION_HARDENING'
+    Version='1.1.3'
+    Build='V1_1_3_R22_STARTUP_RESILIENCE'
     GeneratedUtc=[datetime]::UtcNow.ToString('o')
     Dependencies=[ordered]@{
         LibreHardwareMonitor=[ordered]@{Version=[string]$Lock.dependencies.LibreHardwareMonitor.version;Url=$LhmUrl;SHA256=$LhmSha}

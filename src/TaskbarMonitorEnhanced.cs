@@ -32,18 +32,18 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Live system monitor integrated into the Windows taskbar")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.1.2+r21")]
+[assembly: AssemblyInformationalVersion("1.1.3+r22")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.1.2.0")]
-[assembly: AssemblyFileVersion("1.1.2.0")]
+[assembly: AssemblyVersion("1.1.3.0")]
+[assembly: AssemblyFileVersion("1.1.3.0")]
 
 namespace TaskbarMonitorEnhanced
 {
     internal static class BuildInfo
     {
-        public const string Version = "V1_1_2_R21_PRODUCTION_HARDENING";
+        public const string Version = "V1_1_3_R22_STARTUP_RESILIENCE";
         public const string Product = "Taskbar Monitor Enhanced";
-        public const string PublicVersion = "1.1.2";
+        public const string PublicVersion = "1.1.3";
         public const string ShortcutName = "Taskbar Monitor Enhanced";
         public const string ProductDescription = "Live system monitor integrated into the Windows taskbar";
         public const string Author = "Dr. Ali-Akbar Emadeddin";
@@ -5645,7 +5645,7 @@ namespace TaskbarMonitorEnhanced
             repairSensors=new Button();repairSensors.Text="Repair protected sensors...";repairSensors.Location=new Point(461,24);repairSensors.Size=new Size(185,34);repairSensors.Click+=delegate{RepairProtectedSensors();};diagnostics.Controls.Add(repairSensors);
 
             Button openLog=new Button();openLog.Text="Open Logs";openLog.Location=new Point(24,28);openLog.Width=120;openLog.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Logs);}catch{}};advanced.Controls.Add(openLog);
-            Label note=new Label();note.AutoSize=false;note.Location=new Point(24,80);note.Size=new Size(660,300);note.Text="v1.1.2 — R21 production hardening: isolated native sensors, staggered health supervisor, power-aware telemetry, native CPU usage, cached topology and diagnostics.\r\n\r\nDisk cards show live physical-disk read/write speed. Hover shows each detected disk model, read/write throughput, temperature, volume list, used/total capacity and activity.\r\n\r\nDisplay modes: Overall = system/all devices, Auto = highest active device, Single = one selected device, Multiple = all checked devices.\r\n\r\nAutomatic update installation requires both GitHub SHA-256 asset metadata and an immutable GitHub Release.";advanced.Controls.Add(note);
+            Label note=new Label();note.AutoSize=false;note.Location=new Point(24,80);note.Size=new Size(660,300);note.Text="v1.1.3 — startup resilience: Start with Windows maintains two independent per-user launch registrations. The normal HKCU Run entry starts immediately; a Startup-folder recovery shortcut uses bounded delayed recovery. Either surviving path repairs the other, while the single-instance mutex prevents duplicate long-running monitors.\r\n\r\nR21 sensor isolation, diagnostics, immutable-update checks and all 14 themes remain intact.\r\n\r\nAutomatic update installation requires both GitHub SHA-256 asset metadata and an immutable GitHub Release.";advanced.Controls.Add(note);
             FlowLayoutPanel buttons=new FlowLayoutPanel();buttons.Dock=DockStyle.Bottom;buttons.Height=45;buttons.FlowDirection=FlowDirection.RightToLeft;Controls.Add(buttons);Button ok=new Button();ok.Text="Save & Apply";ok.Width=105;ok.Click+=delegate{Apply();DialogResult=DialogResult.OK;Close();};Button cancel=new Button();cancel.Text="Cancel";cancel.Width=90;cancel.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};buttons.Controls.Add(ok);buttons.Controls.Add(cancel);AcceptButton=ok;CancelButton=cancel;
             if(!String.IsNullOrWhiteSpace(initialTab))foreach(TabPage tp in tabs.TabPages)if(String.Equals(tp.Text,initialTab,StringComparison.OrdinalIgnoreCase)){tabs.SelectedTab=tp;break;}
             Shown+=delegate{if(c.AutoCheckUpdates||String.Equals(initialTab,"Updates",StringComparison.OrdinalIgnoreCase))BeginCheckUpdates();if(String.Equals(initialTab,"Diagnostics",StringComparison.OrdinalIgnoreCase))RefreshDiagnostics();};
@@ -5830,16 +5830,87 @@ namespace TaskbarMonitorEnhanced
 
     internal static class StartupManager
     {
+        public const string RunValueName="TaskbarMonitorEnhanced";
+        public const string RecoveryArgument="--startup-recovery";
+        public const string RecoveryShortcutFileName="Taskbar Monitor Enhanced Startup Recovery.lnk";
+
+        public static string RecoveryShortcutPath
+        {
+            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup),RecoveryShortcutFileName); }
+        }
+
+        private static void CreateShortcut(string path,string target,string arguments)
+        {
+            Type shellType=null;object shell=null;object shortcut=null;
+            try
+            {
+                shellType=Type.GetTypeFromProgID("WScript.Shell");
+                if(shellType==null)throw new InvalidOperationException("WScript.Shell COM registration is unavailable.");
+                shell=Activator.CreateInstance(shellType);
+                shortcut=shellType.InvokeMember("CreateShortcut",BindingFlags.InvokeMethod,null,shell,new object[]{path});
+                Type shortcutType=shortcut.GetType();
+                shortcutType.InvokeMember("TargetPath",BindingFlags.SetProperty,null,shortcut,new object[]{target});
+                shortcutType.InvokeMember("Arguments",BindingFlags.SetProperty,null,shortcut,new object[]{arguments});
+                shortcutType.InvokeMember("WorkingDirectory",BindingFlags.SetProperty,null,shortcut,new object[]{Path.GetDirectoryName(target)});
+                shortcutType.InvokeMember("IconLocation",BindingFlags.SetProperty,null,shortcut,new object[]{target+",0"});
+                shortcutType.InvokeMember("Description",BindingFlags.SetProperty,null,shortcut,new object[]{"Delayed recovery launcher for Taskbar Monitor Enhanced Start-with-Windows."});
+                shortcutType.InvokeMember("WindowStyle",BindingFlags.SetProperty,null,shortcut,new object[]{1});
+                shortcutType.InvokeMember("Save",BindingFlags.InvokeMethod,null,shortcut,null);
+            }
+            finally
+            {
+                if(shortcut!=null&&Marshal.IsComObject(shortcut))try{Marshal.FinalReleaseComObject(shortcut);}catch{}
+                if(shell!=null&&Marshal.IsComObject(shell))try{Marshal.FinalReleaseComObject(shell);}catch{}
+            }
+        }
+
+        private static void EnsureRecoveryShortcut(string executablePath)
+        {
+            string shortcut=RecoveryShortcutPath;
+            if(File.Exists(shortcut)&&new FileInfo(shortcut).Length>0)return;
+            Directory.CreateDirectory(Path.GetDirectoryName(shortcut));
+            CreateShortcut(shortcut,executablePath,RecoveryArgument);
+            Log.Write("INFO","STARTUP_RECOVERY_SHORTCUT_CREATED path="+shortcut);
+        }
+
         public static void SetEnabled(bool enabled)
         {
+            string executablePath=Application.ExecutablePath;
             try
             {
                 using(RegistryKey k=Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
                 {
-                    if(enabled)k.SetValue("TaskbarMonitorEnhanced","\""+Application.ExecutablePath+"\""); else k.DeleteValue("TaskbarMonitorEnhanced",false);
+                    if(enabled)k.SetValue(RunValueName,"\""+executablePath+"\""); else k.DeleteValue(RunValueName,false);
                 }
             }
-            catch(Exception ex){Log.Write("WARN","STARTUP " + ex.Message);}
+            catch(Exception ex){Log.Write("WARN","STARTUP_RUN "+ex.Message);}
+
+            try
+            {
+                if(enabled)EnsureRecoveryShortcut(executablePath);
+                else if(File.Exists(RecoveryShortcutPath))File.Delete(RecoveryShortcutPath);
+            }
+            catch(Exception ex){Log.Write("WARN","STARTUP_RECOVERY "+ex.Message);}
+        }
+
+        public static bool IsRecoveryInvocation(string[] args)
+        {
+            return args!=null&&args.Any(x=>String.Equals(x,RecoveryArgument,StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static bool WaitForPrimaryInstanceOrTimeout()
+        {
+            int current=Process.GetCurrentProcess().Id;
+            for(int i=0;i<12;i++)
+            {
+                try
+                {
+                    if(Process.GetProcessesByName("TaskbarMonitorEnhanced").Any(p=>p.Id!=current))return true;
+                }
+                catch{}
+                Thread.Sleep(1000);
+            }
+            return false;
         }
     }
 
@@ -6806,10 +6877,10 @@ namespace TaskbarMonitorEnhanced
                         throw new Exception("sensor selfheal missing state");
                 }
                 finally{try{Directory.Delete(healDir,true);}catch{}}
-                Console.WriteLine("TBME_V1_1_2_R21_SELFTEST=PASS PUBLIC_VERSION=1.1.2 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE CPU_HARD_STALL_WATCHDOG_SEC=60 CPU_SUPERVISOR_STARTUP_GRACE_SEC=60 THEMES=14 WIDTH=1100 HISTORY=60 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE SENSOR_SUPERVISOR_AUTOHEAL=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE CREATEPARAMS_NOACTIVATE=TRUE");
+                Console.WriteLine("TBME_V1_1_3_R22_SELFTEST=PASS PUBLIC_VERSION=1.1.3 STARTUP_DUAL_REGISTRATION=TRUE STARTUP_RECOVERY_DELAY_SEC=12 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE CPU_HARD_STALL_WATCHDOG_SEC=60 CPU_SUPERVISOR_STARTUP_GRACE_SEC=60 THEMES=14 WIDTH=1100 HISTORY=60 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE SENSOR_SUPERVISOR_AUTOHEAL=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE CREATEPARAMS_NOACTIVATE=TRUE");
                 return 0;
             }
-            catch(Exception ex){Console.Error.WriteLine("TBME_V1_1_2_R21_SELFTEST=FAIL " + ex);return 2;}
+            catch(Exception ex){Console.Error.WriteLine("TBME_V1_1_3_R22_SELFTEST=FAIL " + ex);return 2;}
         }
 
         public static int RunJson(string outputPath)
@@ -7114,6 +7185,7 @@ namespace TaskbarMonitorEnhanced
                 if(args.Length<2){Console.Error.WriteLine("TBME_HEALTH_PROBE=FAIL missing json path");return 12;}
                 return HealthProbe.Run(args[1]);
             }
+            if(StartupManager.IsRecoveryInvocation(args)&&StartupManager.WaitForPrimaryInstanceOrTimeout())return 0;
             bool created;
             using(Mutex mutex=new Mutex(true,@"Local\TaskbarMonitorEnhanced_V1_1_0",out created))
             {

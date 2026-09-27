@@ -2,23 +2,30 @@
 
 A lightweight Windows taskbar system monitor for live CPU, RAM, disk, network, GPU, VRAM and temperature telemetry.
 
-## v1.1.2 — R21 final release identity
+## v1.1.3 — Startup Resilience
 
-Version **v1.1.2** is the final R21 release identity, derived from the accepted RC10 behavior with release-identity and documentation changes only. It is the immutable public Stable/Latest baseline after exact final build, install, runtime and supply-chain acceptance.
+Version **v1.1.3** is a focused reliability release built on the accepted v1.1.2/R21 sensor architecture. Its primary change is resilient **Start with Windows** behavior after the observed loss of the normal Windows Run registration.
 
-Existing users can update directly through the application's built-in GitHub update flow, or download the installer from:
+When Start with Windows is enabled, v1.1.3 maintains two independent per-user launch registrations:
 
-https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.2
+- the normal `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TaskbarMonitorEnhanced` entry for immediate launch;
+- a `Taskbar Monitor Enhanced Startup Recovery.lnk` fallback in the current user's Startup folder, invoking a bounded `--startup-recovery` mode.
 
-v1.1.2 retains the established taskbar integration and adds the R21 production-hardening line:
+Either surviving path repairs the missing registration. The fallback waits up to 12 seconds for the primary launch path and exits early when it detects the primary process; the existing named mutex remains the final single-instance guard. Turning Start with Windows off removes both registrations.
 
-- removal of default NVIDIA-SMI realtime polling that caused repeated console-host launches on the validation system
-- low-pressure taskbar-child shell integration
-- watchdog 500 ms, host poll 1000 ms, style/placement health 5000 ms
-- event/geometry-driven Safe Placement work
-- single-instance Settings behavior
+The v1.1.3 qualification run also re-rendered **all 14 themes from live sampled telemetry** and checked both 592 px and 500 px compact layouts with zero recorded overflow.
 
-Release assets and hashes are published in `SHA256SUMS_v1.1.2.txt` and `RELEASE_MANIFEST_v1.1.2.json`.
+Download the immutable release from:
+
+https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.3
+
+Release assets and hashes are published in `SHA256SUMS_v1.1.3.txt` and `RELEASE_MANIFEST_v1.1.3.json`.
+
+### Preserved v1.1.2 / R21 baseline
+
+v1.1.3 intentionally reuses the exact accepted `1.1.2+r21` protected sensor layer when its hash and live-health compatibility gates pass. CPU/GPU/storage process isolation, watchdog supervision, suspend/resume handling, shell recovery, updater integrity checks, SBOM/provenance controls, and the established 14-theme renderer remain intact.
+
+The public **v1.1.2** tag and assets remain immutable historical release evidence and are never retagged or overwritten.
 
 ## Install and uninstall
 
@@ -31,7 +38,7 @@ To uninstall, use either:
 - **Windows Settings > Apps > Installed apps > Taskbar Monitor Enhanced > Uninstall**, or
 - run `%LOCALAPPDATA%\TaskbarMonitorEnhanced\Uninstall.exe /uninstall`.
 
-The application, shortcuts, startup entry, and its uninstall registration are removed by the project uninstaller. The PawnIO system component is intentionally not removed automatically because another hardware-monitoring application may depend on it.
+The application, shortcuts, both Start-with-Windows registrations, and its uninstall registration are removed by the project uninstaller. The PawnIO system component is intentionally not removed automatically because another hardware-monitoring application may depend on it.
 
 
 ## R21 acceptance and reliability
@@ -64,7 +71,7 @@ R21 adds:
 
 Final R21 validation includes all 14 live-data theme renders, compact 592/500-pixel proofs with zero overflow, exact protected-sensor hashes, CPU soft/hard watchdog fault injection, corrected post-fault soak, physical S3 resume with zero new worker failures, 24/24 stable taskbar geometry samples, 300/300 Main module-isolation samples with no LibreHardwareMonitor loaded, Medium-integrity Main, WINDOWS_GUI Broker/Supervisor, zero sensor-owned console hosts, and PASS/STABLE health.
 
-See docs/R21_ACCEPTANCE_STATUS.md and RELEASE_NOTES_v1.1.2.md.
+See docs/R21_ACCEPTANCE_STATUS.md, RELEASE_NOTES_v1.1.2.md, and RELEASE_NOTES_v1.1.3.md.
 
 ## Visual gallery
 
@@ -72,7 +79,7 @@ Real Windows 11 taskbar capture:
 
 ![Taskbar Monitor Enhanced on Windows 11](docs/screenshots/desktops/desktop-dark-minimal.webp)
 
-All 14 themes, rendered by the real application with live sampled metrics during final qualification:
+All 14 themes, re-rendered by the real v1.1.3 application with live sampled metrics during release qualification:
 
 ![All 14 themes](docs/screenshots/themes/theme-contact-sheet.png)
 
@@ -80,9 +87,9 @@ See the [full screenshot gallery](docs/screenshots/README.md) for representative
 
 ## Code signing policy
 
-The immutable **v1.1.2** release is the accepted unsigned baseline and is not rewritten after publication. Its installer may therefore show **Unknown publisher** in Windows until a future release is signed by a publicly trusted provider.
+The immutable **v1.1.2** release remains the accepted historical unsigned baseline and is not rewritten after publication. **v1.1.3 is also published unsigned unless a publicly trusted provider has actually issued and applied a production certificate before release.** Windows may therefore show **Unknown publisher**.
 
-Public-trust signing status: **SignPath Foundation application readiness is prepared; project acceptance and production signing are still pending.** No current release is claimed to be signed by SignPath Foundation.
+Public-trust signing status: **SignPath Foundation application readiness is prepared; project acceptance and production signing are still pending.** No release is claimed to be signed by SignPath Foundation without verifiable Authenticode evidence.
 
 **Free code signing provided by SignPath.io, certificate by SignPath Foundation.** This provider statement describes the intended open-source signing path and becomes an actual release-signature claim only after SignPath Foundation accepts the project and signs a release artifact.
 
@@ -110,7 +117,7 @@ Taskbar Monitor Enhanced is designed to feel like part of Windows rather than a 
 - automatic Explorer/taskbar recovery
 - non-elevated main application
 - protected hardware-sensor broker with watchdog supervision
-- Start-with-Windows support
+- self-healing Start-with-Windows support with independent primary and recovery registrations
 - Desktop and Start Menu shortcuts
 - upgrade, uninstall, clean-install, and post-install runtime validation
 

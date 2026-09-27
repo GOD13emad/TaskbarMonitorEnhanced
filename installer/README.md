@@ -4,11 +4,11 @@ This folder contains the custom Windows installer source used by Taskbar Monitor
 
 ## Current public authority
 
-This source tree targets the final v1.1.2 R21 release identity. Public Stable/Latest promotion is allowed only after exact final build, install, runtime and supply-chain gates pass.
+This source tree targets the v1.1.3 startup-resilience release identity. Public Stable/Latest promotion is allowed only after exact final build, install, runtime and supply-chain gates pass.
 
 ## R21 candidate
 
-The installer source targets v1.1.2 / R21 Production Hardening and retains the behavior accepted on RC10. The final release identity changes version/release metadata only; protected-sensor and runtime behavior remain governed by the accepted R21 gates.
+The installer source targets v1.1.3. The protected sensor layer remains 1.1.2+r21 when its exact compatibility gate passes; v1.1.3 changes the main app startup-resilience path and release metadata while retaining the accepted R21 sensor architecture.
 
 R21 installer behavior includes:
 
