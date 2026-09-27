@@ -231,3 +231,11 @@
 - Keep current-release evidence in version directories with generic filenames; keep active tooling filenames version-neutral.
 - Public docs should link to GitHub Releases/tags for old versions rather than retaining local archive trees that clutter browsing.
 - Validation after structural cleanup must include link integrity, deterministic build, exact installer hash regression, and exact-head CI.
+
+
+### Final cleanup validation
+
+- `ce94e70a170abdfeb6b5c4491c9cebd7d029639c` passed GitHub Actions run `36317306947`.
+- Active main no longer carries historical archive trees or old RC/revision/versioned artifact filenames.
+- Historical unmerged branch lineage was preserved in a verified complete Git bundle before branch deletion; bundle SHA256 is `736C13A830F6440D8BF972A39556798D0028ABE1442F739AA00E4FDFD3F18948`.
+- Remote branch policy after stabilization: retain only `main`; preserve exceptional unmerged history externally before deleting stale public branches.

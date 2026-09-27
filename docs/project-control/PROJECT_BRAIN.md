@@ -537,3 +537,21 @@ This section supersedes R23 as the current maintenance authority where they conf
 - Immutable v1.1.3 Setup SHA256 after cleanup remains exactly `159D6995D16A549DAC35BD6EF69543A63D6675778C37012619BEFDABFD43598C`.
 - Current generated evidence names remain generic: `BUILD_MANIFEST.json` and `SBOM.spdx.json`.
 - Publication gate: commit/push this final tree cleanup and require exact-head GitHub CI PASS before declaring R30 closed.
+
+
+### R30 VALIDATION / CLOSEOUT — PASS
+
+- Final public-tree cleanup authority commit: `ce94e70a170abdfeb6b5c4491c9cebd7d029639c`.
+- Exact-head GitHub Actions run `36317306947` completed SUCCESS under `Build and Verification`.
+- CI passed checkout, SDK setup, whitespace, reproducible build, deterministic clean-clone build, SPDX SBOM, binary provenance attestation, Setup SBOM attestation, evidence upload, and manifest output.
+- Active `main` contains zero obsolete RC/revision/versioned artifact filenames matching the cleanup deny-list; root and `docs/` top level are category-oriented and current-release focused.
+- Historical release/acceptance records removed from active `main` remain preserved in the external hashed archive and in immutable Git history/tags/GitHub Releases.
+- Remaining two historical unmerged remote branches were preserved before deletion in a complete Git bundle:
+  `C:\Users\Aa.Emad\source\archives\TaskbarMonitorEnhanced\2026-09-27_cleanup\historical_unmerged_branches.bundle`
+  SHA256 `736C13A830F6440D8BF972A39556798D0028ABE1442F739AA00E4FDFD3F18948`.
+- Bundled branch tips:
+  - `fix/sensor-installer-resilience` -> `db9a24e4f334ea5c30ab09f16fe31092fc22311e`
+  - `release/v1.1.0` -> `c800eeefc89b1fba2d94c1aeb21555ac88e3f014`
+- After bundle verification, both historical remote branches were deleted. Remote branch surface is now only `main`.
+- Immutable public release tags remain unchanged, including `v1.1.3` -> `fa8c75d0b59343ccb7eae86320a351e3b4064c48`.
+- R30 status: PASS / CLOSED. Public repository tree and branch surface are professionally consolidated without loss of recoverability.
