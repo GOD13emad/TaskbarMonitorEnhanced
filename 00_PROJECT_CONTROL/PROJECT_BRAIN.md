@@ -451,3 +451,17 @@ This section supersedes R23 as the current maintenance authority where they conf
 - Current preserved external archive: `C:\Users\Aa.Emad\source\archives\TaskbarMonitorEnhanced\2026-09-27_cleanup`.
 - Residual: `C:\Users\Aa.Emad\source\repos\TaskbarMonitorEnhanced_R20` is an empty directory only, no longer a Git worktree, but Windows reports it held open by another process. This is a cosmetic/non-blocking residue and contains zero project items.
 - R26 status: PASS. Repository and local workspace are consolidated and professionally maintainable without sacrificing accepted evidence or pinned offline dependencies.
+
+
+## R27 / PUBLIC-README VISUAL + ROOT ARTIFACT CLEANUP — 2026-09-27
+
+- User-visible audit found two residual presentation issues after R26:
+  1. historical v1.1.2 RC manifests/checksum files were still cluttering the repository root;
+  2. README referenced `docs/screenshots/desktops/desktop-dark-minimal.webp`, but that Git object was structurally truncated.
+- The RC files are historical candidate audit records, not current release assets. They were preserved with `git mv` under `docs/acceptance/archive/v1.1.2-rc/` and documented with an archive README. Root RC artifact count is now zero.
+- Corrupt WebP diagnosis is exact: RIFF header declared 62,952 bytes while the tracked Git object contained only 15,008 bytes. GitHub therefore could not decode/render it, producing the apparent blank region in README.
+- The corrupt desktop WebP and its obsolete subdirectory README were removed from current `main`; no false 'real desktop capture' claim remains.
+- README now uses verified live-rendered application evidence: `THEME_01_DARK_MINIMAL_PRO.png` plus the 14-theme contact sheet.
+- Screenshot gallery now uses only structurally valid assets and explicitly records that the truncated historical WebP was removed.
+- Validation: every Markdown image link in root README and screenshot README resolves to an existing file; all screenshot PNG/WebP assets pass structural signature/container checks; no broken image links remain.
+- R27 publication gate: pending commit + exact-main GitHub CI.

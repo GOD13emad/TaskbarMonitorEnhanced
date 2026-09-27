@@ -1,1 +1,0 @@
-Real Windows 11 desktop captures used for the public showcase. The full desktop images demonstrate how Taskbar Monitor Enhanced sits naturally in the taskbar during everyday use.

@@ -188,3 +188,11 @@
 - Central dependency-cache reuse was proven locally with no download; final Setup binary hash remained identical to the accepted v1.1.3 hash.
 - After cleanup, only local `main` remains; remote unmerged historical lineage is preserved rather than destructively deleted.
 - Superseded RC draft releases and branch-specific RC self-hosted workflows were removed from active GitHub surfaces.
+
+
+## 2026-09-27 — GitHub README blank-image root cause
+
+- `docs/screenshots/desktops/desktop-dark-minimal.webp` was not merely a browser/GitHub loading issue. The stored WebP was truncated: RIFF-declared total size 62,952 bytes vs actual Git object size 15,008 bytes.
+- A broken media file can cause GitHub README to leave a large empty render area even when the Markdown path itself exists.
+- Professional handling: remove invalid media, stop describing it as evidence, replace it with verified renderer output, and structurally validate all remaining media/link targets.
+- Historical RC manifests/checksums should be preserved outside repository root under an explicit acceptance/archive path rather than deleted when they remain useful for auditability.

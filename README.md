@@ -75,15 +75,15 @@ See docs/R21_ACCEPTANCE_STATUS.md, RELEASE_NOTES_v1.1.2.md, and RELEASE_NOTES_v1
 
 ## Visual gallery
 
-Real Windows 11 taskbar capture:
+Representative v1.1.3 live-rendered theme:
 
-![Taskbar Monitor Enhanced on Windows 11](docs/screenshots/desktops/desktop-dark-minimal.webp)
+![Taskbar Monitor Enhanced — Dark Minimal Pro](docs/screenshots/themes/THEME_01_DARK_MINIMAL_PRO.png)
 
 All 14 themes, re-rendered by the real v1.1.3 application with live sampled metrics during release qualification:
 
 ![All 14 themes](docs/screenshots/themes/theme-contact-sheet.png)
 
-See the [full screenshot gallery](docs/screenshots/README.md) for representative desktop captures and individual theme proofs.
+These images are renderer evidence from the application itself, not synthetic UI mockups. See the [full screenshot gallery](docs/screenshots/README.md) for individual theme and compact-layout proofs.
 
 ## Code signing policy
 
