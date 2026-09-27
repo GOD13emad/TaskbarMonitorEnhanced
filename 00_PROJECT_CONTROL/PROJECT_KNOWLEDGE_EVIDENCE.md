@@ -155,3 +155,10 @@
 - v1.1.3 remains unsigned for public-trust purposes unless an independently verifiable trusted Authenticode signature is later proven; do not infer signing from SignPath readiness.
 - v1.1.2 remains immutable and unchanged.
 - Reuse target: future release checklist, startup regression suite, public-release post-verification, SBOM raw-vs-semantic equivalence handling.
+
+## 2026-09-27 — GitHub Actions upload-artifact Node 24 maintenance
+
+- Official actions/upload-artifact v7.0.1 resolves to commit `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` and declares `using: node24`.
+- The repository's previous pin `ea165f8d65b6e75b540449e92b4886f43607fa02` triggered a GitHub deprecation annotation because it declared Node.js 20, although GitHub forced execution under Node.js 24 and CI passed.
+- Maintenance changes only `.github/workflows/r21-ci.yml`; v1.1.3 release bytes/tag are intentionally untouched.
+- Validation pending exact-main workflow at the time of this entry.

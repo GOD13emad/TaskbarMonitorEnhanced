@@ -398,3 +398,11 @@ This section supersedes R23 as the current maintenance authority where they conf
 - Non-blocking CI maintenance note: GitHub reports that the pinned upload-artifact action declares Node.js 20 and is currently forced to Node.js 24. It did not fail any release gate.
 - Final public acceptance record: `docs/acceptance/V1_1_3_PUBLIC_RELEASE_ACCEPTANCE.json`.
 - Critical path for v1.1.3: CLOSED. Future public-signing work must create a separately versioned signed release and must not rewrite v1.1.3.
+
+## POST-RELEASE CI MAINTENANCE — NODE 24 ACTION PIN
+
+- 2026-09-27 mutation: replace pinned `actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02` (v4 / Node.js 20 declaration) with official `actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` (v7.0.1 / Node.js 24).
+- Motivation: remove the non-blocking GitHub Actions Node.js 20 deprecation annotation observed on all accepted v1.1.3 CI runs.
+- Source verification: official actions/upload-artifact latest release is v7.0.1, published 2026-04-10; tag resolves directly to commit `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`; `action.yml` declares `using: node24`.
+- Scope: CI workflow only. Immutable release tag `v1.1.3` and its seven assets remain unchanged.
+- Validation state at mutation: PENDING exact main CI. Do not call this maintenance PASS until the new commit completes the full R21 workflow without the Node.js 20 annotation.
