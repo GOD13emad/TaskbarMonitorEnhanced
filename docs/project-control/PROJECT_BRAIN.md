@@ -501,3 +501,39 @@ This section supersedes R23 as the current maintenance authority where they conf
 - Markdown-link audit after reorganization: 73 local links checked, 0 broken.
 - Static hygiene: no historical release/checksum/RC files remain in repository root; no active workflow/build filenames contain Rxx/rcxx revision labels.
 - Publication gate: commit reorganized tree, run deterministic clean-clone verification from exact commit, push main non-force, require exact GitHub CI PASS.
+
+
+### R29 VALIDATION / CLOSEOUT — PASS
+
+- Exact restructuring authority: commit `80f9c95afbc419bf49384d16be6f9a63d09a05d4`.
+- GitHub Actions run `36315722461` at that exact head completed SUCCESS under the generic workflow name `Build and Verification`.
+- CI artifact is now `build-evidence`, artifact id `10929984813`, digest `sha256:2345bb1f03c90ce270e1ec1043b029688badcfb1fb6c3d6fd3282c77f965bb43`.
+- Downloaded CI evidence confirmed generic files `BUILD_MANIFEST.json` and `SBOM.spdx.json`, plus exact binary equality for Main/Broker/Supervisor/Setup.
+- CI Setup SHA256 remains exactly `159D6995D16A549DAC35BD6EF69543A63D6675778C37012619BEFDABFD43598C`, identical to immutable public v1.1.3.
+- Main/Broker/Supervisor CI SHA256 values remain `74E7725E...`, `182D6346...`, and `38553CCE...` respectively, matching accepted release binaries.
+- GitHub API post-publication audit confirms:
+  - repository root contains only current project/policy entry points and standard source directories;
+  - no historical RELEASE_MANIFEST / SHA256SUMS / versioned RELEASE_NOTES / RC manifest files remain in root;
+  - `docs/` top-level contains only organized category directories plus `AMD_INTEL_GPU_PORTABILITY.md`;
+  - active workflow surface contains only `.github/workflows/ci.yml`;
+  - active build surface uses `build/Build.ps1` and generic helper names.
+- Markdown relative-link audit: 74 local links checked, zero broken.
+- R29 status: PASS / CLOSED.
+
+
+## R30 / FINAL PUBLIC-TREE CLEANUP — 2026-09-27
+
+- Scope: remove all obsolete release-candidate/versioned artifact filenames from the active `main` tree while preserving historical recoverability.
+- Historical repository archives under `docs/releases/archive/` and `docs/acceptance/archive/` were removed from active `main`. Before removal, 42 files / 97,431 bytes were copied to:
+  `C:\Users\Aa.Emad\source\archives\TaskbarMonitorEnhanced\2026-09-27_cleanup\repository_history_removed_from_main`
+  with `ARCHIVE_MANIFEST.json` SHA256 `FE6D1A1A9385D9CF5B0B8593A4899C571B4FED3EA0B50005650255F9FE44A018`.
+- Historical public evidence also remains recoverable from immutable Git history, release tags, and GitHub Releases. No published tag or release asset was modified.
+- `docs/AMD_INTEL_GPU_PORTABILITY.md` moved to `docs/hardware/GPU_PORTABILITY.md`; `docs/` top-level is now category-only.
+- Current `docs/releases/README.md` and `docs/acceptance/README.md` describe only the current release plus GitHub/Git history as the historical authority; no local historical-archive links remain.
+- Active root/path hygiene audit: zero tracked filenames matching obsolete RC/revision/versioned artifact patterns (`RC_MANIFEST`, versioned `SHA256SUMS`/`RELEASE_MANIFEST`/`RELEASE_NOTES`, `FINAL_ACCEPTANCE_v*`, `Build-R21`, `r21-ci`, `R21_*`, `R22_*`).
+- Repository root contains only current standard project/policy files and source directories.
+- Markdown relative-link audit: 62 links checked, 0 broken.
+- Local build after cleanup: PASS with `build/Build.ps1 -NoDownload`, 0 warnings/errors, Setup verify PASS 19/19, self-test PASS, deterministic clean-clone PASS.
+- Immutable v1.1.3 Setup SHA256 after cleanup remains exactly `159D6995D16A549DAC35BD6EF69543A63D6675778C37012619BEFDABFD43598C`.
+- Current generated evidence names remain generic: `BUILD_MANIFEST.json` and `SBOM.spdx.json`.
+- Publication gate: commit/push this final tree cleanup and require exact-head GitHub CI PASS before declaring R30 closed.

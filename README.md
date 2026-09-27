@@ -57,7 +57,7 @@ v1.1.3 retains the accepted protected-sensor architecture while adding resilient
 
 The protected sensor binaries retain the accepted `1.1.2+r21` internal compatibility identity; that identifier is an implementation lineage marker, not the public application version.
 
-See the [current v1.1.3 release notes](docs/releases/v1.1.3/RELEASE_NOTES.md), [v1.1.3 public acceptance](docs/acceptance/v1.1.3/PUBLIC_RELEASE_ACCEPTANCE.json), and the [historical release archive](docs/releases/README.md).
+See the [current v1.1.3 release notes](docs/releases/v1.1.3/RELEASE_NOTES.md), [v1.1.3 public acceptance](docs/acceptance/v1.1.3/PUBLIC_RELEASE_ACCEPTANCE.json), and [GitHub Releases](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases) for previous published versions.
 
 ## Visual gallery
 

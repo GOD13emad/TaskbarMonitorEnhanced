@@ -31,4 +31,4 @@ Accepted 1.0.1 evidence:
 - windowless Sensor Supervisor: PASS
 - final 120-second clean-install lifetime: PASS
 
-The exact accepted public artifacts are archived in `acceptance/archive/v1.0.1/FINAL_ACCEPTANCE.md`.
+The exact accepted 1.0.1 artifacts remain available from the immutable `v1.0.1` Git tag and the GitHub Releases page.

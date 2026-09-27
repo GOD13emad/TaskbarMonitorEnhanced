@@ -214,3 +214,20 @@
 - For v1.1.3, the accepted embedded README resource was extracted directly from the immutable published Setup and stored as `docs/releases/v1.1.3/INSTALLER_README.txt`; the build maps it back to payload logical name `README.md`.
 - This restored exact Setup reproducibility while allowing GitHub presentation cleanup.
 - Active tooling should use stable generic names (`Build.ps1`, `ci.yml`, `BUILD_MANIFEST.json`, `SBOM.spdx.json`); release/revision identifiers belong in manifest content and historical evidence rather than active filenames.
+
+
+### Repository-structure cleanup validation
+
+- Commit `80f9c95afbc419bf49384d16be6f9a63d09a05d4` passed exact-head GitHub Actions run `36315722461`.
+- CI `build-evidence` artifact id `10929984813` used generic current filenames and reproduced the immutable v1.1.3 Setup hash exactly.
+- GitHub API verification confirmed the public root, docs top level, workflow list, and build directory no longer expose obsolete release-candidate/versioned artifact filenames as active files.
+- Decision: use version directories + generic filenames for historical records, and stable generic filenames for active tooling; keep revision/version identifiers inside immutable evidence or manifest content only when technically meaningful.
+
+
+## 2026-09-27 — final public-tree cleanup rule
+
+- For a stabilized public repository, do not duplicate every historical release/RC artifact on current `main`; immutable tags, Git history, GitHub Releases, and an external evidence archive are sufficient historical authorities.
+- Before deleting historical tracked records from the active branch, preserve a hashed external copy when local audit continuity matters.
+- Keep current-release evidence in version directories with generic filenames; keep active tooling filenames version-neutral.
+- Public docs should link to GitHub Releases/tags for old versions rather than retaining local archive trees that clutter browsing.
+- Validation after structural cleanup must include link integrity, deterministic build, exact installer hash regression, and exact-head CI.
