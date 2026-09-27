@@ -436,3 +436,18 @@ This section supersedes R23 as the current maintenance authority where they conf
 - `CONTRIBUTING.md` is being upgraded with explicit branch, immutable-release, validation, and repository-hygiene rules.
 - External cleanup evidence is retained in the archive as `CLEANUP_PRESTATE.json`, `CLEANUP_POSTSTATE_PHASE1.json`, `GITHUB_HYGIENE_PRESTATE.json`, and `GITHUB_HYGIENE_POSTSTATE.json`.
 - Current open gate: commit and exact-main GitHub CI for this hygiene change. The empty locked legacy R20 directory is a non-blocking local cleanup residue only.
+
+
+### R26 VALIDATION / CLOSEOUT — PASS
+
+- Hygiene commit `f671bb4aee4dadc2f418e95c21471faa108322e7` passed exact-main GitHub Actions run `36313319634` in full: checkout, .NET setup, whitespace, reproducible build, deterministic clean clone, SPDX SBOM, binary provenance attestation, Setup SBOM attestation, evidence upload, and manifest.
+- Local validation from the centralized dependency cache also passed with `Build-R21.ps1 -NoDownload`, built-in self-test, setup verification (19 resources), and deterministic clean-clone verification.
+- Exact v1.1.3 Setup hash after cleanup remained `159D6995D16A549DAC35BD6EF69543A63D6675778C37012619BEFDABFD43598C`; cleanup did not mutate the published release.
+- Local Git branch hygiene is complete: only `main` remains locally.
+- Remote branch hygiene is intentionally conservative: `main` plus two unmerged historical branches remain; all already-merged audit/maintenance/release branches were removed.
+- GitHub draft-release hygiene is complete: no draft releases remain.
+- Obsolete branch-specific RC6-RC10 self-hosted workflows are removed; current validation is centralized in `.github/workflows/r21-ci.yml`.
+- Current canonical source root: `C:\Users\Aa.Emad\source\repos\TaskbarMonitorEnhanced`.
+- Current preserved external archive: `C:\Users\Aa.Emad\source\archives\TaskbarMonitorEnhanced\2026-09-27_cleanup`.
+- Residual: `C:\Users\Aa.Emad\source\repos\TaskbarMonitorEnhanced_R20` is an empty directory only, no longer a Git worktree, but Windows reports it held open by another process. This is a cosmetic/non-blocking residue and contains zero project items.
+- R26 status: PASS. Repository and local workspace are consolidated and professionally maintainable without sacrificing accepted evidence or pinned offline dependencies.

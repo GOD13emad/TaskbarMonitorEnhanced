@@ -180,3 +180,11 @@
 - Pinned dependency hashes must be verified whenever a central cache is reattached.
 - Historical unmerged branches with unique commits should not be deleted merely for cosmetic cleanup; preserve until their lineage is intentionally reconciled or archived.
 - Release tags/assets remain immutable during repository cleanup.
+
+
+### R26 validation result
+
+- Repository-hygiene commit `f671bb4aee4dadc2f418e95c21471faa108322e7` passed GitHub Actions run `36313319634`.
+- Central dependency-cache reuse was proven locally with no download; final Setup binary hash remained identical to the accepted v1.1.3 hash.
+- After cleanup, only local `main` remains; remote unmerged historical lineage is preserved rather than destructively deleted.
+- Superseded RC draft releases and branch-specific RC self-hosted workflows were removed from active GitHub surfaces.
