@@ -4,14 +4,14 @@ Taskbar Monitor Enhanced 是一款轻量级 Windows 任务栏系统监视器，�
 
 ## 当前版本
 
-**1.0.0**
+**1.2.0 (source candidate; public release: v1.1.3)**
 
 ## 主要功能
 
 - CPU、内存、磁盘、GPU 与 VRAM 监控
 - 分别显示下载和上传速度
 - CPU Package 与 GPU 温度
-- 14 个内置主题
+- 28 个内置主题
 - 实时趋势图与 Sparkline
 - 任务栏左侧、居中或右侧布局
 - 可调宽度与安全定位
@@ -24,9 +24,9 @@ Taskbar Monitor Enhanced 是一款轻量级 Windows 任务栏系统监视器，�
 
 ## 安装
 
-从 Releases 下载并运行 `TaskbarMonitorEnhanced_Setup_1.0.0.exe`。安装受保护的硬件传感器组件时，Windows 可能要求管理员授权；主程序本身仍以普通用户权限运行。
+从 Releases 下载并运行 `TaskbarMonitorEnhanced_Setup_<version>.exe`。安装受保护的硬件传感器组件时，Windows 可能要求管理员授权；主程序本身仍以普通用户权限运行。
 
-1.0.0 发布前经过了升级安装、完整卸载、全新安装、配置保留以及 CPU 传感器稳定性测试。
+1.2.0 候选版本已通过本地构建、确定性构建验证、视觉证据和已安装运行时健康检查；在同一 GitHub head 通过 CI 与发布门禁之前，不视为公开发布版本。
 
 ## 开发者
 

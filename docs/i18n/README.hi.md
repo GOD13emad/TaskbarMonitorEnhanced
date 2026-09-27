@@ -4,14 +4,14 @@ Taskbar Monitor Enhanced Windows taskbar के लिए एक हल्का
 
 ## वर्तमान संस्करण
 
-**1.0.0**
+**1.2.0 (source candidate; public release: v1.1.3)**
 
 ## मुख्य विशेषताएँ
 
 - CPU, RAM, disk, GPU और VRAM monitoring
 - अलग download और upload speed
 - CPU Package और GPU temperature
-- 14 built-in themes
+- 28 built-in themes
 - live trends और sparklines
 - left, center या right taskbar placement
 - adjustable width और safe placement
@@ -24,9 +24,9 @@ Taskbar Monitor Enhanced Windows taskbar के लिए एक हल्का
 
 ## Installation
 
-Releases से `TaskbarMonitorEnhanced_Setup_1.0.0.exe` डाउनलोड करके चलाएँ। Hardware sensor component install करते समय Windows administrator approval माँग सकता है; main application स्वयं non-elevated रहता है।
+Releases से `TaskbarMonitorEnhanced_Setup_<version>.exe` डाउनलोड करके चलाएँ। Hardware sensor component install करते समय Windows administrator approval माँग सकता है; main application स्वयं non-elevated रहता है।
 
-Version 1.0.0 को release से पहले upgrade, full uninstall, clean install, configuration preservation और CPU sensor stability के साथ test किया गया।
+1.2.0 candidate ने local build, determinism, visual proof और installed runtime health परीक्षण पास किए हैं; exact GitHub head के CI और publication gates पास होने तक इसे public release नहीं माना जाता।
 
 ## Developer
 
