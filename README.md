@@ -4,7 +4,7 @@ A lightweight Windows taskbar system monitor for live CPU, RAM, disk, network, G
 
 ## v1.1.3 — Startup Resilience
 
-Version **v1.1.3** is a focused reliability release built on the accepted v1.1.2/R21 sensor architecture. Its primary change is resilient **Start with Windows** behavior after the observed loss of the normal Windows Run registration.
+Version **v1.1.3** is a focused reliability release built on the accepted protected-sensor architecture. Its primary change is resilient **Start with Windows** behavior after the observed loss of the normal Windows Run registration.
 
 When Start with Windows is enabled, v1.1.3 maintains two independent per-user launch registrations:
 
@@ -21,7 +21,7 @@ https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.3
 
 Release assets and hashes are published in `SHA256SUMS_v1.1.3.txt` and `RELEASE_MANIFEST_v1.1.3.json`.
 
-### Preserved v1.1.2 / R21 baseline
+### Preserved protected-sensor baseline
 
 v1.1.3 intentionally reuses the exact accepted `1.1.2+r21` protected sensor layer when its hash and live-health compatibility gates pass. CPU/GPU/storage process isolation, watchdog supervision, suspend/resume handling, shell recovery, updater integrity checks, SBOM/provenance controls, and the established 14-theme renderer remain intact.
 
@@ -41,37 +41,23 @@ To uninstall, use either:
 The application, shortcuts, both Start-with-Windows registrations, and its uninstall registration are removed by the project uninstaller. The PawnIO system component is intentionally not removed automatically because another hardware-monitoring application may depend on it.
 
 
-## R21 acceptance and reliability
+## Reliability and validation
 
-The final v1.1.2 identity retains the RC10-accepted runtime behavior: 15-second truthful UI freshness, a CPU-specific 60-second hard-stall watchdog, official Windows suspend/resume notification handling, process-isolated protected sensors, and bounded recovery. RC10 passed exact protected installation, controlled soft/hard stall injection, post-fault soak, real S3 suspend/resume, taskbar geometry, module isolation, windowless sensor, integrity, Event Log and health gates before the final identity was derived.
+v1.1.3 retains the accepted protected-sensor architecture while adding resilient Start-with-Windows recovery. The current validation model covers:
 
-R21 adds:
+- process-isolated CPU, GPU, and storage sensor workers with watchdog supervision
+- bounded recovery, suspend/resume handling, and stale-data invalidation
+- non-elevated main application with protected sensor repair only when required
+- deterministic clean-clone builds with pinned dependency hashes
+- SPDX SBOM generation and GitHub build-provenance/SBOM attestations
+- immutable release/hash verification for automatic updates
+- atomic configuration writes and bounded log retention
+- all 14 live-data themes plus 592 px and 500 px compact-layout proofs
+- startup fault-injection for missing primary/recovery registrations and duplicate-launch containment
 
-- process-isolated CPU, GPU and storage hardware-sensor workers
-- staggered worker startup, bounded exponential backoff and restart-storm containment
-- Windows Job Object kill-on-close containment so abrupt Supervisor termination cannot leave orphan sensor workers
-- transport health separated from sensor-data availability
-- power-aware suspend/resume telemetry reset and native-worker recycling
-- Windows GetSystemTimes CPU usage sampling and cached CPU/network topology
-- fallback-only WDDM GPU polling and throttled CPU-temperature WMI/ACPI fallbacks
-- stale-temperature invalidation instead of presenting old data as current
-- Diagnostics UI with saveable support reports and protected-sensor repair action
-- a --healthprobe JSON command for machine-readable sensor-supervisor health
-- automatic update installation gated by both GitHub SHA-256 asset metadata and immutable GitHub Releases
-- installer task policy hardened to RestartCount=3 and MultipleInstances=IgnoreNew
-- conservative non-elevated Main self-heal for a stale/missing READY Sensor Supervisor task (90s grace/staleness, 180s retry cooldown)
-- least-privilege component-aware installer: exact hash-pinned healthy R21 sensor layers can be reused without UAC on app-only updates; unknown/stale layers still require elevated transactional repair
-- RC6 compatible-reuse live canary: PASS; install 2.38s, no UAC, READY, REUSED_COMPATIBLE_RC4, protected RC4 hashes unchanged, post-install health recovery returned to zero active failures
-- SPDX 2.3 SBOM generation plus GitHub/Sigstore build-provenance and SBOM attestations in CI, with third-party actions pinned to immutable commit SHAs
-- atomic configuration writes with automatic backup recovery after interrupted/corrupt saves
-- bounded log retention/rotation for long-running main and protected sensor logs
-- exact-version installer-asset matching plus strict sha256:64-hex validation in the updater
-- machine-readable failure/recovery timestamps, worker ages and STABLE / RECOVERING / RECOVERED_RECENTLY resilience state
-- optional isolated CPU package-power and GPU power/fan telemetry; unsupported sensors remain N/A
+The protected sensor binaries retain the accepted `1.1.2+r21` internal compatibility identity; that identifier is an implementation lineage marker, not the public application version.
 
-Final R21 validation includes all 14 live-data theme renders, compact 592/500-pixel proofs with zero overflow, exact protected-sensor hashes, CPU soft/hard watchdog fault injection, corrected post-fault soak, physical S3 resume with zero new worker failures, 24/24 stable taskbar geometry samples, 300/300 Main module-isolation samples with no LibreHardwareMonitor loaded, Medium-integrity Main, WINDOWS_GUI Broker/Supervisor, zero sensor-owned console hosts, and PASS/STABLE health.
-
-See docs/R21_ACCEPTANCE_STATUS.md, RELEASE_NOTES_v1.1.2.md, and RELEASE_NOTES_v1.1.3.md.
+See the [current v1.1.3 release notes](docs/releases/v1.1.3/RELEASE_NOTES.md), [v1.1.3 public acceptance](docs/acceptance/v1.1.3/PUBLIC_RELEASE_ACCEPTANCE.json), and the [historical release archive](docs/releases/README.md).
 
 ## Visual gallery
 

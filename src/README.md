@@ -11,6 +11,6 @@ For 1.0.2:
 - accepted runtime source SHA-256 inside that package: `9FD6EC1C3FF0334EDFE7D66489B1B3C7A12EE165F439E1244DC487358BB687D2`
 - accepted installed EXE SHA-256: `4566917DD4CCE686A1B24D2646BC1832EB4910282F6555241457C53E933E1F92`
 
-See `RELEASE_NOTES_v1.0.2.md` and `docs/FINAL_ACCEPTANCE_v1.0.2.md` for the release and lifecycle acceptance record.
+See `../docs/releases/archive/v1.0.2/RELEASE_NOTES.md` and `../docs/acceptance/archive/v1.0.2/FINAL_ACCEPTANCE.md` for the historical release and lifecycle acceptance record.
 
 The repository preserves upstream attribution and GNU GPL v3.0 licensing. Third-party notices are documented separately.

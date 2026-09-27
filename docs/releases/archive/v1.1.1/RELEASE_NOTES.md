@@ -63,5 +63,5 @@ Release assets:
 
 - `TaskbarMonitorEnhanced_Setup_1.1.1.exe`
 - `TaskbarMonitorEnhanced_1.1.1_SOURCE.zip`
-- `SHA256SUMS_v1.1.1.txt`
-- `RELEASE_MANIFEST_v1.1.1.json`
+- `SHA256SUMS.txt`
+- `RELEASE_MANIFEST.json`

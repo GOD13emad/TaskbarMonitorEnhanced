@@ -6,16 +6,16 @@ This folder contains the custom Windows installer source used by Taskbar Monitor
 
 This source tree targets the v1.1.3 startup-resilience release identity. Public Stable/Latest promotion is allowed only after exact final build, install, runtime and supply-chain gates pass.
 
-## R21 candidate
+## Protected sensor baseline
 
-The installer source targets v1.1.3. The protected sensor layer remains 1.1.2+r21 when its exact compatibility gate passes; v1.1.3 changes the main app startup-resilience path and release metadata while retaining the accepted R21 sensor architecture.
+The installer source targets v1.1.3. The protected sensor layer retains the accepted internal compatibility identity `1.1.2+r21` when its exact compatibility gate passes; v1.1.3 changes the main app startup-resilience path and release metadata without replacing that validated sensor layer.
 
-R21 installer behavior includes:
+Installer behavior includes:
 
 - non-elevated main application
 - elevation only for the protected hardware-sensor layer
 - independent CPU, GPU and storage sensor workers
-- R21 supervisor health validation across all worker lanes
+- supervisor health validation across all protected-sensor worker lanes
 - Scheduled Task restart policy limited to three retries
 - MultipleInstances=IgnoreNew
 - fail-closed drain of prior sensor processes before replacement
@@ -24,8 +24,8 @@ R21 installer behavior includes:
 - embedded source/license/attribution closure
 - setup /verify resource gate requiring 19 resources
 
-The authoritative reproducible build path is ../build/Build-R21.ps1.
+The authoritative reproducible build path is ../build/Build.ps1.
 
 PawnIO is intentionally retained on uninstall because another hardware-monitoring application may depend on it.
 
-See ../docs/R21_ACCEPTANCE_STATUS.md for the current gate status.
+See ../docs/acceptance/v1.1.3/PUBLIC_RELEASE_ACCEPTANCE.json for the current public acceptance record.

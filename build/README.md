@@ -1,6 +1,6 @@
-# R21 reproducible build
+# Reproducible build
 
-Build-R21.ps1 is the authoritative local and CI build path for the v1.1.3 startup-resilience patch, retaining the accepted R21 sensor architecture.
+Build.ps1 is the authoritative local and CI build path for the v1.1.3 startup-resilience patch, retaining the accepted protected sensor architecture.
 
 It performs the following gates:
 
@@ -13,7 +13,7 @@ dependencies.lock.json is the single source of truth for upstream dependency ver
 4. Builds the setup executable from those exact outputs.
 5. Runs setup /verify and requires 19 embedded resources.
 6. Runs the application self-test.
-7. Writes artifacts/R21_BUILD_MANIFEST.json with dependency provenance and output SHA-256 values.
+7. Writes artifacts/BUILD_MANIFEST.json with dependency provenance and output SHA-256 values.
 
 Pinned dependencies:
 
@@ -26,7 +26,7 @@ global.json pins .NET SDK 10.0.400 with latest-patch roll-forward.
 
 For an offline rebuild after a successful dependency fetch:
 
-    ./build/Build-R21.ps1 -NoDownload
+    ./build/Build.ps1 -NoDownload
 
 The dependency cache and all outputs are ignored by Git. The build definitions, icon, hashes and build script are tracked.
 

@@ -1,4 +1,4 @@
-name: R21 Build and Verification
+name: Build and Verification
 
 on:
   push:
@@ -34,9 +34,9 @@ jobs:
         shell: pwsh
         run: git diff --check HEAD^
 
-      - name: Reproducible R21 build
+      - name: Reproducible build
         shell: pwsh
-        run: ./build/Build-R21.ps1
+        run: ./build/Build.ps1
 
       - name: Verify deterministic clean-clone build
         shell: pwsh
@@ -57,16 +57,16 @@ jobs:
         uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
         with:
           subject-path: 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_*.exe'
-          sbom-path: 'artifacts/R21_SBOM.spdx.json'
+          sbom-path: 'artifacts/SBOM.spdx.json'
 
       - name: Upload verified build evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: r21-build-evidence
+          name: build-evidence
           if-no-files-found: error
           path: |
-            artifacts/R21_BUILD_MANIFEST.json
-            artifacts/R21_SBOM.spdx.json
+            artifacts/BUILD_MANIFEST.json
+            artifacts/SBOM.spdx.json
             build/_out/App/TaskbarMonitorEnhanced.exe
             build/_out/Broker/TaskbarMonitorSensorBroker.exe
             build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe
@@ -74,4 +74,4 @@ jobs:
 
       - name: Print build manifest
         shell: pwsh
-        run: Get-Content ./artifacts/R21_BUILD_MANIFEST.json
+        run: Get-Content ./artifacts/BUILD_MANIFEST.json

@@ -9,7 +9,7 @@
 - Reuse Targets: release notes, audit, Project Brain, future regression baseline.
 
 - Claim/Decision: exact final build is deterministic and supply-chain evidence is complete locally.
-- Evidence/Source: docs/acceptance/R22_FINAL_BUILD_ACCEPTANCE.json, RELEASE_MANIFEST_v1.1.2.json, SHA256SUMS_v1.1.2.txt, R21_SBOM.spdx.json.
+- Evidence/Source: docs/acceptance/archive/v1.1.2/FINAL_BUILD_ACCEPTANCE.json, docs/releases/archive/v1.1.2/RELEASE_MANIFEST.json, docs/releases/archive/v1.1.2/SHA256SUMS.txt, R21_SBOM.spdx.json.
 - Confidence/Status: Confirmed / PASS.
 - Provenance: source commit 5916db0ef7fe19fea8cc13ebde73d01021d7c3d6.
 
@@ -196,3 +196,21 @@
 - A broken media file can cause GitHub README to leave a large empty render area even when the Markdown path itself exists.
 - Professional handling: remove invalid media, stop describing it as evidence, replace it with verified renderer output, and structurally validate all remaining media/link targets.
 - Historical RC manifests/checksums should be preserved outside repository root under an explicit acceptance/archive path rather than deleted when they remain useful for auditability.
+
+
+## 2026-09-27 — professional repository information architecture
+
+- Public repository roots should contain current project entry points and standard policy files, not every historical release artifact.
+- Version belongs primarily in directory hierarchy for archived records; filenames inside version directories should remain generic where practical.
+- Preserve Git history with `git mv` rather than delete/recreate when reorganizing accepted evidence.
+- Keep immutable historical JSON evidence semantically intact even if its physical repository path changes; document archive location externally instead of rewriting fields that describe the original release state.
+- Project-control knowledge is documentation and belongs under `docs/project-control/`, not in a special root folder once the project is public and stabilized.
+
+
+## 2026-09-27 — immutable installer docs vs mutable public README
+
+- If an installer embeds the repository README, post-release documentation edits can silently produce a different installer with the same public version even when executable code is unchanged.
+- Prevention: freeze release-embedded documentation as a version-scoped payload snapshot and let the public landing-page README evolve independently.
+- For v1.1.3, the accepted embedded README resource was extracted directly from the immutable published Setup and stored as `docs/releases/v1.1.3/INSTALLER_README.txt`; the build maps it back to payload logical name `README.md`.
+- This restored exact Setup reproducibility while allowing GitHub presentation cleanup.
+- Active tooling should use stable generic names (`Build.ps1`, `ci.yml`, `BUILD_MANIFEST.json`, `SBOM.spdx.json`); release/revision identifiers belong in manifest content and historical evidence rather than active filenames.

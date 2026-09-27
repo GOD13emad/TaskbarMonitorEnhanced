@@ -3,10 +3,10 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$PrimaryManifest=Join-Path $Root 'artifacts\R21_BUILD_MANIFEST.json'
-if(!(Test-Path -LiteralPath $PrimaryManifest)){throw 'Run Build-R21.ps1 before Verify-Determinism.ps1.'}
+$PrimaryManifest=Join-Path $Root 'artifacts\BUILD_MANIFEST.json'
+if(!(Test-Path -LiteralPath $PrimaryManifest)){throw 'Run Build.ps1 before Verify-Determinism.ps1.'}
 
-$Temp=Join-Path ([IO.Path]::GetTempPath()) ('tbme_r21_det_'+[Guid]::NewGuid().ToString('N'))
+$Temp=Join-Path ([IO.Path]::GetTempPath()) ('tbme_det_'+[Guid]::NewGuid().ToString('N'))
 $Clone=Join-Path $Temp 'repo'
 try{
     New-Item -ItemType Directory -Force -Path $Temp|Out-Null
@@ -19,11 +19,11 @@ try{
     New-Item -ItemType Directory -Force -Path $CloneDeps|Out-Null
     Copy-Item -Path (Join-Path $PrimaryDeps '*') -Destination $CloneDeps -Recurse -Force
 
-    & (Join-Path $Clone 'build\Build-R21.ps1') -NoDownload
+    & (Join-Path $Clone 'build\Build.ps1') -NoDownload
     if($LASTEXITCODE -ne 0){throw 'Clean-clone build failed.'}
 
     $a=Get-Content -LiteralPath $PrimaryManifest -Raw|ConvertFrom-Json
-    $b=Get-Content -LiteralPath (Join-Path $Clone 'artifacts\R21_BUILD_MANIFEST.json') -Raw|ConvertFrom-Json
+    $b=Get-Content -LiteralPath (Join-Path $Clone 'artifacts\BUILD_MANIFEST.json') -Raw|ConvertFrom-Json
     $am=@{};$bm=@{}
     foreach($x in $a.Outputs){$am[[string]$x.Name]=([string]$x.SHA256).ToUpperInvariant()}
     foreach($x in $b.Outputs){$bm[[string]$x.Name]=([string]$x.SHA256).ToUpperInvariant()}
@@ -33,7 +33,7 @@ try{
             throw "Determinism mismatch for $k primary=$($am[$k]) clone=$($bm[$k])"
         }
     }
-    Write-Host 'R21_DETERMINISM=PASS'
+    Write-Host 'TBME_DETERMINISM=PASS'
 }finally{
     Remove-Item -LiteralPath $Temp -Recurse -Force -ErrorAction SilentlyContinue
 }

@@ -69,7 +69,7 @@ Build (Join-Path $PSScriptRoot 'TaskbarMonitorSensorBroker.csproj')
 Build (Join-Path $PSScriptRoot 'TaskbarMonitorSensorSupervisor.csproj')
 Assert-PeSubsystem (Join-Path $Out 'Broker\TaskbarMonitorSensorBroker.exe') 2
 Assert-PeSubsystem (Join-Path $Out 'Supervisor\TaskbarMonitorSensorSupervisor.exe') 2
-Write-Host 'R21_SENSOR_WINDOWLESS_PE=PASS'
+Write-Host 'TBME_SENSOR_WINDOWLESS_PE=PASS'
 Copy-Item (Join-Path $Out 'App\TaskbarMonitorEnhanced.exe') $Package
 Copy-Item (Join-Path $Out 'Broker\TaskbarMonitorSensorBroker.exe') $Package
 Copy-Item (Join-Path $Out 'Supervisor\TaskbarMonitorSensorSupervisor.exe') $Package
@@ -80,19 +80,19 @@ $CanonicalTextResources=[ordered]@{
     'TaskbarMonitorSensorSupervisor.cs'=(Join-Path $Root 'src\sensors\TaskbarMonitorSensorSupervisor.cs')
     'TBME_Setup_Elevated_Helper.ps1'=(Join-Path $Root 'installer\TBME_Setup_Elevated_Helper.ps1')
     'LICENSE'=(Join-Path $Root 'LICENSE')
-    'README.md'=(Join-Path $Root 'README.md')
+    'README.md'=(Join-Path $Root 'docs\releases\v1.1.3\INSTALLER_README.txt')
     'AUTHORS.md'=(Join-Path $Root 'AUTHORS.md')
     'COPYRIGHT_AND_ATTRIBUTION.md'=(Join-Path $Root 'COPYRIGHT_AND_ATTRIBUTION.md')
     'AI_ASSISTED_DEVELOPMENT.md'=(Join-Path $Root 'AI_ASSISTED_DEVELOPMENT.md')
     'THIRD_PARTY_NOTICES.md'=(Join-Path $Root 'THIRD_PARTY_NOTICES.md')
-    'RELEASE_NOTES_v1.1.3.md'=(Join-Path $Root 'RELEASE_NOTES_v1.1.3.md')
+    'RELEASE_NOTES_v1.1.3.md'=(Join-Path $Root 'docs\releases\v1.1.3\RELEASE_NOTES.md')
     'UPSTREAM_REFERENCE_GPL_NOTICE.md'=(Join-Path $Root 'UPSTREAM_REFERENCE_GPL_NOTICE.md')
     'TaskbarMonitorEnhanced_Setup.cs'=(Join-Path $Root 'installer\TaskbarMonitorEnhanced_Setup.cs')
 }
 foreach($entry in $CanonicalTextResources.GetEnumerator()){
     Write-CanonicalTextResource ([string]$entry.Value) (Join-Path $TextPackage ([string]$entry.Key))
 }
-Write-Host 'R21_CANONICAL_TEXT_PAYLOAD=PASS'
+Write-Host 'TBME_CANONICAL_TEXT_PAYLOAD=PASS'
 
 Build (Join-Path $PSScriptRoot 'TaskbarMonitorEnhanced_Setup.csproj')
 $Setup=Join-Path $Out 'Setup\TaskbarMonitorEnhanced_Setup_1.1.3.exe'
@@ -123,6 +123,6 @@ $manifest=[ordered]@{
 foreach($f in @((Join-Path $Package 'TaskbarMonitorEnhanced.exe'),(Join-Path $Package 'TaskbarMonitorSensorBroker.exe'),(Join-Path $Package 'TaskbarMonitorSensorSupervisor.exe'),$Setup)){
     $manifest.Outputs += [ordered]@{Name=[IO.Path]::GetFileName($f);Bytes=(Get-Item -LiteralPath $f).Length;SHA256=(Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToUpperInvariant()}
 }
-$manifest|ConvertTo-Json -Depth 8|Set-Content -LiteralPath (Join-Path $Artifacts 'R21_BUILD_MANIFEST.json') -Encoding UTF8
+$manifest|ConvertTo-Json -Depth 8|Set-Content -LiteralPath (Join-Path $Artifacts 'BUILD_MANIFEST.json') -Encoding UTF8
 Copy-Item $Setup (Join-Path $Artifacts ([IO.Path]::GetFileName($Setup))) -Force
-Write-Host 'R21_REPRO_BUILD=PASS'
+Write-Host 'TBME_REPRO_BUILD=PASS'

@@ -34,4 +34,4 @@ A post-S3 active-beacon screen-capture probe ran while Windows Default Lock Scre
 
 The final identity still requires zero-warning/zero-error build, Setup /verify, self-test, clean-clone byte determinism, SPDX 2.3 SBOM, exact installed hash match, proportional runtime regression, and GitHub provenance/SBOM attestation before immutable Stable/Latest publication.
 
-See docs/R21_ACCEPTANCE_STATUS.md and docs/acceptance/R22_RC10_ACCEPTED_PRECURSOR_20260926.md.
+See `../../../acceptance/archive/v1.1.2/ACCEPTANCE_STATUS.md` and `../../../acceptance/archive/v1.1.2/RC10_ACCEPTED_PRECURSOR.md`.

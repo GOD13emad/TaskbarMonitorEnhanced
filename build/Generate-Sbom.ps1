@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
-    [string]$ManifestPath=(Join-Path $PSScriptRoot '..\artifacts\R21_BUILD_MANIFEST.json'),
+    [string]$ManifestPath=(Join-Path $PSScriptRoot '..\artifacts\BUILD_MANIFEST.json'),
     [string]$DependencyLockPath=(Join-Path $PSScriptRoot 'dependencies.lock.json'),
-    [string]$OutputPath=(Join-Path $PSScriptRoot '..\artifacts\R21_SBOM.spdx.json')
+    [string]$OutputPath=(Join-Path $PSScriptRoot '..\artifacts\SBOM.spdx.json')
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -80,4 +80,4 @@ $doc=[ordered]@{
 $parent=Split-Path -Parent $OutputPath
 if($parent){New-Item -ItemType Directory -Force -Path $parent|Out-Null}
 $doc|ConvertTo-Json -Depth 12|Set-Content -LiteralPath $OutputPath -Encoding utf8
-Write-Host ('R21_SBOM=PASS path='+$OutputPath+' packages='+$packages.Count+' files='+$files.Count)
+Write-Host ('TBME_SBOM=PASS path='+$OutputPath+' packages='+$packages.Count+' files='+$files.Count)

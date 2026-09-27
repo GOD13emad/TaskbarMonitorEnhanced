@@ -8,18 +8,18 @@ Contributions are welcome.
 - Keep topic branches short-lived and focused on one change.
 - Merged audit, maintenance, and release branches are deleted; published versions are preserved by immutable Git tags and GitHub Releases.
 - Do not rewrite published tags or replace published release assets.
-- The authoritative GitHub Actions workflow is `.github/workflows/r21-ci.yml`.
+- The authoritative GitHub Actions workflow is `.github/workflows/ci.yml`.
 
 ## Validation
 
 Before proposing a code or installer change, run the relevant local checks and keep the working tree clean. The release build path is:
 
 ```powershell
-pwsh -NoProfile -File .\build\Build-R21.ps1
+pwsh -NoProfile -File .\build\Build.ps1
 pwsh -NoProfile -File .\build\Verify-Determinism.ps1
 ```
 
-If the pinned dependency cache is already present, `Build-R21.ps1 -NoDownload` may be used. GitHub CI remains the authoritative clean-environment verification.
+If the pinned dependency cache is already present, `Build.ps1 -NoDownload` may be used. GitHub CI remains the authoritative clean-environment verification.
 
 For sensor, shell, startup, updater, installer, or recovery changes, include the hardware/Windows context and reproducible evidence needed to validate the affected path.
 

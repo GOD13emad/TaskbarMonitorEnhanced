@@ -4,8 +4,8 @@ The 1.0.1 release candidate series was used to reproduce and close laptop-specif
 
 The accepted stable release record is in:
 
-- `RELEASE_NOTES_v1.0.1.md`
-- `docs/FINAL_ACCEPTANCE_v1.0.1.md`
+- `../v1.0.1/RELEASE_NOTES.md`
+- `../../acceptance/archive/v1.0.1/FINAL_ACCEPTANCE.md`
 
 Final accepted artifacts:
 

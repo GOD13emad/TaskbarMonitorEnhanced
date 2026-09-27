@@ -43,4 +43,4 @@ Accepted hashes:
 - Setup SHA-256: `4fd7d1055917eebb6598ba78e68294845f51fb190c93889b78f313ec1f3aed54`
 - Source ZIP SHA-256: `32b69949b1bb8067739c53737b805274b069c63d98b96d84e4855ae826b0cc35`
 
-See `RELEASE_NOTES_v1.0.1.md` and `docs/FINAL_ACCEPTANCE_v1.0.1.md` for the public release record.
+See `../../../releases/archive/v1.0.1/RELEASE_NOTES.md` and `../v1.0.1/FINAL_ACCEPTANCE.md` for the historical public release record.
