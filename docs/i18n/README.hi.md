@@ -4,7 +4,7 @@ Taskbar Monitor Enhanced Windows taskbar के लिए एक हल्का
 
 ## वर्तमान संस्करण
 
-**1.2.0 (source candidate; public release: v1.1.3)**
+**1.2.0 (public release)**
 
 ## मुख्य विशेषताएँ
 
@@ -24,9 +24,9 @@ Taskbar Monitor Enhanced Windows taskbar के लिए एक हल्का
 
 ## Installation
 
-Releases से `TaskbarMonitorEnhanced_Setup_<version>.exe` डाउनलोड करके चलाएँ। Hardware sensor component install करते समय Windows administrator approval माँग सकता है; main application स्वयं non-elevated रहता है।
+Releases से `TaskbarMonitorEnhanced_Setup_1.2.0.exe` डाउनलोड करके चलाएँ। Hardware sensor component install करते समय Windows administrator approval माँग सकता है; main application स्वयं non-elevated रहता है।
 
-1.2.0 candidate ने local build, determinism, visual proof और installed runtime health परीक्षण पास किए हैं; exact GitHub head के CI और publication gates पास होने तक इसे public release नहीं माना जाता।
+सार्वजनिक 1.2.0 रिलीज अब प्रकाशित है; deterministic build, visual proof, installed runtime health, exact release-commit CI और प्रकाशित सभी 7 assets की SHA-256 digest verification PASS है।
 
 ## Developer
 

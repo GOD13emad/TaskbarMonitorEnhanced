@@ -4,7 +4,7 @@ Taskbar Monitor Enhanced Windows taskbar-এর জন্য একটি হা
 
 ## বর্তমান সংস্করণ
 
-**1.2.0 (source candidate; public release: v1.1.3)**
+**1.2.0 (public release)**
 
 ## প্রধান বৈশিষ্ট্য
 
@@ -24,9 +24,9 @@ Taskbar Monitor Enhanced Windows taskbar-এর জন্য একটি হা
 
 ## Installation
 
-Releases থেকে `TaskbarMonitorEnhanced_Setup_<version>.exe` ডাউনলোড করে চালান। Hardware sensor component install করার জন্য Windows administrator অনুমতি চাইতে পারে, তবে মূল app non-elevated থাকে।
+Releases থেকে `TaskbarMonitorEnhanced_Setup_1.2.0.exe` ডাউনলোড করে চালান। Hardware sensor component install করার জন্য Windows administrator অনুমতি চাইতে পারে, তবে মূল app non-elevated থাকে।
 
-1.2.0 candidate লোকাল build, determinism, visual proof এবং installed runtime health পরীক্ষায় PASS করেছে; exact GitHub head CI ও publication gate PASS না করা পর্যন্ত এটি public release নয়।
+পাবলিক 1.2.0 রিলিজ এখন প্রকাশিত; deterministic build, visual proof, installed runtime health, exact release-commit CI এবং প্রকাশিত ৭টি asset-এর SHA-256 digest verification PASS করেছে।
 
 ## Developer
 

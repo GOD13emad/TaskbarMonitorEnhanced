@@ -4,14 +4,14 @@ Taskbar Monitor Enhanced یک مانیتور سبک برای ویندوز است
 
 ## نسخه فعلی
 
-**1.2.0 (source candidate; public release: v1.1.3)**
+**1.2.0 (public release)**
 
 ## امکانات اصلی
 
 - نمایش CPU، RAM، Disk، GPU و VRAM
 - نمایش جداگانه سرعت Download و Upload
 - دمای CPU Package و GPU
-- ۱۴ پوسته داخلی
+- ۲۸ پوسته داخلی
 - نمودارهای زنده و Sparkline
 - قرارگیری در چپ، وسط یا راست Taskbar
 - عرض قابل تنظیم و Safe Placement
@@ -24,9 +24,9 @@ Taskbar Monitor Enhanced یک مانیتور سبک برای ویندوز است
 
 ## نصب
 
-فایل `TaskbarMonitorEnhanced_Setup_<version>.exe` را از بخش Releases دانلود و اجرا کنید. ممکن است Windows فقط برای نصب بخش سنسور سخت‌افزاری درخواست دسترسی Administrator بدهد؛ خود برنامه اصلی بدون دسترسی Administrator اجرا می‌شود.
+فایل `TaskbarMonitorEnhanced_Setup_1.2.0.exe` را از بخش Releases دانلود و اجرا کنید. ممکن است Windows فقط برای نصب بخش سنسور سخت‌افزاری درخواست دسترسی Administrator بدهد؛ خود برنامه اصلی بدون دسترسی Administrator اجرا می‌شود.
 
-کاندید 1.2.0 در Build محلی، Determinism، Visual Proof و سلامت Runtime نصب‌شده PASS شده است؛ تا زمانی که همان GitHub head گیت‌های CI و انتشار را با موفقیت طی نکند، انتشار عمومی محسوب نمی‌شود.
+نسخه عمومی 1.2.0 اکنون منتشر شده است؛ Build قطعی، Visual Proof، سلامت Runtime نصب‌شده، CI دقیق commit انتشار و تطبیق SHA-256 هر ۷ asset منتشرشده همگی PASS هستند.
 
 ## توسعه‌دهنده
 

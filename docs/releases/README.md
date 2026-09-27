@@ -1,10 +1,13 @@
 # Release records
 
-## Current candidate
+## Current public release
 
 - [v1.2.0 release notes](v1.2.0/RELEASE_NOTES.md)
-- [v1.2.0 frozen installer README payload](v1.2.0/INSTALLER_README.txt)
+- [v1.2.0 public release acceptance](../acceptance/v1.2.0/PUBLIC_RELEASE_ACCEPTANCE.json)
 - [v1.2.0 candidate acceptance](../acceptance/v1.2.0/CANDIDATE_ACCEPTANCE.json)
+- [v1.2.0 frozen installer README payload](v1.2.0/INSTALLER_README.txt)
+
+The published v1.2.0 GitHub release is immutable and is the current Latest release. The release-note and installer README files above are retained as release payload inputs and are not rewritten after publication.
 
 ## Previous immutable public release
 

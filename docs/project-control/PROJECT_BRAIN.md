@@ -1,8 +1,8 @@
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
-Brain Version: PB-2026-09-27-R31B-V1.2.0-LOCAL-ACCEPTANCE
+Brain Version: PB-2026-09-27-R31D-V1.2.0-PUBLIC
 Status: CURRENT
-Updated: 2026-09-27T16:40:00+03:30
+Updated: 2026-09-27T17:16:53+03:30
 
 
 ## CURRENT AUTHORITY — 2026-09-26 FINAL RUNTIME ACCEPTED
@@ -624,3 +624,60 @@ This section supersedes older current-state/next-action sections where they conf
 - The 11 translated files now state only evidence-backed candidate status: local build, determinism, visual proof and installed runtime health PASS; exact GitHub-head CI/publication remain required.
 - No code, sensor binaries, installer payload, public tag or release was changed by this correction.
 - Exact next action remains: commit/push this documentation-only correction, open PR to main, require exact-head GitHub CI PASS before any merge/public promotion.
+
+## R31D / v1.2.0 FINAL PUBLIC RELEASE — 2026-09-27
+
+This section is the current authority and supersedes the R31/R31B/R31C candidate/open-publication state where they conflict.
+
+- Public release: `v1.2.0 — Modern Settings & Premium Themes`.
+- Release URL: `https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.2.0`.
+- GitHub release id: `397665644`.
+- Published UTC: `2026-09-27T13:45:13Z`.
+- Release state: `draft=false`, `prerelease=false`, `immutable=true`, current `Latest=v1.2.0`.
+- Annotated tag object: `5f4c12c2dd8ee2624e93d31ff8672894f5701311`.
+- Peeled tag / exact release commit: `84d22fae6638b21683ea828e86517d100ced1654`.
+- PR #5 exact-head candidate CI: run `36322439652` on `2e3f953b402e2b512096fcd59533184739127f91` = SUCCESS.
+- Main exact-release-commit CI: run `36322557793` on `84d22fae6638b21683ea828e86517d100ced1654` = SUCCESS.
+- Main CI success includes reproducible build, deterministic clean-clone, SPDX 2.3 SBOM, binary provenance attestation, Setup SBOM attestation, evidence upload and manifest output.
+- GitHub job log manifest equality: PASS 4/4:
+  - Main `B90211E86AAF0AB05C3B87E2D2056A59B2D6369FCAD0ADCC8072A513FCB489D9`
+  - Broker `182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833`
+  - Supervisor `38553CCE30D5D3F1A22AC6765C4A0F5D4D204970A3DAD7BA9467A326235FC196`
+  - Setup `3196986C62FC7D9A91500B0E3246D5640E6292D0ED1722F736505A4DD511B3CF`
+- Exact local `main` release commit was re-built after merge: PASS / 0 warnings / 0 errors / `TBME_REPRO_BUILD=PASS`.
+- Exact local release commit clean-clone determinism: `TBME_DETERMINISM=PASS`.
+- Exact release-commit SBOM SHA256: `09E38D790AEA054ECDE580EBA3515F285FE72F05758384F83A46D1B181A5A8EC`.
+- Pre-publication Setup verification from staged release binary: PASS 19/19.
+- Pre-publication SHA256SUMS closure: 6/6 targets match.
+- Draft-release asset verification before publication: 7 local vs 7 remote, 0 missing, 0 extra, 0 digest/size mismatches.
+- Final published assets, all GitHub state=uploaded and digest-verified:
+  - `RELEASE_MANIFEST_v1.2.0.json` — 1893 bytes — `2f3f7c8e001092c8cf5e439ba18dbd62a740e024a75c2d0c81379e20e47a54bd`
+  - `RELEASE_NOTES_v1.2.0.md` — 2317 bytes — `02ed6e71802ca0fdc819693ea713a6a02af234443257dcbe6f0fc156d2256822`
+  - `SBOM_v1.2.0.spdx.json` — 4959 bytes — `09e38d790aea054ecde580eba3515f285fe72f05758384f83a46d1b181a5a8ec`
+  - `SHA256SUMS_v1.2.0.txt` — 609 bytes — `d2f5aa6ba345081f2977959c522bb206d801543689bcb82b99d129b086a3ab16`
+  - `TaskbarMonitorEnhanced_1.2.0_SOURCE.zip` — 2659197 bytes — `d5996a44ceb991dde019f00592128596dcadf555d0e4c4217c873699e08f5ee9`
+  - `TaskbarMonitorEnhanced_Setup_1.2.0.exe` — 11074560 bytes — `3196986c62fc7d9a91500b0e3246d5640e6292d0ed1722f736505a4dd511b3cf`
+  - `V1_2_0_MODERN_SETTINGS_THEME_LIBRARY_ACCEPTANCE.json` — 2192 bytes — `833f67a9ca7a236197353b34481e0c1004a75dfc3f98843a8628ef728ff52d86`
+- Public acceptance record: `docs/acceptance/v1.2.0/PUBLIC_RELEASE_ACCEPTANCE.json`.
+- Installed PC state remains exact v1.2.0 Main/Setup with preserved `1.1.2+r21` protected sensor layer and R21 health STABLE.
+- Feature objectives are evidence-backed complete: Settings-open hover bug fixed; Settings redesigned; themes doubled from 14 to 28; live/compact/Settings proof passed.
+- Foreground manual mouse UAT remains unavailable only because connector policy returned `GUI_TAKEOVER_NOT_AUTHORIZED`; this was not bypassed. Installed deterministic hover regression and real-form Settings proof passed.
+- Release signing state: unsigned / no publicly trusted Authenticode claim.
+- Immutability policy: release-tag payload inputs `docs/releases/v1.2.0/RELEASE_NOTES.md` and `INSTALLER_README.txt` remain frozen after publication; post-publication status is documented elsewhere so the release build hash is not rewritten.
+- Optional CI artifact ZIP download was abandoned after network stalls produced no bytes. No blind rerun was performed. Instead, GitHub's successful exact-head CI, provenance/SBOM attestations and the authoritative printed CI build manifest were used for binary hash equality.
+- Evidence staging root: `C:\Users\Aa.Emad\source\archives\TaskbarMonitorEnhanced\2026-09-27_v1.2.0-publication\assets`.
+- Current DoD status: PUBLIC RELEASE ACHIEVED. Remaining housekeeping is non-product: commit/push this post-publication documentation/Brain delta, require its main CI PASS, then delete the merged feature branch.
+- Exact next action: commit the post-publication evidence-only delta on `main`, push, require exact-head CI success, verify release remains immutable/latest, then remove remote/local `feature/modern-settings-theme-library`.
+
+### R31E / MERGED-BRANCH CLEANUP — PASS
+
+- Before deleting the squash-merged feature branch, a complete Git bundle was created at:
+  `C:\Users\Aa.Emad\source\archives\TaskbarMonitorEnhanced\2026-09-27_v1.2.0-publication\feature-modern-settings-theme-library.bundle`
+- Bundle contains `refs/heads/feature/modern-settings-theme-library` at `2e3f953b402e2b512096fcd59533184739127f91`.
+- `git bundle verify`: PASS / complete history.
+- Bundle SHA256: `E13DC2AC746F85D6B64B28B3CB7099A1EF5244EBFCD16E991A817FAAC1A87E66`.
+- Remote feature branch deletion: PASS.
+- Local feature branch deletion: PASS.
+- Post-delete remote/local branch checks: absent as intended.
+- Product/release state is unchanged; immutable `v1.2.0` remains exact release authority.
+- Remaining exact next action: commit and push this post-publication documentation/evidence-only delta on `main`, require its GitHub CI PASS, then perform a final release/latest/tag/worktree audit. No product mutation remains open.

@@ -336,3 +336,57 @@
 - Confidence/Status: CONFIRMED / false claim removed before PR.
 - Reuse Targets: release documentation, localization maintenance, evidence-boundary reviews.
 - Provenance: `docs/i18n/README.{ar,bn,es,fa,fr,hi,id,pt,ru,ur,zh-CN}.md`; pre-commit diff audit.
+
+## 2026-09-27 — v1.2.0 public publication closure
+
+### Record K — immutable public release authority
+- Date/Context: 2026-09-27 final publication after PR and main exact-head CI.
+- Claim: v1.2.0 is the current public immutable Latest release.
+- Evidence: GitHub release id `397665644`; tag `v1.2.0`; annotated tag object `5f4c12c2dd8ee2624e93d31ff8672894f5701311`; peeled commit `84d22fae6638b21683ea828e86517d100ced1654`; published `2026-09-27T13:45:13Z`; state non-draft, non-prerelease, immutable, Latest.
+- Public URL: `https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.2.0`.
+- Confidence/Status: CONFIRMED / FINAL_PUBLIC_RELEASE_ACCEPTED.
+- Reuse Targets: current authority, updater/release documentation, support, provenance.
+
+### Record L — release asset digest closure
+- Pre-publication staging contained exactly seven release assets.
+- Setup pre-publication resource verify: PASS 19/19.
+- `SHA256SUMS_v1.2.0.txt`: 6/6 referenced assets matched before upload.
+- Draft GitHub release comparison: 7 local assets vs 7 remote assets; 0 missing; 0 extra; 0 size/digest mismatches.
+- Post-publication GitHub audit: all seven assets remain state=uploaded with the same digests.
+- Setup: `3196986c62fc7d9a91500b0e3246d5640e6292d0ed1722f736505a4dd511b3cf`.
+- Source ZIP: `d5996a44ceb991dde019f00592128596dcadf555d0e4c4217c873699e08f5ee9`.
+- SHA256SUMS: `d2f5aa6ba345081f2977959c522bb206d801543689bcb82b99d129b086a3ab16`.
+- Release manifest: `2f3f7c8e001092c8cf5e439ba18dbd62a740e024a75c2d0c81379e20e47a54bd`.
+- SBOM: `09e38d790aea054ecde580eba3515f285fe72f05758384f83a46d1b181a5a8ec`.
+- Acceptance asset: `833f67a9ca7a236197353b34481e0c1004a75dfc3f98843a8628ef728ff52d86`.
+- Release notes asset: `02ed6e71802ca0fdc819693ea713a6a02af234443257dcbe6f0fc156d2256822`.
+- Confidence/Status: CONFIRMED / PASS_7_OF_7.
+- Provenance: external staging root `C:\Users\Aa.Emad\source\archives\TaskbarMonitorEnhanced\2026-09-27_v1.2.0-publication\assets` and GitHub release asset digests.
+
+### Record M — exact-main CI equivalence without artifact re-download
+- Main run `36322557793` on exact release commit `84d22fae6638b21683ea828e86517d100ced1654` completed SUCCESS.
+- CI passed reproducible build, clean-clone determinism, SPDX generation, binary provenance attestation, Setup SBOM attestation and evidence upload.
+- GitHub job log printed the authoritative build manifest and confirmed exact equality of all four binary hashes with local/release values.
+- A direct CI artifact ZIP download was attempted but stalled on the PC network and wrote no bytes. After bounded observation it was terminated; no blind retry loop was used.
+- Decision: artifact download is not a necessary additional gate once authoritative CI log manifest + provenance/SBOM attestation + local deterministic build establish the same binary hashes.
+- Confidence/Status: CONFIRMED / minimum-sufficient release evidence satisfied.
+- Reuse Targets: future release process under constrained network conditions.
+
+### Record N — post-publication immutability rule
+- Decision: do not edit `docs/releases/v1.2.0/RELEASE_NOTES.md` or `docs/releases/v1.2.0/INSTALLER_README.txt` after publication because they are release payload/build inputs.
+- Rationale: changing embedded release payload text after publication can change rebuilt Setup bytes and break release reproducibility/immutability.
+- Current public status updates belong in public indexes, acceptance, Brain/Knowledge and current README/DOWNLOAD files instead.
+- Confidence/Status: CONFIRMED preventive control.
+- Reuse Targets: all future immutable releases.
+
+### Record O — merged feature-branch preservation and cleanup
+- Date/Context: 2026-09-27, after immutable v1.2.0 publication.
+- Risk: squash merge means the feature branch tip is not a direct ancestor of main; deleting it without an independent record would reduce convenient recoverability of intermediate commits.
+- Prevention: create and verify a complete Git bundle before branch deletion.
+- Bundle: `C:\Users\Aa.Emad\source\archives\TaskbarMonitorEnhanced\2026-09-27_v1.2.0-publication\feature-modern-settings-theme-library.bundle`.
+- Bundled tip: `2e3f953b402e2b512096fcd59533184739127f91`.
+- SHA256: `E13DC2AC746F85D6B64B28B3CB7099A1EF5244EBFCD16E991A817FAAC1A87E66`.
+- Verification: `git bundle verify` PASS / complete history.
+- Remote and local feature branch deletion then completed and absence was verified.
+- Confidence/Status: CONFIRMED / PASS.
+- Reuse Targets: repository hygiene, account transfer, historical recovery.

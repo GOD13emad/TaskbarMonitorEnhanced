@@ -1,0 +1,124 @@
+{
+  "SchemaVersion": 1,
+  "Release": "v1.2.0",
+  "Status": "FINAL_PUBLIC_RELEASE_ACCEPTED",
+  "AcceptedAtUtc": "2026-09-27T13:45:13Z",
+  "ReleaseUrl": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.2.0",
+  "ReleaseId": 397665644,
+  "ReleaseName": "Taskbar Monitor Enhanced v1.2.0 — Modern Settings & Premium Themes",
+  "Latest": true,
+  "Draft": false,
+  "Prerelease": false,
+  "Immutable": true,
+  "Authority": {
+    "ReleaseTag": "v1.2.0",
+    "AnnotatedTagObject": "5f4c12c2dd8ee2624e93d31ff8672894f5701311",
+    "ReleaseTagCommit": "84d22fae6638b21683ea828e86517d100ced1654",
+    "CandidateHead": "2e3f953b402e2b512096fcd59533184739127f91",
+    "BuildIdentity": "V1_2_0_R01_MODERN_SETTINGS_THEME_LIBRARY"
+  },
+  "Acceptance": {
+    "ExactMainLocalBuild": "PASS_0_WARNINGS_0_ERRORS",
+    "SetupVerify": "PASS_19_OF_19",
+    "BuiltInSelfTest": "PASS_THEMES_28",
+    "HoverGuard": "PASS_MOVE_AND_WATCHDOG_SUPPRESSED_FLYOUT_HIDDEN",
+    "ThemeProof28Of28": "PASS_LIVE_DATA",
+    "CompactProof592And500": "PASS_252_CHECKS_ZERO_OVERFLOW",
+    "SettingsProof8Of8": "PASS",
+    "DeterministicCleanClone": "PASS",
+    "InstalledRuntime": "PASS_R21_STABLE_CPU_GPU_STORAGE",
+    "PRExactHeadCI": "PASS",
+    "MainExactHeadCI": "PASS",
+    "MainCIBinaryManifestEquality": "PASS_4_OF_4",
+    "BinaryProvenanceAttestation": "PASS",
+    "SetupSbomAttestation": "PASS",
+    "ReleaseAssetDigestVerification": "PASS_7_OF_7",
+    "MarkdownRelativeLinks": "PASS_0_BROKEN",
+    "ForegroundMouseUAT": "MISSING_CONNECTOR_TAKEOVER_NOT_AUTHORIZED",
+    "AutomatedUiBehaviorSubstitute": "PASS"
+  },
+  "CI": {
+    "PullRequestNumber": 5,
+    "PullRequestRunId": 36322439652,
+    "PullRequestHead": "2e3f953b402e2b512096fcd59533184739127f91",
+    "MainRunId": 36322557793,
+    "MainRunConclusion": "success",
+    "ExactMainSha": "84d22fae6638b21683ea828e86517d100ced1654",
+    "MainArtifactId": 10932742019,
+    "MainArtifactDigest": "sha256:66f98d91e51301b2f5056cc92a1b352d0d2edfac3aa6bb8dfefd76f13ba76193",
+    "PrintedManifestHashes": {
+      "Main": "B90211E86AAF0AB05C3B87E2D2056A59B2D6369FCAD0ADCC8072A513FCB489D9",
+      "Broker": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833",
+      "Supervisor": "38553CCE30D5D3F1A22AC6765C4A0F5D4D204970A3DAD7BA9467A326235FC196",
+      "Setup": "3196986C62FC7D9A91500B0E3246D5640E6292D0ED1722F736505A4DD511B3CF"
+    }
+  },
+  "Assets": [
+    {
+      "Name": "RELEASE_MANIFEST_v1.2.0.json",
+      "Bytes": 1893,
+      "SHA256": "2f3f7c8e001092c8cf5e439ba18dbd62a740e024a75c2d0c81379e20e47a54bd"
+    },
+    {
+      "Name": "RELEASE_NOTES_v1.2.0.md",
+      "Bytes": 2317,
+      "SHA256": "02ed6e71802ca0fdc819693ea713a6a02af234443257dcbe6f0fc156d2256822"
+    },
+    {
+      "Name": "SBOM_v1.2.0.spdx.json",
+      "Bytes": 4959,
+      "SHA256": "09e38d790aea054ecde580eba3515f285fe72f05758384f83a46d1b181a5a8ec"
+    },
+    {
+      "Name": "SHA256SUMS_v1.2.0.txt",
+      "Bytes": 609,
+      "SHA256": "d2f5aa6ba345081f2977959c522bb206d801543689bcb82b99d129b086a3ab16"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_1.2.0_SOURCE.zip",
+      "Bytes": 2659197,
+      "SHA256": "d5996a44ceb991dde019f00592128596dcadf555d0e4c4217c873699e08f5ee9"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.2.0.exe",
+      "Bytes": 11074560,
+      "SHA256": "3196986c62fc7d9a91500b0e3246d5640e6292d0ed1722f736505a4dd511b3cf"
+    },
+    {
+      "Name": "V1_2_0_MODERN_SETTINGS_THEME_LIBRARY_ACCEPTANCE.json",
+      "Bytes": 2192,
+      "SHA256": "833f67a9ca7a236197353b34481e0c1004a75dfc3f98843a8628ef728ff52d86"
+    }
+  ],
+  "SBOM": {
+    "PublishedRawSHA256": "09e38d790aea054ecde580eba3515f285fe72f05758384f83a46d1b181a5a8ec",
+    "ExactReleaseCommit": "84d22fae6638b21683ea828e86517d100ced1654",
+    "CISetupSbomAttestation": "PASS"
+  },
+  "VisualQualification": {
+    "ThemeCount": 28,
+    "NoSyntheticMetricData": true,
+    "CompactWidths": [
+      592,
+      500
+    ],
+    "LayoutChecks": 252,
+    "OverflowCount": 0,
+    "SettingsPages": 8
+  },
+  "SensorLayer": {
+    "Version": "1.1.2+r21",
+    "Status": "READY",
+    "BrokerHashUnchanged": true,
+    "SupervisorHashUnchanged": true
+  },
+  "Signing": {
+    "PublicTrust": "UNSIGNED_PENDING_EXTERNAL_PROVIDER",
+    "TrustedSignatureClaim": false
+  },
+  "ImmutablePreviousRelease": {
+    "Release": "v1.1.3",
+    "ReleaseTagCommit": "fa8c75d0b59343ccb7eae86320a351e3b4064c48",
+    "Status": "PASS_UNCHANGED"
+  }
+}

@@ -4,7 +4,7 @@ Taskbar Monitor Enhanced é um monitor de sistema leve integrado à barra de tar
 
 ## Versão atual
 
-**1.2.0 (source candidate; public release: v1.1.3)**
+**1.2.0 (public release)**
 
 ## Principais recursos
 
@@ -24,9 +24,9 @@ Taskbar Monitor Enhanced é um monitor de sistema leve integrado à barra de tar
 
 ## Instalação
 
-Baixe `TaskbarMonitorEnhanced_Setup_<version>.exe` em Releases e execute-o. O Windows pode solicitar permissão administrativa para instalar o componente protegido de sensores; o aplicativo principal continua sendo executado sem elevação.
+Baixe `TaskbarMonitorEnhanced_Setup_1.2.0.exe` em Releases e execute-o. O Windows pode solicitar permissão administrativa para instalar o componente protegido de sensores; o aplicativo principal continua sendo executado sem elevação.
 
-O candidato 1.2.0 passou pela compilação local, verificação determinística, provas visuais e verificação de saúde do runtime instalado; não é uma versão pública até que o mesmo head no GitHub passe pelo CI e pelos gates de publicação.
+A versão pública 1.2.0 já foi publicada; passou pela compilação determinística, provas visuais, saúde do runtime instalado, CI do commit exato da versão e verificação SHA-256 dos sete assets publicados.
 
 ## Desenvolvedor
 

@@ -4,7 +4,7 @@ Taskbar Monitor Enhanced 是一款轻量级 Windows 任务栏系统监视器，�
 
 ## 当前版本
 
-**1.2.0 (source candidate; public release: v1.1.3)**
+**1.2.0 (public release)**
 
 ## 主要功能
 
@@ -24,9 +24,9 @@ Taskbar Monitor Enhanced 是一款轻量级 Windows 任务栏系统监视器，�
 
 ## 安装
 
-从 Releases 下载并运行 `TaskbarMonitorEnhanced_Setup_<version>.exe`。安装受保护的硬件传感器组件时，Windows 可能要求管理员授权；主程序本身仍以普通用户权限运行。
+从 Releases 下载并运行 `TaskbarMonitorEnhanced_Setup_1.2.0.exe`。安装受保护的硬件传感器组件时，Windows 可能要求管理员授权；主程序本身仍以普通用户权限运行。
 
-1.2.0 候选版本已通过本地构建、确定性构建验证、视觉证据和已安装运行时健康检查；在同一 GitHub head 通过 CI 与发布门禁之前，不视为公开发布版本。
+公开版 1.2.0 已正式发布；确定性构建、视觉验证、已安装运行时健康检查、精确发布 commit 的 CI，以及 7 个已发布资产的 SHA-256 摘要核对均已通过。
 
 ## 开发者
 

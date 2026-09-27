@@ -34,7 +34,7 @@ All 28 theme strips are rendered by the application from live sampled telemetry 
 
 ![500 px compact proof](docs/screenshots/compact/compact-contact-sheet-500.png)
 
-The compact proof covers all 28 themes at both widths. The current candidate records **252 layout checks and zero overflow**.
+The compact proof covers all 28 themes at both widths. The accepted v1.2.0 release records **252 layout checks and zero overflow**.
 
 See the [full screenshot gallery](docs/screenshots/README.md).
 
@@ -72,7 +72,7 @@ The accepted sensor architecture remains `1.1.2+r21` and includes:
 - Diagnostics UI and machine-readable health probe
 - exact-hash compatible sensor-layer reuse for app-only updates
 
-For v1.2.0 the current local candidate has passed:
+For the public v1.2.0 release, qualification passed:
 
 - deterministic full build with 0 warnings / 0 errors
 - Setup resource verification: 19/19
@@ -85,11 +85,11 @@ For v1.2.0 the current local candidate has passed:
 - SPDX 2.3 SBOM generation
 - installed runtime health with stable Supervisor/CPU/GPU/storage lanes
 
-See [v1.2.0 release notes](docs/releases/v1.2.0/RELEASE_NOTES.md) and [v1.2.0 candidate acceptance](docs/acceptance/v1.2.0/CANDIDATE_ACCEPTANCE.json).
+See [v1.2.0 release notes](docs/releases/v1.2.0/RELEASE_NOTES.md) and [v1.2.0 public acceptance](docs/acceptance/v1.2.0/PUBLIC_RELEASE_ACCEPTANCE.json).
 
 ## Install and uninstall
 
-Use the official [GitHub Releases](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases) page. Verify published SHA-256 values before running an installer.
+Download v1.2.0 from the [official GitHub release](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.2.0). Verify `SHA256SUMS_v1.2.0.txt` before running the installer.
 
 The application installs per-user under:
 
@@ -103,7 +103,7 @@ PawnIO is intentionally not removed automatically because another hardware-monit
 
 ## Version and release integrity
 
-- v1.2.0 is the current source candidate.
+- **v1.2.0 is the current public Latest release** and its GitHub release is immutable.
 - public **v1.1.3** remains immutable historical release evidence and is never retagged or overwritten.
 - the protected sensor layer retains its accepted internal compatibility identity `1.1.2+r21`.
 - no public release is claimed to be signed unless a verifiable Authenticode signature from a publicly trusted provider is actually present.

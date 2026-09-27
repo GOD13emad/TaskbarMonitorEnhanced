@@ -4,7 +4,7 @@ Taskbar Monitor Enhanced est un moniteur système léger intégré à la barre d
 
 ## Version actuelle
 
-**1.2.0 (source candidate; public release: v1.1.3)**
+**1.2.0 (public release)**
 
 ## Fonctions principales
 
@@ -24,9 +24,9 @@ Taskbar Monitor Enhanced est un moniteur système léger intégré à la barre d
 
 ## Installation
 
-Téléchargez `TaskbarMonitorEnhanced_Setup_<version>.exe` depuis Releases et lancez-le. Windows peut demander une autorisation administrateur pour installer le composant protégé de capteurs ; l’application principale reste non élevée.
+Téléchargez `TaskbarMonitorEnhanced_Setup_1.2.0.exe` depuis Releases et lancez-le. Windows peut demander une autorisation administrateur pour installer le composant protégé de capteurs ; l’application principale reste non élevée.
 
-Le candidat 1.2.0 a réussi la compilation locale, la vérification déterministe, les preuves visuelles et le contrôle de santé du runtime installé ; il ne devient pas une version publique avant la réussite du CI GitHub sur le même commit et des contrôles de publication.
+La version publique 1.2.0 est maintenant publiée ; elle a réussi la compilation déterministe, les preuves visuelles, le contrôle du runtime installé, le CI du commit exact et la vérification SHA-256 des sept assets publiés.
 
 ## Développeur
 

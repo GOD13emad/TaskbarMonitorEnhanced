@@ -1,22 +1,28 @@
 # Official downloads — Taskbar Monitor Enhanced
 
-## v1.2.0 candidate
+## v1.2.0 — Current public release
 
-The v1.2.0 source candidate has completed local build, deterministic rebuild, visual proof, SBOM and installed-health gates. Public promotion still requires the exact release commit to pass GitHub CI and release publication checks.
+Official immutable release:
 
-Official release page:
+https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.2.0
 
-https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases
-
-Expected v1.2.0 primary assets after promotion:
+Published assets:
 
 - `TaskbarMonitorEnhanced_Setup_1.2.0.exe`
-- source archive generated from the exact release tag
-- SHA-256 checksums
-- release manifest
-- SPDX 2.3 SBOM
+- `TaskbarMonitorEnhanced_1.2.0_SOURCE.zip`
+- `SHA256SUMS_v1.2.0.txt`
+- `RELEASE_MANIFEST_v1.2.0.json`
+- `SBOM_v1.2.0.spdx.json`
+- `V1_2_0_MODERN_SETTINGS_THEME_LIBRARY_ACCEPTANCE.json`
+- `RELEASE_NOTES_v1.2.0.md`
 
-Do not treat a locally built candidate as a public release asset until it appears on the official GitHub Releases page with matching hashes.
+The release is non-draft, non-prerelease, immutable and marked Latest. All seven published asset sizes and SHA-256 digests were verified against the pre-publication staging set.
+
+The Windows installer SHA-256 is:
+
+`3196986c62fc7d9a91500b0e3246d5640e6292d0ed1722f736505a4dd511b3cf`
+
+Verify the full published checksum file before running an installer.
 
 ## Visual verification
 
@@ -28,11 +34,11 @@ Do not treat a locally built candidate as a public release asset until it appear
 
 ## Previous immutable release
 
-Public v1.1.3 remains available from GitHub Releases and is not rewritten or retagged.
+Public v1.1.3 remains available from GitHub Releases and has not been rewritten or retagged.
 
 ## Code signing
 
-Treat a release as unsigned unless the published artifact contains independently verifiable Authenticode evidence from a publicly trusted provider.
+v1.2.0 does not claim a publicly trusted Authenticode signature. Treat it as unsigned unless independent trusted-signature evidence is present.
 
 See [CODE_SIGNING.md](CODE_SIGNING.md) and [PRIVACY.md](PRIVACY.md).
 
