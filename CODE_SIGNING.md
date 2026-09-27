@@ -8,7 +8,9 @@ https://github.com/GOD13emad/TaskbarMonitorEnhanced
 
 **Free code signing provided by SignPath.io, certificate by SignPath Foundation.**
 
-The project is prepared to apply to the SignPath Foundation open-source signing program. **Acceptance is pending; no release is currently claimed to carry a SignPath Foundation signature.** The self-signed development certificate documented under `docs/security/` is for local pipeline validation only and is not public publisher trust.
+The project is prepared for the SignPath Foundation open-source signing program. **External acceptance and a production public-trust signature are not yet proven.** The self-signed development certificate documented under `docs/security/` validates the signing pipeline only and is not public publisher trust.
+
+Therefore, **v1.1.3 is treated as unsigned unless its release artifact carries an independently verifiable Authenticode signature from a publicly trusted provider.** Windows may show **Unknown publisher**. This status is stated explicitly rather than inferred from provider-readiness work.
 
 ## Official release artifacts
 
@@ -16,11 +18,11 @@ Only artifacts attached to the official GitHub Releases page are release binarie
 
 https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases
 
-The immutable accepted baseline is **v1.1.2**. Its release tag remains fixed and its published installer SHA-256 is:
+The immutable historical v1.1.2 release remains fixed. Its tag is `aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0` and its published installer SHA-256 is:
 
 `25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB`
 
-v1.1.2 is not retroactively signed or replaced. Public Authenticode signing will begin only on a **new release version** after the SignPath or other trusted-provider gate is satisfied.
+v1.1.2 is never retroactively signed or replaced. v1.1.3 is a separately versioned reliability release and does not alter the v1.1.2 tag or assets.
 
 ## Team roles
 
@@ -36,7 +38,7 @@ A production signing request must:
 
 1. originate from this public repository and an identified commit;
 2. use the repository build scripts and pinned dependency controls;
-3. build the project Main, Sensor Broker, Sensor Supervisor, and installer artifacts from source;
+3. build the Main, Sensor Broker, Sensor Supervisor, and installer artifacts from source;
 4. preserve GPL/upstream attribution and documented third-party notices;
 5. pass deterministic build and artifact-equivalence checks applicable to that release;
 6. generate or update SHA-256 manifests and SPDX SBOM evidence;
@@ -55,7 +57,7 @@ The application does not upload monitoring telemetry, configuration data, or per
 
 Signed status is only one release gate. Users and maintainers must also verify the release tag and commit, published SHA-256 values, SBOM and provenance evidence, and runtime acceptance for the same release identity.
 
-Current public release authority remains immutable **v1.1.2** until a separately versioned, accepted, publicly signed release is produced.
+Until a trusted signing provider actually signs a release, public-trust signing remains **PENDING** even when all repository-side release gates pass.
 
 ## Security reporting
 

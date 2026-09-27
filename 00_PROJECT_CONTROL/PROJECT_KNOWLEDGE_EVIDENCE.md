@@ -128,3 +128,19 @@
 - The official application and Code of Conduct pages have been opened on the desktop and the application page was reopened last.
 - Security boundary: no raw local MCP, Windows SendInput, UIAutomation, CDP or equivalent injection is used to bypass the connector's takeover gate; no CAPTCHA bypass is attempted.
 - Status: repository readiness PASS; application payload READY; submission NOT SUBMITTED; explicit first-person consents + reCAPTCHA remain the only legitimate human gates.
+
+## 2026-09-27 — v1.1.3 startup resilience and visual requalification
+
+- Observed failure mechanism: `StartWithWindows=true` was present in config and StartupApproved was enabled, but the actual HKCU Run registration for Main was missing after a real power-loss/restart cycle. Sensor Supervisor still launched independently. Cause of the Run-value deletion is not proven.
+- Prevention architecture: retain HKCU Run as primary launch and add a current-user Startup-folder shortcut as a privilege-independent recovery path. Recovery uses `--startup-recovery`, waits up to 12 seconds for the primary process, exits early on primary detection, otherwise starts normally. Existing mutex prevents duplicate long-running Main instances.
+- A Scheduled Task fallback was considered but rejected after non-elevated creation of an ONLOGON task returned Access Denied on the validation PC.
+- Mutual self-heal is live-proven in both directions. StartWithWindows=false removes both registrations and original true state was restored after the negative test.
+- Candidate code/visual authority: commit `bcbd8f8e8861e4e4a83350699214f1bb83b1132e`.
+- Main v1.1.3 hash: `74E7725E3C3911EFEDEC1181C21AF07571C9A22CD758EE50E06EA1373DAB7317`.
+- Setup v1.1.3 hash: `159D6995D16A549DAC35BD6EF69543A63D6675778C37012619BEFDABFD43598C`.
+- Existing protected Broker/Supervisor hashes remain `182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833` and `38553CCE30D5D3F1A22AC6765C4A0F5D4D204970A3DAD7BA9467A326235FC196`; sensor layer remains 1.1.2+r21 / READY.
+- Deterministic clean-clone build at the candidate commit: PASS. SPDX 2.3 SBOM SHA256 `651057410EB57090E1D7ED5EB9522AB8B40284D484CAB0A1C9ADA4DC1833E192`.
+- Theme proof: PASS, 14/14 themes, 30 live samples, no synthetic metrics. Compact proof: PASS for 592 and 500 px, zero recorded overflow. Theme/compact manifests and contact sheets are now repository documentation.
+- v1.1.2 immutability regression remains PASS: tag `aab35e5e...`, Setup `25744A0A...`.
+- Public trust: no SignPath/CA signature is claimed. Repository readiness and application preparation are separate from actual provider acceptance.
+- Status: Confirmed / LOCAL ACCEPTANCE PASS / GitHub CI and immutable publication pending.

@@ -1,0 +1,130 @@
+{
+  "SchemaVersion": 1,
+  "Release": "v1.1.3",
+  "BuildIdentity": "V1_1_3_R22_STARTUP_RESILIENCE",
+  "Status": "LOCAL_ACCEPTANCE_PASS_GITHUB_CI_AND_PUBLICATION_PENDING",
+  "EvidenceDate": "2026-09-27",
+  "SourceAuthority": {
+    "CodeAndVisualCommit": "bcbd8f8e8861e4e4a83350699214f1bb83b1132e",
+    "ParentAcceptedControlCommit": "9fcfcd389eea85e2ccbdf03ce6cdfe8b99463e9b",
+    "Branch": "release/v1.1.3-startup-resilience"
+  },
+  "RootCause": {
+    "Observed": "StartWithWindows remained true in application configuration and Windows StartupApproved was enabled, but the HKCU Run value for TaskbarMonitorEnhanced was absent after the power-loss/restart event. The protected sensor supervisor still launched from its separate logon task.",
+    "ExternalRemover": "UNPROVEN",
+    "FailureMode": "The v1.1.2 main application could repair its Run value only after it was already running, so loss of the only main-app launch registration created a bootstrap gap."
+  },
+  "Fix": {
+    "Primary": "HKCU Run TaskbarMonitorEnhanced",
+    "Recovery": "Current-user Startup-folder shortcut: Taskbar Monitor Enhanced Startup Recovery.lnk",
+    "RecoveryArgument": "--startup-recovery",
+    "RecoveryWaitMaxSeconds": 12,
+    "RepairRule": "Either surviving startup path launches the application and the application recreates the missing registration.",
+    "DuplicateProtection": "Recovery exits early when a primary process is present; existing named mutex remains final single-instance guard.",
+    "DisableRule": "StartWithWindows=false removes both registrations.",
+    "UninstallRule": "Product uninstaller removes both registrations.",
+    "PrivilegeModel": "Per-user only; no administrator privilege is required for the two startup registrations."
+  },
+  "LocalBuildVerification": {
+    "PrimaryBuild": "PASS_0_WARNINGS_0_ERRORS",
+    "SetupVerify": "PASS",
+    "BuiltInSelfTest": "PASS",
+    "DeterministicCleanClone": "PASS",
+    "ReproducibleBuild": "PASS",
+    "SensorWindowlessPeGuard": "PASS",
+    "CanonicalTextPayload": "PASS",
+    "SbomGeneration": "PASS_SPDX_2_3"
+  },
+  "Outputs": [
+    {
+      "Name": "TaskbarMonitorEnhanced.exe",
+      "Bytes": 279552,
+      "SHA256": "74E7725E3C3911EFEDEC1181C21AF07571C9A22CD758EE50E06EA1373DAB7317"
+    },
+    {
+      "Name": "TaskbarMonitorSensorBroker.exe",
+      "Bytes": 22528,
+      "SHA256": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833"
+    },
+    {
+      "Name": "TaskbarMonitorSensorSupervisor.exe",
+      "Bytes": 31232,
+      "SHA256": "38553CCE30D5D3F1A22AC6765C4A0F5D4D204970A3DAD7BA9467A326235FC196"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.1.3.exe",
+      "Bytes": 11024896,
+      "SHA256": "159D6995D16A549DAC35BD6EF69543A63D6675778C37012619BEFDABFD43598C"
+    },
+    {
+      "Name": "R21_SBOM.spdx.json",
+      "Bytes": 4959,
+      "SHA256": "651057410EB57090E1D7ED5EB9522AB8B40284D484CAB0A1C9ADA4DC1833E192"
+    }
+  ],
+  "SensorLayer": {
+    "Version": "1.1.2+r21",
+    "Status": "READY",
+    "ReuseMode": "CURRENT_EXACT_1_1_2",
+    "BrokerHashUnchanged": true,
+    "SupervisorHashUnchanged": true,
+    "Rationale": "v1.1.3 is an app/startup reliability patch and preserves the accepted protected sensor layer."
+  },
+  "StartupFaultInjection": [
+    {
+      "Test": "Missing HKCU Run with recovery shortcut surviving",
+      "Result": "PASS",
+      "Evidence": "Recovery path launched; after its bounded wait the main app recreated the exact Run value; exactly one main process remained."
+    },
+    {
+      "Test": "Missing recovery shortcut with HKCU Run surviving",
+      "Result": "PASS",
+      "Evidence": "Normal launch recreated the recovery shortcut with the exact installed target and --startup-recovery argument; exactly one main process remained."
+    },
+    {
+      "Test": "Recovery launch while primary already running",
+      "Result": "PASS",
+      "Evidence": "Fallback exited with code 0 within the bounded observation window; original primary PID remained the sole main process."
+    },
+    {
+      "Test": "StartWithWindows disabled",
+      "Result": "PASS",
+      "Evidence": "Both Run and recovery shortcut were absent while the app remained usable; original user setting was then restored and both registrations returned."
+    }
+  ],
+  "VisualVerification": {
+    "ThemeCount": 14,
+    "ThemeProof": "PASS",
+    "LiveSampleCount": 30,
+    "NoSyntheticMetricData": true,
+    "ThemeManifestSHA256": "8F69E8F5E536BA25FB248DAD4F2B48192C34BCB72DAA536AD020AEE3345B07A6",
+    "ThemeContactSheetSHA256": "22EB5AC1887368127A37A4B05E8C4C097A09C738F7C204C1B070AA9138D65D10",
+    "CompactProof": "PASS",
+    "CompactWidthsPx": [
+      592,
+      500
+    ],
+    "CompactOverflowCount": 0,
+    "CompactManifestSHA256": "7442C23FAD7C23E39F018E5D0CC5B4F4E10118F440CDBEE871D6A39B1B29CD53",
+    "Compact500ContactSheetSHA256": "0606222D95C776E9F51C4C768F1B6761D550DFAE0894BC7275E4EE46D993D805",
+    "Compact592ContactSheetSHA256": "24CA51C2AAF3123C12DE61B45104142C6BD4B61A0BEAEA849D60C6A8002592EC",
+    "HumanVisualReview": "PASS_NO_OBVIOUS_RENDERING_DEFECT_IN_ALL_THEME_CONTACT_SHEET"
+  },
+  "ImmutableRegression": {
+    "V112Tag": "aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0",
+    "V112SetupSHA256": "25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB",
+    "Status": "PASS_UNCHANGED"
+  },
+  "Signing": {
+    "V113PublicTrustStatus": "UNSIGNED_PENDING_EXTERNAL_TRUST_PROVIDER",
+    "SignPathFoundationApplication": "PREPARED_NOT_PROVEN_ACCEPTED",
+    "NoTrustedSignatureClaim": true
+  },
+  "RemainingPublicationGates": [
+    "Commit release-control documentation.",
+    "Re-run deterministic verification on the final release-metadata commit.",
+    "Push release branch and main without force.",
+    "Require exact GitHub Actions success for the exact final release commit.",
+    "Create immutable v1.1.3 tag/release and verify uploaded asset digests."
+  ]
+}
