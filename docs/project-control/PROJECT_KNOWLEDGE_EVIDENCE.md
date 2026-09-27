@@ -325,3 +325,14 @@
 - Markdown link audit: 38 files, 0 broken relative links.
 - Decision: current README/DOWNLOAD/release/acceptance docs distinguish v1.2.0 candidate from immutable public v1.1.3 until exact-head CI/publication completes.
 - Confidence/Status: CONFIRMED / documentation ready for CI gate.
+
+
+### Record J — translated release-status false-claim prevention
+- Date/Context: 2026-09-27, pre-PR repository audit.
+- Observation: 11 i18n README files changed together to candidate 1.2.0/28 themes, but their validation sentence also changed from historical 1.0.0 lifecycle validation to an unsupported v1.2.0 lifecycle claim.
+- Decision: do not accept the unsupported upgrade/full-uninstall/clean-install claim for v1.2.0.
+- Evidence boundary: v1.2.0 currently has local full build, deterministic rebuild, visual proofs, installed identity/runtime health and preserved protected-sensor evidence; exact-head GitHub CI/publication remain open at this record point.
+- Prevention: translated status text now explicitly distinguishes source candidate 1.2.0 from public release v1.1.3 and names only proven v1.2.0 gates.
+- Confidence/Status: CONFIRMED / false claim removed before PR.
+- Reuse Targets: release documentation, localization maintenance, evidence-boundary reviews.
+- Provenance: `docs/i18n/README.{ar,bn,es,fa,fr,hi,id,pt,ru,ur,zh-CN}.md`; pre-commit diff audit.

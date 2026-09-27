@@ -4,14 +4,14 @@ Taskbar Monitor Enhanced adalah monitor sistem ringan yang terintegrasi ke taskb
 
 ## Versi saat ini
 
-**1.0.0**
+**1.2.0 (source candidate; public release: v1.1.3)**
 
 ## Fitur utama
 
 - CPU, RAM, disk, GPU, dan VRAM
 - Kecepatan download dan upload terpisah
 - Suhu CPU Package dan GPU
-- 14 tema bawaan
+- 28 tema bawaan
 - Grafik dan sparkline real-time
 - Posisi kiri, tengah, atau kanan
 - Lebar yang dapat diatur dan safe placement
@@ -24,9 +24,9 @@ Taskbar Monitor Enhanced adalah monitor sistem ringan yang terintegrasi ke taskb
 
 ## Instalasi
 
-Unduh `TaskbarMonitorEnhanced_Setup_1.0.0.exe` dari Releases lalu jalankan. Windows mungkin meminta izin administrator untuk memasang komponen sensor perangkat keras yang dilindungi; aplikasi utama tetap berjalan tanpa elevasi.
+Unduh `TaskbarMonitorEnhanced_Setup_<version>.exe` dari Releases lalu jalankan. Windows mungkin meminta izin administrator untuk memasang komponen sensor perangkat keras yang dilindungi; aplikasi utama tetap berjalan tanpa elevasi.
 
-Versi 1.0.0 divalidasi melalui upgrade, uninstall penuh, clean install, preservasi konfigurasi, dan pengujian stabilitas sensor CPU.
+Kandidat 1.2.0 telah lulus build lokal, verifikasi deterministik, bukti visual, dan pemeriksaan kesehatan runtime terpasang; ini belum menjadi rilis publik sampai head GitHub yang sama lulus CI dan gate publikasi.
 
 ## Pengembang
 

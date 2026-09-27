@@ -614,3 +614,13 @@ This section supersedes older current-state/next-action sections where they conf
 - Public v1.1.3 remains immutable; no public v1.2.0 tag/release has yet been accepted at this point.
 - Open critical gate: commit this documentation/evidence delta, rerun exact-head clean-clone determinism + SPDX SBOM, push branch, require exact-head GitHub CI PASS. Public release/promotion remains deferred until those gates.
 - Exact next action: commit R31B documentation/evidence delta, then run exact-head build/determinism/SBOM and GitHub CI.
+
+
+### R31C — i18n evidence-claim correction before PR
+
+- Read-only pre-PR audit found 11 translated README files modified together after the prior candidate commit.
+- The changes correctly advanced displayed candidate identity from 1.0.0 to 1.2.0 and theme count from 14 to 28, but also asserted that v1.2.0 itself had completed upgrade/full-uninstall/clean-install lifecycle validation.
+- That lifecycle claim was not supported by current v1.2.0 evidence and was therefore rejected rather than promoted.
+- The 11 translated files now state only evidence-backed candidate status: local build, determinism, visual proof and installed runtime health PASS; exact GitHub-head CI/publication remain required.
+- No code, sensor binaries, installer payload, public tag or release was changed by this correction.
+- Exact next action remains: commit/push this documentation-only correction, open PR to main, require exact-head GitHub CI PASS before any merge/public promotion.
