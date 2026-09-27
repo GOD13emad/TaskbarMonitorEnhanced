@@ -1,0 +1,125 @@
+{
+  "SchemaVersion": 1,
+  "Release": "v1.1.3",
+  "Status": "FINAL_PUBLIC_RELEASE_ACCEPTED",
+  "AcceptedAtUtc": "2026-09-27T10:06:33Z",
+  "ReleaseUrl": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.3",
+  "ReleaseName": "Taskbar Monitor Enhanced v1.1.3 — Startup Resilience",
+  "Latest": true,
+  "Draft": false,
+  "Prerelease": false,
+  "Authority": {
+    "ReleaseTag": "v1.1.3",
+    "ReleaseTagCommit": "fa8c75d0b59343ccb7eae86320a351e3b4064c48",
+    "CodeVisualCommit": "bcbd8f8e8861e4e4a83350699214f1bb83b1132e",
+    "BuildIdentity": "V1_1_3_R22_STARTUP_RESILIENCE"
+  },
+  "Acceptance": {
+    "LocalBuild": "PASS",
+    "SetupVerify": "PASS",
+    "BuiltInSelfTest": "PASS",
+    "DeterministicCleanClone": "PASS",
+    "InstalledRuntime": "PASS",
+    "StartupFaultInjection": "PASS",
+    "ThemeProof14Of14": "PASS",
+    "CompactProof592And500ZeroOverflow": "PASS",
+    "ExactReleaseCommitCI": "PASS",
+    "ReleaseAssetDigestVerification": "PASS_7_OF_7",
+    "V112ImmutableRegression": "PASS"
+  },
+  "CI": {
+    "MainRunId": 36311195266,
+    "MainRunConclusion": "success",
+    "ReleaseBranchRunId": 36311191121,
+    "ReleaseBranchRunConclusion": "success",
+    "ExactHeadSha": "fa8c75d0b59343ccb7eae86320a351e3b4064c48",
+    "MainArtifactId": 10929282504,
+    "MainArtifactDigest": "sha256:537d6d902e9b99cc6fa5c8337606a7609a52e89d22b953e1c777a74ba0dab1bc",
+    "DownloadedBinaryEquivalence": {
+      "TaskbarMonitorEnhanced": "PASS",
+      "TaskbarMonitorSensorBroker": "PASS",
+      "TaskbarMonitorSensorSupervisor": "PASS",
+      "TaskbarMonitorEnhancedSetup": "PASS"
+    },
+    "Annotation": "Non-blocking GitHub Actions notice: the pinned upload-artifact action declares Node.js 20 and GitHub currently forces it to Node.js 24."
+  },
+  "Assets": [
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.1.3.exe",
+      "Bytes": 11024896,
+      "SHA256": "159d6995d16a549dac35bd6ef69543a63d6675778c37012619befdabfd43598c"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_1.1.3_SOURCE.zip",
+      "Bytes": 1064265,
+      "SHA256": "d6b3b99aeee7b3e816d94ece6c41f25fdf338833923afb08a3a4b29907f227ca"
+    },
+    {
+      "Name": "SHA256SUMS_v1.1.3.txt",
+      "Bytes": 602,
+      "SHA256": "5e1e0c48ec5aba0f62e9a9e767a3182ba84fe110a3291e09f095538f48877972"
+    },
+    {
+      "Name": "RELEASE_MANIFEST_v1.1.3.json",
+      "Bytes": 2574,
+      "SHA256": "1462eae3c7870d7c7254223dad82d9ebc04304776b72366460c961d018603c35"
+    },
+    {
+      "Name": "R21_SBOM_v1.1.3.spdx.json",
+      "Bytes": 4959,
+      "SHA256": "651057410eb57090e1d7ed5eb9522ab8b40284d484cab0a1c9ada4dc1833e192"
+    },
+    {
+      "Name": "V1_1_3_STARTUP_RESILIENCE_ACCEPTANCE.json",
+      "Bytes": 5882,
+      "SHA256": "8058bb41acc80c57a43a6eb717e392d74284f9a6e3c464fc782af5677875392a"
+    },
+    {
+      "Name": "RELEASE_NOTES_v1.1.3.md",
+      "Bytes": 1801,
+      "SHA256": "492585ff1f55da457a84b4c42a7b391bdbb2922858236652d0b126c72dd64ce6"
+    }
+  ],
+  "SBOM": {
+    "PublishedRawSHA256": "651057410eb57090e1d7ed5eb9522ab8b40284d484cab0a1c9ada4dc1833e192",
+    "ExactHeadCIRawSHA256": "81248e28917bf6c24ebfbea1f6bdbffc1fb3c2b2c864f9dc42f21b0a0eb22558",
+    "SemanticEquivalence": "PASS",
+    "NormalizedSemanticSHA256": "2e5375bfa63263162953f2c2a7a8c98b7cc4729bbb871cc7aad9f90b3c4238a1",
+    "Explanation": "Raw SPDX documents differ only in generated document identity/timing fields; package set, file hashes and SPDX relationships normalize identically. Exact-head CI also produced and attested an SBOM at the release commit."
+  },
+  "StartupResilience": {
+    "Primary": "HKCU Run",
+    "Recovery": "Per-user Startup-folder shortcut with --startup-recovery",
+    "RecoveryWaitMaximumSeconds": 12,
+    "MissingPrimaryRepair": "PASS",
+    "MissingRecoveryRepair": "PASS",
+    "DuplicateRecoveryEarlyExit": "PASS",
+    "StartupDisabledCleanup": "PASS"
+  },
+  "VisualQualification": {
+    "ThemeCount": 14,
+    "LiveSampleCount": 30,
+    "NoSyntheticMetricData": true,
+    "CompactWidths": [
+      592,
+      500
+    ],
+    "OverflowCount": 0
+  },
+  "SensorLayer": {
+    "Version": "1.1.2+r21",
+    "Status": "READY",
+    "BrokerHashUnchanged": true,
+    "SupervisorHashUnchanged": true
+  },
+  "Signing": {
+    "PublicTrust": "UNSIGNED_PENDING_EXTERNAL_PROVIDER",
+    "SignPathFoundationAcceptance": "NOT_PROVEN",
+    "TrustedSignatureClaim": false
+  },
+  "ImmutablePreviousRelease": {
+    "V112TagCommit": "aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0",
+    "V112SetupSHA256": "25744a0a0f78b787a5fc3601577748b80353adc9dafb9fe91a111a53c56216fb",
+    "Status": "PASS_UNCHANGED"
+  }
+}

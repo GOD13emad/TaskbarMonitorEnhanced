@@ -380,3 +380,21 @@ This section supersedes R23 as the current maintenance authority where they conf
 - Signing: v1.1.3 remains UNSIGNED unless independently verifiable public-trust Authenticode evidence exists. SignPath readiness does not equal provider acceptance.
 - Current state: LOCAL ACCEPTANCE PASS. Public release is not yet claimed until final metadata commit, exact-head GitHub CI success, immutable tag/release creation, and remote asset digest verification complete.
 - Exact next action: commit release-control docs -> determinism on exact metadata head -> non-force push branch/main -> exact-head GitHub CI -> immutable v1.1.3 release -> post-release digest/immutability seal.
+
+## R25 / v1.1.3 PUBLIC RELEASE CLOSEOUT — 2026-09-27
+
+- Status: FINAL_PUBLIC_RELEASE_ACCEPTED.
+- Immutable release tag `v1.1.3` points exactly to `fa8c75d0b59343ccb7eae86320a351e3b4064c48`; no force push or tag rewrite was used.
+- GitHub release: `https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.3`; published 2026-09-27T10:06:33Z; Latest=true; Draft=false; Prerelease=false.
+- Exact-head GitHub Actions PASS on both pushed refs: main run `36311195266` and release-branch run `36311191121`. Both passed whitespace, reproducible build, deterministic clean clone, SPDX SBOM, binary provenance attestation, Setup SBOM attestation, evidence upload and manifest gates.
+- GitHub main CI artifact `10929282504`, digest `sha256:537d6d902e9b99cc6fa5c8337606a7609a52e89d22b953e1c777a74ba0dab1bc`; downloaded Main/Broker/Supervisor/Setup binaries matched the accepted local hashes 4/4 exactly.
+- Public release assets: 7/7 digest+size verification PASS. Setup SHA256 `159D6995D16A549DAC35BD6EF69543A63D6675778C37012619BEFDABFD43598C`; source ZIP SHA256 `D6B3B99AEEE7B3E816D94ECE6C41F25FDF338833923AFB08A3A4B29907F227CA`.
+- Published SPDX raw document SHA differs from the exact-head CI SPDX raw document because generated document namespace/time fields differ. Semantic normalization over SPDX identity/version, packages, file hashes and relationships is identical: SHA256 `2e5375bfa63263162953f2c2a7a8c98b7cc4729bbb871cc7aad9f90b3c4238a1`; semantic equivalence PASS. Exact-head CI generated and attested its own SBOM at the release commit.
+- Startup resilience acceptance remains PASS: missing Run self-heal, missing recovery-shortcut self-heal, duplicate recovery early exit, StartWithWindows=false cleanup, and restoration of the user's enabled state all passed.
+- Visual qualification remains PASS: 14/14 themes, 30 live samples, NoSyntheticMetricData=true; 592 px and 500 px compact proofs have zero LayoutChecks overflow.
+- Accepted protected sensor layer remains `1.1.2+r21`, READY, with Broker/Supervisor hashes unchanged.
+- Public-trust signing remains PENDING external provider acceptance; v1.1.3 is not claimed as SignPath-signed and may show Unknown publisher.
+- Immutable v1.1.2 regression remains PASS: tag `aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0`; Setup digest `sha256:25744a0a0f78b787a5fc3601577748b80353adc9dafb9fe91a111a53c56216fb`.
+- Non-blocking CI maintenance note: GitHub reports that the pinned upload-artifact action declares Node.js 20 and is currently forced to Node.js 24. It did not fail any release gate.
+- Final public acceptance record: `docs/acceptance/V1_1_3_PUBLIC_RELEASE_ACCEPTANCE.json`.
+- Critical path for v1.1.3: CLOSED. Future public-signing work must create a separately versioned signed release and must not rewrite v1.1.3.

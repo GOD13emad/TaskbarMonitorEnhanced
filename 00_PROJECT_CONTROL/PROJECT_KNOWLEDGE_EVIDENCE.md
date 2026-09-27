@@ -144,3 +144,14 @@
 - v1.1.2 immutability regression remains PASS: tag `aab35e5e...`, Setup `25744A0A...`.
 - Public trust: no SignPath/CA signature is claimed. Repository readiness and application preparation are separate from actual provider acceptance.
 - Status: Confirmed / LOCAL ACCEPTANCE PASS / GitHub CI and immutable publication pending.
+
+## 2026-09-27 — v1.1.3 public release evidence
+
+- Public release `v1.1.3` is accepted at exact tag commit `fa8c75d0b59343ccb7eae86320a351e3b4064c48` and is GitHub Latest.
+- Two exact-head GitHub Actions runs passed: main `36311195266` and release branch `36311191121`. Downloaded CI Main/Broker/Supervisor/Setup binaries matched local accepted hashes exactly.
+- Release upload integrity is 7/7 exact by GitHub asset digest and size. Installer SHA256 is `159D6995D16A549DAC35BD6EF69543A63D6675778C37012619BEFDABFD43598C`; source ZIP SHA256 is `D6B3B99AEEE7B3E816D94ECE6C41F25FDF338833923AFB08A3A4B29907F227CA`.
+- The published local SPDX document and exact-head CI SPDX document have different raw hashes because their generated namespace/time fields differ; normalized semantic content (packages, file hashes, relationships and document identity fields excluding generated namespace/time) is identical with SHA256 `2e5375bfa63263162953f2c2a7a8c98b7cc4729bbb871cc7aad9f90b3c4238a1`. Treat exact-head CI attestation as source-origin evidence and the published SBOM as release-asset inventory evidence.
+- Startup-resilience fault injection and all-theme/compact proof remain accepted. Protected sensor binaries are unchanged from accepted `1.1.2+r21`.
+- v1.1.3 remains unsigned for public-trust purposes unless an independently verifiable trusted Authenticode signature is later proven; do not infer signing from SignPath readiness.
+- v1.1.2 remains immutable and unchanged.
+- Reuse target: future release checklist, startup regression suite, public-release post-verification, SBOM raw-vs-semantic equivalence handling.
