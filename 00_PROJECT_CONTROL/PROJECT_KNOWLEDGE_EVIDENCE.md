@@ -168,3 +168,15 @@
 - Commit `1fabcfc420fa996cc2e7e44a4182d2569ddba007` → GitHub Actions run `36311950294`: SUCCESS.
 - All R21 gates passed and the earlier Node.js 20 deprecation annotation did not recur.
 - Decision: retain `actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` (v7.0.1, Node.js 24) as the current pinned upload action.
+
+
+## 2026-09-27 — repository hygiene / deduplication rules
+
+- Keep one canonical Git source workspace. Use short-lived worktrees only when needed, then remove them after evidence is committed/preserved.
+- Keep immutable public release history in Git tags + GitHub Releases; merged audit/release/maintenance branches should not be kept indefinitely.
+- Do not keep superseded draft RC releases after a stable release is accepted.
+- Preserve irreplaceable hardware/runtime evidence by moving it to a single external archive; delete rebuildable output and duplicate runner/download stores.
+- Keep dependency caches centrally and reuse them through an ignored local junction rather than downloading the same pinned binaries repeatedly.
+- Pinned dependency hashes must be verified whenever a central cache is reattached.
+- Historical unmerged branches with unique commits should not be deleted merely for cosmetic cleanup; preserve until their lineage is intentionally reconciled or archived.
+- Release tags/assets remain immutable during repository cleanup.

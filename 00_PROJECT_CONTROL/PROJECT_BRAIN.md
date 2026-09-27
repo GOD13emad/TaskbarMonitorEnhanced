@@ -414,3 +414,25 @@ This section supersedes R23 as the current maintenance authority where they conf
 - The previous Node.js 20 deprecation annotation is absent on this run. The `actions/upload-artifact` v7.0.1 / Node.js 24 pin therefore resolves the known post-release CI warning.
 - v1.1.3 release tag/assets remain untouched at `fa8c75d0b59343ccb7eae86320a351e3b4064c48`.
 - CI maintenance status: PASS / CLOSED.
+
+
+## R26 / REPOSITORY HYGIENE + WORKSPACE CONSOLIDATION — 2026-09-27
+
+- Objective: professionalize the project after v1.1.3 acceptance, reduce duplicate environments/artifacts, preserve irreplaceable evidence, and keep one canonical source workspace.
+- Canonical source workspace is now `C:\Users\Aa.Emad\source\repos\TaskbarMonitorEnhanced` on `main`.
+- The former linked worktree `TaskbarMonitorEnhanced_R20` was removed from Git worktree metadata after it was reduced to tracked content only. Its now-empty directory is still held open by a running process and therefore cannot yet be deleted; it contains no project data and is not an active Git worktree.
+- Historical raw evidence and network-expensive caches were MOVED, not copied, to `C:\Users\Aa.Emad\source\archives\TaskbarMonitorEnhanced\2026-09-27_cleanup`.
+- Preserved archive contents include R20/R21 raw evidence, supply-chain evidence, upstream reference cache, the pinned build dependency cache, and meaningful legacy runtime-control evidence.
+- Obsolete/rebuildable local material was deleted: the 2026-09-19 preinstall backup, transient build outputs, package staging, benchmark/canary/test workspaces, duplicated runner ZIP/EXE automation stores, duplicated download-control caches, and stale atomic temp files.
+- Cleanup prestate covered 2,319,268,833 bytes. Preserved archive is 392,287,771 bytes. Approximate active-storage reduction / deduplication is 1,926,981,062 bytes (~1.79 GiB).
+- Active source tree after phase-1 filesystem cleanup was ~1.86 MB excluding Git metadata; installed TaskbarMonitorEnhanced root was reduced to ~69.56 MB while v1.1.3 remained running with one Main process.
+- `build\_deps` is now a directory junction to the preserved central dependency cache so LibreHardwareMonitor/PawnIO do not need to be downloaded again. Pinned hashes remain:
+  - LibreHardwareMonitor.zip: `086D9F1B5A99E643EDC2CFAAAC16051685B551E4C5AC0B32A57C58C0E529C001`
+  - PawnIO_setup.exe: `1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032`
+- GitHub release hygiene: five superseded v1.1.2 RC draft releases were deleted. Published releases v1.1.2 and v1.1.3 and their immutable tags remain untouched.
+- GitHub branch hygiene: 13 remote branches already merged into `main` were deleted, including obsolete audit/finalization, signing-maintenance, and completed release branches. Two unmerged historical branches were deliberately preserved because they contain unique old lineage: `fix/sensor-installer-resilience` and `release/v1.1.0`.
+- v1.1.3 tag remains exactly `fa8c75d0b59343ccb7eae86320a351e3b4064c48`; v1.1.2 tag remains exactly `aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0`.
+- Obsolete RC6-RC10 self-hosted GitHub Actions workflows are being removed from current `main`; only the current general R21 CI workflow is retained for normal validation.
+- `CONTRIBUTING.md` is being upgraded with explicit branch, immutable-release, validation, and repository-hygiene rules.
+- External cleanup evidence is retained in the archive as `CLEANUP_PRESTATE.json`, `CLEANUP_POSTSTATE_PHASE1.json`, `GITHUB_HYGIENE_PRESTATE.json`, and `GITHUB_HYGIENE_POSTSTATE.json`.
+- Current open gate: commit and exact-main GitHub CI for this hygiene change. The empty locked legacy R20 directory is a non-blocking local cleanup residue only.
