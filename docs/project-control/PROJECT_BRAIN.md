@@ -1,8 +1,8 @@
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
-Brain Version: PB-2026-09-26-R24-SIGNPATH-READINESS
+Brain Version: PB-2026-09-27-R31-V1.2.0-CANDIDATE
 Status: CURRENT
-Updated: 2026-09-26T19:02:00+03:30
+Updated: 2026-09-27T16:24:00+03:30
 
 
 ## CURRENT AUTHORITY — 2026-09-26 FINAL RUNTIME ACCEPTED
@@ -555,3 +555,38 @@ This section supersedes R23 as the current maintenance authority where they conf
 - After bundle verification, both historical remote branches were deleted. Remote branch surface is now only `main`.
 - Immutable public release tags remain unchanged, including `v1.1.3` -> `fa8c75d0b59343ccb7eae86320a351e3b4064c48`.
 - R30 status: PASS / CLOSED. Public repository tree and branch surface are professionally consolidated without loss of recoverability.
+
+
+## R31 / v1.2.0 MODERN SETTINGS + THEME LIBRARY — CANDIDATE CURRENT AUTHORITY — 2026-09-27
+
+This section supersedes older current-state/next-action sections where they conflict. Published v1.1.3 remains immutable and accepted; this section describes the new unreleased candidate only.
+
+- Candidate identity: `1.2.0 / V1_2_0_R01_MODERN_SETTINGS_THEME_LIBRARY / 1.2.0+r01`.
+- Working branch: `feature/modern-settings-theme-library`.
+- Public Stable/Latest remains immutable `v1.1.3`; no v1.2.0 tag/release has been created.
+- Main mutation objectives:
+  1. Settings-open hover flyout must never open/remain stuck.
+  2. Settings UX modernized without replacing the proven WinForms/runtime architecture.
+  3. Theme library doubled from 14 to 28 with seven additional renderer families rather than palette-only duplication.
+- Hover root cause: Settings stopped `hoverTimer`, but overlay `MouseEnter/MouseMove` still called `HandleHardwareHover`; a flyout opened during Settings therefore lacked the watchdog that normally dismisses it.
+- Hover fix: Settings-open guards now hide any visible flyout, reset hover identity state, and return before hover resolution; the watchdog has the same defensive guard.
+- Hover regression: `--hoverguardproof` = PASS with `MOVE_SUPPRESSED=TRUE WATCHDOG_SUPPRESSED=TRUE FLYOUT_HIDDEN=TRUE`.
+- Settings redesign: left navigation, page title/subtitle header, dark surfaces, consistent flat controls, fixed action bar, and live theme preview. Existing eight functional pages and data/config semantics are preserved.
+- Settings visual proof: PASS 8 pages at 1080x760 after correcting an initial proof-harness false positive. A form that was only `CreateControl()`-initialized produced blank DrawToBitmap output; prevention is to actually Show the form off-screen, process layout/paint events, then capture.
+- Theme library: 28 themes total. New themes: Aurora Borealis, Solarized Luxe, Arctic Frost, Sakura Night, Matrix Grid, Desert Sand, Royal Amethyst, Ocean Depth, Copper Industrial, Nordic Light, Ember Forge, Synthwave Sunset, Quantum Violet, Monochrome Paper.
+- New renderer families: `aurora`, `luxe`, `zen`, `synth`, `matrix`, `paper`, `industrial`.
+- Theme proof: PASS 28/28 from live telemetry; no synthetic metric data; manifest SHA256 `6791C6C44CA3FC7B547282E87864D7EF564BC70A02CAAB5C78A605533F47C304`.
+- Compact proof: PASS 28 themes at 592 and 500 px; 252 layout checks; overflow count 0; manifest SHA256 `0D6DEB7547BD218A96A5E264C12F2FFCF692E24453EE75BF3F8C7367D7928138`.
+- Settings proof manifest SHA256: `5163A4D6CE85500A959DA8A72081CA8A67B993A4B8DDE52E18DE55E5BD2A588A`.
+- Full local Build.ps1 -NoDownload: PASS; Main/Broker/Supervisor/Setup 0 warnings/errors; sensor windowless PE PASS; canonical text payload PASS; Setup /verify PASS 19/19; self-test PASS.
+- Current candidate hashes from `artifacts/BUILD_MANIFEST.json`:
+  - Main `B90211E86AAF0AB05C3B87E2D2056A59B2D6369FCAD0ADCC8072A513FCB489D9`
+  - Broker `182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833` (unchanged accepted sensor layer)
+  - Supervisor `38553CCE30D5D3F1A22AC6765C4A0F5D4D204970A3DAD7BA9467A326235FC196` (unchanged accepted sensor layer)
+  - Setup `3196986C62FC7D9A91500B0E3246D5640E6292D0ED1722F736505A4DD511B3CF`
+- Preserved sensor architecture: `1.1.2+r21`; Setup verify explicitly reports `REUSE_ACCEPTED_1_1_2_R21`.
+- External candidate evidence root: `C:\Users\Aa.Emad\source\archives\TaskbarMonitorEnhanced\2026-09-27_v1.2.0-candidate-evidence`.
+- Evidence-backed completed: source implementation, compile, full local build, Setup resource verify, self-test, hover guard regression, theme visual proof, compact overflow proof, Settings 8-page proof.
+- Open gates: commit exact candidate; clean-clone determinism; SPDX SBOM against candidate commit; live installed-main runtime/UAT on the PC; exact-head GitHub CI. Public v1.2.0 publication is explicitly deferred and not authorized by this candidate state.
+- Current blocker: none technical before commit/determinism. Publication remains an irreversible later gate.
+- Exact next action: commit the candidate with this Brain/Knowledge state, run clean-clone determinism and SBOM on that exact commit, then perform a reversible user-level Main deployment while preserving the protected sensor layer and verify live Settings/hover/theme behavior.

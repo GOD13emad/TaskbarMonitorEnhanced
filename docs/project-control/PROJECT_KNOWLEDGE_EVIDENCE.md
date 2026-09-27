@@ -239,3 +239,63 @@
 - Active main no longer carries historical archive trees or old RC/revision/versioned artifact filenames.
 - Historical unmerged branch lineage was preserved in a verified complete Git bundle before branch deletion; bundle SHA256 is `736C13A830F6440D8BF972A39556798D0028ABE1442F739AA00E4FDFD3F18948`.
 - Remote branch policy after stabilization: retain only `main`; preserve exceptional unmerged history externally before deleting stale public branches.
+
+
+## 2026-09-27 — v1.2.0 modern Settings / hover guard / 28-theme candidate
+
+### Record A — Settings-open hover flyout root cause and prevention
+- Date/Context: 2026-09-27, user reported that hover explanations/details open while Settings is visible and remain open.
+- Claim/Decision: CONFIRMED root cause is an interaction-state gap: opening Settings stopped the hover watchdog timer, while overlay MouseEnter/MouseMove continued to invoke the flyout-opening path.
+- Evidence/Source: source audit of `OverlayForm.OpenSettings`, `HandleHardwareHover`, `HoverWatchdog`; deterministic `--hoverguardproof` result `PASS MOVE_SUPPRESSED=TRUE WATCHDOG_SUPPRESSED=TRUE FLYOUT_HIDDEN=TRUE`.
+- Prevention: guard both hover resolution and watchdog when Settings exists; hide active flyout and reset hover identity state. Preserve regression CLI.
+- Confidence/Status: CONFIRMED / PASS.
+- Reuse Targets: maintenance regression, release acceptance, future hover/flyout changes.
+- Provenance: `src/TaskbarMonitorEnhanced.cs`; candidate source SHA256 after identity update `83653DB76846C10A62C030961A0CB5295ECADE34B46327935B08459941BC4EF4`.
+
+### Record B — Settings architecture choice
+- Date/Context: 2026-09-27, professional/modern Settings redesign.
+- Claim/Decision: preserve WinForms and the accepted runtime/sensor architecture; modernize presentation using a left navigation shell, page header/descriptions, constrained content, grouped surfaces, consistent spacing/controls, and persistent actions.
+- Method evidence: Microsoft Windows app settings guidance recommends simple grouped settings, readable constrained-width layouts and SettingsCard-style header/description/action composition; Microsoft NavigationView guidance supports clear left navigation with a page header and consistent content margins.
+- Sources:
+  - https://learn.microsoft.com/en-us/windows/apps/design/app-settings/guidelines-for-app-settings
+  - https://learn.microsoft.com/en-us/windows/apps/design/controls/navigationview
+  - https://learn.microsoft.com/en-us/windows/apps/design/basics/navigation-basics
+- Trade-off: no WinUI migration. This avoids a new framework/deployment dependency and regression surface while delivering the requested UX within the existing proven desktop architecture.
+- Confidence/Status: CONFIRMED design choice / visual proof PASS 8 pages.
+- Reuse Targets: UI design rationale, release notes, maintenance.
+- Provenance: `--settingsproof`; evidence root `C:\Users\Aa.Emad\source\archives\TaskbarMonitorEnhanced\2026-09-27_v1.2.0-candidate-evidence\settings`; manifest SHA256 `5163A4D6CE85500A959DA8A72081CA8A67B993A4B8DDE52E18DE55E5BD2A588A`.
+
+### Record C — visual-proof false-positive failure and guard
+- Date/Context: 2026-09-27 during Settings visual qualification.
+- Failure: initial Settings proof reported output files but screenshots were blank because the Form had only been CreateControl-initialized and never entered a real shown/painted WinForms state.
+- Root Cause: artifact existence was incorrectly treated as rendering evidence.
+- Prevention/Guard: proof harness now shows the form off-screen, pumps Windows messages/layout/paint, captures after rendering, and visual review remains required for representative pages.
+- Regression: all 8 current Settings pages render nonblank after the harness correction.
+- Confidence/Status: CONFIRMED failure → prevention implemented.
+- Reuse Targets: all future GUI screenshot/proof harnesses.
+
+### Record D — tooltip/flyout behavior benchmark
+- Method evidence: Microsoft documents that hover tooltips disappear when pointer/focus stops hovering and advises using tooltips sparingly for supplemental information.
+- Source: https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/tooltips
+- Decision: a Settings-open flyout that stays open is not accepted behavior; suppression while a modal/configuration experience is active is the minimum sufficient control.
+- Confidence/Status: CONFIRMED method basis.
+
+### Record E — 28-theme renderer architecture
+- Date/Context: 2026-09-27, request to roughly double theme count with high quality and meaningful differentiation.
+- Claim/Decision: expand from 14 to 28 themes using seven reusable renderer families plus distinct palettes, rather than adding 14 near-duplicate custom renderers.
+- New families: aurora, luxe, zen, synth, matrix, paper, industrial.
+- Benefit/Trade-off: visually distinct geometry/background language with bounded code growth and shared regression paths.
+- Evidence: live-data ThemeProof 28/28; compact 592/500 proof; representative visual review across every new renderer family.
+- Theme manifest: `6791C6C44CA3FC7B547282E87864D7EF564BC70A02CAAB5C78A605533F47C304`.
+- Compact manifest: `0D6DEB7547BD218A96A5E264C12F2FFCF692E24453EE75BF3F8C7367D7928138`; 252 layout checks, 0 overflow.
+- Confidence/Status: CONFIRMED / PASS for renderer and layout proof.
+- Reuse Targets: release gallery, theme documentation, regression suite.
+- Provenance: `C:\Users\Aa.Emad\source\archives\TaskbarMonitorEnhanced\2026-09-27_v1.2.0-candidate-evidence`.
+
+### Record F — release identity boundary
+- Decision: use `v1.2.0` candidate identity because the scope adds substantial user-facing UI/theme capability; never rebuild or retag immutable public v1.1.3 as if it contained these changes.
+- Candidate: `1.2.0 / V1_2_0_R01_MODERN_SETTINGS_THEME_LIBRARY / 1.2.0+r01`.
+- Sensor layer: unchanged `1.1.2+r21`.
+- Current status: local build/visual/functional proof PASS; clean-clone determinism, candidate SBOM, live installed-main validation and exact-head GitHub CI remain open at this record point.
+- Confidence/Status: CONFIRMED boundary / publication NOT YET ACCEPTED.
+- Reuse Targets: release engineering and provenance.

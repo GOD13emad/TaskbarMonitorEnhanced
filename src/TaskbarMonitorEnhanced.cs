@@ -32,18 +32,18 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Live system monitor integrated into the Windows taskbar")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.1.3+r22")]
+[assembly: AssemblyInformationalVersion("1.2.0+r01")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.1.3.0")]
-[assembly: AssemblyFileVersion("1.1.3.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 
 namespace TaskbarMonitorEnhanced
 {
     internal static class BuildInfo
     {
-        public const string Version = "V1_1_3_R22_STARTUP_RESILIENCE";
+        public const string Version = "V1_2_0_R01_MODERN_SETTINGS_THEME_LIBRARY";
         public const string Product = "Taskbar Monitor Enhanced";
-        public const string PublicVersion = "1.1.3";
+        public const string PublicVersion = "1.2.0";
         public const string ShortcutName = "Taskbar Monitor Enhanced";
         public const string ProductDescription = "Live system monitor integrated into the Windows taskbar";
         public const string Author = "Dr. Ali-Akbar Emadeddin";
@@ -502,7 +502,9 @@ namespace TaskbarMonitorEnhanced
     {
         public static readonly string[] Names = new string[] {
             "Dark Minimal Pro", "Glass Morphism", "Neon Cyberpunk", "Sleek White", "Round Compact", "Honeycomb Tech", "Retro Terminal",
-            "Fluent Glass", "OLED Mono", "Cyber Neon", "Mission Control", "Blueprint Tech", "Medical Telemetry", "Carbon Racing"
+            "Fluent Glass", "OLED Mono", "Cyber Neon", "Mission Control", "Blueprint Tech", "Medical Telemetry", "Carbon Racing",
+            "Aurora Borealis", "Solarized Luxe", "Arctic Frost", "Sakura Night", "Matrix Grid", "Desert Sand", "Royal Amethyst",
+            "Ocean Depth", "Copper Industrial", "Nordic Light", "Ember Forge", "Synthwave Sunset", "Quantum Violet", "Monochrome Paper"
         };
 
         private static readonly Dictionary<string, ThemeDefinition> Themes = new Dictionary<string, ThemeDefinition>(StringComparer.OrdinalIgnoreCase)
@@ -513,6 +515,7 @@ namespace TaskbarMonitorEnhanced
             {"Sleek White", new ThemeDefinition("Sleek White", Color.FromArgb(246,248,250), Color.FromArgb(232,236,240), Color.FromArgb(17,24,39), Color.FromArgb(66,76,90), Color.FromArgb(200,207,216), new Color[]{Color.FromArgb(38,132,255),Color.FromArgb(136,78,240),Color.FromArgb(34,170,80),Color.FromArgb(230,165,0),Color.FromArgb(235,92,52),Color.FromArgb(26,150,190)}, "white", "Segoe UI", true)},
             {"Round Compact", new ThemeDefinition("Round Compact", Color.FromArgb(15,19,23), Color.FromArgb(9,12,15), Color.FromArgb(245,248,250), Color.FromArgb(160,171,181), Color.FromArgb(78,88,98), new Color[]{Color.FromArgb(103,212,255),Color.FromArgb(174,109,255),Color.FromArgb(92,224,119),Color.FromArgb(255,211,72),Color.FromArgb(255,120,78),Color.FromArgb(84,201,230)}, "round", "Segoe UI", false)},
             {"Honeycomb Tech", new ThemeDefinition("Honeycomb Tech", Color.FromArgb(7,11,14), Color.FromArgb(12,18,23), Color.FromArgb(242,247,248), Color.FromArgb(120,145,158), Color.FromArgb(49,65,76), new Color[]{Color.FromArgb(67,217,255),Color.FromArgb(203,108,255),Color.FromArgb(112,255,104),Color.FromArgb(255,229,92),Color.FromArgb(255,116,78),Color.FromArgb(58,205,225)}, "hex", "Segoe UI", false)},
+            {"Retro Terminal", new ThemeDefinition("Retro Terminal", Color.FromArgb(2,9,3), Color.Black, Color.FromArgb(124,255,112), Color.FromArgb(70,170,74), Color.FromArgb(29,107,36), new Color[]{Color.FromArgb(124,255,112),Color.FromArgb(100,235,96),Color.FromArgb(145,255,115),Color.FromArgb(108,220,90),Color.FromArgb(150,255,126),Color.FromArgb(100,235,96)}, "terminal", "Consolas", false)},
             {"Fluent Glass", new ThemeDefinition("Fluent Glass", Color.FromArgb(23,34,49), Color.FromArgb(47,70,94), Color.FromArgb(247,250,252), Color.FromArgb(174,197,214), Color.FromArgb(94,158,207), new Color[]{Color.FromArgb(94,211,255),Color.FromArgb(175,132,255),Color.FromArgb(101,230,158),Color.FromArgb(255,206,91),Color.FromArgb(255,137,105),Color.FromArgb(83,211,218)}, "fluent", "Segoe UI", false)},
             {"OLED Mono", new ThemeDefinition("OLED Mono", Color.FromArgb(0,0,0), Color.FromArgb(8,8,9), Color.FromArgb(247,247,247), Color.FromArgb(145,145,149), Color.FromArgb(55,55,59), new Color[]{Color.FromArgb(245,245,245),Color.FromArgb(220,220,222),Color.FromArgb(200,200,202),Color.FromArgb(235,235,236),Color.FromArgb(180,180,183),Color.FromArgb(225,225,227)}, "oled", "Segoe UI", false)},
             {"Cyber Neon", new ThemeDefinition("Cyber Neon", Color.FromArgb(2,5,13), Color.FromArgb(18,4,27), Color.FromArgb(239,255,255), Color.FromArgb(137,177,190), Color.FromArgb(0,238,255), new Color[]{Color.FromArgb(0,246,255),Color.FromArgb(255,65,220),Color.FromArgb(107,255,121),Color.FromArgb(255,224,68),Color.FromArgb(255,91,91),Color.FromArgb(154,91,255)}, "cyber2", "Segoe UI", false)},
@@ -520,7 +523,20 @@ namespace TaskbarMonitorEnhanced
             {"Blueprint Tech", new ThemeDefinition("Blueprint Tech", Color.FromArgb(7,39,74), Color.FromArgb(10,55,101), Color.FromArgb(236,249,255), Color.FromArgb(141,197,229), Color.FromArgb(72,170,228), new Color[]{Color.FromArgb(83,220,255),Color.FromArgb(108,177,255),Color.FromArgb(102,232,175),Color.FromArgb(255,222,111),Color.FromArgb(255,153,104),Color.FromArgb(205,240,255)}, "blueprint", "Segoe UI", false)},
             {"Medical Telemetry", new ThemeDefinition("Medical Telemetry", Color.FromArgb(244,249,250), Color.FromArgb(228,240,243), Color.FromArgb(24,54,61), Color.FromArgb(91,123,130), Color.FromArgb(165,200,204), new Color[]{Color.FromArgb(20,166,164),Color.FromArgb(41,184,105),Color.FromArgb(38,164,214),Color.FromArgb(220,164,55),Color.FromArgb(224,102,92),Color.FromArgb(72,131,196)}, "medical", "Segoe UI", true)},
             {"Carbon Racing", new ThemeDefinition("Carbon Racing", Color.FromArgb(10,10,12), Color.FromArgb(24,24,27), Color.FromArgb(248,248,249), Color.FromArgb(158,158,164), Color.FromArgb(70,70,76), new Color[]{Color.FromArgb(255,70,70),Color.FromArgb(255,130,53),Color.FromArgb(255,204,55),Color.FromArgb(57,196,255),Color.FromArgb(184,101,255),Color.FromArgb(83,220,126)}, "carbon", "Segoe UI", false)},
-            {"Retro Terminal", new ThemeDefinition("Retro Terminal", Color.FromArgb(2,9,3), Color.Black, Color.FromArgb(124,255,112), Color.FromArgb(70,170,74), Color.FromArgb(29,107,36), new Color[]{Color.FromArgb(124,255,112),Color.FromArgb(100,235,96),Color.FromArgb(145,255,115),Color.FromArgb(108,220,90),Color.FromArgb(150,255,126),Color.FromArgb(100,235,96)}, "terminal", "Consolas", false)}
+            {"Aurora Borealis", new ThemeDefinition("Aurora Borealis", Color.FromArgb(5,15,30), Color.FromArgb(20,35,55), Color.FromArgb(235,247,255), Color.FromArgb(145,174,194), Color.FromArgb(55,104,125), new Color[]{Color.FromArgb(66,245,202),Color.FromArgb(126,108,255),Color.FromArgb(64,177,255),Color.FromArgb(103,232,142),Color.FromArgb(255,205,96),Color.FromArgb(65,218,232)}, "aurora", "Segoe UI", false)},
+            {"Solarized Luxe", new ThemeDefinition("Solarized Luxe", Color.FromArgb(24,20,16), Color.FromArgb(42,34,25), Color.FromArgb(245,236,216), Color.FromArgb(174,155,126), Color.FromArgb(111,91,55), new Color[]{Color.FromArgb(225,182,85),Color.FromArgb(195,119,68),Color.FromArgb(162,171,79),Color.FromArgb(72,177,183),Color.FromArgb(201,103,117),Color.FromArgb(129,168,116)}, "luxe", "Segoe UI", false)},
+            {"Arctic Frost", new ThemeDefinition("Arctic Frost", Color.FromArgb(238,247,252), Color.FromArgb(219,234,244), Color.FromArgb(23,45,61), Color.FromArgb(79,106,124), Color.FromArgb(160,190,207), new Color[]{Color.FromArgb(38,144,213),Color.FromArgb(89,100,212),Color.FromArgb(29,166,166),Color.FromArgb(210,157,55),Color.FromArgb(216,93,92),Color.FromArgb(68,126,190)}, "zen", "Segoe UI", true)},
+            {"Sakura Night", new ThemeDefinition("Sakura Night", Color.FromArgb(25,10,26), Color.FromArgb(45,17,44), Color.FromArgb(255,236,247), Color.FromArgb(195,145,179), Color.FromArgb(110,53,96), new Color[]{Color.FromArgb(255,107,181),Color.FromArgb(235,78,197),Color.FromArgb(163,106,255),Color.FromArgb(255,158,167),Color.FromArgb(255,92,126),Color.FromArgb(95,217,232)}, "synth", "Segoe UI", false)},
+            {"Matrix Grid", new ThemeDefinition("Matrix Grid", Color.FromArgb(0,9,3), Color.FromArgb(2,18,7), Color.FromArgb(181,255,192), Color.FromArgb(91,177,104), Color.FromArgb(28,112,49), new Color[]{Color.FromArgb(71,255,102),Color.FromArgb(43,218,81),Color.FromArgb(132,255,147),Color.FromArgb(238,196,73),Color.FromArgb(65,204,170),Color.FromArgb(92,236,117)}, "matrix", "Cascadia Mono", false)},
+            {"Desert Sand", new ThemeDefinition("Desert Sand", Color.FromArgb(246,239,222), Color.FromArgb(231,217,191), Color.FromArgb(63,48,33), Color.FromArgb(125,101,73), Color.FromArgb(190,164,125), new Color[]{Color.FromArgb(185,126,36),Color.FromArgb(211,103,50),Color.FromArgb(41,139,132),Color.FromArgb(66,118,166),Color.FromArgb(171,82,61),Color.FromArgb(107,126,64)}, "paper", "Segoe UI", true)},
+            {"Royal Amethyst", new ThemeDefinition("Royal Amethyst", Color.FromArgb(20,13,32), Color.FromArgb(40,24,58), Color.FromArgb(246,238,255), Color.FromArgb(170,145,195), Color.FromArgb(95,70,120), new Color[]{Color.FromArgb(181,116,255),Color.FromArgb(230,188,83),Color.FromArgb(77,210,222),Color.FromArgb(82,198,133),Color.FromArgb(231,105,155),Color.FromArgb(196,158,255)}, "luxe", "Segoe UI", false)},
+            {"Ocean Depth", new ThemeDefinition("Ocean Depth", Color.FromArgb(3,18,31), Color.FromArgb(8,43,61), Color.FromArgb(228,248,255), Color.FromArgb(120,170,189), Color.FromArgb(35,105,128), new Color[]{Color.FromArgb(46,211,235),Color.FromArgb(55,139,232),Color.FromArgb(45,190,176),Color.FromArgb(82,209,134),Color.FromArgb(232,193,77),Color.FromArgb(232,107,92)}, "aurora", "Segoe UI", false)},
+            {"Copper Industrial", new ThemeDefinition("Copper Industrial", Color.FromArgb(20,18,16), Color.FromArgb(39,34,30), Color.FromArgb(240,232,222), Color.FromArgb(163,145,130), Color.FromArgb(101,82,67), new Color[]{Color.FromArgb(210,119,70),Color.FromArgb(232,144,64),Color.FromArgb(198,163,78),Color.FromArgb(87,158,190),Color.FromArgb(91,184,119),Color.FromArgb(207,79,67)}, "industrial", "Segoe UI", false)},
+            {"Nordic Light", new ThemeDefinition("Nordic Light", Color.FromArgb(243,246,248), Color.FromArgb(226,232,237), Color.FromArgb(30,42,52), Color.FromArgb(91,108,121), Color.FromArgb(174,188,199), new Color[]{Color.FromArgb(53,118,179),Color.FromArgb(45,145,151),Color.FromArgb(68,152,101),Color.FromArgb(200,155,55),Color.FromArgb(199,80,77),Color.FromArgb(89,91,175)}, "zen", "Segoe UI", true)},
+            {"Ember Forge", new ThemeDefinition("Ember Forge", Color.FromArgb(18,8,6), Color.FromArgb(41,18,11), Color.FromArgb(255,239,228), Color.FromArgb(185,132,103), Color.FromArgb(112,55,31), new Color[]{Color.FromArgb(255,119,48),Color.FromArgb(239,67,48),Color.FromArgb(244,188,62),Color.FromArgb(69,186,217),Color.FromArgb(173,96,222),Color.FromArgb(80,196,111)}, "industrial", "Segoe UI", false)},
+            {"Synthwave Sunset", new ThemeDefinition("Synthwave Sunset", Color.FromArgb(13,5,30), Color.FromArgb(41,8,58), Color.FromArgb(254,238,255), Color.FromArgb(177,134,195), Color.FromArgb(88,50,123), new Color[]{Color.FromArgb(255,69,184),Color.FromArgb(255,121,71),Color.FromArgb(54,223,237),Color.FromArgb(153,91,255),Color.FromArgb(245,210,72),Color.FromArgb(75,133,255)}, "synth", "Segoe UI", false)},
+            {"Quantum Violet", new ThemeDefinition("Quantum Violet", Color.FromArgb(9,7,28), Color.FromArgb(27,18,62), Color.FromArgb(239,240,255), Color.FromArgb(146,147,192), Color.FromArgb(73,68,125), new Color[]{Color.FromArgb(153,106,255),Color.FromArgb(55,216,241),Color.FromArgb(235,78,220),Color.FromArgb(92,222,143),Color.FromArgb(235,202,68),Color.FromArgb(69,118,245)}, "synth", "Segoe UI", false)},
+            {"Monochrome Paper", new ThemeDefinition("Monochrome Paper", Color.FromArgb(247,247,244), Color.FromArgb(231,231,226), Color.FromArgb(30,31,33), Color.FromArgb(92,94,98), Color.FromArgb(185,186,181), new Color[]{Color.FromArgb(40,42,45),Color.FromArgb(91,94,99),Color.FromArgb(49,91,129),Color.FromArgb(54,105,76),Color.FromArgb(126,83,60),Color.FromArgb(99,72,125)}, "paper", "Segoe UI", true)}
         };
 
         public static ThemeDefinition Get(string name)
@@ -3868,6 +3884,9 @@ namespace TaskbarMonitorEnhanced
             {
                 if(settingsForm!=null && !settingsForm.IsDisposed)
                 {
+                    if(hardwareFlyout!=null&&hardwareFlyout.Visible)hardwareFlyout.Hide();
+                    hoverTimer.Stop();
+                    lastHoverIndex=-1;lastHoverGroup="";lastHoverGeneration=-1;
                     if(!String.IsNullOrWhiteSpace(initialTab))settingsForm.SelectTab(initialTab);
                     if(settingsForm.WindowState==FormWindowState.Minimized)
                         settingsForm.WindowState=FormWindowState.Normal;
@@ -4839,10 +4858,39 @@ namespace TaskbarMonitorEnhanced
             if(diagnosticBeacon)PaintDiagnosticBeacon(e.Graphics);
         }
 
+        internal bool VerifySettingsHoverSuppression()
+        {
+            SettingsForm prior=settingsForm;
+            try
+            {
+                using(SettingsForm probe=new SettingsForm(config,snapshot,"Display"))
+                {
+                    settingsForm=probe;
+                    lastHoverIndex=7;lastHoverGroup="CPU";lastHoverGeneration=9;
+                    HandleHardwareHover(new Point(Math.Max(0,ClientRectangle.Width/2),Math.Max(0,ClientRectangle.Height/2)));
+                    bool moveGuard=(lastHoverIndex==-1&&lastHoverGroup==""&&lastHoverGeneration==-1);
+                    lastHoverIndex=5;lastHoverGroup="GPU";lastHoverGeneration=11;
+                    HoverWatchdog();
+                    bool watchdogGuard=(lastHoverIndex==-1&&lastHoverGroup==""&&lastHoverGeneration==-1);
+                    return moveGuard&&watchdogGuard&&(hardwareFlyout==null||!hardwareFlyout.Visible);
+                }
+            }
+            finally
+            {
+                settingsForm=prior;
+                lastHoverIndex=-1;lastHoverGroup="";lastHoverGeneration=-1;
+            }
+        }
         private void HandleHardwareHover(Point location)
         {
             try
             {
+                if(settingsForm!=null&&!settingsForm.IsDisposed)
+                {
+                    if(hardwareFlyout!=null&&hardwareFlyout.Visible)hardwareFlyout.Hide();
+                    lastHoverIndex=-1;lastHoverGroup="";lastHoverGeneration=-1;
+                    return;
+                }
                 if(!config.EnableHardwareFlyout||hardwareFlyout==null||lastPaintMetrics==null||lastPaintMetrics.Count==0||ClientRectangle.Width<=0)return;
                 int index=(int)Math.Floor(location.X/(ClientRectangle.Width/(double)lastPaintMetrics.Count));index=Math.Max(0,Math.Min(lastPaintMetrics.Count-1,index));MetricView m=lastPaintMetrics[index];string group=m.GroupKey??m.Key;
                 lastHardwareHoverAt=DateTime.UtcNow;
@@ -4960,6 +5008,12 @@ namespace TaskbarMonitorEnhanced
 
         private void HoverWatchdog()
         {
+            if(settingsForm!=null&&!settingsForm.IsDisposed)
+            {
+                if(hardwareFlyout!=null&&hardwareFlyout.Visible)hardwareFlyout.Hide();
+                lastHoverIndex=-1;lastHoverGroup="";lastHoverGeneration=-1;
+                return;
+            }
             if(hardwareFlyout==null||!hardwareFlyout.Visible)return;Point p=Cursor.Position;Point o=PointToScreen(Point.Empty);Rectangle overlayScreen=new Rectangle(o,ClientSize);bool insideOverlay=overlayScreen.Contains(p);bool insideFlyout=hardwareFlyout.Bounds.Contains(p);if(insideOverlay||insideFlyout){lastHardwareHoverAt=DateTime.UtcNow;return;}if((DateTime.UtcNow-lastHardwareHoverAt).TotalMilliseconds>180){hardwareFlyout.Hide();lastHoverIndex=-1;lastHoverGroup="";lastHoverGeneration=-1;}
         }
 
@@ -5369,7 +5423,7 @@ namespace TaskbarMonitorEnhanced
 
         private static bool IsExtendedThemeMode(string mode)
         {
-            return mode=="fluent"||mode=="oled"||mode=="cyber2"||mode=="mission"||mode=="blueprint"||mode=="medical"||mode=="carbon";
+            return mode=="fluent"||mode=="oled"||mode=="cyber2"||mode=="mission"||mode=="blueprint"||mode=="medical"||mode=="carbon"||mode=="aurora"||mode=="luxe"||mode=="zen"||mode=="synth"||mode=="matrix"||mode=="paper"||mode=="industrial";
         }
 
         private void PaintExtendedBackground(Graphics g,ThemeDefinition t,Rectangle r)
@@ -5430,6 +5484,45 @@ namespace TaskbarMonitorEnhanced
                         g.DrawLine(p2,x+6,0,x+6-r.Height,r.Height);
                     }
                 }
+            }            else if(t.Mode=="aurora")
+            {
+                using(LinearGradientBrush b=new LinearGradientBrush(r,t.Background,t.Background2,0f))g.FillRectangle(b,r);
+                using(Pen p1=new Pen(Color.FromArgb(54,t.Accents[0]),2f))g.DrawBezier(p1,-40,r.Height-3,r.Width*.28f,-10,r.Width*.56f,r.Height+8,r.Width+45,1);
+                using(Pen p2=new Pen(Color.FromArgb(38,t.Accents[1]),1.5f))g.DrawBezier(p2,-20,3,r.Width*.35f,r.Height+9,r.Width*.72f,-8,r.Width+20,r.Height-4);
+            }
+            else if(t.Mode=="luxe")
+            {
+                using(LinearGradientBrush b=new LinearGradientBrush(r,t.Background2,t.Background,90f))g.FillRectangle(b,r);
+                using(Pen hi=new Pen(Color.FromArgb(85,t.Accents[0]),1))g.DrawLine(hi,0,0,r.Width,0);
+                using(Pen lo=new Pen(Color.FromArgb(45,t.Border),1))g.DrawLine(lo,0,r.Height-1,r.Width,r.Height-1);
+            }
+            else if(t.Mode=="zen")
+            {
+                using(LinearGradientBrush b=new LinearGradientBrush(r,t.Background,t.Background2,90f))g.FillRectangle(b,r);
+                using(Pen p=new Pen(Color.FromArgb(55,t.Border),1)){for(int x=18;x<r.Width;x+=72)g.DrawLine(p,x,6,x,r.Height-6);}
+            }
+            else if(t.Mode=="synth")
+            {
+                using(LinearGradientBrush b=new LinearGradientBrush(r,t.Background,t.Background2,0f))g.FillRectangle(b,r);
+                int horizon=Math.Max(10,r.Height-11);
+                using(Pen h=new Pen(Color.FromArgb(80,t.Accents[0]),1))g.DrawLine(h,0,horizon,r.Width,horizon);
+                using(Pen grid=new Pen(Color.FromArgb(34,t.Accents[1]),1)){for(int x=0;x<r.Width;x+=34)g.DrawLine(grid,x,r.Height,x+12,horizon);}
+            }
+            else if(t.Mode=="matrix")
+            {
+                using(SolidBrush b=new SolidBrush(t.Background))g.FillRectangle(b,r);
+                using(Pen grid=new Pen(Color.FromArgb(32,t.Foreground),1)){for(int x=5;x<r.Width;x+=24)g.DrawLine(grid,x,0,x,r.Height);for(int y=6;y<r.Height;y+=8)g.DrawLine(grid,0,y,r.Width,y);}
+            }
+            else if(t.Mode=="paper")
+            {
+                using(LinearGradientBrush b=new LinearGradientBrush(r,t.Background,t.Background2,90f))g.FillRectangle(b,r);
+                using(Pen p=new Pen(Color.FromArgb(50,t.Border),1)){for(int y=12;y<r.Height;y+=12)g.DrawLine(p,0,y,r.Width,y);}
+            }
+            else if(t.Mode=="industrial")
+            {
+                using(SolidBrush b=new SolidBrush(t.Background))g.FillRectangle(b,r);
+                using(Pen p=new Pen(Color.FromArgb(28,t.Border),1)){for(int x=-r.Height;x<r.Width;x+=18)g.DrawLine(p,x,0,x+r.Height,r.Height);}
+                using(Pen top=new Pen(Color.FromArgb(105,t.Accents[0]),2))g.DrawLine(top,0,1,r.Width,1);
             }
         }
 
@@ -5442,6 +5535,7 @@ namespace TaskbarMonitorEnhanced
             else if(t.Mode=="blueprint")PaintBlueprintMetric(g,t,m,r,labelFont,valueFont);
             else if(t.Mode=="medical")PaintMedicalMetric(g,t,m,r,labelFont,valueFont);
             else if(t.Mode=="carbon")PaintCarbonMetric(g,t,m,r,labelFont,valueFont);
+            else if(t.Mode=="aurora"||t.Mode=="luxe"||t.Mode=="zen"||t.Mode=="synth"||t.Mode=="matrix"||t.Mode=="paper"||t.Mode=="industrial")PaintPremiumMetric(g,t,m,r,labelFont,valueFont);
         }
 
         private float DrawExtendedValueBlock(Graphics g,ThemeDefinition t,MetricView m,RectangleF r,Font labelFont,Font valueFont,float x,float labelY,float valueY,Color valueColor)
@@ -5565,6 +5659,68 @@ namespace TaskbarMonitorEnhanced
             if(config.ShowSparklines)DrawSparkline(g,m.History,graph,m.Accent,1.35f,false);
         }
 
+        private void PaintPremiumMetric(Graphics g,ThemeDefinition t,MetricView m,RectangleF r,Font labelFont,Font valueFont)
+        {
+            float textX=r.X+10;
+            if(t.Mode=="aurora")
+            {
+                using(GraphicsPath gp=RoundRect(r,9))
+                using(LinearGradientBrush fill=new LinearGradientBrush(r,Color.FromArgb(68,t.Background2),Color.FromArgb(34,m.Accent),0f))
+                using(Pen edge=new Pen(Color.FromArgb(105,m.Accent),1f)){g.FillPath(fill,gp);g.DrawPath(edge,gp);}
+                using(SolidBrush glow=new SolidBrush(Color.FromArgb(165,m.Accent)))g.FillEllipse(glow,r.X+7,r.Y+7,5,5);textX=r.X+17;
+            }
+            else if(t.Mode=="luxe")
+            {
+                using(GraphicsPath gp=RoundRect(r,5))
+                using(SolidBrush fill=new SolidBrush(Color.FromArgb(170,t.Background2)))
+                using(Pen edge=new Pen(Color.FromArgb(125,t.Border),1)){g.FillPath(fill,gp);g.DrawPath(edge,gp);}
+                using(Pen top=new Pen(Color.FromArgb(210,m.Accent),1.4f))g.DrawLine(top,r.X+8,r.Y+2,r.Right-8,r.Y+2);
+            }
+            else if(t.Mode=="zen")
+            {
+                using(GraphicsPath gp=RoundRect(r,10))
+                using(SolidBrush fill=new SolidBrush(Color.FromArgb(215,t.Light?Color.White:t.Background2)))
+                using(Pen edge=new Pen(Color.FromArgb(130,t.Border),1)){g.FillPath(fill,gp);g.DrawPath(edge,gp);}
+                using(SolidBrush dot=new SolidBrush(m.Accent))g.FillEllipse(dot,r.X+7,r.Y+8,4,4);textX=r.X+15;
+            }
+            else if(t.Mode=="synth")
+            {
+                float cut=7f;PointF[] poly=new PointF[]{new PointF(r.X+cut,r.Y),new PointF(r.Right,r.Y),new PointF(r.Right-cut,r.Bottom),new PointF(r.X,r.Bottom)};
+                using(SolidBrush fill=new SolidBrush(Color.FromArgb(46,m.Accent)))g.FillPolygon(fill,poly);
+                using(Pen glow=new Pen(Color.FromArgb(48,m.Accent),3f))g.DrawPolygon(glow,poly);
+                using(Pen edge=new Pen(Color.FromArgb(205,m.Accent),1f))g.DrawPolygon(edge,poly);textX=r.X+11;
+            }
+            else if(t.Mode=="matrix")
+            {
+                using(SolidBrush fill=new SolidBrush(Color.FromArgb(125,t.Background2)))g.FillRectangle(fill,r);
+                using(Pen edge=new Pen(Color.FromArgb(150,m.Accent),1))g.DrawRectangle(edge,r.X+1,r.Y+1,r.Width-2,r.Height-2);
+                using(SolidBrush tick=new SolidBrush(m.Accent)){g.FillRectangle(tick,r.X+4,r.Y+4,2,6);g.FillRectangle(tick,r.X+4,r.Bottom-7,2,4);}textX=r.X+10;
+            }
+            else if(t.Mode=="paper")
+            {
+                using(GraphicsPath gp=RoundRect(r,4))
+                using(SolidBrush fill=new SolidBrush(Color.FromArgb(225,t.Light?Color.White:t.Background2)))
+                using(Pen edge=new Pen(Color.FromArgb(105,t.Border),1)){g.FillPath(fill,gp);g.DrawPath(edge,gp);}
+                using(SolidBrush mark=new SolidBrush(m.Accent))g.FillRectangle(mark,r.X+5,r.Y+5,3,r.Height-10);textX=r.X+13;
+            }
+            else if(t.Mode=="industrial")
+            {
+                using(SolidBrush fill=new SolidBrush(Color.FromArgb(190,t.Background2)))g.FillRectangle(fill,r);
+                using(Pen edge=new Pen(Color.FromArgb(130,t.Border),1))g.DrawRectangle(edge,r.X+1,r.Y+1,r.Width-2,r.Height-2);
+                using(SolidBrush bolt=new SolidBrush(Color.FromArgb(170,t.Muted))){g.FillEllipse(bolt,r.X+4,r.Y+4,3,3);g.FillEllipse(bolt,r.Right-7,r.Bottom-7,3,3);}
+                using(SolidBrush stripe=new SolidBrush(m.Accent))g.FillRectangle(stripe,r.X+3,r.Bottom-4,Math.Max(8,(r.Width-6)*Math.Max(0,Math.Min(100,m.Percent))/100f),2);textX=r.X+10;
+            }
+            DrawExtendedValueBlock(g,t,m,r,labelFont,valueFont,textX,r.Y+2,r.Y+15,t.Foreground);
+            bool stacked=ExtendedHeadlineStacks(g,t,m,r,textX);
+            float graphTop=stacked?29f:23f;
+            RectangleF graph=new RectangleF(r.X+7,r.Y+graphTop,Math.Max(28,r.Width-14),Math.Max(6,r.Height-(graphTop+4)));
+            if(config.ShowSparklines)
+            {
+                if(t.Mode=="matrix")DrawSparkline(g,m.History,graph,m.Accent,1.1f,false);
+                else if(t.Mode=="industrial")DrawMissionBars(g,m.History,graph,m.Accent);
+                else DrawSparkline(g,m.History,graph,m.Accent,t.Mode=="synth"?1.55f:1.25f,t.Mode=="synth");
+            }
+        }
         private static void DrawMissionBars(Graphics g,IList<float> values,RectangleF r,Color c)
         {
             if(values==null||values.Count==0||r.Width<8||r.Height<4)return;
@@ -5588,6 +5744,67 @@ namespace TaskbarMonitorEnhanced
         }
     }
 
+    internal sealed class ThemePreviewControl : Control
+    {
+        private string themeName="Dark Minimal Pro";
+        public string ThemeName
+        {
+            get{return themeName;}
+            set{themeName=String.IsNullOrWhiteSpace(value)?"Dark Minimal Pro":value;Invalidate();}
+        }
+        public ThemePreviewControl()
+        {
+            DoubleBuffered=true;
+            SetStyle(ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.UserPaint,true);
+            Height=122;
+        }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            ThemeDefinition t=ThemeCatalog.Get(themeName);
+            Rectangle r=ClientRectangle;
+            if(r.Width<20||r.Height<20)return;
+            e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
+            using(GraphicsPath gp=RoundRectPreview(new RectangleF(1,1,r.Width-2,r.Height-2),12))
+            using(LinearGradientBrush bg=new LinearGradientBrush(r,t.Background,t.Background2,0f))
+            using(Pen edge=new Pen(Color.FromArgb(150,t.Border),1f))
+            {
+                e.Graphics.FillPath(bg,gp);
+                e.Graphics.DrawPath(edge,gp);
+            }
+            using(Font title=new Font("Segoe UI",10.2f,FontStyle.Bold))
+            using(Font small=new Font("Segoe UI",8.3f,FontStyle.Regular))
+            using(SolidBrush fg=new SolidBrush(t.Foreground))
+            using(SolidBrush muted=new SolidBrush(t.Muted))
+            {
+                e.Graphics.DrawString(themeName,title,fg,15,12);
+                e.Graphics.DrawString("Live palette preview",small,muted,15,34);
+            }
+            int sw=Math.Max(20,(r.Width-42)/6);
+            for(int i=0;i<6;i++)
+            {
+                Color c=t.Accents[i%t.Accents.Length];
+                RectangleF chip=new RectangleF(15+i*sw,58,Math.Max(14,sw-7),11);
+                using(GraphicsPath gp=RoundRectPreview(chip,4))
+                using(SolidBrush b=new SolidBrush(c))e.Graphics.FillPath(b,gp);
+            }
+            RectangleF card1=new RectangleF(15,82,(r.Width-45)*0.47f,23);
+            RectangleF card2=new RectangleF(card1.Right+15,82,(r.Width-45)*0.53f,23);
+            using(GraphicsPath a=RoundRectPreview(card1,6))
+            using(GraphicsPath b=RoundRectPreview(card2,6))
+            using(SolidBrush fill=new SolidBrush(Color.FromArgb(t.Light?155:75,t.Background2)))
+            using(Pen line=new Pen(Color.FromArgb(110,t.Border),1))
+            {
+                e.Graphics.FillPath(fill,a);e.Graphics.DrawPath(line,a);
+                e.Graphics.FillPath(fill,b);e.Graphics.DrawPath(line,b);
+            }
+        }
+        private static GraphicsPath RoundRectPreview(RectangleF r,float rad)
+        {
+            float d=rad*2f;GraphicsPath p=new GraphicsPath();
+            p.AddArc(r.X,r.Y,d,d,180,90);p.AddArc(r.Right-d,r.Y,d,d,270,90);p.AddArc(r.Right-d,r.Bottom-d,d,d,0,90);p.AddArc(r.X,r.Bottom-d,d,d,90,90);p.CloseFigure();return p;
+        }
+    }
     internal sealed class SettingsForm : Form
     {
         private sealed class HardwareChoice
@@ -5605,15 +5822,66 @@ namespace TaskbarMonitorEnhanced
         private Button refreshDiagnostics,saveDiagnostics,openDataFolder,repairSensors;
         private TabControl tabsControl;
         private ReleaseUpdateInfo latestUpdate;
+        private readonly List<Button> settingsNavButtons=new List<Button>();
+        private Label settingsPageTitle,settingsPageSubtitle;
+        private ThemePreviewControl themePreview;
+        private static readonly Color SettingsWindow=Color.FromArgb(10,14,20);
+        private static readonly Color SettingsSidebar=Color.FromArgb(15,21,29);
+        private static readonly Color SettingsSurface=Color.FromArgb(20,28,38);
+        private static readonly Color SettingsSurface2=Color.FromArgb(25,35,47);
+        private static readonly Color SettingsText=Color.FromArgb(236,242,248);
+        private static readonly Color SettingsMuted=Color.FromArgb(145,160,177);
+        private static readonly Color SettingsAccent=Color.FromArgb(75,156,255);
+        private static readonly string[] SettingsPageDescriptions=new string[]{
+            "Appearance, theme, placement and taskbar footprint.",
+            "Choose the live metrics that are visible on the taskbar.",
+            "Select devices, aggregation modes and hover-detail behavior.",
+            "Control memory, storage and network measurement units.",
+            "Startup, refresh cadence and placement safeguards.",
+            "Secure release checks and immutable update installation.",
+            "Runtime health, sensor state and support diagnostics.",
+            "Logs, architecture notes and maintenance information."
+        };
         public SettingsForm(AppConfig config,MetricsSnapshot current) : this(config,current,null) { }
         public SettingsForm(AppConfig config,MetricsSnapshot current,string initialTab)
         {
-            c=config;snapshot=current??new MetricsSnapshot();Text="Taskbar Monitor Enhanced — Settings";Width=900;Height=700;MinimumSize=new Size(760,620);StartPosition=FormStartPosition.CenterScreen;FormBorderStyle=FormBorderStyle.Sizable;MaximizeBox=true;MinimizeBox=false;AutoScaleMode=AutoScaleMode.Dpi;KeyPreview=true;
-            TabControl tabs=new TabControl();tabsControl=tabs;tabs.Dock=DockStyle.Fill;Controls.Add(tabs);
+            c=config;snapshot=current??new MetricsSnapshot();
+            Text="Taskbar Monitor Enhanced - Settings";
+            Width=1080;Height=760;MinimumSize=new Size(900,650);StartPosition=FormStartPosition.CenterScreen;
+            FormBorderStyle=FormBorderStyle.Sizable;MaximizeBox=true;MinimizeBox=false;AutoScaleMode=AutoScaleMode.Dpi;KeyPreview=true;
+            BackColor=SettingsWindow;ForeColor=SettingsText;Font=new Font("Segoe UI",9.4f,FontStyle.Regular);DoubleBuffered=true;
+
+            TableLayoutPanel root=new TableLayoutPanel();root.Dock=DockStyle.Fill;root.BackColor=SettingsWindow;root.ColumnCount=2;root.RowCount=1;root.Margin=Padding.Empty;root.Padding=Padding.Empty;root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,214f));root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100f));root.RowStyles.Add(new RowStyle(SizeType.Percent,100f));Controls.Add(root);
+            Panel sidebar=new Panel();sidebar.Dock=DockStyle.Fill;sidebar.BackColor=SettingsSidebar;sidebar.Padding=new Padding(10,12,10,12);root.Controls.Add(sidebar,0,0);
+            TableLayoutPanel contentArea=new TableLayoutPanel();contentArea.Dock=DockStyle.Fill;contentArea.BackColor=SettingsWindow;contentArea.Padding=new Padding(18,0,18,0);contentArea.ColumnCount=1;contentArea.RowCount=3;contentArea.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100f));contentArea.RowStyles.Add(new RowStyle(SizeType.Absolute,88f));contentArea.RowStyles.Add(new RowStyle(SizeType.Percent,100f));contentArea.RowStyles.Add(new RowStyle(SizeType.Absolute,66f));root.Controls.Add(contentArea,1,0);
+
+            Panel brand=new Panel();brand.Dock=DockStyle.Top;brand.Height=88;brand.BackColor=SettingsSidebar;sidebar.Controls.Add(brand);
+            Label brandTitle=new Label();brandTitle.Text="TASKBAR MONITOR";brandTitle.ForeColor=SettingsText;brandTitle.Font=new Font("Segoe UI Semibold",11.5f,FontStyle.Bold);brandTitle.AutoSize=true;brandTitle.Location=new Point(8,10);brand.Controls.Add(brandTitle);
+            Label brandSub=new Label();brandSub.Text="Enhanced  "+BuildInfo.PublicVersion;brandSub.ForeColor=SettingsMuted;brandSub.Font=new Font("Segoe UI",8.7f);brandSub.AutoSize=true;brandSub.Location=new Point(8,38);brand.Controls.Add(brandSub);
+            Label brandHint=new Label();brandHint.Text="Settings";brandHint.ForeColor=SettingsAccent;brandHint.Font=new Font("Segoe UI Semibold",9.2f,FontStyle.Bold);brandHint.AutoSize=true;brandHint.Location=new Point(8,60);brand.Controls.Add(brandHint);
+
+            FlowLayoutPanel nav=new FlowLayoutPanel();nav.Dock=DockStyle.Fill;nav.FlowDirection=FlowDirection.TopDown;nav.WrapContents=false;nav.AutoScroll=true;nav.BackColor=SettingsSidebar;nav.Padding=new Padding(0,8,0,0);sidebar.Controls.Add(nav);nav.BringToFront();
+            string[] navNames=new string[]{"Display","Metrics","Hardware","Units","Behavior","Updates","Diagnostics","Advanced"};
+            for(int i=0;i<navNames.Length;i++)
+            {
+                Button b=CreateNavigationButton(navNames[i],i);
+                settingsNavButtons.Add(b);nav.Controls.Add(b);
+            }
+
+            Panel header=new Panel();header.Dock=DockStyle.Fill;header.BackColor=SettingsWindow;contentArea.Controls.Add(header,0,0);
+            settingsPageTitle=new Label();settingsPageTitle.Text="Display";settingsPageTitle.ForeColor=SettingsText;settingsPageTitle.Font=new Font("Segoe UI Semibold",20f,FontStyle.Bold);settingsPageTitle.AutoSize=true;settingsPageTitle.Location=new Point(8,17);header.Controls.Add(settingsPageTitle);
+            settingsPageSubtitle=new Label();settingsPageSubtitle.Text=SettingsPageDescriptions[0];settingsPageSubtitle.ForeColor=SettingsMuted;settingsPageSubtitle.Font=new Font("Segoe UI",9.3f);settingsPageSubtitle.AutoSize=true;settingsPageSubtitle.Location=new Point(10,55);header.Controls.Add(settingsPageSubtitle);
+
+            Panel pageHost=new Panel();pageHost.Dock=DockStyle.Fill;pageHost.Margin=Padding.Empty;pageHost.BackColor=SettingsSurface;contentArea.Controls.Add(pageHost,0,1);
+            TabControl tabs=new TabControl();tabsControl=tabs;tabs.Appearance=TabAppearance.FlatButtons;tabs.SizeMode=TabSizeMode.Fixed;tabs.ItemSize=new Size(0,1);tabs.Multiline=true;tabs.Padding=new Point(0,0);tabs.Margin=Padding.Empty;
+            pageHost.Controls.Add(tabs);
+            Action fitTabs=delegate{tabs.Bounds=new Rectangle(-4,-4,Math.Max(20,pageHost.ClientSize.Width+8),Math.Max(20,pageHost.ClientSize.Height+8));};
+            pageHost.Resize+=delegate{fitTabs();};fitTabs();
             TabPage display=new TabPage("Display"), metrics=new TabPage("Metrics"), hardware=new TabPage("Hardware"), units=new TabPage("Units"), behavior=new TabPage("Behavior"), updates=new TabPage("Updates"), diagnostics=new TabPage("Diagnostics"), advanced=new TabPage("Advanced");
             tabs.TabPages.Add(display);tabs.TabPages.Add(metrics);tabs.TabPages.Add(hardware);tabs.TabPages.Add(units);tabs.TabPages.Add(behavior);tabs.TabPages.Add(updates);tabs.TabPages.Add(diagnostics);tabs.TabPages.Add(advanced);
-            foreach(TabPage page in tabs.TabPages){page.AutoScroll=true;page.Padding=new Padding(4);}
-            display.AutoScrollMinSize=new Size(720,280);metrics.AutoScrollMinSize=new Size(720,330);hardware.AutoScrollMinSize=new Size(720,640);units.AutoScrollMinSize=new Size(720,440);behavior.AutoScrollMinSize=new Size(720,260);updates.AutoScrollMinSize=new Size(720,440);diagnostics.AutoScrollMinSize=new Size(720,520);advanced.AutoScrollMinSize=new Size(720,440);
+            foreach(TabPage page in tabs.TabPages){page.AutoScroll=true;page.Padding=new Padding(10);page.BackColor=SettingsWindow;page.ForeColor=SettingsText;}
+            display.AutoScrollMinSize=new Size(760,440);metrics.AutoScrollMinSize=new Size(760,430);hardware.AutoScrollMinSize=new Size(760,760);units.AutoScrollMinSize=new Size(760,540);behavior.AutoScrollMinSize=new Size(760,390);updates.AutoScrollMinSize=new Size(760,540);diagnostics.AutoScrollMinSize=new Size(840,650);advanced.AutoScrollMinSize=new Size(760,540);
+
             theme=Combo(display,"Theme",ThemeCatalog.Names,c.Theme,22);position=Combo(display,"Position",new string[]{"Left","Center","Right"},c.Position,68);opacity=Number(display,"Opacity %",(decimal)(c.Opacity*100),55,100,114);width=Number(display,"Locked width px",c.MinWidthLogicalPx,900,1500,160);
             cpu=Check(metrics,"CPU",c.ShowCpu,24);ram=Check(metrics,"RAM",c.ShowRam,55);disk=Check(metrics,"Disk / storage",c.ShowDisk,86);gpu=Check(metrics,"GPU",c.ShowGpu,117);vram=Check(metrics,"VRAM",c.ShowVram,148);net=Check(metrics,"Network",c.ShowNetwork,179);temp=Check(metrics,"CPU/GPU temperature",c.ShowTemperatures,210);spark=Check(metrics,"Real sparklines",c.ShowSparklines,241);
 
@@ -5625,10 +5893,9 @@ namespace TaskbarMonitorEnhanced
             multiLayout=Combo(hardware,"Multiple layout",new string[]{"Grouped","Separate"},c.MultipleDeviceLayout,y);flyout=Check(hardware,"Show upward hardware flyout on hover",c.EnableHardwareFlyout,y+42);hoverAll=Check(hardware,"Flyout shows all detected devices (not only selected)",c.HoverShowAllDevices,y+72);
 
             memoryUnit=Combo(units,"RAM unit",new string[]{"Auto","KB","MB","GB"},c.MemoryUnit,28);storageUnit=Combo(units,"Storage capacity unit",new string[]{"Auto","KB","MB","GB"},c.StorageUnit,78);diskRateUnit=Combo(units,"Disk speed unit",new string[]{"Auto","KB","MB","GB"},c.DiskRateUnit,128);networkUnit=Combo(units,"Network rate unit",new string[]{"Auto","KB","MB","GB"},c.NetworkUnit,178);ramNumeric=Check(units,"Show used / total RAM as a number",c.ShowRamNumeric,238);diskNumeric=Check(units,"Show used / total disk capacity in hover details",c.ShowDiskNumeric,272);
-            Label unitNote=new Label();unitNote.Location=new Point(24,320);unitNote.Size=new Size(660,85);unitNote.Text="Disk cards show live read/write throughput. Disk capacity, usage percentage, volumes and temperature are shown in the upward hover details. Auto selects KB, MB or GB independently for capacity, disk speed and network rate.";units.Controls.Add(unitNote);
+            Label unitNote=new Label();unitNote.Location=new Point(24,320);unitNote.Size=new Size(660,85);unitNote.Text="Disk cards show live read/write throughput. Capacity, usage, volumes and temperature stay in hover details. Auto chooses readable units independently for each measurement.";units.Controls.Add(unitNote);
 
-            interval=Number(behavior,"Update interval ms",c.UpdateIntervalMs,1000,5000,24);startup=Check(behavior,"Start with Windows",c.StartWithWindows,78);safe=Check(behavior,"Safe placement / avoid taskbar controls",c.SafePlacement,112);
-            autoCheckUpdates=Check(behavior,"Automatically check GitHub Releases for updates",c.AutoCheckUpdates,148);
+            interval=Number(behavior,"Update interval ms",c.UpdateIntervalMs,1000,5000,24);startup=Check(behavior,"Start with Windows",c.StartWithWindows,78);safe=Check(behavior,"Safe placement / avoid taskbar controls",c.SafePlacement,112);autoCheckUpdates=Check(behavior,"Automatically check GitHub Releases for updates",c.AutoCheckUpdates,148);
 
             updateCurrent=new Label();updateCurrent.Location=new Point(24,28);updateCurrent.Size=new Size(650,24);updateCurrent.Text="Installed version: "+BuildInfo.PublicVersion;updates.Controls.Add(updateCurrent);
             updateLatest=new Label();updateLatest.Location=new Point(24,62);updateLatest.Size=new Size(650,24);updateLatest.Text="Latest public release: Not checked";updates.Controls.Add(updateLatest);
@@ -5636,19 +5903,126 @@ namespace TaskbarMonitorEnhanced
             checkUpdate=new Button();checkUpdate.Text="Check for updates";checkUpdate.Location=new Point(24,196);checkUpdate.Size=new Size(150,34);checkUpdate.Click+=delegate{BeginCheckUpdates();};updates.Controls.Add(checkUpdate);
             installUpdate=new Button();installUpdate.Text="Download && Install";installUpdate.Location=new Point(188,196);installUpdate.Size=new Size(160,34);installUpdate.Enabled=false;installUpdate.Click+=delegate{BeginInstallUpdate();};updates.Controls.Add(installUpdate);
             openRelease=new Button();openRelease.Text="Open release page";openRelease.Location=new Point(362,196);openRelease.Size=new Size(145,34);openRelease.Enabled=false;openRelease.Click+=delegate{OpenReleasePage();};updates.Controls.Add(openRelease);
-            Label updateNote=new Label();updateNote.Location=new Point(24,250);updateNote.Size=new Size(660,150);updateNote.Text="Updates are read from the official GOD13emad/TaskbarMonitorEnhanced GitHub Releases feed. Automatic installation requires an immutable GitHub Release, a TaskbarMonitorEnhanced_Setup_*.exe asset and GitHub SHA-256 digest metadata. Mutable releases are never auto-installed.";updates.Controls.Add(updateNote);
+            Label updateNote=new Label();updateNote.Location=new Point(24,250);updateNote.Size=new Size(660,150);updateNote.Text="Updates come only from the official GitHub Releases feed. Automatic installation requires an immutable release, the exact setup asset and GitHub SHA-256 digest metadata. Mutable releases are never auto-installed.";updates.Controls.Add(updateNote);
 
-            diagnosticsText=new TextBox();diagnosticsText.Location=new Point(24,72);diagnosticsText.Size=new Size(800,390);diagnosticsText.Multiline=true;diagnosticsText.ReadOnly=true;diagnosticsText.ScrollBars=ScrollBars.Both;diagnosticsText.WordWrap=false;diagnosticsText.Font=new Font("Consolas",9f);diagnostics.Controls.Add(diagnosticsText);
+            diagnosticsText=new TextBox();diagnosticsText.Location=new Point(24,72);diagnosticsText.Size=new Size(800,390);diagnosticsText.Multiline=true;diagnosticsText.ReadOnly=true;diagnosticsText.ScrollBars=ScrollBars.Both;diagnosticsText.WordWrap=false;diagnosticsText.Font=new Font("Cascadia Mono",9f);diagnostics.Controls.Add(diagnosticsText);
             refreshDiagnostics=new Button();refreshDiagnostics.Text="Refresh health";refreshDiagnostics.Location=new Point(24,24);refreshDiagnostics.Size=new Size(130,34);refreshDiagnostics.Click+=delegate{RefreshDiagnostics();};diagnostics.Controls.Add(refreshDiagnostics);
             saveDiagnostics=new Button();saveDiagnostics.Text="Save report...";saveDiagnostics.Location=new Point(168,24);saveDiagnostics.Size=new Size(130,34);saveDiagnostics.Click+=delegate{SaveDiagnosticsReport();};diagnostics.Controls.Add(saveDiagnostics);
             openDataFolder=new Button();openDataFolder.Text="Open data folder";openDataFolder.Location=new Point(312,24);openDataFolder.Size=new Size(135,34);openDataFolder.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Root);}catch{}};diagnostics.Controls.Add(openDataFolder);
             repairSensors=new Button();repairSensors.Text="Repair protected sensors...";repairSensors.Location=new Point(461,24);repairSensors.Size=new Size(185,34);repairSensors.Click+=delegate{RepairProtectedSensors();};diagnostics.Controls.Add(repairSensors);
 
             Button openLog=new Button();openLog.Text="Open Logs";openLog.Location=new Point(24,28);openLog.Width=120;openLog.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Logs);}catch{}};advanced.Controls.Add(openLog);
-            Label note=new Label();note.AutoSize=false;note.Location=new Point(24,80);note.Size=new Size(660,300);note.Text="v1.1.3 — startup resilience: Start with Windows maintains two independent per-user launch registrations. The normal HKCU Run entry starts immediately; a Startup-folder recovery shortcut uses bounded delayed recovery. Either surviving path repairs the other, while the single-instance mutex prevents duplicate long-running monitors.\r\n\r\nR21 sensor isolation, diagnostics, immutable-update checks and all 14 themes remain intact.\r\n\r\nAutomatic update installation requires both GitHub SHA-256 asset metadata and an immutable GitHub Release.";advanced.Controls.Add(note);
-            FlowLayoutPanel buttons=new FlowLayoutPanel();buttons.Dock=DockStyle.Bottom;buttons.Height=45;buttons.FlowDirection=FlowDirection.RightToLeft;Controls.Add(buttons);Button ok=new Button();ok.Text="Save & Apply";ok.Width=105;ok.Click+=delegate{Apply();DialogResult=DialogResult.OK;Close();};Button cancel=new Button();cancel.Text="Cancel";cancel.Width=90;cancel.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};buttons.Controls.Add(ok);buttons.Controls.Add(cancel);AcceptButton=ok;CancelButton=cancel;
+            Label note=new Label();note.AutoSize=false;note.Location=new Point(24,80);note.Size=new Size(660,300);note.Text="Startup resilience uses two independent per-user launch registrations, while the single-instance mutex prevents duplicate monitors.\r\n\r\nThe protected R21 sensor architecture, diagnostics and immutable-update checks are preserved. Theme selection now uses the expanded premium theme library.";advanced.Controls.Add(note);
+
+            ModernizeSettingsPage(display,"Display","Choose the visual language and placement of the taskbar monitor.");
+            ModernizeSettingsPage(metrics,"Metrics","Turn individual taskbar readings on or off without changing the sensor layer.");
+            ModernizeSettingsPage(hardware,"Hardware","Choose physical devices, aggregation and hover-detail behavior.");
+            ModernizeSettingsPage(units,"Units","Choose how memory, storage and transfer rates are formatted.");
+            ModernizeSettingsPage(behavior,"Behavior","Control startup, refresh cadence and taskbar placement safeguards.");
+            ModernizeSettingsPage(updates,"Updates","Verify and install immutable public releases safely.");
+            ModernizeSettingsPage(diagnostics,"Diagnostics","Inspect live health, sensor transport and support evidence.");
+            ModernizeSettingsPage(advanced,"Advanced","Maintenance tools and implementation notes.");
+
+            themePreview=new ThemePreviewControl();themePreview.Location=new Point(24,300);themePreview.Size=new Size(650,122);themePreview.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;themePreview.ThemeName=Convert.ToString(theme.SelectedItem,CultureInfo.InvariantCulture);display.Controls.Add(themePreview);themePreview.BringToFront();
+            theme.SelectedIndexChanged+=delegate{if(themePreview!=null)themePreview.ThemeName=Convert.ToString(theme.SelectedItem,CultureInfo.InvariantCulture);};
+
+            Panel actions=new Panel();actions.Dock=DockStyle.Fill;actions.BackColor=SettingsWindow;actions.Padding=new Padding(0,10,4,10);contentArea.Controls.Add(actions,0,2);
+            FlowLayoutPanel buttons=new FlowLayoutPanel();buttons.Dock=DockStyle.Right;buttons.Width=250;buttons.FlowDirection=FlowDirection.RightToLeft;buttons.WrapContents=false;buttons.BackColor=SettingsWindow;actions.Controls.Add(buttons);
+            Button ok=new Button();ok.Text="Save && Apply";ok.Size=new Size(118,38);StyleActionButton(ok,true);ok.Click+=delegate{Apply();DialogResult=DialogResult.OK;Close();};
+            Button cancel=new Button();cancel.Text="Cancel";cancel.Size=new Size(98,38);StyleActionButton(cancel,false);cancel.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};
+            buttons.Controls.Add(ok);buttons.Controls.Add(cancel);AcceptButton=ok;CancelButton=cancel;
+
+            tabs.SelectedIndexChanged+=delegate{UpdateSettingsNavigation();};
             if(!String.IsNullOrWhiteSpace(initialTab))foreach(TabPage tp in tabs.TabPages)if(String.Equals(tp.Text,initialTab,StringComparison.OrdinalIgnoreCase)){tabs.SelectedTab=tp;break;}
+            UpdateSettingsNavigation();
             Shown+=delegate{if(c.AutoCheckUpdates||String.Equals(initialTab,"Updates",StringComparison.OrdinalIgnoreCase))BeginCheckUpdates();if(String.Equals(initialTab,"Diagnostics",StringComparison.OrdinalIgnoreCase))RefreshDiagnostics();};
+        }
+
+        private Button CreateNavigationButton(string text,int index)
+        {
+            Button b=new Button();b.Text=text;b.Tag=index;b.Size=new Size(182,44);b.Margin=new Padding(1,3,1,3);b.Padding=new Padding(13,0,0,0);
+            b.TextAlign=ContentAlignment.MiddleLeft;b.FlatStyle=FlatStyle.Flat;b.FlatAppearance.BorderSize=0;b.BackColor=SettingsSidebar;b.ForeColor=SettingsMuted;b.Font=new Font("Segoe UI Semibold",9.6f,FontStyle.Bold);b.Cursor=Cursors.Hand;
+            b.Click+=delegate(object sender,EventArgs e){Button x=sender as Button;if(x!=null&&tabsControl!=null)tabsControl.SelectedIndex=Convert.ToInt32(x.Tag,CultureInfo.InvariantCulture);};
+            return b;
+        }
+
+        private void UpdateSettingsNavigation()
+        {
+            if(tabsControl==null||tabsControl.SelectedIndex<0)return;
+            int selected=tabsControl.SelectedIndex;
+            for(int i=0;i<settingsNavButtons.Count;i++)
+            {
+                bool on=i==selected;Button b=settingsNavButtons[i];
+                b.BackColor=on?SettingsSurface2:SettingsSidebar;b.ForeColor=on?SettingsText:SettingsMuted;
+                b.FlatAppearance.MouseOverBackColor=SettingsSurface2;b.FlatAppearance.MouseDownBackColor=SettingsSurface;
+            }
+            if(settingsPageTitle!=null)settingsPageTitle.Text=tabsControl.TabPages[selected].Text;
+            if(settingsPageSubtitle!=null&&selected<SettingsPageDescriptions.Length)settingsPageSubtitle.Text=SettingsPageDescriptions[selected];
+        }
+
+        private void ModernizeSettingsPage(TabPage page,string title,string description)
+        {
+            List<Control> existing=page.Controls.Cast<Control>().ToList();
+            int maxBottom=0;
+            page.BackColor=SettingsSurface;page.ForeColor=SettingsText;page.Padding=new Padding(16);
+            foreach(Control control in existing)
+            {
+                control.Top+=18;
+                control.Left+=10;
+                maxBottom=Math.Max(maxBottom,control.Bottom);
+                StyleSettingsControl(control);
+                control.BringToFront();
+            }
+            page.AutoScrollMinSize=new Size(Math.Max(page.AutoScrollMinSize.Width,760),Math.Max(page.AutoScrollMinSize.Height,maxBottom+28));
+        }
+
+        private void StyleSettingsControl(Control control)
+        {
+            control.Font=control.Font??Font;
+            if(control is Label)
+            {
+                Label l=(Label)control;l.ForeColor=SettingsMuted;if(l.Font.Bold)l.ForeColor=SettingsText;
+            }
+            else if(control is ComboBox)
+            {
+                ComboBox x=(ComboBox)control;x.FlatStyle=FlatStyle.Flat;x.BackColor=SettingsSurface2;x.ForeColor=SettingsText;x.DrawMode=DrawMode.OwnerDrawFixed;x.ItemHeight=Math.Max(18,x.ItemHeight);
+                x.DrawItem+=delegate(object sender,DrawItemEventArgs e)
+                {
+                    if(e.Index<0)return;
+                    ComboBox cb=(ComboBox)sender;bool selected=(e.State&DrawItemState.Selected)==DrawItemState.Selected;
+                    using(SolidBrush bg=new SolidBrush(selected?Color.FromArgb(48,90,139):SettingsSurface2))e.Graphics.FillRectangle(bg,e.Bounds);
+                    using(SolidBrush fg=new SolidBrush(SettingsText))e.Graphics.DrawString(Convert.ToString(cb.Items[e.Index],CultureInfo.InvariantCulture),cb.Font,fg,e.Bounds.X+6,e.Bounds.Y+2);
+                    e.DrawFocusRectangle();
+                };
+            }
+            else if(control is NumericUpDown)
+            {
+                NumericUpDown n=(NumericUpDown)control;n.BackColor=SettingsSurface2;n.ForeColor=SettingsText;n.BorderStyle=BorderStyle.FixedSingle;foreach(Control child in n.Controls){child.BackColor=SettingsSurface2;child.ForeColor=SettingsText;}
+            }
+            else if(control is CheckBox)
+            {
+                CheckBox x=(CheckBox)control;x.ForeColor=SettingsText;x.FlatStyle=FlatStyle.Flat;x.FlatAppearance.BorderColor=SettingsAccent;
+            }
+            else if(control is Button)
+            {
+                StyleActionButton((Button)control,false);
+            }
+            else if(control is CheckedListBox)
+            {
+                CheckedListBox x=(CheckedListBox)control;x.BackColor=Color.FromArgb(14,20,28);x.ForeColor=SettingsText;x.BorderStyle=BorderStyle.FixedSingle;
+            }
+            else if(control is TextBox)
+            {
+                TextBox x=(TextBox)control;x.BackColor=Color.FromArgb(11,16,23);x.ForeColor=Color.FromArgb(211,223,235);x.BorderStyle=BorderStyle.FixedSingle;
+            }
+        }
+
+        private void StyleActionButton(Button b,bool primary)
+        {
+            b.FlatStyle=FlatStyle.Flat;b.FlatAppearance.BorderSize=primary?0:1;b.FlatAppearance.BorderColor=Color.FromArgb(64,78,94);
+            b.BackColor=primary?SettingsAccent:SettingsSurface2;b.ForeColor=primary?Color.White:SettingsText;b.Font=new Font("Segoe UI Semibold",9.1f,FontStyle.Bold);b.Cursor=Cursors.Hand;
+            b.FlatAppearance.MouseOverBackColor=primary?Color.FromArgb(92,170,255):Color.FromArgb(34,46,61);
+            b.FlatAppearance.MouseDownBackColor=primary?Color.FromArgb(55,133,225):Color.FromArgb(28,39,52);
         }
 
         public void SelectTab(string tabName)
@@ -6169,6 +6543,63 @@ namespace TaskbarMonitorEnhanced
         }
     }
 
+    internal static class HoverGuardProof
+    {
+        public static int Run()
+        {
+            try
+            {
+                Native.EnableDpi();Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
+                AppConfig c=AppConfig.Load();c.Normalize();
+                using(OverlayForm overlay=new OverlayForm(c,true))
+                {
+                    if(!overlay.VerifySettingsHoverSuppression())throw new InvalidOperationException("Settings-open hover suppression invariant failed.");
+                }
+                Console.WriteLine("TBME_SETTINGS_HOVER_GUARD=PASS MOVE_SUPPRESSED=TRUE WATCHDOG_SUPPRESSED=TRUE FLYOUT_HIDDEN=TRUE");
+                return 0;
+            }
+            catch(Exception ex)
+            {
+                Console.Error.WriteLine("TBME_SETTINGS_HOVER_GUARD=FAIL "+ex);
+                return 14;
+            }
+        }
+    }
+    internal static class SettingsProof
+    {
+        public static int Run(string outputDirectory)
+        {
+            try
+            {
+                if(String.IsNullOrWhiteSpace(outputDirectory))throw new ArgumentException("output directory");
+                Directory.CreateDirectory(outputDirectory);
+                Native.EnableDpi();Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
+                AppConfig c=AppConfig.Load();c.Normalize();
+                MetricsSnapshot snapshot=new MetricsSnapshot();
+                string[] pages=new string[]{"Display","Metrics","Hardware","Units","Behavior","Updates","Diagnostics","Advanced"};
+                using(SettingsForm f=new SettingsForm(c,snapshot,"Display"))
+                {
+                    f.Width=1080;f.Height=760;f.StartPosition=FormStartPosition.Manual;f.Location=new Point(-32000,-32000);
+                    f.Show();Application.DoEvents();f.PerformLayout();
+                    for(int i=0;i<pages.Length;i++)
+                    {
+                        f.SelectTab(pages[i]);f.PerformLayout();Application.DoEvents();
+                        using(Bitmap bmp=new Bitmap(f.Width,f.Height,PixelFormat.Format32bppArgb))
+                        {
+                            f.DrawToBitmap(bmp,new Rectangle(0,0,bmp.Width,bmp.Height));
+                            bmp.Save(Path.Combine(outputDirectory,String.Format(CultureInfo.InvariantCulture,"SETTINGS_{0:00}_{1}.png",i+1,pages[i].ToUpperInvariant())),ImageFormat.Png);
+                        }
+                    }
+                }
+                Dictionary<string,object> manifest=new Dictionary<string,object>();
+                manifest["Version"]=BuildInfo.Version;manifest["PublicVersion"]=BuildInfo.PublicVersion;manifest["Pages"]=pages;manifest["Width"]=1080;manifest["Height"]=760;
+                File.WriteAllText(Path.Combine(outputDirectory,"SETTINGS_PROOF_MANIFEST.json"),new JavaScriptSerializer().Serialize(manifest),Encoding.UTF8);
+                Console.WriteLine("TBME_SETTINGS_PROOF=PASS PAGES=8 DIR="+outputDirectory);
+                return 0;
+            }
+            catch(Exception ex){Console.Error.WriteLine("TBME_SETTINGS_PROOF=FAIL "+ex);return 13;}
+        }
+    }
     internal static class StartProbe
     {
         private static Bitmap CaptureRect(Rectangle r)
@@ -6810,11 +7241,10 @@ namespace TaskbarMonitorEnhanced
         {
             try
             {
-                if(ThemeCatalog.Names.Length!=14)throw new Exception("theme count");
-                string[] expected=new string[]{"Dark Minimal Pro","Glass Morphism","Neon Cyberpunk","Sleek White","Round Compact","Honeycomb Tech","Retro Terminal","Fluent Glass","OLED Mono","Cyber Neon","Mission Control","Blueprint Tech","Medical Telemetry","Carbon Racing"};
-                for(int i=0;i<expected.Length;i++)if(ThemeCatalog.Names[i]!=expected[i])throw new Exception("theme name " + i);
-                string[] newModes=new string[]{"fluent","oled","cyber2","mission","blueprint","medical","carbon"};
-                for(int i=0;i<7;i++)if(ThemeCatalog.Get(expected[i+7]).Mode!=newModes[i])throw new Exception("new theme mode " + i);
+                if(ThemeCatalog.Names.Length!=28)throw new Exception("theme count");
+                string[] expected=new string[]{"Dark Minimal Pro","Glass Morphism","Neon Cyberpunk","Sleek White","Round Compact","Honeycomb Tech","Retro Terminal","Fluent Glass","OLED Mono","Cyber Neon","Mission Control","Blueprint Tech","Medical Telemetry","Carbon Racing","Aurora Borealis","Solarized Luxe","Arctic Frost","Sakura Night","Matrix Grid","Desert Sand","Royal Amethyst","Ocean Depth","Copper Industrial","Nordic Light","Ember Forge","Synthwave Sunset","Quantum Violet","Monochrome Paper"};
+                string[] expectedModes=new string[]{"minimal","glass","neon","white","round","hex","terminal","fluent","oled","cyber2","mission","blueprint","medical","carbon","aurora","luxe","zen","synth","matrix","paper","luxe","aurora","industrial","zen","industrial","synth","synth","paper"};
+                for(int i=0;i<expected.Length;i++){if(ThemeCatalog.Names[i]!=expected[i])throw new Exception("theme name " + i);if(ThemeCatalog.Get(expected[i]).Mode!=expectedModes[i])throw new Exception("theme mode " + i);}
                 AppConfig c=new AppConfig();c.Normalize();if(c.MinWidthLogicalPx!=1100||c.MarginLogicalPx!=0||c.VerticalMarginLogicalPx!=0)throw new Exception("geometry defaults");
                 if(!c.ShowTemperatures)throw new Exception("temperature default");if(c.CpuDisplayMode!="Overall"||c.GpuDisplayMode!="Auto"||c.DiskDisplayMode!="Overall"||c.NetworkDisplayMode!="Overall")throw new Exception("hardware mode defaults");if(c.MemoryUnit!="Auto"||c.StorageUnit!="Auto"||c.NetworkUnit!="Auto"||c.DiskRateUnit!="Auto")throw new Exception("unit defaults");if(!c.ShowRamNumeric||!c.ShowDiskNumeric||!c.EnableHardwareFlyout||!c.AutoCheckUpdates||c.ConfigSchemaVersion<3)throw new Exception("R08 feature defaults");
                 if(UnitFormatter.Pair(1024d*1024d*1024d,2d*1024d*1024d*1024d,"GB").IndexOf("GB",StringComparison.Ordinal)<0)throw new Exception("unit formatter pair");
@@ -6877,10 +7307,10 @@ namespace TaskbarMonitorEnhanced
                         throw new Exception("sensor selfheal missing state");
                 }
                 finally{try{Directory.Delete(healDir,true);}catch{}}
-                Console.WriteLine("TBME_V1_1_3_R22_SELFTEST=PASS PUBLIC_VERSION=1.1.3 STARTUP_DUAL_REGISTRATION=TRUE STARTUP_RECOVERY_DELAY_SEC=12 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE CPU_HARD_STALL_WATCHDOG_SEC=60 CPU_SUPERVISOR_STARTUP_GRACE_SEC=60 THEMES=14 WIDTH=1100 HISTORY=60 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE SENSOR_SUPERVISOR_AUTOHEAL=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE CREATEPARAMS_NOACTIVATE=TRUE");
+                Console.WriteLine("TBME_V1_2_0_R01_SELFTEST=PASS PUBLIC_VERSION=1.2.0 STARTUP_DUAL_REGISTRATION=TRUE STARTUP_RECOVERY_DELAY_SEC=12 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE CPU_HARD_STALL_WATCHDOG_SEC=60 CPU_SUPERVISOR_STARTUP_GRACE_SEC=60 THEMES=28 WIDTH=1100 HISTORY=60 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE SENSOR_SUPERVISOR_AUTOHEAL=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE CREATEPARAMS_NOACTIVATE=TRUE");
                 return 0;
             }
-            catch(Exception ex){Console.Error.WriteLine("TBME_V1_1_3_R22_SELFTEST=FAIL " + ex);return 2;}
+            catch(Exception ex){Console.Error.WriteLine("TBME_V1_2_0_R01_SELFTEST=FAIL " + ex);return 2;}
         }
 
         public static int RunJson(string outputPath)
@@ -7147,6 +7577,11 @@ namespace TaskbarMonitorEnhanced
             {
                 if(args.Length<2){Console.Error.WriteLine("TBME_COMPACT_PROOF=FAIL missing output directory");return 8;}
                 return CompactProof.Run(args[1]);
+            }
+            if(args!=null && args.Length>0 && args[0]=="--hoverguardproof")return HoverGuardProof.Run();            if(args!=null && args.Length>0 && args[0]=="--settingsproof")
+            {
+                if(args.Length<2){Console.Error.WriteLine("TBME_SETTINGS_PROOF=FAIL missing output directory");return 13;}
+                return SettingsProof.Run(args[1]);
             }
             if(args!=null && args.Length>0 && args[0]=="--startprobe")
             {
