@@ -406,3 +406,11 @@ This section supersedes R23 as the current maintenance authority where they conf
 - Source verification: official actions/upload-artifact latest release is v7.0.1, published 2026-04-10; tag resolves directly to commit `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`; `action.yml` declares `using: node24`.
 - Scope: CI workflow only. Immutable release tag `v1.1.3` and its seven assets remain unchanged.
 - Validation state at mutation: PENDING exact main CI. Do not call this maintenance PASS until the new commit completes the full R21 workflow without the Node.js 20 annotation.
+
+### NODE 24 ACTION PIN VALIDATION — PASS
+
+- Exact maintenance commit `1fabcfc420fa996cc2e7e44a4182d2569ddba007` completed GitHub Actions run `36311950294` successfully.
+- Full R21 workflow passed: whitespace, reproducible build, deterministic clean clone, SPDX SBOM, binary provenance attestation, Setup SBOM attestation, evidence upload and manifest.
+- The previous Node.js 20 deprecation annotation is absent on this run. The `actions/upload-artifact` v7.0.1 / Node.js 24 pin therefore resolves the known post-release CI warning.
+- v1.1.3 release tag/assets remain untouched at `fa8c75d0b59343ccb7eae86320a351e3b4064c48`.
+- CI maintenance status: PASS / CLOSED.

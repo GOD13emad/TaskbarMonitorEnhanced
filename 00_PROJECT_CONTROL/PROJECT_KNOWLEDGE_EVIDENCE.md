@@ -162,3 +162,9 @@
 - The repository's previous pin `ea165f8d65b6e75b540449e92b4886f43607fa02` triggered a GitHub deprecation annotation because it declared Node.js 20, although GitHub forced execution under Node.js 24 and CI passed.
 - Maintenance changes only `.github/workflows/r21-ci.yml`; v1.1.3 release bytes/tag are intentionally untouched.
 - Validation pending exact-main workflow at the time of this entry.
+
+### Validation result
+
+- Commit `1fabcfc420fa996cc2e7e44a4182d2569ddba007` → GitHub Actions run `36311950294`: SUCCESS.
+- All R21 gates passed and the earlier Node.js 20 deprecation annotation did not recur.
+- Decision: retain `actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` (v7.0.1, Node.js 24) as the current pinned upload action.
