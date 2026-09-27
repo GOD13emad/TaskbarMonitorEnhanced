@@ -390,3 +390,15 @@
 - Remote and local feature branch deletion then completed and absence was verified.
 - Confidence/Status: CONFIRMED / PASS.
 - Reuse Targets: repository hygiene, account transfer, historical recovery.
+
+### Record P — post-publication exact-head regression and final repository invariant
+- Date/Context: 2026-09-27, final repository closeout after v1.2.0 publication.
+- Post-publication documentation commit: `60db90069c8eae74cddcb5d953db1f99adab1229`.
+- Exact-head GitHub Actions run: `36324665609` = SUCCESS.
+- Reproducible build, deterministic clean-clone, SPDX generation, binary provenance attestation and Setup SBOM attestation all passed.
+- Printed CI manifest reproduced the exact immutable v1.2.0 binary hashes for Main/Broker/Supervisor/Setup.
+- Release invariant audit: `v1.2.0` remains public, non-draft, non-prerelease, immutable and Latest with seven assets; tag still peels to `84d22fae6638b21683ea828e86517d100ced1654`.
+- Repository invariant audit: remote branch surface contains only `main`; local worktree was clean at audit time.
+- Conclusion: documentation closeout did not perturb release binaries or immutable release authority.
+- Confidence/Status: CONFIRMED / PASS / FINAL.
+- Reuse Targets: future release baseline, regression authority, repository maintenance.

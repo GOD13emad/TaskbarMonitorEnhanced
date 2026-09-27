@@ -681,3 +681,26 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Post-delete remote/local branch checks: absent as intended.
 - Product/release state is unchanged; immutable `v1.2.0` remains exact release authority.
 - Remaining exact next action: commit and push this post-publication documentation/evidence-only delta on `main`, require its GitHub CI PASS, then perform a final release/latest/tag/worktree audit. No product mutation remains open.
+
+### R31F / FINAL REPOSITORY CLOSEOUT — PASS
+
+- Post-publication documentation/evidence authority commit: `60db90069c8eae74cddcb5d953db1f99adab1229`.
+- GitHub Actions run `36324665609` on that exact main head: SUCCESS.
+- All CI gates passed again: whitespace, reproducible build, deterministic clean-clone, SPDX SBOM, binary provenance attestation, Setup SBOM attestation, evidence upload and manifest output.
+- CI reproduced the immutable release binary hashes exactly:
+  - Main `B90211E86AAF0AB05C3B87E2D2056A59B2D6369FCAD0ADCC8072A513FCB489D9`
+  - Broker `182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833`
+  - Supervisor `38553CCE30D5D3F1A22AC6765C4A0F5D4D204970A3DAD7BA9467A326235FC196`
+  - Setup `3196986C62FC7D9A91500B0E3246D5640E6292D0ED1722F736505A4DD511B3CF`
+- Final invariant audit:
+  - GitHub release `v1.2.0`: public, non-draft, non-prerelease, immutable, 7 assets.
+  - GitHub Latest: `v1.2.0`.
+  - annotated tag object: `5f4c12c2dd8ee2624e93d31ff8672894f5701311`.
+  - peeled release commit remains `84d22fae6638b21683ea828e86517d100ced1654`.
+  - remote branch surface: only `main`.
+  - worktree at audit time: clean.
+- Product DoD: COMPLETE / FINAL_PUBLIC_RELEASE_ACCEPTED.
+- Project Brain status: CURRENT.
+- Open product blockers/gates: none.
+- Deferred external item: publicly trusted Authenticode signing remains external/unproven; no signing claim is made.
+- Exact next action: none required for v1.2.0. Future work should begin as a new scoped change set from current `main`; do not mutate the immutable v1.2.0 tag/release.
