@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0 — Modern Settings & Premium Themes
+
+- suppress hardware hover flyouts whenever Settings is active and add a dedicated regression proving mouse-move/watchdog suppression
+- redesign Settings with left navigation, page hierarchy, dark surfaces, consistent controls, persistent actions and live theme preview
+- expand the built-in theme library from 14 to 28 themes
+- add reusable aurora, luxe, zen, synth, matrix, paper and industrial renderer families
+- add deterministic 8-page Settings visual proof
+- validate all 28 themes at 1100 px plus compact 592/500 px layouts with 252 checks and zero overflow
+- retain the accepted 1.1.2+r21 protected sensor layer and v1.1.3 startup-resilience behavior
+- advance public app/installer identity to 1.2.0 without rewriting immutable v1.1.3
+- candidate gates: full build PASS, Setup verify 19/19, self-test PASS, clean-clone determinism PASS, SPDX 2.3 SBOM PASS, installed health STABLE
+
 ## 1.1.3 — Startup Resilience
 
 - add a second, privilege-independent Start-with-Windows recovery registration in the current user's Startup folder

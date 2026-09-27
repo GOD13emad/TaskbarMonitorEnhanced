@@ -1,8 +1,8 @@
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
-Brain Version: PB-2026-09-27-R31-V1.2.0-CANDIDATE
+Brain Version: PB-2026-09-27-R31B-V1.2.0-LOCAL-ACCEPTANCE
 Status: CURRENT
-Updated: 2026-09-27T16:24:00+03:30
+Updated: 2026-09-27T16:40:00+03:30
 
 
 ## CURRENT AUTHORITY — 2026-09-26 FINAL RUNTIME ACCEPTED
@@ -590,3 +590,27 @@ This section supersedes older current-state/next-action sections where they conf
 - Open gates: commit exact candidate; clean-clone determinism; SPDX SBOM against candidate commit; live installed-main runtime/UAT on the PC; exact-head GitHub CI. Public v1.2.0 publication is explicitly deferred and not authorized by this candidate state.
 - Current blocker: none technical before commit/determinism. Publication remains an irreversible later gate.
 - Exact next action: commit the candidate with this Brain/Knowledge state, run clean-clone determinism and SBOM on that exact commit, then perform a reversible user-level Main deployment while preserving the protected sensor layer and verify live Settings/hover/theme behavior.
+
+## R31B / v1.2.0 INSTALLED + PUBLIC-DOC EVIDENCE — 2026-09-27
+
+- Code authority commit remains `5fef3787979277be30fd79c810e9f0fdeb2a653b` for the v1.2.0 implementation.
+- Exact installed Main is already the candidate binary: ProductVersion `1.2.0+r01`, SHA256 `B90211E86AAF0AB05C3B87E2D2056A59B2D6369FCAD0ADCC8072A513FCB489D9`.
+- Installed Apps registry reports `DisplayVersion=1.2.0`.
+- Installed `Uninstall.exe` SHA256 is `3196986C62FC7D9A91500B0E3246D5640E6292D0ED1722F736505A4DD511B3CF`, exactly matching the candidate Setup.
+- Installed `install_state.json`: SensorLayerStatus=READY, SensorLayerVersion=`1.1.2+r21`, SensorLayerMode=`CURRENT_EXACT_1_1_2`, MainLaunchMode=`LAUNCHED_NON_ELEVATED_SETUP`.
+- Protected Broker/Supervisor hashes remain exactly accepted:
+  - Broker `182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833`
+  - Supervisor `38553CCE30D5D3F1A22AC6765C4A0F5D4D204970A3DAD7BA9467A326235FC196`
+- Installed health probe stdout: PASS with `R21=True JOB=True RESILIENCE=STABLE SUP=True CPU=True/True GPU=True/True STORAGE=True/True`.
+- Installed hover regression: PASS with move/watchdog suppression and hidden flyout.
+- Start-with-Windows remains enabled with both HKCU Run and Startup Recovery shortcut present.
+- User configuration was preserved; current config remains valid schema 3.
+- Foreground GUI screenshot confirms the running taskbar monitor is visible on the Windows taskbar. Direct mouse takeover was rejected by connector policy with `GUI_TAKEOVER_NOT_AUTHORIZED`; no attempt was made to bypass that control.
+- This does not invalidate the automated UI evidence: Settings proof uses a real shown/painted WinForms form and captures all 8 pages; hover behavior has a dedicated installed-binary regression.
+- Public-facing screenshot gallery has been synchronized to the v1.2.0 evidence: 28 theme strips, 56 compact strips, 8 Settings pages, and generated contact sheets.
+- Gallery visual review: PASS for Settings hierarchy/readability, 28-theme differentiation, and 500px compact readability.
+- Markdown relative-link audit: 38 Markdown files checked, 0 broken links.
+- v1.2.0 candidate acceptance record added under `docs/acceptance/v1.2.0/CANDIDATE_ACCEPTANCE.json`.
+- Public v1.1.3 remains immutable; no public v1.2.0 tag/release has yet been accepted at this point.
+- Open critical gate: commit this documentation/evidence delta, rerun exact-head clean-clone determinism + SPDX SBOM, push branch, require exact-head GitHub CI PASS. Public release/promotion remains deferred until those gates.
+- Exact next action: commit R31B documentation/evidence delta, then run exact-head build/determinism/SBOM and GitHub CI.

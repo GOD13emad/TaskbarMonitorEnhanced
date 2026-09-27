@@ -299,3 +299,29 @@
 - Current status: local build/visual/functional proof PASS; clean-clone determinism, candidate SBOM, live installed-main validation and exact-head GitHub CI remain open at this record point.
 - Confidence/Status: CONFIRMED boundary / publication NOT YET ACCEPTED.
 - Reuse Targets: release engineering and provenance.
+
+
+## 2026-09-27 — installed v1.2.0 identity and gallery acceptance
+
+### Record G — installed candidate identity
+- Claim: installed Main and Uninstaller exactly match the locally qualified v1.2.0 candidate.
+- Evidence: Main SHA256 `B90211E86AAF0AB05C3B87E2D2056A59B2D6369FCAD0ADCC8072A513FCB489D9`; Uninstall/Setup SHA256 `3196986C62FC7D9A91500B0E3246D5640E6292D0ED1722F736505A4DD511B3CF`; registry DisplayVersion `1.2.0`.
+- Sensor state: READY, `1.1.2+r21`, exact Broker/Supervisor hashes preserved.
+- Runtime evidence: health probe PASS, resilience STABLE, CPU/GPU/storage transport and data available.
+- Confidence/Status: CONFIRMED / installed technical validation PASS.
+- Reuse Targets: final acceptance, release notes, support diagnostics.
+- Provenance: `%LOCALAPPDATA%\TaskbarMonitorEnhanced\install_state.json`, uninstall registry, installed binary hashes.
+
+### Record H — GUI interaction boundary
+- Observation: Remote Commander provided screenshot observation but rejected direct mouse interaction with `GUI_TAKEOVER_NOT_AUTHORIZED`.
+- Decision: do not bypass connector policy using alternate input injection.
+- Validation substitute: real WinForms Settings form is shown off-screen and painted before deterministic capture; all 8 pages reviewed. Installed `--hoverguardproof` directly validates the reported Settings-open flyout failure path.
+- Status: foreground manual mouse UAT MISSING by tool authority; automated UI/behavior evidence PASS.
+- Reuse Targets: final report and release-risk statement.
+
+### Record I — current gallery/public documentation
+- Evidence: `docs/screenshots/themes` now contains 28 full-width live-data theme proofs + manifest/contact sheet; `docs/screenshots/compact` contains 56 592/500px proofs + manifest/contact sheets; `docs/screenshots/settings` contains 8 Settings proofs + manifest/contact sheet.
+- Visual review: PASS for representative and contact-sheet inspection.
+- Markdown link audit: 38 files, 0 broken relative links.
+- Decision: current README/DOWNLOAD/release/acceptance docs distinguish v1.2.0 candidate from immutable public v1.1.3 until exact-head CI/publication completes.
+- Confidence/Status: CONFIRMED / documentation ready for CI gate.

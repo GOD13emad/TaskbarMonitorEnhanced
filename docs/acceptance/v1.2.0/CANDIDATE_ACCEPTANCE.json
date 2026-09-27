@@ -1,0 +1,43 @@
+{
+  "Status": "CANDIDATE_LOCAL_GATES_PASS_GITHUB_PENDING",
+  "Version": "1.2.0",
+  "Build": "V1_2_0_R01_MODERN_SETTINGS_THEME_LIBRARY",
+  "SourceCommit": "5fef3787979277be30fd79c810e9f0fdeb2a653b",
+  "Date": "2026-09-27",
+  "Baseline": {
+    "PreviousPublicRelease": "v1.1.3",
+    "ProtectedSensorLayer": "1.1.2+r21"
+  },
+  "Gates": {
+    "FullBuild": "PASS",
+    "Warnings": 0,
+    "Errors": 0,
+    "SetupVerify": "PASS_19_OF_19",
+    "SelfTest": "PASS_THEMES_28",
+    "HoverGuard": "PASS_MOVE_WATCHDOG_SUPPRESSED_FLYOUT_HIDDEN",
+    "ThemeProof": "PASS_28_OF_28_LIVE_DATA",
+    "CompactProof": "PASS_252_CHECKS_ZERO_OVERFLOW_WIDTHS_592_500",
+    "SettingsProof": "PASS_8_OF_8",
+    "CleanCloneDeterminism": "PASS",
+    "SPDX23SBOM": "PASS",
+    "InstalledIdentity": "PASS_EXACT_MAIN_AND_UNINSTALLER_HASH",
+    "InstalledHealth": "PASS_R21_STABLE_CPU_GPU_STORAGE",
+    "ProtectedSensorHashPreservation": "PASS",
+    "ExactHeadGitHubCI": "PENDING",
+    "PublicReleasePublication": "PENDING"
+  },
+  "Hashes": {
+    "Main": "B90211E86AAF0AB05C3B87E2D2056A59B2D6369FCAD0ADCC8072A513FCB489D9",
+    "Broker": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833",
+    "Supervisor": "38553CCE30D5D3F1A22AC6765C4A0F5D4D204970A3DAD7BA9467A326235FC196",
+    "Setup": "3196986C62FC7D9A91500B0E3246D5640E6292D0ED1722F736505A4DD511B3CF",
+    "ThemeProofManifest": "6791C6C44CA3FC7B547282E87864D7EF564BC70A02CAAB5C78A605533F47C304",
+    "CompactProofManifest": "0D6DEB7547BD218A96A5E264C12F2FFCF692E24453EE75BF3F8C7367D7928138",
+    "SettingsProofManifest": "5163A4D6CE85500A959DA8A72081CA8A67B993A4B8DDE52E18DE55E5BD2A588A",
+    "SBOM": "1592B7323FDF178878D5EDB86D6321BDFBB7316E3A46551D960890BA53733797"
+  },
+  "Notes": [
+    "Foreground mouse UAT was not used because the GUI connector denied interactive takeover; deterministic Settings/hover proofs and exact installed-binary validation were used instead.",
+    "No v1.2.0 public tag or release is accepted until exact-head GitHub CI and publication gates pass."
+  ]
+}
