@@ -4,11 +4,11 @@ This folder contains the custom Windows installer source used by Taskbar Monitor
 
 ## Current public authority
 
-This source tree targets the accepted public v1.2.0 modern-Settings/theme-library release identity. The immutable v1.2.0 release completed exact build, runtime, CI, provenance/SBOM and asset-digest gates.
+This source tree targets the v1.3.0 reliability/alerts/support candidate identity. The immutable v1.2.0 release remains the historical accepted baseline while v1.3.0 is qualified independently.
 
 ## Protected sensor baseline
 
-The installer source targets v1.2.0. The protected sensor layer retains the accepted internal compatibility identity `1.1.2+r21` when its exact compatibility gate passes; v1.2.0 updates the main application/UI/theme layer without replacing that validated sensor layer.
+The installer source targets v1.3.0. The protected sensor layer retains the accepted internal compatibility identity `1.1.2+r21` when its exact compatibility gate passes; v1.3.0 updates the main application/reliability/UI layer without replacing that validated sensor layer.
 
 Installer behavior includes:
 
@@ -28,4 +28,4 @@ The authoritative reproducible build path is ../build/Build.ps1.
 
 PawnIO is intentionally retained on uninstall because another hardware-monitoring application may depend on it.
 
-See ../docs/acceptance/v1.2.0/PUBLIC_RELEASE_ACCEPTANCE.json for current public authority. The candidate record is retained as pre-publication evidence; v1.1.3 remains immutable historical authority.
+See ../docs/acceptance/v1.2.0/PUBLIC_RELEASE_ACCEPTANCE.json for the immutable previous public authority until v1.3.0 publication completes. The candidate record is retained as pre-publication evidence; v1.1.3 remains immutable historical authority.

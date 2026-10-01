@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.0 — Reliability, Alerts & Support Tools
+
+- fix intermittent storage-temperature false degradation by accepting fresh atomic output independently from delayed worker exit, with bounded exit grace/reaping and a 20-second no-output budget
+- add continuous low-pressure Start-with-Windows self-heal with exact Run/shortcut contract validation
+- add independent CPU, GPU and disk temperature warning thresholds plus high-visibility hot-state rendering
+- add adaptive battery polling, session Pause/Resume monitoring and configurable 30-300 sample sparkline history
+- add Copy Diagnostics, Support ZIP export, live health badge and safe reset-to-defaults with timestamped config backup
+- expand Settings from eight to nine pages with a dedicated Alerts page and automatic Diagnostics refresh
+- add storage/startup/feature contract self-tests and support-bundle proof
+- retain 28 themes, 592/500 compact qualification, non-elevated Main and the accepted 1.1.2+r21 protected sensor compatibility layer
+- pre-install v1.3.0 acceptance: 13/13 proofs PASS, zero failures; Setup /verify and reproducible build PASS
 ## 1.2.0 — Modern Settings & Premium Themes
 
 - suppress hardware hover flyouts whenever Settings is active and add a dedicated regression proving mouse-move/watchdog suppression

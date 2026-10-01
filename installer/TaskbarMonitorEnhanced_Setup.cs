@@ -17,14 +17,14 @@ using Microsoft.Win32;
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.2.0.0")]
-[assembly: AssemblyFileVersion("1.2.0.0")]
-[assembly: AssemblyInformationalVersion("1.2.0+r01")]
+[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyFileVersion("1.3.0.0")]
+[assembly: AssemblyInformationalVersion("1.3.0+r33")]
 
 internal static class SetupProgram
 {
     const string Product="Taskbar Monitor Enhanced";
-    const string Version="1.2.0";
+    const string Version="1.3.0";
     const string SensorLayerVersion="1.1.2+r21";
     const string Publisher="Dr. Ali-Akbar Emadeddin";
     const string AppFolder="TaskbarMonitorEnhanced";
@@ -48,7 +48,7 @@ internal static class SetupProgram
       "Payload.COPYRIGHT_AND_ATTRIBUTION.md",
       "Payload.AI_ASSISTED_DEVELOPMENT.md",
       "Payload.THIRD_PARTY_NOTICES.md",
-      "Payload.RELEASE_NOTES_v1.2.0.md",
+      "Payload.RELEASE_NOTES_v1.3.0.md",
       "Payload.UPSTREAM_REFERENCE_GPL_NOTICE.md",
       "Payload.TaskbarMonitorEnhanced_Setup.cs"
     };
@@ -218,8 +218,8 @@ internal static class SetupProgram
         string sensorMode=sensorOutcome==null?"":(sensorOutcome.LayerMode??"");
         string json="{\r\n"+
           "  \"App\": \"Taskbar Monitor Enhanced\",\r\n"+
-          "  \"Version\": \"1.2.0\",\r\n"+
-          "  \"PublicVersion\": \"1.2.0\",\r\n"+
+          "  \"Version\": \"1.3.0\",\r\n"+
+          "  \"PublicVersion\": \"1.3.0\",\r\n"+
           "  \"InternalRuntimeBaseline\": \"V1_1_2_R21_PRODUCTION_HARDENING\",\r\n"+
           "  \"SensorSupervisor\": \"V1_1_2_R21_STAGGERED_HEALTH_SUPERVISOR\",\r\n"+
           "  \"SensorLayerStatus\": \""+sensorStatus.Replace("\\","\\\\").Replace("\"","\\\"")+"\",\r\n"+
@@ -426,7 +426,7 @@ internal static class SetupProgram
     static SensorOutcome Install(bool desktop,bool startup)
     {
         if(!Environment.Is64BitOperatingSystem)
-            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.2.0 requires 64-bit Windows.");
+            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.3.0 requires 64-bit Windows.");
 
         StopProcess("TaskbarMonitorEnhanced");
 
@@ -445,7 +445,7 @@ internal static class SetupProgram
         string[] docs=new string[]{
           "LICENSE","README.md","AUTHORS.md","COPYRIGHT_AND_ATTRIBUTION.md",
           "AI_ASSISTED_DEVELOPMENT.md","THIRD_PARTY_NOTICES.md",
-          "RELEASE_NOTES_v1.2.0.md","UPSTREAM_REFERENCE_GPL_NOTICE.md"
+          "RELEASE_NOTES_v1.3.0.md","UPSTREAM_REFERENCE_GPL_NOTICE.md"
         };
         foreach(string doc in docs)
             Extract("Payload."+doc,Path.Combine(AppRoot,"Docs",doc));
@@ -567,7 +567,7 @@ internal static class SetupProgram
                 }
             }
             if(!String.IsNullOrEmpty(path)){
-                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+",\"Version\":\"1.2.0\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\",\"SensorArchitecture\":\"R21_PROCESS_ISOLATED\",\"SensorUpgradePolicy\":\"REUSE_ACCEPTED_1_1_2_R21\"}";
+                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+",\"Version\":\"1.3.0\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\",\"SensorArchitecture\":\"R21_PROCESS_ISOLATED\",\"SensorUpgradePolicy\":\"REUSE_ACCEPTED_1_1_2_R21\"}";
                 File.WriteAllText(path,json,Encoding.UTF8);
             }
             return 0;
@@ -604,7 +604,7 @@ internal static class SetupProgram
             Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
             Label title=new Label();
-            title.Text=Product+"  1.2.0";
+            title.Text=Product+"  1.3.0";
             title.Font=new Font(Font.FontFamily,18,FontStyle.Bold);
             title.Left=28;title.Top=22;title.AutoSize=true;Controls.Add(title);
 
@@ -639,12 +639,12 @@ internal static class SetupProgram
                     progress.Visible=false;
                     status.Text="Installation completed.";
                     if(outcome.IsHealthy){
-                        MessageBox.Show(Product+" 1.2.0 was installed successfully.\r\n\r\nProtected hardware sensor monitoring is active.",
+                        MessageBox.Show(Product+" 1.3.0 was installed successfully.\r\n\r\nProtected hardware sensor monitoring is active.",
                           "Setup complete",MessageBoxButtons.OK,MessageBoxIcon.Information);
                     }else{
                         string extra=outcome.RebootRequired ? "\r\n\r\nRestart Windows, then use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors if needed." :
                           "\r\n\r\nThe application is installed and usable. The sensor supervisor continues in the background. If protected CPU/GPU/storage telemetry is still unavailable after a short wait or restart, use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors.";
-                        MessageBox.Show(Product+" 1.2.0 was installed successfully.\r\n\r\n"+outcome.Message+extra,
+                        MessageBox.Show(Product+" 1.3.0 was installed successfully.\r\n\r\n"+outcome.Message+extra,
                           "Setup complete - sensor warning",MessageBoxButtons.OK,MessageBoxIcon.Warning);
                     }
                     Close();
@@ -662,7 +662,7 @@ internal static class SetupProgram
     static int Main(string[] args)
     {
         bool createdNew=false;
-        using(Mutex mutex=new Mutex(true,@"Local\TaskbarMonitorEnhanced_Setup_1_2_0",out createdNew))
+        using(Mutex mutex=new Mutex(true,@"Local\TaskbarMonitorEnhanced_Setup_1_3_0",out createdNew))
         {
             if(!createdNew)
             {
