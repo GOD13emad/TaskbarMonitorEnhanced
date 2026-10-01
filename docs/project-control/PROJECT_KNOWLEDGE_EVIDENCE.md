@@ -402,3 +402,129 @@
 - Conclusion: documentation closeout did not perturb release binaries or immutable release authority.
 - Confidence/Status: CONFIRMED / PASS / FINAL.
 - Reuse Targets: future release baseline, regression authority, repository maintenance.
+
+## R32 Deep-PC Audit Knowledge Delta - 2026-10-01
+
+### K-R32-01 - Canonical-root consolidation without breaking operational ownership
+
+Status: CONFIRMED.
+
+- Project-owned inactive history/evidence should physically live under the canonical project root, but live installed runtime, OS integration objects, external application caches, cross-project evidence, and global tool backups must not be moved merely for neatness.
+- Correct pattern: inventory -> source hash manifest -> classify ownership -> MOVE only inactive TBME-owned content -> COPY cross-project/global-tool evidence -> SNAPSHOT live runtime/integration -> post-operation full re-hash.
+- R32 Phase 1 verified 2,049/2,049 files and Phase 2 verified 8,601/8,601 files with zero SHA-256 mismatches.
+- A compatibility junction can preserve historical absolute paths after physical archive consolidation, but it must be documented so future scans do not count it as a second physical authority.
+
+Prevention rule: never equate "everything belongs in root" with moving Windows operational files. Canonical knowledge can be complete while live deployment remains at required OS paths.
+
+### K-R32-02 - Whole-machine discovery must distinguish accessible volumes from drive letters
+
+Status: CONFIRMED.
+
+- C:, D:, and H: were mounted/readable and recursively scanned.
+- F: existed as a PowerShell drive letter but Test-Path F:\ was false with no mounted media.
+- Initial scan: 6,039 project-related matches. Post-consolidation scan outside root: 315 classified matches, D:=0.
+- Remaining matches were entirely explained by live runtime, shortcuts, external cache, global backup/cross-system evidence, and KISH_AI mirrors.
+
+Prevention rule: a drive-letter enumeration is not proof of a readable volume; record mount/readability before claiming full-machine coverage.
+
+### K-R32-03 - Shallow repositories can invalidate project-origin conclusions
+
+Status: CONFIRMED.
+
+- The local Git repository was shallow at audit start. Treating the earliest visible commit as project origin would have been false.
+- git fetch --unshallow origin --tags --prune restored full public history and v1.1.2 tag.
+- git fsck then exposed two dangling commits and two dangling blobs.
+- Dangling commits were preserved in a verified bundle and blobs were exported before any possible cleanup. No git gc/prune was run.
+- Legacy packages further proved that the actual enhanced project predates public Git: R9R3 on 2026-08-15 references R8 and contains the PowerShell runtime.
+
+Prevention rule: before historical conclusions, check git rev-parse --is-shallow-repository, fetch complete ancestry if safe, run fsck, and preserve unreachable evidence before cleanup.
+
+### K-R32-04 - Storage one-shot success contract can produce false degradation
+
+Status: CONFIRMED current defect; root-cause mechanism HIGH-CONFIDENCE.
+
+Evidence:
+- Supervisor storage timeout is fixed at 12 seconds.
+- Supervisor accepts storage success only after the one-shot process exits and then validates the output file.
+- Broker writes valid storage output and logs BROKER_ONCE_PASS after ReadStorage / AtomicWrite / Computer.Close, yet several attempts near the timeout boundary are still classified TIMEOUT by Supervisor.
+- Observed one-shot durations grew from sub-second/low-seconds to approximately 10-12 seconds; some attempts later did not log PASS before the Supervisor kill.
+- Valid SSD telemetry for all three installed SSDs was present, but Supervisor backoff made current storage transport/data unavailable and health probe DEGRADED.
+
+Inference:
+- Disk discovery is not the primary problem.
+- The contract couples valid data acceptance too tightly to worker process termination and a budget too close to real teardown/exit latency. Post-Main/managed/native teardown or lingering threads can keep the worker alive after useful data is available.
+
+Prevention/design rule:
+1. Validate freshness/schema of output independently from process-exit timing.
+2. Define timeout from measured latency percentiles plus bounded margin, not a single optimistic constant.
+3. Reap/kill a lingering worker after accepting valid output only if lifecycle safety is proven.
+4. Record elapsed read/write/close/exit stages separately.
+5. Add deterministic slow-exit, delayed-close, valid-output-before-exit, timeout/backoff, and recovery regression tests.
+6. Never label fresh validated data unavailable solely because exit acknowledgement missed a narrow polling window.
+
+### K-R32-05 - Native GPU faults must be interpreted with driver-transition chronology
+
+Status: CONFIRMED chronology; causal attribution remains UNPROVEN.
+
+- One isolated SensorBroker crash occurred on 2026-09-30 at 14:56:55 with AccessViolationException in LibreHardwareMonitor NvidiaML.NvmlDeviceGetPowerUsage / nvml.dll.
+- Windows UserPnp events at 14:56:53-14:56:54 show NVIDIA display services being re-added for the same RTX 3080 immediately before the crash.
+- The faulting NVML was 8.17.16.1656; current NVML is 8.17.16.1714 and the old DriverStore version is gone.
+- The GPU worker recovered to READY within seconds; Main stayed alive. Event-log audit from v1.2.0 publication through R32 found no second TBME application crash.
+
+Prevention rule: correlate native telemetry crashes with driver/PnP transitions before blaming routine steady-state code. Keep native hardware access isolated, add driver-transition testing, and preserve bounded recovery/backoff.
+
+### K-R32-06 - Startup self-heal is startup-scoped, not continuous
+
+Status: CONFIRMED.
+
+- At R32 start, config StartWithWindows=true and recovery shortcut were valid while the primary HKCU Run registration was absent.
+- Current startup log had no STARTUP_RUN error, so the actor that removed the Run value is UNPROVEN.
+- StartupManager.SetEnabled repairs primary Run and recovery shortcut only after a new primary instance crosses the mutex path.
+- Recovery invocation returns early when another Main is already running, before SetEnabled.
+- Therefore deletion after startup can leave redundancy degraded for the rest of the session.
+- R32 preserved prestate, removed orphan predecessor taskbar-monitor StartupApproved residue, restored exact primary Run value, and verified poststate PASS.
+
+Prevention rule: if StartWithWindows is enabled, verify both registration channels periodically or on a bounded maintenance trigger, with tests for deletion after the application is already running.
+
+### K-R32-07 - Audit harness failures are evidence failures, not product failures
+
+Status: CONFIRMED.
+
+Observed:
+- Full-drive synchronous search exceeded transport limits; solution was a background terminal plus persisted inventory.
+- A consolidation verifier failed on desktop.ini due item-resolution behavior after the move. State was audited first, then verification was repaired; mutation was not blindly repeated.
+- The first safe-proof harness returned zero result rows because PowerShell function scope and ArgumentList construction were wrong; zero-byte redirects and absent artifacts made the run INVALID / NOT COUNTED. A ProcessStartInfo.ArgumentList harness then produced 121 artifacts and 8 PASS / 1 genuine health FAIL.
+- Hardlink dedup failed on a long path. Transaction rollback left 5,487/5,487 eligible paths present and zero temporary residue.
+- LZX compression succeeded, but FileAttributes.Compressed remained unsuitable as a verifier for /EXE:LZX. Windows reported 7,293 compressed files and 2.1:1 ratio; full post-compression SHA-256 verification passed 7,419/7,419.
+
+Prevention rule: validate the verifier itself. A harness with no expected artifacts or an unsuitable OS attribute must not be used to declare product failure. After a mutation failure, inspect state before deciding whether any rerun is safe.
+
+### K-R32-08 - Archive cleanup: preserve semantic paths, remove only proven redundant copies
+
+Status: CONFIRMED.
+
+- Legacy download history is meaningful chronological evidence; widespread hash duplicates may still encode stage/provenance by filename/path.
+- Only four explicit copy-suffixed files were deleted after a same-hash canonical counterpart was proven. Broad duplicate deletion was intentionally avoided.
+- Ten inactive self-hosted runner trees contained 3.06 GB logical data with heavy duplication. Instead of destructive dedup, NTFS LZX compression preserved every path and byte while freeing about 1.53 GB.
+
+Prevention rule: prefer reversible/transparent storage compression for forensic history over deleting same-content files whose paths may have evidentiary meaning.
+
+### K-R32-09 - Dependency lock is current and reproducible as of audit date
+
+Status: CONFIRMED.
+
+- LibreHardwareMonitor pinned 0.9.6; cached ZIP hash exactly matches lock SHA-256 086D9F1B5A99E643EDC2CFAAAC16051685B551E4C5AC0B32A57C58C0E529C001.
+- PawnIO pinned 2.2.0; cached installer hash exactly matches lock SHA-256 1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032.
+- Official GitHub latest-release metadata queried from Emad PC reported v0.9.6 and 2.2.0 respectively, both stable/current.
+
+Prevention rule: evaluate a dependency update because of a concrete defect or new upstream release, not merely because a native fault occurred during a driver transition.
+
+### K-R32-10 - Release acceptance and current runtime health are different authorities
+
+Status: CONFIRMED.
+
+- v1.2.0 release acceptance remains immutable evidence of what passed at publication.
+- R32 current health proof is DEGRADED because the live Storage lane is in timeout/backoff.
+- It is incorrect to rewrite historical release acceptance as failed; it is equally incorrect to use historical acceptance to claim current live full-health when new evidence contradicts it.
+
+Prevention rule: always label time-scoped release acceptance separately from current operational health.

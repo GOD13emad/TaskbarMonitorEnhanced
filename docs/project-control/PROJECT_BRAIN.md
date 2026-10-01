@@ -1,8 +1,102 @@
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
-Brain Version: PB-2026-09-27-R31D-V1.2.0-PUBLIC
-Status: CURRENT
-Updated: 2026-09-27T17:16:53+03:30
+Brain Version: PB-2026-10-01-R32-DEEP-PC-AUDIT
+Status: CURRENT_DEEP_AUDIT_OPEN_TECHNICAL_GATES
+Updated: 2026-10-01T13:22:43.1531378+03:30
+
+## CURRENT AUTHORITY - 2026-10-01 R32 DEEP PC AUDIT / CONSOLIDATED ROOT
+
+This section supersedes older Current authority / Current critical gate / Exact next action statements below where they conflict. Historical release acceptance records remain immutable evidence and are not rewritten.
+
+### Authority and scope
+
+- FACT / CONFIRMED: Canonical project root is C:\Users\Aa.Emad\source\repos\TaskbarMonitorEnhanced.
+- FACT / CONFIRMED: Immutable public release authority remains v1.2.0. The annotated v1.2.0 tag peels to release commit 84d22fae6638b21683ea828e86517d100ced1654. The release remains FINAL_PUBLIC_RELEASE_ACCEPTED; this R32 audit does not mutate that tag or its published assets.
+- FACT / CONFIRMED: Main/control head immediately before R32 audit-record mutation was f1136bbf0501f37040162db37b85562ce0901378.
+- FACT / CONFIRMED: Local forensic/history/runtime evidence is consolidated under .local and ignored by Git. Live installed runtime remains at its Windows operational paths because moving it would break the application; a full snapshot and integration-state snapshot are retained under .local\runtime-snapshots\2026-10-01.
+- FACT / CONFIRMED: Only Emad-PC-Ultimate was used for the machine audit and filesystem mutations.
+
+### Full-PC discovery and consolidation
+
+- FACT / CONFIRMED: A recursive name/path discovery scanned all mounted data volumes C:, D:, and H:. F: existed only as an unmounted drive letter with Test-Path F:\ = false, so it had no readable filesystem to scan.
+- FACT / CONFIRMED: Pre-consolidation discovery found 6,039 project-related path/name matches. D: contributed no project match; H: contributed five matches.
+- FACT / CONFIRMED: Phase 1 consolidation moved 2,049 files / 1,229,439,290 bytes from the external project archive, Downloads\My Project\TBME, legacy _rc_tbme helpers, and legacy installers into the canonical root. Independent post-move SHA-256 verification passed 2,049/2,049 with zero mismatches.
+- FACT / CONFIRMED: Phase 2 consolidation handled 34 source objects / 8,601 files / 3,143,198,410 bytes, including ten inactive self-hosted runner trees, sixteen historical TBME boot workspaces, predecessor taskbar-monitor residue, the SensorBroker crash dump, three H:\My app release artifacts, and safe copies of cross-system/global-backup evidence. Independent post-operation verification passed 8,601/8,601 with zero mismatches.
+- FACT / CONFIRMED: Four explicit copy-suffixed download duplicates were deleted only after exact SHA-256 canonical counterparts were proven; 368,693 bytes were removed while the pre-move manifest preserves original paths and hashes.
+- FACT / CONFIRMED: Inactive runner infrastructure contains 7,419 files / 3,060,754,534 logical bytes. Windows LZX archive compression processed 7,293 files at about 2.1:1 and freed about 1.53 GB on C:. Full post-compression SHA-256/size verification passed 7,419/7,419 with zero failures.
+- FACT / CONFIRMED: Post-consolidation full-PC scan found 315 related matches outside the root: 313 on C:, zero on D:, and two on H:. Every remaining match is classified as live runtime/sensor/shortcut, external software cache, global Remote Commander backup, cross-system evidence, or KISH_AI cross-project mirror. No inactive TBME-owned workspace/archive remains unclassified outside the root.
+- FACT / CONFIRMED: Razer cache items and KISH_AI references were copied into the root with hashes while originals were preserved because they belong to other software/projects. The two KISH_AI C:/H: mirrors are pairwise SHA-256 identical.
+
+### Reconstructed project origin and evolution
+
+- FACT / CONFIRMED: Taskbar Monitor Enhanced is a GPL derivative of leandrosa81/taskbar-monitor; attribution is preserved in the tracked repository.
+- FACT / CONFIRMED: The enhanced project predates the public Git history. The earliest recovered local package is R9R3 from 2026-08-15 and contains a PowerShell runtime, TaskbarMonitorEnhanced.ps1. Its manifest identifies R8 as baseline and already defines R10/R11/R12/R13 follow-on work.
+- FACT / CONFIRMED: The recovered Git repository is now unshallowed. Its root commit is 4307824c4c1cdb3138b81f0fca6019c00439ed2e, dated 2026-08-16T02:00:29+03:30, subject Initial public release: Taskbar Monitor Enhanced 1.0.0.
+- FACT / CONFIRMED: Public release lineage is v1.0.0 -> V1.0.2 -> v1.1.0 -> v1.1.1 -> v1.1.2 -> v1.1.3 -> v1.2.0.
+- FACT / CONFIRMED: Four dangling Git objects discovered after unshallow were preserved before any cleanup: two commits in .local\history\git-dangling\dangling-commits.bundle with bundle verification PASS and two exported blobs. No destructive git gc/prune was performed.
+
+### Current build and functional validation
+
+- FACT / CONFIRMED: Current main builds locally with Build.ps1 -NoDownload: Main, Broker, Supervisor, and Setup all compile with 0 warnings / 0 errors; windowless sensor PE, canonical text payload, and reproducible-build gates PASS.
+- FACT / CONFIRMED: dependency lock is intact. LibreHardwareMonitor 0.9.6 and PawnIO 2.2.0 cached artifacts exactly match dependencies.lock.json SHA-256 values. GitHub release metadata checked from Emad PC reports both pinned versions as latest stable as of this audit.
+- FACT / CONFIRMED: corrected R32 safe-proof harness produced 121 evidence artifacts and 8 PASS / 1 FAIL: selftest, hover-guard, 8-page Settings, 28-theme proof, compact 592/500 proof, hardware probe, temperature probe, and real shell/taskbar state PASS. Health probe exits 12 because the live storage lane is degraded.
+- FACT / CONFIRMED: real shellstate proof reports WindowValid=true, Visible=true, ParentOk=true, active-beacon PASS, and direct taskbar parenting.
+- FACT / CONFIRMED: current binary signing status is NotSigned for Main/Broker/Supervisor/Setup and installed Main/Uninstaller. Public-trust signing remains external/pending.
+
+### Current open technical gates
+
+1. STORAGE SENSOR HEALTH - OPEN / CURRENT RUNTIME BLOCKER FOR FULL-HEALTH CLAIM.
+   - FACT: R21 process containment is healthy, CPU and GPU lanes are healthy, but StorageTransportHealthy=false / StorageDataAvailable=false during the R32 health proof.
+   - FACT: Supervisor uses a fixed 12-second storage one-shot timeout and requires worker process exit before accepting success.
+   - FACT: storage broker logs show valid BROKER_ONCE_PASS/data can occur near the timeout boundary, while Supervisor can still classify the attempt TIMEOUT and enter 180/300-second backoff. Later attempts sometimes fail to reach BROKER_ONCE_PASS before timeout.
+   - FACT: the storage JSON has demonstrated valid readings for all three SSDs, while Main correctly marks disk temperature unavailable when that data becomes stale.
+   - INFERENCE / HIGH CONFIDENCE: the failure is a one-shot completion/exit-latency contract problem around LibreHardwareMonitor storage teardown/worker termination plus an overly tight 12-second Supervisor budget, not inability to discover the disks.
+   - EXACT NEXT ENGINEERING ACTION: R32-1 must change storage acceptance so fresh validated output is not discarded merely because process exit lags near the timeout, define a measured timeout/hysteresis policy, reap lingering workers safely, and add slow-exit/timeout/backoff regression tests.
+
+2. GPU NVML DRIVER-TRANSITION CRASH - CONTAINED / HARDENING GATE.
+   - FACT: on 2026-09-30 at 14:56:55 the isolated SensorBroker terminated with AccessViolationException in LibreHardwareMonitor NvidiaML.NvmlDeviceGetPowerUsage / nvml.dll.
+   - FACT: Windows UserPnp events at 14:56:53-14:56:54 show NVIDIA display-driver services being re-added for the same RTX 3080 immediately before the crash.
+   - FACT: the crashing NVML was version 8.17.16.1656; current NVML is 8.17.16.1714 and the old DriverStore copy is no longer present.
+   - FACT: GPU broker recovered to READY within seconds and Main remained operational; no other TBME Application/.NET crash was found from the v1.2.0 release window through this audit.
+   - INFERENCE / HIGH CONFIDENCE: the incident is strongly correlated with an NVIDIA driver transition/update, while exact culpability between driver/NVML and LHM call timing remains unproven.
+   - PROPOSAL: add a display-driver-transition regression lane and bounded GPU worker quarantine/backoff around repeated native faults; do not weaken process isolation.
+
+3. START-WITH-WINDOWS REDUNDANCY - LIVE STATE REPAIRED / CODE GAP OPEN.
+   - FACT: config had StartWithWindows=true and the recovery Startup shortcut was valid, but the primary HKCU Run value was absent at audit start.
+   - FACT: startup logs did not show a STARTUP_RUN write error at the current Main start, so the later remover is unproven.
+   - FACT: StartupManager repairs registrations only when a new primary instance reaches SetEnabled; a recovery invocation exits early if an existing primary is already running. There is no continuous registration watchdog.
+   - FACT: R32 preserved prestate, removed the orphan predecessor taskbar-monitor StartupApproved entry, restored the exact expected TaskbarMonitorEnhanced HKCU Run value, and verified poststate PASS.
+   - PROPOSAL: bounded periodic self-check/repair while StartWithWindows=true, with explicit tests for deletion after startup.
+
+4. PUBLIC TRUST SIGNING - OPEN EXTERNAL GATE.
+   - FACT: v1.2.0 is functionally/public-release accepted but remains unsigned. SignPath/public-trust acceptance is not proven.
+   - PROPOSAL: complete an external trusted signing provider workflow only for a newly versioned release or a release whose exact published artifact was already signed before publication; never rewrite immutable historical assets.
+
+5. MAINTAINABILITY / TEST ARCHITECTURE - DEBT, NOT CURRENT RELEASE BLOCKER.
+   - FACT: src\TaskbarMonitorEnhanced.cs is approximately 7,638 lines and centralizes many UI, telemetry, update, proof, and configuration responsibilities.
+   - FACT: no xUnit/NUnit/MSTest project was found; quality assurance is dominated by built-in CLI proofs, deterministic build gates, and integration/runtime acceptance.
+   - PROPOSAL: after R32-1 runtime health, split high-risk subsystems behind testable interfaces and add focused unit tests while retaining existing end-to-end proofs.
+
+### Current status and critical path
+
+- Historical v1.2.0 release acceptance: PRESERVED / IMMUTABLE.
+- Repository/build integrity: PASS.
+- PC-wide project consolidation: PASS.
+- Current UI/taskbar/CPU/GPU operation: PASS at audit time.
+- Current full sensor-health claim: FAIL / DEGRADED because storage lane is in timeout/backoff.
+- Current public trusted signing: PENDING EXTERNAL PROVIDER.
+- Critical path: R32-1 Storage completion/timeout contract -> R32-2 startup continuous self-heal -> GPU driver-transition hardening -> maintainability/test decomposition. Public trusted signing is a parallel external gate.
+- Exact next action: implement and validate R32-1 without mutating v1.2.0 tag/assets; require build, selftest, storage fault/slow-exit regression, live health PASS, and downstream CPU/GPU/taskbar regression before promotion.
+
+### R32 evidence roots
+
+- .local\audit\2026-10-01
+- .local\history
+- .local\archive
+- .local\infrastructure
+- .local\forensics
+- .local\runtime-snapshots\2026-10-01
+
 
 
 ## CURRENT AUTHORITY — 2026-09-26 FINAL RUNTIME ACCEPTED

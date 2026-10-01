@@ -10,7 +10,7 @@ https://github.com/GOD13emad/TaskbarMonitorEnhanced
 
 The project is prepared for the SignPath Foundation open-source signing program. **External acceptance and a production public-trust signature are not yet proven.** The self-signed development certificate documented under `docs/security/` validates the signing pipeline only and is not public publisher trust.
 
-Therefore, **v1.1.3 is treated as unsigned unless its release artifact carries an independently verifiable Authenticode signature from a publicly trusted provider.** Windows may show **Unknown publisher**. This status is stated explicitly rather than inferred from provider-readiness work.
+Therefore, the current public release, **v1.2.0, is treated as unsigned unless its release artifact carries an independently verifiable Authenticode signature from a publicly trusted provider.** The accepted v1.2.0 release evidence records PublicTrust=UNSIGNED_PENDING_EXTERNAL_PROVIDER, and the current binaries remain NotSigned. Windows may show **Unknown publisher**. This status is stated explicitly rather than inferred from provider-readiness work.
 
 ## Official release artifacts
 
@@ -22,7 +22,7 @@ The immutable historical v1.1.2 release remains fixed. Its tag is `aab35e5e0e342
 
 `25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB`
 
-v1.1.2 is never retroactively signed or replaced. v1.1.3 is a separately versioned reliability release and does not alter the v1.1.2 tag or assets.
+v1.1.2 is never retroactively signed or replaced. v1.1.3 is an immutable historical reliability release, and v1.2.0 is the current immutable public release. No historical tag or release asset is rewritten merely to add a signature; any future publicly trusted signing change must use a newly versioned release unless the exact published artifact was already signed before publication.
 
 ## Team roles
 
