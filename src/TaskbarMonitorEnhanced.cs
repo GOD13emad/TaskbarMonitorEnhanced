@@ -6238,33 +6238,136 @@ namespace TaskbarMonitorEnhanced
             }
         }
 
+        private static string ExpectedRunCommand(string executablePath)
+        {
+            return "\""+executablePath+"\"";
+        }
+
+        private static bool RecoveryShortcutMatches(string shortcut,string executablePath)
+        {
+            if(!File.Exists(shortcut)||new FileInfo(shortcut).Length<=0)return false;
+            Type shellType=null;object shell=null;object link=null;
+            try
+            {
+                shellType=Type.GetTypeFromProgID("WScript.Shell");
+                if(shellType==null)return false;
+                shell=Activator.CreateInstance(shellType);
+                link=shellType.InvokeMember("CreateShortcut",BindingFlags.InvokeMethod,null,shell,new object[]{shortcut});
+                Type linkType=link.GetType();
+                string target=Convert.ToString(linkType.InvokeMember("TargetPath",BindingFlags.GetProperty,null,link,null),CultureInfo.InvariantCulture)??"";
+                string args=Convert.ToString(linkType.InvokeMember("Arguments",BindingFlags.GetProperty,null,link,null),CultureInfo.InvariantCulture)??"";
+                string work=Convert.ToString(linkType.InvokeMember("WorkingDirectory",BindingFlags.GetProperty,null,link,null),CultureInfo.InvariantCulture)??"";
+                return String.Equals(Path.GetFullPath(target),Path.GetFullPath(executablePath),StringComparison.OrdinalIgnoreCase)&&
+                       String.Equals(args.Trim(),RecoveryArgument,StringComparison.OrdinalIgnoreCase)&&
+                       String.Equals(
+                           Path.GetFullPath(String.IsNullOrWhiteSpace(work)?Path.GetDirectoryName(target):work),
+                           Path.GetFullPath(Path.GetDirectoryName(executablePath)),
+                           StringComparison.OrdinalIgnoreCase);
+            }
+            catch{return false;}
+            finally
+            {
+                if(link!=null&&Marshal.IsComObject(link))try{Marshal.FinalReleaseComObject(link);}catch{}
+                if(shell!=null&&Marshal.IsComObject(shell))try{Marshal.FinalReleaseComObject(shell);}catch{}
+            }
+        }
+
         private static void EnsureRecoveryShortcut(string executablePath)
         {
             string shortcut=RecoveryShortcutPath;
-            if(File.Exists(shortcut)&&new FileInfo(shortcut).Length>0)return;
+            if(RecoveryShortcutMatches(shortcut,executablePath))return;
             Directory.CreateDirectory(Path.GetDirectoryName(shortcut));
+            try{if(File.Exists(shortcut))File.Delete(shortcut);}catch{}
             CreateShortcut(shortcut,executablePath,RecoveryArgument);
-            Log.Write("INFO","STARTUP_RECOVERY_SHORTCUT_CREATED path="+shortcut);
+            if(!RecoveryShortcutMatches(shortcut,executablePath))
+                throw new InvalidOperationException("Recovery shortcut verification failed after creation.");
+            Log.Write("INFO","STARTUP_RECOVERY_SHORTCUT_REPAIRED path="+shortcut);
+        }
+
+        private static bool RunRegistrationMatches(string executablePath)
+        {
+            try
+            {
+                using(RegistryKey k=Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run",false))
+                {
+                    string value=k==null?null:Convert.ToString(k.GetValue(RunValueName,null,RegistryValueOptions.DoNotExpandEnvironmentNames),CultureInfo.InvariantCulture);
+                    return String.Equals(value,ExpectedRunCommand(executablePath),StringComparison.Ordinal);
+                }
+            }
+            catch{return false;}
+        }
+
+        public static bool EnsureExpectedState(bool enabled)
+        {
+            string executablePath=Application.ExecutablePath;
+            bool healthy=true;
+            if(enabled)
+            {
+                if(!RunRegistrationMatches(executablePath))
+                {
+                    healthy=false;
+                    try
+                    {
+                        using(RegistryKey k=Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
+                            k.SetValue(RunValueName,ExpectedRunCommand(executablePath),RegistryValueKind.String);
+                        Log.Write("WARN","STARTUP_RUN_SELFHEAL_REPAIRED");
+                    }
+                    catch(Exception ex){Log.Write("WARN","STARTUP_RUN_SELFHEAL_FAIL "+ex.Message);}
+                }
+                try
+                {
+                    if(!RecoveryShortcutMatches(RecoveryShortcutPath,executablePath))
+                    {
+                        healthy=false;
+                        EnsureRecoveryShortcut(executablePath);
+                    }
+                }
+                catch(Exception ex){healthy=false;Log.Write("WARN","STARTUP_RECOVERY_SELFHEAL_FAIL "+ex.Message);}
+                return healthy && RunRegistrationMatches(executablePath) && RecoveryShortcutMatches(RecoveryShortcutPath,executablePath);
+            }
+
+            try
+            {
+                using(RegistryKey k=Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
+                    k.DeleteValue(RunValueName,false);
+            }
+            catch(Exception ex){healthy=false;Log.Write("WARN","STARTUP_RUN_DISABLE_FAIL "+ex.Message);}
+            try
+            {
+                if(File.Exists(RecoveryShortcutPath))File.Delete(RecoveryShortcutPath);
+            }
+            catch(Exception ex){healthy=false;Log.Write("WARN","STARTUP_RECOVERY_DISABLE_FAIL "+ex.Message);}
+            return healthy && !RunRegistrationMatches(executablePath) && !File.Exists(RecoveryShortcutPath);
         }
 
         public static void SetEnabled(bool enabled)
         {
-            string executablePath=Application.ExecutablePath;
-            try
-            {
-                using(RegistryKey k=Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
-                {
-                    if(enabled)k.SetValue(RunValueName,"\""+executablePath+"\""); else k.DeleteValue(RunValueName,false);
-                }
-            }
-            catch(Exception ex){Log.Write("WARN","STARTUP_RUN "+ex.Message);}
+            EnsureExpectedState(enabled);
+        }
 
+        public static int RunContractSelfTest()
+        {
+            string dir=Path.Combine(Path.GetTempPath(),"tbme_startup_contract_"+Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture));
+            string target=Path.Combine(dir,"TaskbarMonitorEnhanced.exe");
+            string shortcut=Path.Combine(dir,"recovery.lnk");
             try
             {
-                if(enabled)EnsureRecoveryShortcut(executablePath);
-                else if(File.Exists(RecoveryShortcutPath))File.Delete(RecoveryShortcutPath);
+                Directory.CreateDirectory(dir);
+                File.WriteAllText(target,"selftest",Encoding.UTF8);
+                if(ExpectedRunCommand(target)!="\""+target+"\"")throw new InvalidOperationException("expected run command mismatch");
+                CreateShortcut(shortcut,target,RecoveryArgument);
+                if(!RecoveryShortcutMatches(shortcut,target))throw new InvalidOperationException("valid shortcut rejected");
+                CreateShortcut(shortcut,target,"--wrong-argument");
+                if(RecoveryShortcutMatches(shortcut,target))throw new InvalidOperationException("wrong shortcut argument accepted");
+                Console.WriteLine("TBME_STARTUP_CONTRACT_SELFTEST=PASS MAINTENANCE_SEC=60");
+                return 0;
             }
-            catch(Exception ex){Log.Write("WARN","STARTUP_RECOVERY "+ex.Message);}
+            catch(Exception ex)
+            {
+                Console.Error.WriteLine("TBME_STARTUP_CONTRACT_SELFTEST=FAIL "+ex);
+                return 15;
+            }
+            finally{try{Directory.Delete(dir,true);}catch{}}
         }
 
         public static bool IsRecoveryInvocation(string[] args)
@@ -7351,6 +7454,7 @@ namespace TaskbarMonitorEnhanced
         private IntPtr lastTaskbar=IntPtr.Zero;
         private int taskbarStableCount=0;
         private DateTime recreateNotBefore=DateTime.MinValue;
+        private DateTime nextStartupMaintenanceUtc=DateTime.MinValue;
         private bool shuttingDown=false;
         private int createCount=0;
 
@@ -7452,6 +7556,14 @@ namespace TaskbarMonitorEnhanced
 
             try
             {
+                DateTime hostNow=DateTime.UtcNow;
+                if(hostNow>=nextStartupMaintenanceUtc)
+                {
+                    nextStartupMaintenanceUtc=hostNow.AddSeconds(60);
+                    bool startupHealthy=StartupManager.EnsureExpectedState(config.StartWithWindows);
+                    if(!startupHealthy)Log.Write("WARN","HOST_STARTUP_MAINTENANCE_DEGRADED enabled="+config.StartWithWindows);
+                }
+
                 IntPtr current=Native.FindWindow("Shell_TrayWnd",null);
 
                 if(current==IntPtr.Zero)
@@ -7620,6 +7732,8 @@ namespace TaskbarMonitorEnhanced
                 if(args.Length<2){Console.Error.WriteLine("TBME_HEALTH_PROBE=FAIL missing json path");return 12;}
                 return HealthProbe.Run(args[1]);
             }
+            if(args!=null && args.Length>0 && args[0]=="--startup-contract-selftest")
+                return StartupManager.RunContractSelfTest();
             if(StartupManager.IsRecoveryInvocation(args)&&StartupManager.WaitForPrimaryInstanceOrTimeout())return 0;
             bool created;
             using(Mutex mutex=new Mutex(true,@"Local\TaskbarMonitorEnhanced_V1_1_0",out created))
