@@ -256,7 +256,8 @@ internal static class TaskbarMonitorSensorSupervisor
     const int CpuHardStallSeconds=60;
     const int CpuStartupGraceSeconds=60;
     const int StorageIntervalSeconds=60;
-    const int StorageTimeoutSeconds=12;
+    const int StorageTimeoutSeconds=20;
+    const int StorageOutputExitGraceSeconds=3;
     const long MaxSensorLogBytes=4L*1024L*1024L;
     const int SensorLogBackups=3;
 
@@ -298,9 +299,13 @@ internal static class TaskbarMonitorSensorSupervisor
     static readonly Worker Gpu=new Worker{Name="GPU",Mode="--run-gpu"};
     static Process StorageProcess;
     static DateTime StorageStartedUtc=DateTime.MinValue;
+    static DateTime StorageOutputAtStartUtc=DateTime.MinValue;
     static DateTime StorageNextUtc=DateTime.MinValue;
     static int StorageAttemptCount;
     static int StorageConsecutiveFailures;
+    static int StorageAcceptedBeforeExitCount;
+    static int StorageReapCount;
+    static long StorageLastCompletionMs;
     static string StorageLastReason="NOT_STARTED";
     static DateTime StorageLastOutputUtc=DateTime.MinValue;
     static bool StorageTransportHealthy;
@@ -418,6 +423,11 @@ internal static class TaskbarMonitorSensorSupervisor
                 "\"StorageWorkerAgeSeconds\":"+(StorageProcess==null||StorageStartedUtc==DateTime.MinValue?"0":Math.Max(0,(DateTime.UtcNow-StorageStartedUtc).TotalSeconds).ToString("0.0",CultureInfo.InvariantCulture))+","+
                 "\"StorageAttemptCount\":"+StorageAttemptCount+","+
                 "\"StorageConsecutiveFailures\":"+StorageConsecutiveFailures+","+
+                "\"StorageTimeoutSeconds\":"+StorageTimeoutSeconds+","+
+                "\"StorageOutputExitGraceSeconds\":"+StorageOutputExitGraceSeconds+","+
+                "\"StorageAcceptedBeforeExitCount\":"+StorageAcceptedBeforeExitCount+","+
+                "\"StorageReapCount\":"+StorageReapCount+","+
+                "\"StorageLastCompletionMs\":"+StorageLastCompletionMs+","+
                 "\"StorageLastReason\":\""+JsonEscape(StorageLastReason)+"\","+
                 "\"StorageTransportHealthy\":"+(StorageTransportHealthy?"true":"false")+","+
                 "\"StorageDataAvailable\":"+(StorageDataAvailable?"true":"false")+","+
@@ -593,8 +603,9 @@ internal static class TaskbarMonitorSensorSupervisor
         catch{return "";}
     }
 
-    static bool OutputDataAvailable(string path,out string error)
+    static bool TryReadOutputAvailability(string path,out bool available,out string error)
     {
+        available=false;
         error="";
         string json=ReadSharedText(path);
         if(String.IsNullOrWhiteSpace(json)){error="OUTPUT_EMPTY";return false;}
@@ -603,7 +614,9 @@ internal static class TaskbarMonitorSensorSupervisor
         int colon=json.IndexOf(':',ai);
         if(colon<0){error="AVAILABLE_FIELD_INVALID";return false;}
         string tail=json.Substring(colon+1).TrimStart();
-        bool available=tail.StartsWith("true",StringComparison.OrdinalIgnoreCase);
+        if(tail.StartsWith("true",StringComparison.OrdinalIgnoreCase))available=true;
+        else if(tail.StartsWith("false",StringComparison.OrdinalIgnoreCase))available=false;
+        else {error="AVAILABLE_FIELD_INVALID";return false;}
         if(!available)
         {
             int ei=json.IndexOf("\"Error\"",StringComparison.OrdinalIgnoreCase);
@@ -619,7 +632,101 @@ internal static class TaskbarMonitorSensorSupervisor
             }
             if(String.IsNullOrWhiteSpace(error))error="DATA_UNAVAILABLE";
         }
+        return true;
+    }
+
+    static bool OutputDataAvailable(string path,out string error)
+    {
+        bool available;
+        if(!TryReadOutputAvailability(path,out available,out error))return false;
         return available;
+    }
+
+    static bool TryEvaluateStorageOutput(
+        string path,
+        DateTime startedUtc,
+        DateTime baselineWriteUtc,
+        DateTime now,
+        out DateTime writeUtc,
+        out bool dataAvailable,
+        out string error)
+    {
+        writeUtc=OutputWriteUtc(path);
+        dataAvailable=false;
+        error="";
+        if(writeUtc==DateTime.MinValue)return false;
+        if(baselineWriteUtc!=DateTime.MinValue && writeUtc<=baselineWriteUtc)return false;
+        if(writeUtc<startedUtc.AddSeconds(-1) || writeUtc>now.AddSeconds(2))return false;
+        return TryReadOutputAvailability(path,out dataAvailable,out error);
+    }
+
+    static void MarkStorageSuccess(
+        DateTime now,
+        DateTime writeUtc,
+        bool dataAvailable,
+        string outputError,
+        string reason,
+        bool scheduleNext)
+    {
+        bool recovering=StorageConsecutiveFailures>0;
+        StorageDataAvailable=dataAvailable;
+        StorageOutputError=dataAvailable?"":outputError;
+        StorageTransportHealthy=true;
+        StorageLastOutputUtc=writeUtc;
+        StorageLastCompletionMs=(long)Math.Max(0,(writeUtc-StorageStartedUtc).TotalMilliseconds);
+        if(recovering)
+        {
+            StorageLastRecoveryUtc=now;
+            Log("STORAGE_RECOVERY priorFailures="+StorageConsecutiveFailures+" reason="+reason);
+        }
+        StorageConsecutiveFailures=0;
+        StorageLastReason=reason;
+        StorageNextUtc=scheduleNext?now.AddSeconds(StorageIntervalSeconds):DateTime.MaxValue;
+    }
+
+    static int StorageContractSelfTest()
+    {
+        string dir=Path.Combine(Path.GetTempPath(),"tbme_storage_contract_"+Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture));
+        string path=Path.Combine(dir,"storage.json");
+        try
+        {
+            Directory.CreateDirectory(dir);
+            DateTime start=DateTime.UtcNow.AddSeconds(-5);
+            DateTime baseline=start.AddSeconds(-2);
+
+            File.WriteAllText(path,"{\"Available\":true,\"Error\":\"\"}");
+            File.SetLastWriteTimeUtc(path,start.AddSeconds(1));
+            DateTime writeUtc;bool available;string error;
+            if(!TryEvaluateStorageOutput(path,start,baseline,DateTime.UtcNow,out writeUtc,out available,out error)||!available)
+                throw new InvalidOperationException("fresh available output rejected");
+
+            File.WriteAllText(path,"{\"Available\":false,\"Error\":\"NO_SENSOR\"}");
+            File.SetLastWriteTimeUtc(path,start.AddSeconds(2));
+            if(!TryEvaluateStorageOutput(path,start,baseline,DateTime.UtcNow,out writeUtc,out available,out error)||available||error!="NO_SENSOR")
+                throw new InvalidOperationException("fresh unavailable envelope rejected");
+
+            DateTime current=File.GetLastWriteTimeUtc(path);
+            if(TryEvaluateStorageOutput(path,start,current,DateTime.UtcNow,out writeUtc,out available,out error))
+                throw new InvalidOperationException("unchanged baseline output accepted");
+
+            File.WriteAllText(path,"{\"Error\":\"MISSING_AVAILABLE\"}");
+            File.SetLastWriteTimeUtc(path,DateTime.UtcNow);
+            if(TryEvaluateStorageOutput(path,start,baseline,DateTime.UtcNow,out writeUtc,out available,out error))
+                throw new InvalidOperationException("invalid envelope accepted");
+
+            Console.WriteLine("TBME_STORAGE_CONTRACT_SELFTEST=PASS TIMEOUT_SEC="+StorageTimeoutSeconds+
+                " EXIT_GRACE_SEC="+StorageOutputExitGraceSeconds);
+            return 0;
+        }
+        catch(Exception ex)
+        {
+            Console.Error.WriteLine("TBME_STORAGE_CONTRACT_SELFTEST=FAIL "+ex);
+            return 14;
+        }
+        finally
+        {
+            try{Directory.Delete(dir,true);}catch{}
+        }
     }
 
     static void MarkFreshOutput(Worker w,DateTime writeUtc,DateTime now)
@@ -818,6 +925,7 @@ internal static class TaskbarMonitorSensorSupervisor
         Process p=Process.Start(psi);
         if(p==null)throw new InvalidOperationException("STORAGE_BROKER_START_RETURNED_NULL");
         StorageProcess=p;
+        StorageOutputAtStartUtc=OutputWriteUtc(StorageOutput);
         StorageJobContained=ChildJobContainment.Attach(p);
         if(!StorageJobContained)Log("STORAGE_JOB_ATTACH_FAIL pid="+p.Id+" win32="+ChildJobContainment.LastError);
         StorageStartedUtc=DateTime.UtcNow;
@@ -869,34 +977,57 @@ internal static class TaskbarMonitorSensorSupervisor
 
         if(exited)
         {
-            DateTime writeUtc=OutputWriteUtc(StorageOutput);
-            bool fresh=writeUtc!=DateTime.MinValue && writeUtc>=StorageStartedUtc.AddSeconds(-1);
+            DateTime writeUtc;bool dataAvailable;string storageError;
+            bool valid=TryEvaluateStorageOutput(
+                StorageOutput,StorageStartedUtc,StorageOutputAtStartUtc,now,
+                out writeUtc,out dataAvailable,out storageError);
             try{StorageProcess.Dispose();}catch{}
             StorageProcess=null;
-            if(exitCode==0&&fresh)
+            if(exitCode==0&&valid)
             {
-                string storageError="";
-                StorageDataAvailable=OutputDataAvailable(StorageOutput,out storageError);
-                StorageOutputError=StorageDataAvailable?"":storageError;
-                StorageTransportHealthy=true;
-                StorageLastOutputUtc=writeUtc;
-                if(StorageConsecutiveFailures>0)
-                {
-                    StorageLastRecoveryUtc=now;
-                    Log("STORAGE_RECOVERY priorFailures="+StorageConsecutiveFailures);
-                }
-                StorageConsecutiveFailures=0;
-                StorageLastReason=StorageDataAvailable?"HEALTHY_DATA":"HEALTHY_NO_DATA";
-                StorageNextUtc=now.AddSeconds(StorageIntervalSeconds);
-                Log("STORAGE_PASS dataAvailable="+StorageDataAvailable+" nextSec="+StorageIntervalSeconds);
+                string reason=dataAvailable?"HEALTHY_DATA":"HEALTHY_NO_DATA";
+                MarkStorageSuccess(now,writeUtc,dataAvailable,storageError,reason,true);
+                Log("STORAGE_PASS source=EXIT dataAvailable="+dataAvailable+
+                    " completionMs="+StorageLastCompletionMs+" nextSec="+StorageIntervalSeconds);
             }
-            else StorageFailure("EXIT_"+exitCode+"_FRESH_"+fresh);
+            else StorageFailure("EXIT_"+exitCode+"_VALID_"+valid);
+            return;
+        }
+
+        DateTime earlyWriteUtc;bool earlyDataAvailable;string earlyError;
+        if(TryEvaluateStorageOutput(
+            StorageOutput,StorageStartedUtc,StorageOutputAtStartUtc,now,
+            out earlyWriteUtc,out earlyDataAvailable,out earlyError))
+        {
+            double postWriteAge=Math.Max(0,(now-earlyWriteUtc).TotalSeconds);
+            string baseReason=earlyDataAvailable?"HEALTHY_DATA":"HEALTHY_NO_DATA";
+            if(postWriteAge<StorageOutputExitGraceSeconds)
+            {
+                MarkStorageSuccess(now,earlyWriteUtc,earlyDataAvailable,earlyError,baseReason+"_EXIT_GRACE",false);
+                return;
+            }
+
+            StorageAcceptedBeforeExitCount++;
+            bool reaped=TryTerminateStorage();
+            if(reaped)
+            {
+                StorageReapCount++;
+                MarkStorageSuccess(now,earlyWriteUtc,earlyDataAvailable,earlyError,baseReason+"_REAPED",true);
+                Log("STORAGE_PASS source=FRESH_OUTPUT_REAP dataAvailable="+earlyDataAvailable+
+                    " completionMs="+StorageLastCompletionMs+" postWriteAgeSec="+
+                    postWriteAge.ToString("0.0",CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                MarkStorageSuccess(now,earlyWriteUtc,earlyDataAvailable,earlyError,baseReason+"_REAP_PENDING",false);
+                Log("STORAGE_REAP_PENDING validOutput=true pid="+StoragePid());
+            }
             return;
         }
 
         if((now-StorageStartedUtc).TotalSeconds>StorageTimeoutSeconds)
         {
-            StorageFailure("TIMEOUT");
+            StorageFailure("TIMEOUT_NO_VALID_OUTPUT");
         }
     }
 
@@ -942,6 +1073,8 @@ internal static class TaskbarMonitorSensorSupervisor
         {
             if(args!=null && args.Length==1 && String.Equals(args[0],"--power-notify-probe",StringComparison.OrdinalIgnoreCase))
                 return PowerResumeNotifications.ProbeRegistration()?0:7;
+            if(args!=null && args.Length==1 && String.Equals(args[0],"--storage-contract-selftest",StringComparison.OrdinalIgnoreCase))
+                return StorageContractSelfTest();
             if(!ParseArgs(args))return 2;
             if(!File.Exists(BrokerPath))return 3;
 
