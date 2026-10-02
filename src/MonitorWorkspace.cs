@@ -17,6 +17,11 @@ namespace TaskbarMonitorEnhanced
     internal sealed partial class OverlayForm
     {
         private WorkspaceForm workspace;
+        private bool lastBalloonWasUsage;
+        private string FormatTaskbarNetworkRate(double bytes){return config.NetworkRateInBits?NetworkRateFormatter.Bits(bytes):UnitFormatter.Rate(bytes,config.NetworkUnit);}
+        internal MetricsSnapshot WorkspaceSnapshotForProof(){return snapshot;}
+        internal void WorkspaceReadForProof(){if(!proofMode)throw new InvalidOperationException("Proof instance required.");ReadMetrics();}
+        internal string[] WorkspaceMetricKeysForProof(){return BuildMetricViews(ThemeCatalog.Get(config.Theme),1100).Select(m=>m.Key).ToArray();}
         private readonly TrafficLedger trafficLedger=new TrafficLedger(Path.Combine(AppPaths.Root,"traffic_history.json"));
         private readonly SustainedAlertGate usageGate=new SustainedAlertGate();
         private readonly Queue<AlertRecord> alertRecords=new Queue<AlertRecord>();
@@ -27,7 +32,7 @@ namespace TaskbarMonitorEnhanced
         {return DateTime.UtcNow<notificationsSnoozedUntil||SustainedAlertGate.IsQuiet(config.QuietHoursEnabled,config.QuietHoursStart,config.QuietHoursEnd,DateTime.Now);}
         private void CommitWorkspaceSample()
         {
-            if(proofMode)return;
+            if(proofMode||telemetryPaused)return;
             double at=workspaceClock.Elapsed.TotalSeconds;
             if(lastWorkspaceSample>=0&&at-lastWorkspaceSample>30)usageGate.Reset();
             lastWorkspaceSample=at;
@@ -45,14 +50,15 @@ namespace TaskbarMonitorEnhanced
             test("GPU usage",snapshot.GpuDevices.Any(d=>d.UsageAvailable),snapshot.Gpu,config.GpuUsageWarningPercent);
             var capacities=snapshot.DiskDevices.Where(d=>d.CapacityAvailable&&d.TotalBytes>0).ToList();
             test("Disk capacity",capacities.Count>0,capacities.Count>0?capacities.Max(d=>d.UsedPercent):0,config.DiskSpaceWarningPercent);
-            if(messages.Count>0&&trayIcon!=null)try{trayIcon.ShowBalloonTip(10000,"Taskbar Monitor - sustained load",String.Join("\n",messages.ToArray()),ToolTipIcon.Warning);}catch(Exception ex){Log.Write("WARN","USAGE_NOTIFICATION "+ex.GetType().Name);}
+            if(messages.Count>0&&trayIcon!=null)try{lastBalloonWasUsage=true;trayIcon.ShowBalloonTip(10000,"Taskbar Monitor - sustained load",String.Join("\n",messages.ToArray()),ToolTipIcon.Warning);}catch(Exception ex){Log.Write("WARN","USAGE_NOTIFICATION "+ex.GetType().Name);}
         }
         private void RecordAlert(string metric,string message)
         {alertRecords.Enqueue(new AlertRecord{Utc=DateTime.UtcNow,Metric=metric,Message=message});while(alertRecords.Count>200)alertRecords.Dequeue();}
         private void ApplyWorkspaceConfig()
         {
-            config.Normalize();config.Save();history.SetLimit(config.SparklineHistoryLength);Opacity=config.Opacity;
-            RefreshTelemetryTimerInterval();RefreshMenuChecks();Invalidate();
+            config.Normalize();history.SetLimit(config.SparklineHistoryLength);Opacity=config.Opacity;
+            if(!proofMode){config.Save();TaskbarLayout.ResetCache();ResetPlacementStability("WORKSPACE_APPLY");PositionOverlay(true);RefreshTelemetryTimerInterval();RefreshMenuChecks();}
+            Invalidate();
         }
         private void OpenWorkspace(string page)
         {
@@ -71,12 +77,12 @@ namespace TaskbarMonitorEnhanced
         private void CloseWorkspace()
         {
             if(workspace!=null){workspace.Close();workspace=null;}
-            if(!proofMode&&config.RecordTrafficHistory)trafficLedger.FlushAsync();
+            if(!proofMode&&config.RecordTrafficHistory&&!trafficLedger.FlushAndWait(1500))Log.Write("WARN","TRAFFIC_HISTORY_SHUTDOWN_TIMEOUT");
         }
         private List<MetricView> OrderWorkspaceMetrics(List<MetricView> views)
         {
             var order=(config.MetricOrder??"CPU;RAM;DISK;GPU;VRAM;NET").Split(';');
-            return views.OrderBy(v=>{int i=Array.IndexOf(order,v.GroupKey??v.Key);return i<0?order.Length:i;}).ToList();
+            return views.OrderBy(v=>{int i=Array.IndexOf(order,v.Key=="VRAM"?"VRAM":v.GroupKey??v.Key);return i<0?order.Length:i;}).ToList();
         }
     }
 
@@ -134,7 +140,7 @@ namespace TaskbarMonitorEnhanced
         private readonly ProcessSampler processSampler=new ProcessSampler();private int processBusy;
         private List<ProcessRow> processRows=new List<ProcessRow>();
         private readonly List<string> adapterIds=new List<string>();
-        private string lastAdapterSignature="";
+        private string lastAdapterSignature=null;
         private bool proof;
         internal WorkspaceForm(AppConfig c,Func<MetricsSnapshot> snapshot,Func<bool> isPaused,Action<bool> pause,TrafficLedger ledger,Func<AlertRecord[]> records,Action snoozeAction,Action applyAction,Func<string,int,int,Bitmap> renderer,bool proofMode=false)
         {
@@ -193,7 +199,7 @@ namespace TaskbarMonitorEnhanced
         {
             var p=Page("Processes");var bar=Bar();processSearch=new TextBox{Width=220,AccessibleName="Filter processes by name or PID",Margin=new Padding(4,7,4,4)};processSort=Combo(new[]{"CPU descending","Working set descending","PID ascending","Name ascending"},"Process sort",180);freezeProcesses=Check("Freeze processes",false);
             bar.Controls.AddRange(new Control[]{new Label{Text="Filter",AutoSize=true,Padding=new Padding(0,9,0,0)},processSearch,processSort,freezeProcesses,Button("Export visible CSV",()=>Export("Export visible process list","CSV files|*.csv","tbme-processes.csv",path=>WorkspaceExport.Processes(path,VisibleProcesses()))),Button("Task Manager",()=>Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory,"Taskmgr.exe")){UseShellExecute=true}))});
-            processes=Grid("Read-only process table","PID","Process","CPU %","Working set MiB","Private MiB","Threads","Handles");p.Controls.Add(processes);p.Controls.Add(bar);p.Controls.Add(Note("Read-only. Sampling runs only while this page is open. CPU is normalized across logical processors and needs two samples; protected or exited processes may show unavailable values."));
+            processes=Grid("Read-only process table","PID","Process","CPU %","Working set MiB","Private MiB","Threads","Handles");p.Controls.Add(processes);p.Controls.Add(bar);p.Controls.Add(Note("Read-only. Sampling runs only while this page is open. CPU is normalized across logical processors and needs two samples; protected or exited processes may be unavailable or omitted."));
             processSearch.TextChanged+=delegate{RenderProcesses();};processSort.SelectedIndexChanged+=delegate{RenderProcesses();};
         }
         private IEnumerable<ProcessRow> VisibleProcesses()
@@ -205,7 +211,7 @@ namespace TaskbarMonitorEnhanced
         private void PollProcesses()
         {
             if(freezeProcesses.Checked||proof||Interlocked.CompareExchange(ref processBusy,1,0)!=0)return;
-            ThreadPool.QueueUserWorkItem(delegate{try{var rows=processSampler.Read(Stopwatch.GetTimestamp()/(double)Stopwatch.Frequency);if(IsDisposed||!IsHandleCreated)return;try{BeginInvoke((MethodInvoker)delegate{if(!IsDisposed&&!freezeProcesses.Checked){processRows=rows;RenderProcesses();}});}catch(InvalidOperationException){} }catch(Exception ex){Log.Write("WARN","PROCESS_WORKSPACE_READ "+ex.GetType().Name);}finally{Interlocked.Exchange(ref processBusy,0);}});
+            ThreadPool.QueueUserWorkItem(delegate{try{var rows=processSampler.Read(Stopwatch.GetTimestamp()/(double)Stopwatch.Frequency);if(IsDisposed||!IsHandleCreated)return;try{BeginInvoke((MethodInvoker)delegate{if(!IsDisposed&&!freezeProcesses.Checked&&tabs.SelectedTab.Text=="Processes"){processRows=rows;RenderProcesses();}});}catch(InvalidOperationException){} }catch(Exception ex){Log.Write("WARN","PROCESS_WORKSPACE_READ "+ex.GetType().Name);}finally{Interlocked.Exchange(ref processBusy,0);}});
         }
         private void BuildNetwork()
         {
@@ -281,8 +287,10 @@ namespace TaskbarMonitorEnhanced
                 foreach(Control child in c.Controls)visit(child);
             };visit(this);if(chart!=null){chart.Theme=t;chart.Invalidate();}
         }
+        internal void NotifySystemPreferenceChanged(){if(!IsDisposed)ApplyPalette();}
         internal void PrepareProofProcesses()
         {
+            processSampler.Read(Stopwatch.GetTimestamp()/(double)Stopwatch.Frequency);Thread.Sleep(200);
             processRows=processSampler.Read(Stopwatch.GetTimestamp()/(double)Stopwatch.Frequency);
             RenderProcesses();
             if(themeFilter!=null){themeFilter.SelectedIndex=1;if(themes.Items.Contains("Art Deco Gold"))themes.SelectedItem="Art Deco Gold";}

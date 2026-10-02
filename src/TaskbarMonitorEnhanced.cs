@@ -456,11 +456,10 @@ namespace TaskbarMonitorEnhanced
 
         public void Normalize()
         {
-            NormalizeWorkspace();
             if (String.IsNullOrWhiteSpace(Theme) || String.Equals(Theme, "Auto", StringComparison.OrdinalIgnoreCase)) Theme = "Dark Minimal Pro";
             if (!ThemeCatalog.Names.Contains(Theme)) Theme = "Dark Minimal Pro";
             if (String.IsNullOrWhiteSpace(Position) || (Position != "Left" && Position != "Center" && Position != "Right")) Position = "Left";
-            if (Opacity < 0.55 || Opacity > 1.0) Opacity = 0.97;
+            if (!MetricStatistics.Finite(Opacity) || Opacity < 0.55 || Opacity > 1.0) Opacity = 0.97;
             if (UpdateIntervalMs < 1000 || UpdateIntervalMs > 5000) UpdateIntervalMs = 1000;
             if (MinWidthLogicalPx < 900 || MinWidthLogicalPx > 1500) MinWidthLogicalPx = 1100;
             if (MaxWidthLogicalPx < MinWidthLogicalPx) MaxWidthLogicalPx = Math.Max(1400, MinWidthLogicalPx);
@@ -468,7 +467,7 @@ namespace TaskbarMonitorEnhanced
             VerticalMarginLogicalPx = 0;
             SafePlacementPaddingLogicalPx = 0;
             if (String.IsNullOrWhiteSpace(FontFamily)) FontFamily = "Segoe UI";
-            if (FontSize < 6.5 || FontSize > 16.0) FontSize = 8.8;
+            if (!MetricStatistics.Finite(FontSize) || FontSize < 6.5 || FontSize > 16.0) FontSize = 8.8;
             if(ConfigSchemaVersion<2)
             {
                 CpuDisplayMode="Overall";GpuDisplayMode="Auto";DiskDisplayMode="Overall";NetworkDisplayMode="Overall";MultipleDeviceLayout="Grouped";MemoryUnit="Auto";StorageUnit="Auto";NetworkUnit="Auto";ShowRamNumeric=true;ShowDiskNumeric=true;EnableHardwareFlyout=true;HoverShowAllDevices=true;
@@ -490,6 +489,7 @@ namespace TaskbarMonitorEnhanced
             {
                 EnableTemperatureNotifications=false;ConfigSchemaVersion=6;
             }
+            NormalizeWorkspace();
             if(String.IsNullOrWhiteSpace(WindowsLightTheme)||!ThemeCatalog.Names.Contains(WindowsLightTheme))WindowsLightTheme="Nordic Light";
             if(String.IsNullOrWhiteSpace(WindowsDarkTheme)||!ThemeCatalog.Names.Contains(WindowsDarkTheme))WindowsDarkTheme="Dark Minimal Pro";
             TaskbarDisplay=TaskbarTargetPolicy.NormalizeConfigId(TaskbarDisplay);
@@ -986,7 +986,7 @@ namespace TaskbarMonitorEnhanced
             if(String.IsNullOrWhiteSpace(lane))return false;
             LaneState state;
             if(!lanes.TryGetValue(lane,out state)){state=new LaneState();lanes[lane]=state;}
-            if(!available)return false;
+            if(!available||!MetricStatistics.Finite(value)||!MetricStatistics.Finite(threshold))return false;
             if(value<=threshold-HysteresisC){state.LatchedHot=false;return false;}
             if(value<threshold||state.LatchedHot)return false;
             state.LatchedHot=true;
@@ -1004,6 +1004,8 @@ namespace TaskbarMonitorEnhanced
         public float CpuPercent,RamPercent,GpuPercent,VramUsedGb,VramTotalGb,NetDownMbps,NetUpMbps;
         public double DiskReadMBps,DiskWriteMBps;
         public float? CpuTempC,GpuTempC,DiskTempC;
+        public bool GpuUsageAvailable,NetworkAvailable,DiskRateAvailable;
+        internal SessionTelemetrySample Copy(){return (SessionTelemetrySample)MemberwiseClone();}
     }
 
     internal static partial class SessionTelemetryHistory
@@ -1019,6 +1021,9 @@ namespace TaskbarMonitorEnhanced
             if(s==null)return;
             SessionTelemetrySample x=new SessionTelemetrySample();
             x.Utc=DateTime.UtcNow;
+            x.GpuUsageAvailable=(s.GpuDevices??new List<GpuDeviceSnapshot>()).Any(d=>d!=null&&d.UsageAvailable);
+            x.NetworkAvailable=(s.NetworkDevices??new List<NetworkDeviceSnapshot>()).Any(d=>d!=null&&d.Active);
+            x.DiskRateAvailable=(s.DiskDevices??new List<DiskDeviceSnapshot>()).Any(d=>d!=null&&d.RateAvailable);
             x.CpuPercent=s.Cpu;x.RamPercent=s.Ram;x.GpuPercent=s.Gpu;x.VramUsedGb=s.VramUsedGb;x.VramTotalGb=s.VramTotalGb;
             x.NetDownMbps=s.NetDownMbps;x.NetUpMbps=s.NetUpMbps;
             x.DiskReadMBps=s.DiskReadBytesPerSec/(1024d*1024d);x.DiskWriteMBps=s.DiskWriteBytesPerSec/(1024d*1024d);
@@ -1033,8 +1038,8 @@ namespace TaskbarMonitorEnhanced
             }
         }
 
-        private static string N(double value){return value.ToString("0.###",CultureInfo.InvariantCulture);}
-        private static string N(float value){return value.ToString("0.###",CultureInfo.InvariantCulture);}
+        private static string N(double value){return MetricStatistics.Finite(value)?value.ToString("0.###",CultureInfo.InvariantCulture):"";}
+        private static string N(float value){return MetricStatistics.Finite(value)?value.ToString("0.###",CultureInfo.InvariantCulture):"";}
         private static string N(float? value){return value.HasValue?N(value.Value):"";}
 
         public static int ExportCsv(string path)
@@ -1050,8 +1055,8 @@ namespace TaskbarMonitorEnhanced
                 foreach(SessionTelemetrySample x in snapshot)
                 {
                     w.WriteLine(String.Join(",",new string[]{
-                        x.Utc.ToString("o",CultureInfo.InvariantCulture),N(x.CpuPercent),N(x.RamPercent),N(x.DiskReadMBps),N(x.DiskWriteMBps),
-                        N(x.GpuPercent),N(x.VramUsedGb),N(x.VramTotalGb),N(x.NetDownMbps),N(x.NetUpMbps),N(x.CpuTempC),N(x.GpuTempC),N(x.DiskTempC)
+                        x.Utc.ToString("o",CultureInfo.InvariantCulture),N(x.CpuPercent),N(x.RamPercent),x.DiskRateAvailable?N(x.DiskReadMBps):"",x.DiskRateAvailable?N(x.DiskWriteMBps):"",
+                        x.GpuUsageAvailable?N(x.GpuPercent):"",x.VramTotalGb>0?N(x.VramUsedGb):"",x.VramTotalGb>0?N(x.VramTotalGb):"",x.NetworkAvailable?N(x.NetDownMbps):"",x.NetworkAvailable?N(x.NetUpMbps):"",N(x.CpuTempC),N(x.GpuTempC),N(x.DiskTempC)
                     }));
                 }
             }
@@ -3954,7 +3959,7 @@ namespace TaskbarMonitorEnhanced
                 trayIcon.Visible=true;
                 trayIcon.ContextMenuStrip=menu;
                 trayIcon.DoubleClick+=delegate{OpenSettings();};
-                trayIcon.BalloonTipClicked+=delegate{OpenSettings("Alerts");};
+                trayIcon.BalloonTipClicked+=delegate{if(lastBalloonWasUsage)OpenWorkspace("Alerts");else OpenSettings("Alerts");};
 
                 // R07: the overlay itself is interactive. Left click opens Settings,
                 // right click opens the normal ContextMenuStrip. Because the window
@@ -4033,6 +4038,7 @@ namespace TaskbarMonitorEnhanced
         {
             if(cleanupDone)return;
             cleanupDone=true;
+            try{CloseWorkspace();}catch(Exception ex){Log.Write("WARN","WORKSPACE_CLOSE "+ex.GetType().Name);}
             try{metricTimer.Stop();}catch{}
             try{watchdog.Stop();}catch{}
             try{recoveryTimer.Stop();}catch{}
@@ -4516,6 +4522,7 @@ namespace TaskbarMonitorEnhanced
         {
             if(!temperatureNotificationState.ShouldNotify(lane,available,value,threshold,nowUtc))return;
             string body=lane+" temperature reached "+value.ToString("0.0",CultureInfo.InvariantCulture)+" C (warning "+threshold.ToString("0",CultureInfo.InvariantCulture)+" C).";
+            lastBalloonWasUsage=false;
             RecordAlert(lane+" temperature",body);
             try{trayIcon.ShowBalloonTip(10000,"Taskbar Monitor Enhanced - temperature warning",body,ToolTipIcon.Warning);Log.Write("WARN","TEMPERATURE_NOTIFICATION lane="+lane+" valueC="+value.ToString("0.0",CultureInfo.InvariantCulture)+" thresholdC="+threshold.ToString("0",CultureInfo.InvariantCulture));}
             catch(Exception ex){Log.Write("WARN","TEMPERATURE_NOTIFICATION_FAIL lane="+lane+" "+ex.Message);}
@@ -4857,6 +4864,7 @@ namespace TaskbarMonitorEnhanced
                 {
                     Invalidate();
                     if(settingsForm!=null&&!settingsForm.IsDisposed)settingsForm.NotifySystemPreferenceChanged();
+                    if(workspace!=null&&!workspace.IsDisposed)workspace.NotifySystemPreferenceChanged();
                     Log.Write("INFO","SYSTEM_APPEARANCE_CHANGED category="+e.Category+" resolvedTheme="+WindowsThemePolicy.ResolveName(config)+" highContrast="+SystemInformation.HighContrast);
                 }
             }
@@ -4891,6 +4899,7 @@ namespace TaskbarMonitorEnhanced
                 bool shouldPause=TelemetryPolicy.ShouldPause(userTelemetryPaused,systemTelemetryPaused);
                 if(resetEngine)lock(engineSync){if(!engineDisposed)engine.ResetAfterResume();}
                 telemetryPaused=shouldPause;
+                usageGate.Reset();trafficLedger.ResetBaseline();lastWorkspaceSample=-1;
                 if(shouldPause)
                 {
                     try{metricTimer.Stop();}catch{}
@@ -5459,7 +5468,7 @@ namespace TaskbarMonitorEnhanced
         {
             try
             {
-                if(settingsForm!=null&&!settingsForm.IsDisposed)
+                if((settingsForm!=null&&!settingsForm.IsDisposed)||(workspace!=null&&!workspace.IsDisposed))
                 {
                     if(hardwareFlyout!=null&&hardwareFlyout.Visible)hardwareFlyout.Hide();
                     lastHoverIndex=-1;lastHoverGroup="";lastHoverGeneration=-1;
@@ -5582,7 +5591,7 @@ namespace TaskbarMonitorEnhanced
 
         private void HoverWatchdog()
         {
-            if(settingsForm!=null&&!settingsForm.IsDisposed)
+            if((settingsForm!=null&&!settingsForm.IsDisposed)||(workspace!=null&&!workspace.IsDisposed))
             {
                 if(hardwareFlyout!=null&&hardwareFlyout.Visible)hardwareFlyout.Hide();
                 lastHoverIndex=-1;lastHoverGroup="";lastHoverGeneration=-1;
@@ -5685,11 +5694,11 @@ namespace TaskbarMonitorEnhanced
                 List<NetworkDeviceSnapshot> ds=SelectedNetworkDevices();Color c=t.Accents[idx++%t.Accents.Length];
                 if(Mode(config.NetworkDisplayMode,"Multiple")&&config.MultipleDeviceLayout=="Separate"&&ds.Count>1)
                 {
-                    for(int i=0;i<ds.Count;i++){NetworkDeviceSnapshot d=ds[i];MetricView m=MakeDual("NET:"+d.Id,"N"+i,"DL "+UnitFormatter.Rate(d.DownBytesPerSec,config.NetworkUnit),"UL "+UnitFormatter.Rate(d.UpBytesPerSec,config.NetworkUnit),(float)Math.Min(100,(d.DownBytesPerSec+d.UpBytesPerSec)*8d/1000000d),"NET:"+d.Id,c);m.GroupKey="NET";m.DeviceId=d.Id;m.DisplayName=d.Name;x.Add(m);}
+                    for(int i=0;i<ds.Count;i++){NetworkDeviceSnapshot d=ds[i];MetricView m=MakeDual("NET:"+d.Id,"N"+i,"DL "+FormatTaskbarNetworkRate(d.DownBytesPerSec),"UL "+FormatTaskbarNetworkRate(d.UpBytesPerSec),(float)Math.Min(100,(d.DownBytesPerSec+d.UpBytesPerSec)*8d/1000000d),"NET:"+d.Id,c);m.GroupKey="NET";m.DeviceId=d.Id;m.DisplayName=d.Name;x.Add(m);}
                 }
                 else
                 {
-                    double down=ds.Sum(d=>d.DownBytesPerSec),up=ds.Sum(d=>d.UpBytesPerSec);string label=Mode(config.NetworkDisplayMode,"Multiple")&&ds.Count>1?"NET"+ds.Count:"NET";MetricView m=MakeDual("NET",label,"DL "+UnitFormatter.Rate(down,config.NetworkUnit),"UL "+UnitFormatter.Rate(up,config.NetworkUnit),(float)Math.Min(100,(down+up)*8d/1000000d),"NET",c);m.GroupKey="NET";x.Add(m);
+                    double down=ds.Sum(d=>d.DownBytesPerSec),up=ds.Sum(d=>d.UpBytesPerSec);string label=Mode(config.NetworkDisplayMode,"Multiple")&&ds.Count>1?"NET"+ds.Count:"NET";MetricView m=MakeDual("NET",label,"DL "+FormatTaskbarNetworkRate(down),"UL "+FormatTaskbarNetworkRate(up),(float)Math.Min(100,(down+up)*8d/1000000d),"NET",c);m.GroupKey="NET";x.Add(m);
                 }
             }
 
@@ -5698,7 +5707,7 @@ namespace TaskbarMonitorEnhanced
             if(availableWidth>0 && availableWidth<620){int vramIndex=x.FindIndex(delegate(MetricView m){return m.Key=="VRAM";});if(vramIndex>=0)x.RemoveAt(vramIndex);}
             if(availableWidth>0 && availableWidth<520){int diskIndex=x.FindIndex(delegate(MetricView m){return m.GroupKey=="DISK";});if(diskIndex>=0)x.RemoveAt(diskIndex);}
             string compactKey=availableWidth.ToString(CultureInfo.InvariantCulture)+"|"+String.Join(",",x.ConvertAll(delegate(MetricView m){return m.Key;}).ToArray());if(!String.Equals(compactKey,lastCompactLayoutKey,StringComparison.Ordinal)){lastCompactLayoutKey=compactKey;Log.Write("INFO","COMPACT_LAYOUT width="+availableWidth+" metrics="+String.Join(",",x.ConvertAll(delegate(MetricView m){return m.Key;}).ToArray())+" font="+config.FontSize.ToString("0.0",CultureInfo.InvariantCulture));}
-            return x;
+            return OrderWorkspaceMetrics(x);
         }
         private MetricView Make(string key,string label,string value,float pct,string hist,Color c){MetricView m=new MetricView();m.Key=key;m.GroupKey=key;m.Label=label;m.Value=value;m.Value2=null;m.Percent=pct;m.History=history.Get(hist);m.Accent=c;return m;}
         private MetricView MakeDual(string key,string label,string value1,string value2,float pct,string hist,Color c){MetricView m=new MetricView();m.Key=key;m.GroupKey=key;m.Label=label;m.Value=value1;m.Value2=value2;m.Percent=pct;m.History=history.Get(hist);m.Accent=c;return m;}
@@ -5950,6 +5959,7 @@ namespace TaskbarMonitorEnhanced
                 else PaintStandardMetric(g,t,m,inner,labelFont,valueFont);
             }
             finally{labelFont.Dispose();valueFont.Dispose();}
+            if(m.Alert&&StudioThemes.IsStudio(t.Mode))using(Pen hot=new Pen(AlertPolicy.AlertColor,2f))g.DrawRectangle(hot,inner.X,inner.Y,Math.Max(1,inner.Width-1),Math.Max(1,inner.Height-1));
         }
 
         private void PaintStandardMetric(Graphics g,ThemeDefinition t,MetricView m,RectangleF r,Font labelFont,Font valueFont)

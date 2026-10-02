@@ -1,3 +1,18 @@
+# CURRENT CONTINUATION — R37 isolated integration verification
+
+Project: Taskbar Monitor Enhanced. Canonical root is C:\Users\Aa.Emad\source\repos\TaskbarMonitorEnhanced; active verified development is its .local\r37-work linked worktree, branch release/v1.6.0-r37-verified. Previous public authority remains immutable v1.5.0. Original-worktree candidate f170a8a is defective (empty committed StudioThemes.cs) and MUST NOT be installed/published.
+
+Current delta: exact-hash theme recovery; actual runtime ordering/bitrate/lifecycle hooks; schema 0..6 migration; unavailable-data gaps; finite-value guards; coalescing traffic writer with corrupt-file preservation; truthful live-data workspace proof. See R37_VERIFICATION.md for failures, evidence and rollback.
+
+Verification checkpoint: operation 18619848-e151-4327-8a31-b9e617c7f0ff passed build with 0 warnings/errors and all three contract suites. Additional model-regression operation 2ffa3f0b-3141-4fd8-b84e-9354d6008c08 passed: counter baselines/resets/gaps/adapter switches, explicit opt-in, coalesced exact final totals, corrupt-file preservation, 90-day retention, immutable snapshots, P95/finite statistics and transactional allowlisted profile import. Actual-data workspace proof 62051440-752f-48b9-8f2b-2bd0fce2a497 captured seven pages with NoSyntheticMetricData=true and 16 live samples; four key pages were visually reviewed. These are candidate verification results, not installed-runtime/public acceptance.
+
+Roadmap now: integration unit/contract verification COMPLETE -> final workspace completeness and UI acceptance -> exact source freeze -> full deterministic build -> CI/provenance -> configuration-preserving live upgrade + installed regression -> immutable publication -> cumulative transfer Brain and closure. Do not infer a whole-project completion percentage.
+
+Locked: sensor sources/protocols unchanged (Broker 1.1.2+r21, Supervisor 1.3.0+r33). No reboot, no public trusted-signature claim, no universal-competitor superiority claim.
+
+Open gates: remaining UI/lifecycle acceptance, source freeze, full build/determinism, CI, actual installed v1.6, publication. Exact next action: commit this repaired checkpoint, finish bounded workspace coverage and independent UI actions, then freeze and run the release gates. Brain status: INCOMPLETE until cumulative transfer ZIP and final gate record are generated. Older CURRENT/FINAL statements below describe historical versions only and are superseded for the active v1.6 candidate.
+
+---
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
 Brain Version: PB-2026-10-02-R37-V1.6.0-CANDIDATE

@@ -13,11 +13,97 @@ namespace TaskbarMonitorEnhanced
     internal static class WorkspaceSelfTest
     {
         private static void Check(bool condition,string name){if(!condition)throw new Exception(name);}
+        private static void CheckTrafficLedger()
+        {
+            string dir=Path.Combine(Path.GetTempPath(),"tbme_traffic_test_"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(dir);
+            try
+            {
+                DateTime day=DateTime.Today;string path=Path.Combine(dir,"traffic.json");var cfg=new AppConfig();
+                var state=new MetricsSnapshot();var a=new NetworkDeviceSnapshot{Id="A",Name="Fixture adapter A",Active=true,CountersAvailable=true,ReceivedBytesTotal=100,SentBytesTotal=50,LinkSpeedBitsPerSec=1000000000};
+                state.NetworkDevices.Add(a);var ledger=new TrafficLedger(path);ledger.Observe(state,cfg,day,0);
+                Check(ledger.SessionDownload==0&&!File.Exists(path),"traffic first sample baseline and no implicit persistence");
+                a.ReceivedBytesTotal=500;a.SentBytesTotal=250;ledger.Observe(state,cfg,day,1);
+                Check(ledger.SessionDownload==400&&ledger.SessionUpload==200,"traffic counter deltas");
+                a.ReceivedBytesTotal=20;a.SentBytesTotal=10;ledger.Observe(state,cfg,day,2);
+                Check(ledger.SessionDownload==400&&ledger.SessionUpload==200,"traffic reset excluded");
+                a.ReceivedBytesTotal=120;a.SentBytesTotal=60;ledger.Observe(state,cfg,day,3);
+                a.ReceivedBytesTotal=2120;a.SentBytesTotal=1060;ledger.Observe(state,cfg,day,40);
+                Check(ledger.SessionDownload==500&&ledger.SessionUpload==250,"traffic long gap excluded");
+                a.ReceivedBytesTotal=2320;a.SentBytesTotal=1160;ledger.Observe(state,cfg,day,41);
+                var b=new NetworkDeviceSnapshot{Id="B",Name="Fixture adapter B",Active=true,CountersAvailable=true,ReceivedBytesTotal=10000,SentBytesTotal=5000};state.NetworkDevices.Add(b);
+                cfg.TrafficAdapterId="B";ledger.Observe(state,cfg,day,42);
+                Check(ledger.SessionDownload==700&&ledger.SessionUpload==350,"adapter switch baseline");
+                b.ReceivedBytesTotal+=100;b.SentBytesTotal+=100;ledger.Observe(state,cfg,day,43);
+                b.CountersAvailable=false;b.ReceivedBytesTotal+=1000;ledger.Observe(state,cfg,day,44);
+                b.CountersAvailable=true;ledger.Observe(state,cfg,day,45);
+                Check(ledger.SessionDownload==800&&ledger.SessionUpload==450,"unavailable counters do not backfill");
+                Check(!File.Exists(path),"traffic opt-out never writes observed history");
+                cfg.RecordTrafficHistory=true;ledger.Observe(state,cfg,day,46);Check(ledger.FlushAndWait(3000),"traffic explicit opt-in flush completes");
+                var stored=new JavaScriptSerializer().Deserialize<TrafficDay[]>(File.ReadAllText(path));
+                Check(stored.Length==1&&stored[0].DownloadBytes==800&&stored[0].UploadBytes==450,"traffic exact persisted totals");
+                for(int i=0;i<100;i++){b.ReceivedBytesTotal+=10;b.SentBytesTotal+=20;ledger.Observe(state,cfg,day,47+i);ledger.FlushAsync();}
+                Check(ledger.FlushAndWait(3000),"traffic coalesced writer drain");
+                stored=new JavaScriptSerializer().Deserialize<TrafficDay[]>(File.ReadAllText(path));
+                Check(stored[0].DownloadBytes==1800&&stored[0].UploadBytes==2450,"coalescing retains latest snapshot");
+                string bad=Path.Combine(dir,"bad.json"),original="{ invalid retained evidence";File.WriteAllText(bad,original);
+                var damaged=new TrafficLedger(bad);damaged.Observe(state,cfg,day,0);
+                Check(!damaged.FlushAndWait(100)&&File.ReadAllText(bad)==original&&damaged.LastError!=null,"corrupt history preserved fail closed");
+                cfg.RecordTrafficHistory=false;string retentionPath=Path.Combine(dir,"retention.json");var retention=new TrafficLedger(retentionPath);
+                for(int i=0;i<=100;i++){b.ReceivedBytesTotal++;b.SentBytesTotal++;retention.Observe(state,cfg,day.AddDays(i-100),i);}
+                Check(retention.Snapshot().Length==90,"traffic retention 90 daily buckets");
+                Check(retention.Snapshot().All(x=>String.CompareOrdinal(x.Day,day.AddDays(-89).ToString("yyyy-MM-dd",CultureInfo.InvariantCulture))>=0),"traffic oldest retained date");
+                Check(!File.Exists(retentionPath),"retention opt-out stays memory only");
+                var snap=retention.Snapshot();snap[0].DownloadBytes=999999;
+                Check(retention.Snapshot()[0].DownloadBytes!=999999,"traffic snapshot isolation");
+            }
+            finally {try{Directory.Delete(dir,true);}catch{}}
+        }
+        private static void CheckProfileAndStatistics()
+        {
+            var r=MetricStatistics.Calculate(Enumerable.Range(1,20).Select(x=>(double?)x));
+            Check(r.Count==20&&r.P95==19&&r.Average==10.5,"nearest-rank P95 and arithmetic mean");
+            Check(MetricStatistics.Calculate(new double?[]{null,Double.NaN,Double.PositiveInfinity}).Count==0,"nonfinite statistics excluded");
+            string path=Path.Combine(Path.GetTempPath(),"tbme_profile_guard_"+Guid.NewGuid().ToString("N")+".json");
+            try
+            {
+                var c=new AppConfig{StartWithWindows=true,RecordTrafficHistory=false,EnableUsageNotifications=false};
+                File.WriteAllText(path,"{\"Format\":\"TBME-Presentation-1\",\"Theme\":\"Swiss Grid\",\"StartWithWindows\":false,\"RecordTrafficHistory\":true,\"EnableUsageNotifications\":true}");
+                WorkspaceExport.ImportProfile(c,path);
+                Check(c.Theme=="Swiss Grid"&&c.StartWithWindows&&!c.RecordTrafficHistory&&!c.EnableUsageNotifications,"profile unknown/security fields ignored");
+                string before=WorkspaceExport.Profile(c);File.WriteAllText(path,"{\"Format\":\"TBME-Presentation-1\",\"Theme\":\"Stained Glass\",\"Opacity\":\"not a number\"}");
+                bool blocked=false;try{WorkspaceExport.ImportProfile(c,path);}catch{blocked=true;}
+                Check(blocked&&before==WorkspaceExport.Profile(c),"invalid import transactional preservation");
+                File.WriteAllText(path,new string('x',65537));blocked=false;try{WorkspaceExport.ImportProfile(c,path);}catch(InvalidDataException){blocked=true;}
+                Check(blocked&&before==WorkspaceExport.Profile(c),"oversized profile blocked without mutation");
+            }
+            finally{try{File.Delete(path);}catch{}}
+        }
+
         internal static int Run()
         {
             try
             {
                 Check(BuildInfo.PublicVersion=="1.6.0","version");
+                for(int schema=0;schema<7;schema++){
+                    var legacy=new AppConfig{ConfigSchemaVersion=schema,EnableTemperatureNotifications=true,CpuTempWarningC=0,FontSize=Double.NaN,Opacity=Double.NaN};legacy.Normalize();
+                    Check(legacy.ConfigSchemaVersion==7,"all legacy schemas migrate "+schema);
+                    if(schema<6)Check(!legacy.EnableTemperatureNotifications,"legacy notification opt-in "+schema);
+                    if(schema<4)Check(legacy.CpuTempWarningC==85,"legacy thermal default "+schema);
+                    Check(MetricStatistics.Finite(legacy.FontSize)&&MetricStatistics.Finite(legacy.Opacity),"finite presentation "+schema);
+                }
+                Check(!SustainedAlertGate.IsQuiet(true,22,8,new DateTime(2026,10,2,12,0,0)),"quiet daytime");
+                Check(SustainedAlertGate.IsQuiet(true,22,8,new DateTime(2026,10,2,23,0,0)),"quiet midnight wrap");
+                Check(SustainedAlertGate.IsQuiet(true,4,4,DateTime.Now),"all day quiet");
+                Check(!SustainedAlertGate.IsQuiet(false,4,4,DateTime.Now),"disabled quiet");
+                var invalidTemp=new TemperatureNotificationState();
+                Check(!invalidTemp.ShouldNotify("CPU",true,float.NaN,85,DateTime.UtcNow),"NaN temperature blocked");
+                Check(!invalidTemp.ShouldNotify("CPU",true,float.PositiveInfinity,85,DateTime.UtcNow),"infinite temperature blocked");
+                SessionTelemetryHistory.ClearForTest();SessionTelemetryHistory.Add(new MetricsSnapshot());
+                Check(!WorkspaceMetric.Value(SessionTelemetryHistory.Snapshot()[0],2).HasValue,"GPU unavailable chart gap");
+                Check(!WorkspaceMetric.Value(SessionTelemetryHistory.Snapshot()[0],4).HasValue,"network unavailable chart gap");
+                Check(!WorkspaceMetric.Value(SessionTelemetryHistory.Snapshot()[0],6).HasValue,"disk unavailable chart gap");
+                var copied=SessionTelemetryHistory.Snapshot();copied[0].CpuPercent=999;
+                Check(SessionTelemetryHistory.Snapshot()[0].CpuPercent!=999,"history snapshot isolated");SessionTelemetryHistory.ClearForTest();
                 Check(ThemeCatalog.Names.Length==48,"theme count");
                 Check(ThemeCatalog.Names.Select(ThemeCatalog.Get).Count(t=>StudioThemes.IsStudio(t.Mode))==20,"studio theme count");
                 Check(StudioThemes.Create().Select(t=>t.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count()==20,"studio names distinct");
@@ -66,7 +152,14 @@ namespace TaskbarMonitorEnhanced
                     Check(!imported.RecordTrafficHistory,"profile preserves traffic privacy");
                 } finally {try{File.Delete(temp);}catch{}}
 
-                Console.WriteLine("TBME_WORKSPACE_SELFTEST=PASS THEMES=48 STUDIO=20 SCHEMA=7");
+                Check(WorkspaceExport.CsvCell("  =1+2").StartsWith("\"'"),"CSV leading-space formula blocked");
+                var reordered=new AppConfig{MetricOrder="NET;VRAM;GPU;RAM;CPU;DISK"};reordered.Normalize();
+                using(var renderer=new OverlayForm(reordered,true)){
+                    string[] keys=renderer.WorkspaceMetricKeysForProof();
+                    Check(keys.Length==6&&keys[0]=="NET"&&keys[1]=="VRAM"&&keys[2]=="GPU","renderer applies group ordering with independent VRAM");
+                }
+                CheckTrafficLedger();CheckProfileAndStatistics();
+                Console.WriteLine("TBME_WORKSPACE_SELFTEST=PASS THEMES=48 STUDIO=20 SCHEMA=7 LEGACY_SCHEMA_RANGE=0..6 ORDER_INTEGRATED=TRUE UNAVAILABLE_GAPS=TRUE");
                 return 0;
             }
             catch(Exception ex)
@@ -85,28 +178,23 @@ namespace TaskbarMonitorEnhanced
             {
                 Directory.CreateDirectory(outputDirectory);
                 AppConfig c=new AppConfig();c.Theme="Art Deco Gold";c.Normalize();
-                MetricsSnapshot s=new MetricsSnapshot
-                {
-                    Cpu=31.5f,Ram=62.2f,Disk=12.4f,DiskUsedPercent=73.2f,Gpu=44.8f,VramUsedGb=4.1f,VramTotalGb=12f,
-                    NetDownMbps=83.4f,NetUpMbps=15.8f,NetDownBytesPerSec=10425000,NetUpBytesPerSec=1975000,
-                    DiskReadBytesPerSec=18.2*1048576,DiskWriteBytesPerSec=7.4*1048576,CpuTempAvailable=true,CpuTempCurrent=54.2f,
-                    GpuTempAvailable=true,GpuTemp=51.6f,RamTotalBytes=32UL*1024*1024*1024,RamUsedBytes=20UL*1024*1024*1024
-                };
-                s.NetworkDevices.Add(new NetworkDeviceSnapshot{Id="proof-net",Name="Proof Ethernet",Active=true,CountersAvailable=true,DownBytesPerSec=10425000,UpBytesPerSec=1975000,LinkSpeedBitsPerSec=1000000000,ReceivedBytesTotal=1000000,SentBytesTotal=500000});
-                s.DiskDevices.Add(new DiskDeviceSnapshot{Id="proof-disk",Name="Proof NVMe",Volumes="C:",CapacityAvailable=true,TotalBytes=1000UL*1024*1024*1024,UsedBytes=732UL*1024*1024*1024,RateAvailable=true,ReadBytesPerSec=18.2*1048576,WriteBytesPerSec=7.4*1048576,TemperatureAvailable=true,Temperature=43.5f});
-                var ledger=new TrafficLedger(Path.Combine(outputDirectory,"traffic-proof.json"));
+                Native.EnableDpi();
+                Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
                 using(var renderer=new OverlayForm(c,true))
-                using(var f=new WorkspaceForm(c,()=>s,()=>false,b=>{},ledger,()=>new[]{new AlertRecord{Utc=DateTime.UtcNow,Metric="CPU usage",Message="Proof event"}},()=>{},()=>{},renderer.RenderSettingsThemePreview,true))
                 {
-                    f.PrepareProofProcesses();
-                    f.Show();
-                    Application.DoEvents();
-                    f.CapturePages(outputDirectory);
-                    f.Close();
+                    renderer.PrimeSettingsThemePreviewFromLiveMetrics(15,250);
+                    var ledger=new TrafficLedger(Path.Combine(outputDirectory,"traffic-proof.json"));
+                    ledger.Observe(renderer.WorkspaceSnapshotForProof(),c,DateTime.Now,0);
+                    System.Threading.Thread.Sleep(250);renderer.WorkspaceReadForProof();
+                    ledger.Observe(renderer.WorkspaceSnapshotForProof(),c,DateTime.Now,.25);
+                    using(var f=new WorkspaceForm(c,renderer.WorkspaceSnapshotForProof,()=>false,b=>{},ledger,()=>new AlertRecord[0],()=>{},()=>{},renderer.RenderSettingsThemePreview,true))
+                    {
+                        f.PrepareProofProcesses();f.Show();Application.DoEvents();f.CapturePages(outputDirectory);f.Close();
+                    }
                 }
                 string[] pages={"overview.png","processes.png","network.png","storage.png","alerts.png","themes.png","profiles.png"};
                 foreach(string p in pages)CheckFile(Path.Combine(outputDirectory,p));
-                var manifest=new Dictionary<string,object>{{"Version",BuildInfo.Version},{"PublicVersion",BuildInfo.PublicVersion},{"GeneratedUtc",DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture)},{"Status","PASS"},{"ThemeCount",ThemeCatalog.Names.Length},{"StudioThemeCount",20},{"Pages",pages}};
+                var manifest=new Dictionary<string,object>{{"Version",BuildInfo.Version},{"PublicVersion",BuildInfo.PublicVersion},{"GeneratedUtc",DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture)},{"Status","PASS"},{"NoSyntheticMetricData",true},{"LiveSampleCount",16},{"ThemeCount",ThemeCatalog.Names.Length},{"StudioThemeCount",20},{"Pages",pages}};
                 File.WriteAllText(Path.Combine(outputDirectory,"WORKSPACE_PROOF_MANIFEST.json"),new JavaScriptSerializer().Serialize(manifest),new UTF8Encoding(false));
                 Console.WriteLine("TBME_WORKSPACE_PROOF=PASS PAGES=7 THEMES=48 DIR="+outputDirectory);
                 return 0;

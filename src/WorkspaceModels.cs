@@ -56,7 +56,7 @@ namespace TaskbarMonitorEnhanced
     internal static partial class SessionTelemetryHistory
     {
         internal static SessionTelemetrySample[] Snapshot()
-        {lock(Sync)return Samples.ToArray();}
+        {lock(Sync)return Samples.Select(x=>x.Copy()).ToArray();}
     }
     internal sealed class MetricStatistics
     {
@@ -76,9 +76,9 @@ namespace TaskbarMonitorEnhanced
         internal static readonly string[] Names={"CPU %","RAM %","GPU %","VRAM %","Download Mbps","Upload Mbps","Disk read MiB/s","Disk write MiB/s","CPU temperature C","GPU temperature C","Disk temperature C"};
         internal static double? Value(SessionTelemetrySample s,int metric)
         {
-            switch(metric){case 0:return s.CpuPercent;case 1:return s.RamPercent;case 2:return s.GpuPercent;
+            switch(metric){case 0:return s.CpuPercent;case 1:return s.RamPercent;case 2:return s.GpuUsageAvailable?(double?)s.GpuPercent:null;
             case 3:return s.VramTotalGb>0?(double?)(100*s.VramUsedGb/s.VramTotalGb):null;
-            case 4:return s.NetDownMbps;case 5:return s.NetUpMbps;case 6:return s.DiskReadMBps;case 7:return s.DiskWriteMBps;
+            case 4:return s.NetworkAvailable?(double?)s.NetDownMbps:null;case 5:return s.NetworkAvailable?(double?)s.NetUpMbps:null;case 6:return s.DiskRateAvailable?(double?)s.DiskReadMBps:null;case 7:return s.DiskRateAvailable?(double?)s.DiskWriteMBps:null;
             case 8:return s.CpuTempC;case 9:return s.GpuTempC;case 10:return s.DiskTempC;default:return null;}
         }
     }
@@ -94,7 +94,7 @@ namespace TaskbarMonitorEnhanced
         {
             Lane s;if(!lanes.TryGetValue(id,out s)){s=new Lane{Threshold=threshold};lanes[id]=s;}
             if(s.Threshold!=threshold){s.Since=-1;s.Sent=false;s.Threshold=threshold;}
-            if(!available||!MetricStatistics.Finite(value)||!MetricStatistics.Finite(seconds)){s.Since=-1;s.Sent=false;return false;}
+            if(!available||!MetricStatistics.Finite(value)||!MetricStatistics.Finite(threshold)||!MetricStatistics.Finite(seconds)){s.Since=-1;s.Sent=false;return false;}
             if(s.Since>seconds){s.Since=-1;s.Sent=false;}
             if(value<=threshold-5){s.Since=-1;s.Sent=false;return false;}
             if(value<threshold){s.Since=-1;return false;}
@@ -118,7 +118,9 @@ namespace TaskbarMonitorEnhanced
         private readonly object sync=new object();
         private readonly Dictionary<string,TrafficDay> days=new Dictionary<string,TrafficDay>();
         private string adapter="", requested=""; private long rx=-1,tx=-1; private double previousSeconds=-1,lastSave=-1;
-        private bool loaded; private int saveBusy; private readonly string path;
+        private bool loaded,persistenceBlocked; private readonly string path;
+        private readonly object saveSync=new object(); private string pendingJson; private bool saving;
+        private readonly ManualResetEventSlim saved=new ManualResetEventSlim(true);
         internal string ActiveAdapterName {get;private set;}
         internal double SessionDownload {get;private set;} internal double SessionUpload {get;private set;}
         internal string LastError {get;private set;}
@@ -159,15 +161,24 @@ namespace TaskbarMonitorEnhanced
                 lock(sync)foreach(var d in old??new TrafficDay[0]){DateTime dt;if(d==null||!DateTime.TryParseExact(d.Day,"yyyy-MM-dd",CultureInfo.InvariantCulture,DateTimeStyles.None,out dt)||d.DownloadBytes<0||d.UploadBytes<0||!MetricStatistics.Finite(d.DownloadBytes)||!MetricStatistics.Finite(d.UploadBytes))continue;
                     TrafficDay current;if(days.TryGetValue(d.Day,out current)){current.DownloadBytes+=d.DownloadBytes;current.UploadBytes+=d.UploadBytes;}else days[d.Day]=d;}
                 lock(sync)Prune(DateTime.Now);
-            }catch(Exception ex){LastError="History read failed: "+ex.GetType().Name;Log.Write("WARN","TRAFFIC_HISTORY_READ "+ex.GetType().Name);}
+            }catch(Exception ex){persistenceBlocked=true;LastError="History preserved; persistence blocked after read failure: "+ex.GetType().Name;Log.Write("WARN","TRAFFIC_HISTORY_READ "+ex.GetType().Name);}
         }
         internal TrafficDay[] Snapshot(){lock(sync)return days.Values.OrderByDescending(d=>d.Day).Select(d=>new TrafficDay{Day=d.Day,DownloadBytes=d.DownloadBytes,UploadBytes=d.UploadBytes}).ToArray();}
         internal void FlushAsync()
         {
-            if(Interlocked.CompareExchange(ref saveBusy,1,0)!=0)return;
+            if(persistenceBlocked)return;
             string json=new JavaScriptSerializer().Serialize(Snapshot());
-            ThreadPool.QueueUserWorkItem(delegate{try{AtomicTextFile.Write(path,json,new UTF8Encoding(false),path+".bak");LastError=null;}catch(Exception ex){LastError="History save failed: "+ex.GetType().Name;Log.Write("WARN","TRAFFIC_HISTORY_WRITE "+ex.GetType().Name);}finally{Interlocked.Exchange(ref saveBusy,0);}});
+            lock(saveSync){pendingJson=json;saved.Reset();if(saving)return;saving=true;}
+            ThreadPool.QueueUserWorkItem(delegate{
+                while(true){string current;lock(saveSync){current=pendingJson;pendingJson=null;}
+                    try{AtomicTextFile.Write(path,current,new UTF8Encoding(false),path+".bak");LastError=null;}
+                    catch(Exception ex){LastError="History save failed: "+ex.GetType().Name;Log.Write("WARN","TRAFFIC_HISTORY_WRITE "+ex.GetType().Name);}
+                    lock(saveSync){if(pendingJson==null){saving=false;saved.Set();return;}}
+                }
+            });
         }
+        internal bool FlushAndWait(int milliseconds)
+        {if(persistenceBlocked)return false;FlushAsync();return saved.Wait(Math.Max(0,milliseconds));}
         internal void ExportCsv(string destination)
         {
             var b=new StringBuilder("Day,DownloadBytes,UploadBytes\r\n");foreach(var d in Snapshot())b.AppendLine(d.Day+","+d.DownloadBytes.ToString("0",CultureInfo.InvariantCulture)+","+d.UploadBytes.ToString("0",CultureInfo.InvariantCulture));
@@ -190,7 +201,7 @@ namespace TaskbarMonitorEnhanced
                 var row=new ProcessRow{Pid=p.Id,Name=p.ProcessName,WorkingSetMiB=p.WorkingSet64/1048576d,PrivateMiB=p.PrivateMemorySize64/1048576d};
                 try{row.Threads=p.Threads.Count;row.Handles=p.HandleCount;}catch{}
                 try{long start=p.StartTime.ToUniversalTime().Ticks, cpu=p.TotalProcessorTime.Ticks;Baseline b;
-                    if(previous.TryGetValue(p.Id,out b)&&b.Start==start&&seconds>b.At&&cpu>=b.Cpu)row.CpuPercent=Math.Max(0,Math.Min(100,(cpu-b.Cpu)/10000000d/(seconds-b.At)/Math.Max(1,Environment.ProcessorCount)*100));
+                    if(previous.TryGetValue(p.Id,out b)&&b.Start==start&&seconds>b.At&&seconds-b.At<=10&&cpu>=b.Cpu)row.CpuPercent=Math.Max(0,Math.Min(100,(cpu-b.Cpu)/10000000d/(seconds-b.At)/Math.Max(1,Environment.ProcessorCount)*100));
                     next[p.Id]=new Baseline{Start=start,Cpu=cpu,At=seconds};}catch{}
                 rows.Add(row);
             }catch{}}
@@ -200,7 +211,7 @@ namespace TaskbarMonitorEnhanced
     internal static class WorkspaceExport
     {
         internal static string CsvCell(string s)
-        {s=s??"";if(s.Length>0&&"=+-@\t\r".IndexOf(s[0])>=0)s="'"+s;return "\""+s.Replace("\"","\"\"")+"\"";}
+        {s=s??"";if(s.TrimStart().Length>0&&"=+-@".IndexOf(s.TrimStart()[0])>=0)s="'"+s;return "\""+s.Replace("\"","\"\"")+"\"";}
         internal static void Processes(string path,IEnumerable<ProcessRow> rows)
         {
             var b=new StringBuilder("PID,Name,CPUPercent,WorkingSetMiB,PrivateMiB,Threads,Handles\r\n");

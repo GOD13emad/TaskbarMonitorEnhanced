@@ -19,3 +19,8 @@ src/app.manifest text eol=lf
 src/App.config text eol=lf
 
 installer/setup.manifest text eol=lf
+
+src/StudioThemes.cs text eol=lf
+src/MonitorWorkspace.cs text eol=lf
+src/WorkspaceModels.cs text eol=lf
+src/WorkspaceSelfTest.cs text eol=lf
