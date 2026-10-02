@@ -582,3 +582,14 @@ Status: CONFIRMED / FINAL.
 - Trusted Authenticode remains an external gate and is not inferred from repository-side release quality.
 
 Prevention rule: never promote a release from version labels alone; tie authority to tag/commit, reproducible hashes, CI, runtime acceptance, release-asset digests and explicit signing state.
+
+
+### K-R33-06 - Close merged temporary branches only after immutable release authority exists
+
+Status: CONFIRMED / PASS.
+
+- Both temporary R33 branches pointed to release commit `fc5619d049de4a95cb23542a8c3318e12f064691`, which was proven ancestor of `main` before deletion.
+- The annotated `v1.3.0` tag and immutable GitHub Release already preserved the release authority.
+- After branch deletion, the remote branch surface contains only `main`; no release history was lost.
+
+Prevention rule: branch cleanup is housekeeping, not release authority. Delete only after merge/ancestor proof and after immutable tag/release evidence exists.

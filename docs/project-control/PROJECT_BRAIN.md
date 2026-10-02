@@ -2,7 +2,7 @@
 
 Brain Version: PB-2026-10-02-R33-V1.3.0-PUBLIC
 Status: CURRENT_FINAL_PUBLIC_RELEASE_ACCEPTED
-Updated: 2026-10-02T11:34:56.6083465+03:30
+Updated: 2026-10-02T11:41:24.6174993+03:30
 
 ## CURRENT AUTHORITY - 2026-10-02 R33 / v1.3.0 FINAL PUBLIC RELEASE
 
@@ -22,7 +22,7 @@ This section supersedes older current-authority, blocker and exact-next-action s
 - FACT / CONFIRMED: Public-trust Authenticode signing remains external/unproven; no trusted-signature claim is made.
 - Product DoD: COMPLETE / FINAL_PUBLIC_RELEASE_ACCEPTED.
 - Open product blockers/gates: none.
-- Post-publication housekeeping gate: commit/push this documentation/evidence delta, require exact-head CI PASS, then remove merged temporary R33 branches. Release tag/assets must remain immutable.
+- Post-publication housekeeping: PASS through documentation closeout commit `10e8bfdbe4f4c62262b756c0b7dd396c1dfde539`, exact-head CI run `36982325715` SUCCESS, and deletion of merged temporary R33 branches. Remote branch surface is only `main`; release tag/assets remain immutable.
 
 ## CURRENT AUTHORITY - 2026-10-01 R32 DEEP PC AUDIT / CONSOLIDATED ROOT
 
@@ -841,4 +841,19 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Signing: `UNSIGNED_PENDING_EXTERNAL_PROVIDER`; no trusted Authenticode claim.
 - v1.2.0 and earlier public releases remain immutable and unchanged.
 - Product DoD: COMPLETE / FINAL_PUBLIC_RELEASE_ACCEPTED.
-- Remaining non-product closeout: exact-head CI on this post-publication documentation commit and deletion of merged temporary R33 branches.
+- Post-publication closeout through commit `10e8bfdbe4f4c62262b756c0b7dd396c1dfde539`: CI run `36982325715` SUCCESS with exact 4/4 release hashes; temporary R33 branches deleted; remote branch surface only `main`.
+
+## R33F / FINAL REPOSITORY CLOSEOUT — 2026-10-02
+
+- Post-publication evidence/documentation commit: `10e8bfdbe4f4c62262b756c0b7dd396c1dfde539`.
+- Exact-head GitHub Actions run `36982325715`: SUCCESS.
+- That CI run again reproduced the immutable release binary hashes 4/4 and recreated provenance + Setup SBOM attestations.
+- Merged temporary branches `r33-final-hardening` and `release/v1.3.0-r33` were deleted only after ancestor guard PASS; local R33 branch was also deleted.
+- Remote branch surface after cleanup: only `main`.
+- v1.3.0 release remains Latest, public, non-draft, non-prerelease, immutable, seven assets, exact tag commit `fc5619d049de4a95cb23542a8c3318e12f064691`.
+- Live health closeout: `TBME_HEALTH_PROBE=PASS R21=True JOB=True RESILIENCE=STABLE SUP=True CPU=True/True GPU=True/True STORAGE=True/True`.
+- Product DoD: COMPLETE / FINAL_PUBLIC_RELEASE_ACCEPTED.
+- Open product blockers/gates: none.
+- Deferred external item only: publicly trusted Authenticode signing remains unproven; no trusted-signature claim is made.
+- This Brain-finalization commit is documentation-only. Its external exact-head CI result is the final control verifier; once green, no additional repository mutation is required for v1.3.0.
+- Exact next action: none for v1.3.0 product/release. Future work must start as a new scoped change set from `main` without mutating the immutable v1.3.0 tag/release.
