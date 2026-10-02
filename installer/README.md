@@ -4,7 +4,7 @@ This folder contains the custom Windows installer source used by Taskbar Monitor
 
 ## Current public authority
 
-This source tree targets the v1.5.0 Actionable Alerts & Session Export candidate. The immutable v1.4.0 release is the current accepted public baseline while v1.5.0 is qualified independently.
+This source tree targets the immutable v1.5.0 Actionable Alerts & Session Export public release. v1.4.0 is the previous immutable public baseline.
 
 ## Protected sensor baseline
 
@@ -28,4 +28,4 @@ The authoritative reproducible build path is ../build/Build.ps1.
 
 PawnIO is intentionally retained on uninstall because another hardware-monitoring application may depend on it.
 
-See ../docs/acceptance/v1.4.0/PUBLIC_RELEASE_ACCEPTANCE.json for the immutable public authority until v1.5.0 publication completes. Earlier releases remain immutable historical authorities.
+See ../docs/acceptance/v1.5.0/PUBLIC_RELEASE_ACCEPTANCE.json for the current immutable public authority. v1.4.0 and earlier releases remain immutable historical authorities.

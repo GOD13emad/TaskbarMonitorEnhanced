@@ -10,7 +10,7 @@ https://github.com/GOD13emad/TaskbarMonitorEnhanced
 
 The project is prepared for the SignPath Foundation open-source signing program. **External acceptance and a production public-trust signature are not yet proven.** The self-signed development certificate documented under `docs/security/` validates the signing pipeline only and is not public publisher trust.
 
-Therefore, the current public release, **v1.4.0**, is treated as unsigned unless its release artifact carries an independently verifiable Authenticode signature from a publicly trusted provider. The accepted v1.4.0 release evidence records `PublicTrust=UNSIGNED_PENDING_EXTERNAL_PROVIDER`; Windows may show **Unknown publisher**. This status is stated explicitly rather than inferred from provider-readiness work.
+Therefore, the current public release, **v1.5.0**, is treated as unsigned unless its release artifact carries an independently verifiable Authenticode signature from a publicly trusted provider. The accepted v1.5.0 release evidence records `PublicTrust=UNSIGNED_PENDING_EXTERNAL_PROVIDER`; Windows may show **Unknown publisher**. This status is stated explicitly rather than inferred from provider-readiness work.
 
 ## Official release artifacts
 
@@ -18,7 +18,7 @@ Only artifacts attached to the official GitHub Releases page are release binarie
 
 https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases
 
-v1.3.1, v1.3.0, v1.2.0 and earlier published releases remain immutable historical authorities. No historical tag or release asset is rewritten merely to add a signature. Any future publicly trusted signing change must use a newly versioned release unless the exact published artifact was already signed before publication.
+v1.4.0, v1.3.1, v1.3.0, v1.2.0 and earlier published releases remain immutable historical authorities. No historical tag or release asset is rewritten merely to add a signature. Any future publicly trusted signing change must use a newly versioned release unless the exact published artifact was already signed before publication.
 
 ## Team roles
 

@@ -947,3 +947,17 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Authority remains CANDIDATE; v1.4.0 remains public Latest.
 - Critical path: release-branch exact-head CI/provenance -> main exact-head CI/provenance -> immutable v1.5.0 tag/assets/digests/public acceptance.
 - Exact next action: commit acceptance records and push release/v1.5.0-r36.
+
+
+## FINAL — v1.5.0 PUBLIC RELEASE / CURRENT AUTHORITY
+
+- Final objective reached for R36: v1.5.0 Actionable Alerts & Session Export is published as the immutable GitHub Latest release.
+- Release authority: tag v1.5.0 -> d952a87fab02fe74046b8d19ae14a2801d6da644; release ID 401880404; immutable=true; 7/7 asset digest verification PASS.
+- Product gates: build 0 warnings/0 errors; reproducible build PASS; deterministic clean clone PASS; candidate 11/11; installed/postinstall 11/11; installed hashes 5/5; migration preservation PASS; final health STABLE.
+- CI/provenance gates: release-branch run 37017612215 PASS; main run 37018027405 PASS on the same exact SHA; binary/runtime-config provenance and Setup SBOM attestation PASS.
+- Protected sensor authority unchanged: Broker 1.1.2+r21; Supervisor 1.3.0+r33.
+- Public signing: UNSIGNED_PENDING_EXTERNAL_PROVIDER; no public-trust signature claim.
+- Previous authority: v1.4.0 remains immutable.
+- Current Project Brain status: CURRENT.
+- Open blocker for v1.5.0 product finalization: NONE. External optional future gate only: publicly trusted Authenticode provider.
+- Exact next action for future development: branch from immutable v1.5.0/main baseline; do not mutate v1.5.0 tag/assets.

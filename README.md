@@ -2,20 +2,32 @@
 
 A Windows taskbar system monitor for live CPU, RAM, disk, network, GPU, VRAM and temperature telemetry.
 
-## v1.5.0 candidate — Actionable Alerts & Session Export
+## v1.5.0 — Actionable Alerts & Session Export
 
-Development candidate on top of immutable v1.4.0:
+**v1.5.0 is the current public Latest release.** It builds on immutable v1.4.0 with a narrow Main/UI product-completion change set:
 
 - optional rate-limited Windows notifications for CPU/GPU/disk temperature thresholds
-- bounded in-memory session telemetry with explicit CSV export
-- quick Open Task Manager context action
-- protected Broker/Supervisor binaries remain unchanged
+- 3 °C recovery hysteresis and 10-minute per-lane notification cooldown
+- notification click-through to the Alerts settings page
+- bounded 3,600-sample in-memory session telemetry with explicit CSV export
+- quick **Open Task Manager** context action
+- protected Broker/Supervisor binaries unchanged
 
-v1.4.0 remains the current public Latest release until v1.5.0 completes exact-commit validation and immutable publication.
+### v1.5.0 validation
 
-## v1.4.0 — Windows Integration & Accessibility
+- build: **0 warnings / 0 errors**
+- reproducible build and clean-clone determinism **PASS**
+- candidate suite **11/11 PASS**
+- installed/postinstall suite **11/11 PASS**
+- installed binary equality **5/5 exact**
+- config migration preservation **PASS**
+- release-branch and main CI **PASS on the exact release SHA**
+- binary provenance, runtime-config provenance and Setup SBOM attestation **PASS**
+- immutable GitHub Release with **7/7 asset digest verification**
 
-**v1.4.0 is the current public Latest release.** It builds on the immutable v1.3.1 release and focuses on Windows integration, accessibility and security hardening.
+## v1.4.0 — Windows Integration & Accessibility (previous immutable release)
+
+v1.4.0 remains an immutable previous public release. It built on v1.3.1 and focused on Windows integration, accessibility and security hardening.
 
 ### New in v1.4.0
 
@@ -67,13 +79,13 @@ No sensor binary/protocol change was required:
 
 Official immutable release:
 
-https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.4.0
+https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.5.0
 
 Installer SHA-256:
 
-`7d528911113c6be86a42aa6174957d85367d5b8d8f607c66f46d6e42e349fd6a`
+`0329d3a49cd1a73dbb95c28f3a22ba6befe65cd65e5c562606c02972392586e1`
 
-See [DOWNLOAD.md](DOWNLOAD.md), [release notes](docs/releases/v1.4.0/RELEASE_NOTES.md), [public acceptance](docs/acceptance/v1.4.0/PUBLIC_RELEASE_ACCEPTANCE.json), [CODE_SIGNING.md](CODE_SIGNING.md) and [PRIVACY.md](PRIVACY.md).
+See [DOWNLOAD.md](DOWNLOAD.md), [release notes](docs/releases/v1.5.0/RELEASE_NOTES.md), [public acceptance](docs/acceptance/v1.5.0/PUBLIC_RELEASE_ACCEPTANCE.json), [CODE_SIGNING.md](CODE_SIGNING.md) and [PRIVACY.md](PRIVACY.md).
 
 ## Core capabilities
 
@@ -82,6 +94,8 @@ See [DOWNLOAD.md](DOWNLOAD.md), [release notes](docs/releases/v1.4.0/RELEASE_NOT
 - 9-page Settings with alerts, hardware selection, diagnostics and advanced controls
 - multi-device selection and aggregation
 - adaptive battery polling and Session Pause/Resume
+- rate-limited temperature notifications and bounded session CSV export
+- quick Open Task Manager action
 - Copy Diagnostics and privacy-hardened Support ZIP
 - safe reset-to-defaults with backup-first behavior
 - left/center/right placement, compact layouts and taskbar-display targeting
@@ -91,7 +105,7 @@ See [DOWNLOAD.md](DOWNLOAD.md), [release notes](docs/releases/v1.4.0/RELEASE_NOT
 
 ## Release integrity
 
-v1.4.0, v1.3.1 and all earlier public releases are immutable. Historical tags/assets are never overwritten.
+v1.5.0, v1.4.0, v1.3.1 and all earlier public releases are immutable. Historical tags/assets are never overwritten.
 
 Public trusted Authenticode signing remains pending an external provider; no trusted-signature claim is made.
 

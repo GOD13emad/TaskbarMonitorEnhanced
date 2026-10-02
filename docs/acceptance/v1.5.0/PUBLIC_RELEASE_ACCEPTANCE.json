@@ -1,0 +1,87 @@
+{
+  "SchemaVersion": 1,
+  "Release": "v1.5.0",
+  "Status": "FINAL_PUBLIC_RELEASE_ACCEPTED",
+  "AcceptedAtUtc": "2026-10-02T14:18:41Z",
+  "ReleaseUrl": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.5.0",
+  "ReleaseId": 401880404,
+  "ReleaseName": "Taskbar Monitor Enhanced v1.5.0 — Actionable Alerts & Session Export",
+  "Latest": true,
+  "Draft": false,
+  "Prerelease": false,
+  "Immutable": true,
+  "Authority": {
+    "ReleaseTag": "v1.5.0",
+    "TagType": "LIGHTWEIGHT",
+    "ReleaseTagCommit": "d952a87fab02fe74046b8d19ae14a2801d6da644",
+    "BuildIdentity": "V1_5_0_R36_ACTIONABLE_ALERTS_SESSION_EXPORT"
+  },
+  "Acceptance": {
+    "Build": "PASS_0_WARNINGS_0_ERRORS",
+    "ReproducibleBuild": "PASS",
+    "DeterministicCleanClone": "PASS",
+    "SetupVerify": "PASS",
+    "CandidateSuite": "PASS_11_OF_11",
+    "PostInstallSuite": "PASS_11_OF_11",
+    "InstalledRuntime": "PASS_EXACT_BUILD_MATCH",
+    "InstalledBinaryHashEquality": "PASS_5_OF_5",
+    "ConfigMigrationPreservation": "PASS",
+    "TemperatureNotifications": "PASS_TRANSITION_HYSTERESIS_COOLDOWN_CONTRACT",
+    "SessionCsvExport": "PASS_BOUNDED_3600_SAMPLE_CONTRACT",
+    "TaskManagerQuickAction": "PASS",
+    "ThemeRegression": "PASS_28_OF_28",
+    "CompactRegression": "PASS",
+    "Hover": "PASS",
+    "Startup": "PASS",
+    "Hardware": "PASS",
+    "Temperature": "PASS",
+    "Health": "PASS_STABLE",
+    "Shell": "PASS",
+    "SensorReuse": "PASS_CURRENT_EXACT_R33",
+    "ReleaseBranchExactHeadCI": "PASS",
+    "MainExactHeadCI": "PASS",
+    "BinaryProvenance": "PASS",
+    "RuntimeConfigProvenance": "PASS",
+    "SetupSbomAttestation": "PASS",
+    "ReleaseAssetDigestVerification": "PASS_7_OF_7"
+  },
+  "CI": {
+    "ReleaseBranchRunId": 37017612215,
+    "ReleaseBranchArtifactId": 11231800164,
+    "ReleaseBranchArtifactDigest": "sha256:7f8b2ff9c3e2a2f42b1bcb5d78afd9f544305ded23d45db3988fa40c9ef3215b",
+    "MainRunId": 37018027405,
+    "MainArtifactId": 11231586668,
+    "MainArtifactDigest": "sha256:a1e3aaa57d6e61759eae280679c85d12e1f459fc23693271c5ea025a0845b73b",
+    "ExactHeadSha": "d952a87fab02fe74046b8d19ae14a2801d6da644"
+  },
+  "Hashes": {
+    "Main": "94E76E2D7A09BBBA47DC77CBFAAC536A929D1537A912CBF82053E7B2FFC8857F",
+    "RuntimeConfig": "D2E51872D93F0793C02AD07DCBF8C2802F59708C666548372A4FDDDA5C7C5E4F",
+    "Broker": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833",
+    "Supervisor": "0E28911AACDE0C3B1C6997C8BC6FF141C0FAA650B58438A9991CB3AD6C13C785",
+    "Setup": "0329D3A49CD1A73DBB95C28F3A22BA6BEFE65CD65E5C562606C02972392586E1"
+  },
+  "Assets": [
+    {"Name":"RELEASE_MANIFEST_v1.5.0.json","Bytes":1500,"SHA256":"3f6c7b7b8bb8e11e3ad49b8f9316d99c33882af378130f688bd438f2ac746052"},
+    {"Name":"RELEASE_NOTES_v1.5.0.md","Bytes":1762,"SHA256":"5426927aa4f32ffea4f1e5d044cb8cdc519055463a66a9b195b23cb7a73153b7"},
+    {"Name":"SBOM_v1.5.0.spdx.json","Bytes":5540,"SHA256":"b1ccdfee3d04942bf509603bf5bd49bddd233f55bf20fce91bdaaee5b4a0f73e"},
+    {"Name":"SHA256SUMS_v1.5.0.txt","Bytes":616,"SHA256":"59e9cfdb0ac3c079bbbc3527a3a5cb563c783c9cebe29a89246589a8fe414a5e"},
+    {"Name":"TaskbarMonitorEnhanced_1.5.0_SOURCE.zip","Bytes":3090552,"SHA256":"04787f2682feda24b72e33b2d5e7d1feed980a8dad9ba1c5211d6c841d229cae"},
+    {"Name":"TaskbarMonitorEnhanced_Setup_1.5.0.exe","Bytes":11225088,"SHA256":"0329d3a49cd1a73dbb95c28f3a22ba6befe65cd65e5c562606c02972392586e1"},
+    {"Name":"V1_5_0_R36_ACTIONABLE_ALERTS_SESSION_EXPORT_ACCEPTANCE.json","Bytes":2369,"SHA256":"f7dd808845d99f31aa97ba943b6763c2168d8c393e84f795bc4f12b3a6a502ca"}
+  ],
+  "SensorLayer": {
+    "Architecture": "R21_PROCESS_ISOLATED",
+    "BrokerProtocolVersion": "1.1.2+r21",
+    "SupervisorVersion": "1.3.0+r33",
+    "Changed": false
+  },
+  "Signing": {
+    "PublicTrust": "UNSIGNED_PENDING_EXTERNAL_PROVIDER",
+    "TrustedSignatureClaim": false
+  },
+  "PreviousRelease": {
+    "Release": "v1.4.0",
+    "Immutable": true
+  }
+}

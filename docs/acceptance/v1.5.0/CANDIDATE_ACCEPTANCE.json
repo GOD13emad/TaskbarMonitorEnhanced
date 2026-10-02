@@ -1,7 +1,7 @@
 {
   "SchemaVersion": 1,
   "Release": "v1.5.0",
-  "Status": "LOCAL_CANDIDATE_ACCEPTED_PENDING_GITHUB_CI",
+  "Status": "CANDIDATE_ACCEPTED_FOR_PUBLICATION",
   "CandidateBuildHead": "3a7d9668f735e86c30d60ff3626dfd9f8e9a30b7",
   "BuildIdentity": "V1_5_0_R36_ACTIONABLE_ALERTS_SESSION_EXPORT",
   "Acceptance": {
@@ -26,10 +26,12 @@
     "Hardware": "PASS",
     "Temperature": "PASS",
     "SensorReuse": "PASS_CURRENT_EXACT_R33",
-    "ReleaseBranchExactHeadCI": "PENDING",
-    "MainExactHeadCI": "PENDING",
-    "BinaryProvenance": "PENDING_GITHUB_CI",
-    "SetupSbomAttestation": "PENDING_GITHUB_CI"
+    "ReleaseBranchExactHeadCI": "PASS",
+    "MainExactHeadCI": "PASS",
+    "BinaryProvenance": "PASS",
+    "SetupSbomAttestation": "PASS",
+    "RuntimeConfigProvenance": "PASS",
+    "ReleaseAssetDigestVerification": "PASS_7_OF_7"
   },
   "Hashes": {
     "Main": "94E76E2D7A09BBBA47DC77CBFAAC536A929D1537A912CBF82053E7B2FFC8857F",
@@ -54,5 +56,16 @@
   "Signing": {
     "PublicTrust": "UNSIGNED_PENDING_EXTERNAL_PROVIDER",
     "TrustedSignatureClaim": false
+  },
+  "CandidateReleaseHead": "d952a87fab02fe74046b8d19ae14a2801d6da644",
+  "ReleaseBranchCiRun": 37017612215,
+  "MainCiRun": 37018027405,
+  "CI": {
+    "ReleaseBranchRun": 37017612215,
+    "ReleaseBranchArtifactId": 11231800164,
+    "ReleaseBranchArtifactDigest": "sha256:7f8b2ff9c3e2a2f42b1bcb5d78afd9f544305ded23d45db3988fa40c9ef3215b",
+    "MainRun": 37018027405,
+    "MainArtifactId": 11231586668,
+    "MainArtifactDigest": "sha256:a1e3aaa57d6e61759eae280679c85d12e1f459fc23693271c5ea025a0845b73b"
   }
 }

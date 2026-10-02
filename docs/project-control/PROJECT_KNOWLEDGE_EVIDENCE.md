@@ -703,3 +703,21 @@ Prevention rule: temporary release branches are transport/control surfaces, not 
 - Candidate acceptance record: docs/acceptance/v1.5.0/CANDIDATE_ACCEPTANCE.json.
 - Status: LOCAL_CANDIDATE_ACCEPTED_PENDING_GITHUB_CI. Public release authority remains v1.4.0 until release-branch CI, main CI/provenance and immutable GitHub release verification pass.
 - Exact next action: commit local-acceptance records, push release/v1.5.0-r36, require exact-SHA GitHub CI PASS before promotion to main.
+
+
+## 2026-10-02 — v1.5.0 FINAL PUBLIC RELEASE ACCEPTED
+
+- Final release authority: GitHub Release v1.5.0, release ID 401880404, published 2026-10-02T14:18:41Z.
+- Release tag type: lightweight; tag resolves exactly to d952a87fab02fe74046b8d19ae14a2801d6da644.
+- GitHub status: Latest=true, Draft=false, Prerelease=false, Immutable=true.
+- Release asset gate: PASS 7/7. GitHub-reported asset size and SHA-256 match the locally accepted staging set after publication.
+- Public installer SHA-256: 0329d3a49cd1a73dbb95c28f3a22ba6befe65cd65e5c562606c02972392586e1.
+- Release-branch CI run 37017612215 and main CI run 37018027405 both succeeded on exact SHA d952a87fab02fe74046b8d19ae14a2801d6da644, including reproducible build, clean-clone determinism, SPDX SBOM, binary provenance, runtime-config provenance, Setup SBOM attestation, and artifact upload.
+- Runtime acceptance retained: candidate 11/11 PASS, postinstall/installed 11/11 PASS, installed artifact equality 5/5, config migration semantic preservation PASS, final protected-sensor health PASS/STABLE.
+- Protected sensor layer remains unchanged: Broker protocol 1.1.2+r21 and Supervisor 1.3.0+r33.
+- Public-trust Authenticode remains UNSIGNED_PENDING_EXTERNAL_PROVIDER; no trusted-signature claim is made.
+- Previous public authority v1.4.0 remains immutable historical authority; it was not overwritten.
+- Final public acceptance record: docs/acceptance/v1.5.0/PUBLIC_RELEASE_ACCEPTANCE.json.
+- Release assets: Setup, source ZIP from exact release SHA, release notes, SPDX SBOM, candidate/publication acceptance asset, release manifest, and SHA256SUMS.
+- Root-cause prevention carried forward: installer/setup.manifest is explicitly LF-pinned to preserve Setup determinism across Windows clean clones.
+- Reuse Targets: release auditing, future updater verification, next-version baseline, article/report/thesis provenance.
