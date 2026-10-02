@@ -10,7 +10,7 @@ https://github.com/GOD13emad/TaskbarMonitorEnhanced
 
 The project is prepared for the SignPath Foundation open-source signing program. **External acceptance and a production public-trust signature are not yet proven.** The self-signed development certificate documented under `docs/security/` validates the signing pipeline only and is not public publisher trust.
 
-Therefore, the current public release, **v1.2.0, is treated as unsigned unless its release artifact carries an independently verifiable Authenticode signature from a publicly trusted provider.** The accepted v1.2.0 release evidence records PublicTrust=UNSIGNED_PENDING_EXTERNAL_PROVIDER, and the current binaries remain NotSigned. Windows may show **Unknown publisher**. This status is stated explicitly rather than inferred from provider-readiness work.
+Therefore, the current public release, **v1.3.0**, is treated as unsigned unless its release artifact carries an independently verifiable Authenticode signature from a publicly trusted provider. The accepted v1.3.0 release evidence records `PublicTrust=UNSIGNED_PENDING_EXTERNAL_PROVIDER`; Windows may show **Unknown publisher**. This status is stated explicitly rather than inferred from provider-readiness work.
 
 ## Official release artifacts
 
@@ -18,11 +18,7 @@ Only artifacts attached to the official GitHub Releases page are release binarie
 
 https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases
 
-The immutable historical v1.1.2 release remains fixed. Its tag is `aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0` and its published installer SHA-256 is:
-
-`25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB`
-
-v1.1.2 is never retroactively signed or replaced. v1.1.3 is an immutable historical reliability release, and v1.2.0 is the current immutable public release. No historical tag or release asset is rewritten merely to add a signature; any future publicly trusted signing change must use a newly versioned release unless the exact published artifact was already signed before publication.
+v1.2.0, v1.1.3, v1.1.2 and earlier published releases remain immutable historical authorities. No historical tag or release asset is rewritten merely to add a signature. Any future publicly trusted signing change must use a newly versioned release unless the exact published artifact was already signed before publication.
 
 ## Team roles
 
@@ -51,7 +47,7 @@ Third-party and open-source dependencies are documented in `THIRD_PARTY_NOTICES.
 
 ## Privacy and network behavior
 
-The application does not upload monitoring telemetry, configuration data, or personal content. By default it performs an HTTPS update check against the official GitHub Releases API; users can disable automatic update checks in Settings. Installer download occurs only after the user confirms the **Download & Install** prompt. See [PRIVACY.md](PRIVACY.md) for exact endpoints and behavior.
+The application does not upload monitoring telemetry, configuration data, or personal content. By default it performs an HTTPS update check against the official GitHub Releases API; users can disable automatic update checks in Settings. Installer download occurs only after the user confirms the **Download & Install** prompt. Support ZIP export is local and user initiated; its manifest omits machine name and absolute source paths. See [PRIVACY.md](PRIVACY.md) for exact endpoints and behavior.
 
 ## Verification and release integrity
 

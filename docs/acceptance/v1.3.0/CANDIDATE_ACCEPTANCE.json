@@ -1,0 +1,72 @@
+{
+  "SchemaVersion": 1,
+  "Release": "v1.3.0",
+  "Status": "CANDIDATE_ACCEPTED_FOR_PUBLICATION",
+  "AcceptedAtUtc": "2026-10-02T07:51:28Z",
+  "Authority": {
+    "CandidateHead": "fc5619d049de4a95cb23542a8c3318e12f064691",
+    "BuildIdentity": "V1_3_0_R33_RELIABILITY_ALERTS_SUPPORT",
+    "ExactHeadCiRun": 36980484008,
+    "ExactHeadCiConclusion": "success"
+  },
+  "Acceptance": {
+    "FullBuild": "PASS_0_WARNINGS_0_ERRORS",
+    "SetupVerify": "PASS_19_OF_19",
+    "BuiltInSelfTest": "PASS",
+    "FeatureContract": "PASS_10_FEATURES",
+    "SupportBundle": "PASS_PRIVACY_MANIFEST",
+    "SafeReset": "PASS_BACKUP_PRESERVATION_AND_UNIQUENESS",
+    "ThemeProof": "PASS_28_OF_28",
+    "CompactProof": "PASS_WIDTHS_592_500_ZERO_OVERFLOW",
+    "SettingsProof": "PASS_9_OF_9",
+    "HoverGuard": "PASS",
+    "HardwareProbe": "PASS",
+    "TemperatureProbe": "PASS",
+    "HealthProbe": "PASS_R21_SUPERVISOR_R33",
+    "ShellState": "PASS_TASKBAR_PARENT_AND_BEACON",
+    "StartTransitionProbe": "PASS_24_OF_24_ZERO_VISIBILITY_PARENT_CLOAK_PIXEL_FAILURES",
+    "StorageContract": "PASS_SELFTEST_AND_LIVE_SOAK",
+    "StorageSoak": "PASS_73_SAMPLES_5_ATTEMPTS_ZERO_FAILURE_SAMPLES_MAX_292MS",
+    "StartupPrimaryFaultInjection": "PASS_SELF_REPAIR_16_1_SECONDS_NO_FALLBACK",
+    "StartupRecoveryFaultInjection": "PASS_SELF_REPAIR_30_1_SECONDS_NO_FALLBACK",
+    "StartupRecoveryShortcutContract": "PASS_TARGET_ARGUMENTS_WORKING_DIRECTORY",
+    "DeterministicCleanClone": "PASS",
+    "InstalledRuntime": "PASS_EXACT_FINAL_MAIN_AND_SENSOR_HASHES",
+    "ExactHeadGitHubCI": "PASS",
+    "CIBinaryManifestEquality": "PASS_4_OF_4",
+    "BinaryProvenanceAttestation": "PASS",
+    "SetupSbomAttestation": "PASS",
+    "SensorReuseGate": "PASS_CURRENT_EXACT_R33_NO_SENSOR_RESTART",
+    "GpuFaultContainmentReview": "PASS_EXISTING_BOUNDED_BACKOFF_5_15_30_60_120_300"
+  },
+  "Hashes": {
+    "Main": "B11BF06BBA341AE87B46829580C19D4184FB87A39D5797DF803436F6D8331F90",
+    "Broker": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833",
+    "Supervisor": "0E28911AACDE0C3B1C6997C8BC6FF141C0FAA650B58438A9991CB3AD6C13C785",
+    "Setup": "508BB69F48D992FFC5AF240F3F775B5E2CAA1B052BFDB48302DEC40364B521BF"
+  },
+  "SensorLayer": {
+    "Architecture": "R21_PROCESS_ISOLATED",
+    "BrokerProtocolVersion": "1.1.2+r21",
+    "SupervisorVersion": "1.3.0+r33",
+    "Status": "READY"
+  },
+  "VisualQualification": {
+    "ThemeCount": 28,
+    "SettingsPages": 9,
+    "CompactWidths": [
+      592,
+      500
+    ],
+    "OverflowCount": 0,
+    "NoSyntheticMetricData": true
+  },
+  "Signing": {
+    "PublicTrust": "UNSIGNED_PENDING_EXTERNAL_PROVIDER",
+    "TrustedSignatureClaim": false
+  },
+  "PreviousPublicRelease": {
+    "Release": "v1.2.0",
+    "Immutable": true
+  }
+}

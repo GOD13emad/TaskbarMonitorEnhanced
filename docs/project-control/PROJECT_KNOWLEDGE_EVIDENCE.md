@@ -528,3 +528,57 @@ Status: CONFIRMED.
 - It is incorrect to rewrite historical release acceptance as failed; it is equally incorrect to use historical acceptance to claim current live full-health when new evidence contradicts it.
 
 Prevention rule: always label time-scoped release acceptance separately from current operational health.
+
+
+## R33 v1.3.0 Release Knowledge Delta - 2026-10-02
+
+### K-R33-01 - Separate valid sensor data acceptance from worker-exit acknowledgement
+
+Status: CONFIRMED / RELEASED.
+
+- A one-shot native worker can produce fresh valid output before managed/native teardown completes. Treating process exit as part of the data-validity contract created false Storage degradation in R32.
+- v1.3.0 validates fresh Storage output independently, uses a 20 s no-valid-output timeout, then a 3 s exit grace and bounded reap.
+- Final live soak on Emad-PC-Ultimate: 73 samples, five new Storage attempts, zero failure samples, zero consecutive failures, maximum completion 292 ms, final HEALTHY_DATA.
+
+Prevention rule: data freshness/schema and lifecycle completion are separate contracts. Do not discard validated telemetry solely because process termination acknowledgement is late.
+
+### K-R33-02 - Startup redundancy requires bounded continuous maintenance
+
+Status: CONFIRMED / RELEASED.
+
+- Startup-only repair leaves a same-session gap if an external actor removes HKCU Run or corrupts the recovery shortcut after Main is already running.
+- v1.3.0 verifies both channels every 60 s only while StartWithWindows is enabled and repairs only observed mismatches.
+- Final-hash live fault injection: primary Run repaired in 16.1 s; recovery shortcut repaired in 30.1 s; no fallback restore; target/arguments/working-directory contract passed.
+
+Prevention rule: if a redundant startup channel is part of availability design, verify it periodically or on another bounded maintenance trigger, not only at process bootstrap.
+
+### K-R33-03 - Protocol compatibility and Supervisor build identity must be distinct
+
+Status: CONFIRMED / RELEASED.
+
+- The Broker protocol remains `1.1.2+r21`, but R33 materially changed Sensor Supervisor behavior. Keeping the Supervisor binary labelled 1.1.2+r21 would obscure deployment evidence and could make reuse semantics ambiguous.
+- v1.3.0 exposes `SupervisorVersion=1.3.0+r33` separately from `BrokerVersion=1.1.2+r21` and requires both plus exact payload hashes/live health for sensor reuse.
+- Final reinstall recorded `SensorLayerMode=CURRENT_EXACT_R33` and did not restart the already-correct sensor processes.
+
+Prevention rule: never reuse one version string for both protocol compatibility and a materially changed implementation binary.
+
+### K-R33-04 - Support bundles and reset tools need explicit privacy/rollback contracts
+
+Status: CONFIRMED / RELEASED.
+
+- Support ZIP is user initiated and local. Its manifest must not reveal machine name or absolute user-profile source paths merely for diagnostics convenience.
+- Safe Defaults must create a recoverable config copy before loading defaults and must not mutate the running monitor until Save & Apply.
+- v1.3.0 self-tests privacy-manifest absence and duplicate-timestamp backup uniqueness/preservation.
+
+Prevention rule: diagnostics export should follow minimum-necessary metadata; destructive-looking UI actions must have a separately testable rollback/preservation contract.
+
+### K-R33-05 - Public release authority is an exact commit + binary hashes + published digests
+
+Status: CONFIRMED / FINAL.
+
+- v1.3.0 annotated tag object `8d9314a60ceaaa074b5f877aaf4d224337780fb3` peels to `fc5619d049de4a95cb23542a8c3318e12f064691`.
+- Release-branch CI `36980484008` and main CI `36980902415` succeeded and printed exact 4/4 release binary hashes.
+- GitHub Release id `401629671` is immutable, non-draft, non-prerelease and Latest with 7/7 asset digest matches.
+- Trusted Authenticode remains an external gate and is not inferred from repository-side release quality.
+
+Prevention rule: never promote a release from version labels alone; tie authority to tag/commit, reproducible hashes, CI, runtime acceptance, release-asset digests and explicit signing state.

@@ -1,0 +1,127 @@
+{
+  "SchemaVersion": 1,
+  "Release": "v1.3.0",
+  "Status": "FINAL_PUBLIC_RELEASE_ACCEPTED",
+  "AcceptedAtUtc": "2026-10-02T07:55:32Z",
+  "ReleaseUrl": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.3.0",
+  "ReleaseId": 401629671,
+  "ReleaseName": "Taskbar Monitor Enhanced v1.3.0 — Reliability, Alerts & Support Tools",
+  "Latest": true,
+  "Draft": false,
+  "Prerelease": false,
+  "Immutable": true,
+  "Authority": {
+    "ReleaseTag": "v1.3.0",
+    "AnnotatedTagObject": "8d9314a60ceaaa074b5f877aaf4d224337780fb3",
+    "ReleaseTagCommit": "fc5619d049de4a95cb23542a8c3318e12f064691",
+    "BuildIdentity": "V1_3_0_R33_RELIABILITY_ALERTS_SUPPORT"
+  },
+  "Acceptance": {
+    "FullBuild": "PASS_0_WARNINGS_0_ERRORS",
+    "SetupVerify": "PASS_19_OF_19",
+    "FinalProofSuite": "PASS_15_OF_15_136_ARTIFACTS",
+    "FeatureContract": "PASS_10_FEATURES",
+    "SupportBundle": "PASS_PRIVACY_MANIFEST",
+    "SafeReset": "PASS_BACKUP_PRESERVATION_AND_UNIQUENESS",
+    "ThemeProof28Of28": "PASS_LIVE_DATA",
+    "CompactProof592And500": "PASS_ZERO_OVERFLOW",
+    "SettingsProof9Of9": "PASS",
+    "HoverGuard": "PASS",
+    "HardwareProbe": "PASS",
+    "TemperatureProbe": "PASS",
+    "HealthProbe": "PASS_R21_SUPERVISOR_R33",
+    "ShellState": "PASS_TASKBAR_PARENT_AND_ACTIVE_BEACON",
+    "StartTransitionProbe": "PASS_24_OF_24_ZERO_VISIBILITY_PARENT_CLOAK_PIXEL_FAILURES",
+    "StorageContract": "PASS_SELFTEST",
+    "StorageSoak": "PASS_73_SAMPLES_5_ATTEMPT_DELTA_ZERO_FAILURE_SAMPLES_MAX_292MS",
+    "StartupPrimaryFaultInjection": "PASS_SELF_REPAIR_16_1_SECONDS_NO_FALLBACK",
+    "StartupRecoveryFaultInjection": "PASS_SELF_REPAIR_30_1_SECONDS_NO_FALLBACK",
+    "StartupRecoveryShortcutContract": "PASS_TARGET_ARGUMENTS_WORKING_DIRECTORY",
+    "DeterministicCleanClone": "PASS",
+    "InstalledRuntime": "PASS_EXACT_FINAL_MAIN_SENSOR_HASHES",
+    "SensorReuseGate": "PASS_CURRENT_EXACT_R33_NO_SENSOR_RESTART",
+    "ReleaseBranchExactHeadCI": "PASS",
+    "MainExactHeadCI": "PASS",
+    "MainCIBinaryManifestEquality": "PASS_4_OF_4",
+    "BinaryProvenanceAttestation": "PASS",
+    "SetupSbomAttestation": "PASS",
+    "ReleaseAssetDigestVerification": "PASS_7_OF_7"
+  },
+  "CI": {
+    "ReleaseBranchRunId": 36980484008,
+    "MainRunId": 36980902415,
+    "MainRunConclusion": "success",
+    "ExactMainSha": "fc5619d049de4a95cb23542a8c3318e12f064691",
+    "MainArtifactId": 11215586294,
+    "MainArtifactDigest": "sha256:078d7886bf4613ad586dfdeea7685181a6a8ce8fc176754bd121c465e3c98a1f",
+    "PrintedManifestHashes": {
+      "Main": "B11BF06BBA341AE87B46829580C19D4184FB87A39D5797DF803436F6D8331F90",
+      "Broker": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833",
+      "Supervisor": "0E28911AACDE0C3B1C6997C8BC6FF141C0FAA650B58438A9991CB3AD6C13C785",
+      "Setup": "508BB69F48D992FFC5AF240F3F775B5E2CAA1B052BFDB48302DEC40364B521BF"
+    }
+  },
+  "Assets": [
+    {
+      "Name": "RELEASE_MANIFEST_v1.3.0.json",
+      "Bytes": 1481,
+      "SHA256": "e4f37c6e56d5a9a9b5292809fb4a78a9f20a327d00d0e63b7945c5389c94a003"
+    },
+    {
+      "Name": "RELEASE_NOTES_v1.3.0.md",
+      "Bytes": 4088,
+      "SHA256": "e0f1c73fd43aeb33073a7bdc926275267c0fb5ef2d5b462edc870545043b08b9"
+    },
+    {
+      "Name": "SBOM_v1.3.0.spdx.json",
+      "Bytes": 4959,
+      "SHA256": "b4c6cf30ae9773f589b47ca0b5fbaa892f9e7f819090fb3dfb6072a692468680"
+    },
+    {
+      "Name": "SHA256SUMS_v1.3.0.txt",
+      "Bytes": 610,
+      "SHA256": "bf626af565dfbce7733438b22261f381ab311cac50f69e2537eb498c651dc9b6"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_1.3.0_SOURCE.zip",
+      "Bytes": 2675165,
+      "SHA256": "11a988abc84c0eb67f0b4760c922bca12c7f4b3d248fbdb96cd6de8779188cd8"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.3.0.exe",
+      "Bytes": 11149824,
+      "SHA256": "508bb69f48d992ffc5af240f3f775b5e2caa1b052bfdb48302dec40364b521bf"
+    },
+    {
+      "Name": "V1_3_0_R33_RELIABILITY_ALERTS_SUPPORT_ACCEPTANCE.json",
+      "Bytes": 2814,
+      "SHA256": "9274c8142284744a967d504054e1bc12d79086722bb5b4e6661a99677002d99c"
+    }
+  ],
+  "VisualQualification": {
+    "ThemeCount": 28,
+    "SettingsPages": 9,
+    "CompactWidths": [
+      592,
+      500
+    ],
+    "OverflowCount": 0,
+    "NoSyntheticMetricData": true
+  },
+  "SensorLayer": {
+    "Architecture": "R21_PROCESS_ISOLATED",
+    "BrokerProtocolVersion": "1.1.2+r21",
+    "SupervisorVersion": "1.3.0+r33",
+    "Status": "READY",
+    "BrokerHash": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833",
+    "SupervisorHash": "0E28911AACDE0C3B1C6997C8BC6FF141C0FAA650B58438A9991CB3AD6C13C785"
+  },
+  "Signing": {
+    "PublicTrust": "UNSIGNED_PENDING_EXTERNAL_PROVIDER",
+    "TrustedSignatureClaim": false
+  },
+  "ImmutablePreviousRelease": {
+    "Release": "v1.2.0",
+    "Status": "PASS_UNCHANGED"
+  }
+}
