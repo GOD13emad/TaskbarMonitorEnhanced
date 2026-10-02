@@ -166,6 +166,8 @@ namespace TaskbarMonitorEnhanced
         internal TrafficDay[] Snapshot(){lock(sync)return days.Values.OrderByDescending(d=>d.Day).Select(d=>new TrafficDay{Day=d.Day,DownloadBytes=d.DownloadBytes,UploadBytes=d.UploadBytes}).ToArray();}
         internal void FlushAsync()
         {
+            // Shutdown can precede the first sample. Never replace prior history before reading it.
+            if(!loaded)Load();
             if(persistenceBlocked)return;
             string json=new JavaScriptSerializer().Serialize(Snapshot());
             lock(saveSync){pendingJson=json;saved.Reset();if(saving)return;saving=true;}
@@ -178,7 +180,7 @@ namespace TaskbarMonitorEnhanced
             });
         }
         internal bool FlushAndWait(int milliseconds)
-        {if(persistenceBlocked)return false;FlushAsync();return saved.Wait(Math.Max(0,milliseconds));}
+        {if(persistenceBlocked)return false;FlushAsync();return !persistenceBlocked&&saved.Wait(Math.Max(0,milliseconds))&&LastError==null;}
         internal void ExportCsv(string destination)
         {
             var b=new StringBuilder("Day,DownloadBytes,UploadBytes\r\n");foreach(var d in Snapshot())b.AppendLine(d.Day+","+d.DownloadBytes.ToString("0",CultureInfo.InvariantCulture)+","+d.UploadBytes.ToString("0",CultureInfo.InvariantCulture));

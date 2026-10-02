@@ -12,6 +12,7 @@ A new eight-page Performance Workspace is available from the taskbar menu:
 - **Storage** — per-device capacity, free space, read/write throughput and available disk temperature.
 - **Alerts** — sustained CPU/RAM/GPU/disk-capacity thresholds, dwell time, cooldown, local-time quiet hours, 30-minute global snooze and bounded event export.
 - **Themes** — searchable/filterable catalog, favorites and production-renderer preview across all 48 themes.
+- **Hardware** - availability-aware CPU, RAM-module, GPU, storage and network inventory with CSV/JSON export.
 - **Profiles** — presentation-only import/export, presets and taskbar metric ordering.
 
 ## Twenty original Studio themes
@@ -73,3 +74,7 @@ The workspace validation drives real UI buttons and checks the production render
 ## Scope limits
 
 This release is not a full replacement for Process Explorer's kernel handle/DLL inspection, HWiNFO's entire hardware-support matrix or TrafficMonitor's arbitrary executable plugin system. Those capabilities need separate engineering and validation. No universal product-superiority claim is made.
+
+## Final persistence guards
+
+Shutdown reads existing local traffic history even when it occurs before the first sample. Corrupt history is preserved rather than overwritten. A completed queue is not treated as a successful save if the disk write failed. Regression tests reproduce the cold-shutdown loss on the prior implementation and verify these guards.

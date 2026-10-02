@@ -93,7 +93,7 @@ namespace TaskbarMonitorEnhanced
         private void CloseWorkspace()
         {
             if(workspace!=null){workspace.Close();workspace=null;}
-            if(!proofMode&&config.RecordTrafficHistory&&!trafficLedger.FlushAndWait(1500))Log.Write("WARN","TRAFFIC_HISTORY_SHUTDOWN_TIMEOUT");
+            if(!proofMode&&config.RecordTrafficHistory&&!trafficLedger.FlushAndWait(1500))Log.Write("WARN","TRAFFIC_HISTORY_SHUTDOWN_INCOMPLETE");
         }
         private List<MetricView> OrderWorkspaceMetrics(List<MetricView> views)
         {

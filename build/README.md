@@ -1,6 +1,6 @@
 # Reproducible build
 
-Build.ps1 is the authoritative local and CI build path for the v1.5.0 actionable alerts and session export candidate, retaining the accepted protected sensor architecture.
+Build.ps1 is the authoritative local and CI build path for the v1.6.0 Performance Workspace and Theme Studio, retaining the accepted protected sensor architecture.
 
 It performs the following gates:
 
@@ -11,8 +11,8 @@ dependencies.lock.json is the single source of truth for upstream dependency ver
 3. Builds the main application, isolated sensor broker, and supervisor as x64 .NET Framework 4.8 binaries.
    Release projects explicitly enable deterministic/CI compilation and omit absolute PDB path metadata from production PE files.
 4. Builds the setup executable from those exact outputs.
-5. Runs setup /verify and requires 19 embedded resources.
-6. Runs the application self-test.
+5. Runs setup /verify and requires 24 embedded resources.
+6. Runs the legacy, feature-contract and workspace model-regression suites using actual child-process exit codes.
 7. Writes artifacts/BUILD_MANIFEST.json with dependency provenance and output SHA-256 values.
 
 Pinned dependencies:

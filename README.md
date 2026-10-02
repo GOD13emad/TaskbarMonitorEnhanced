@@ -1,144 +1,76 @@
 # Taskbar Monitor Enhanced
 
-A Windows taskbar system monitor for live CPU, RAM, disk, network, GPU, VRAM and temperature telemetry.
+**Live Windows taskbar monitoring, an eight-page Performance Workspace, and 48 built-in themes.**
 
-## v1.6.0 — Performance Workspace & Theme Studio (candidate)
+Monitor CPU, RAM, disk, network, GPU, VRAM and available temperatures without putting privileged sensor collection inside the desktop UI. Version 1.6.0 adds 20 original Studio designs, local analysis, hardware inventory and practical alert controls.
 
-The current candidate adds an eight-page workspace: **Overview, Processes, Network, Storage, Alerts, Themes, Profiles and Hardware**. Public authority remains the immutable v1.5.0 release until the v1.6 publication gates are recorded as closed.
+## Performance Workspace
 
-**48 built-in themes** include twenty original Studio designs. An identical-palette/font/data rendering test produces twenty distinct geometry fingerprints. Search, favorites, light/dark filters and the actual taskbar renderer are available in Theme Studio.
+Right-click the taskbar monitor and choose **Performance workspace...** or **Theme Studio - 48 designs...**.
 
-The workspace provides bounded session charts, min/max/average/P95, CSV/PNG/JSON exports, read-only process inspection, per-adapter network traffic, opt-in 90-day local accounting, sustained usage/capacity alerts, quiet hours/snooze, safe presentation profiles, real taskbar metric ordering, and exportable hardware inventory from the existing isolated sensor snapshot. No cloud upload is introduced and traffic persistence defaults off.
+| Page | What it provides |
+|---|---|
+| Overview | Interactive session charts, selectable time windows, minimum/maximum/average/P95, CSV export, chart PNG and statistics JSON |
+| Processes | Read-only process search/sort, normalized CPU, working/private memory, thread and handle counts, CSV export |
+| Network | Adapter throughput and link utilization, selected-adapter accounting, monthly budget, optional 90-day local history, bit/s display |
+| Storage | Mapped capacity/free space, read/write throughput and available temperature |
+| Alerts | Sustained CPU/RAM/GPU/capacity thresholds, dwell time, cooldown, quiet hours, snooze and bounded event export |
+| Themes | Search, favorites, light/dark filters, and the actual production renderer for previews |
+| Profiles | Safe presentation import/export, presets and taskbar metric ordering |
+| Hardware | Available CPU topology, RAM modules, GPU clocks/power/fans/PCIe and storage/network inventory; CSV/JSON export |
 
-### The twenty new themes — actual renderer captures
+Use **Ctrl+1 through Ctrl+8** to switch workspace pages, **F5** to refresh, and **Esc** to close. The existing nine-page Settings window remains available for hardware selection, temperature thresholds, taskbar placement, diagnostics and startup behavior.
 
-![Studio themes 1–5](docs/screenshots/v1.6.0/studio-1.png)
-![Studio themes 6–10](docs/screenshots/v1.6.0/studio-2.png)
-![Studio themes 11–15](docs/screenshots/v1.6.0/studio-3.png)
-![Studio themes 16–20](docs/screenshots/v1.6.0/studio-4.png)
+## Twenty original Studio themes
 
-### Current verification scope
+These are renderer-backed designs, not background images or palette-only recolors. An identical-palette/font/data test verifies twenty different geometry fingerprints.
 
-Application compilation and the legacy/feature/workspace contract suites passed after repairing migration, runtime connections, unavailable-data handling and source-integrity defects. A live-data UI proof passed **16 actual interface-action checks**, with **58 interactive controls / zero accessible-name gaps**, and rendered all eight pages at normal and minimum window sizes. New-theme primary text contrast is tested.
+![Bauhaus, Swiss, Art Deco, E Ink and Noir themes](docs/screenshots/v1.6.0/studio-1.png)
+![Metro, LCD, Oscilloscope, Radar and Aviation themes](docs/screenshots/v1.6.0/studio-2.png)
+![Prism, Ribbon, Circuit, Dot Matrix and Topographic themes](docs/screenshots/v1.6.0/studio-3.png)
+![Memphis, Origami, Kintsugi, Brutalist and Stained Glass themes](docs/screenshots/v1.6.0/studio-4.png)
 
-The current release gates, exact revisions and failure history are tracked in [R37 verification](docs/project-control/R37_VERIFICATION.md). The [primary-source capability map](docs/project-control/R37_BENCHMARK.md) identifies implemented, partial and deferred comparisons; this product is not represented as a universal replacement for every specialist monitoring tool.
+All 28 existing themes remain available. New Studio primary-text contrast, compact rendering and the real selection/apply path have dedicated regression checks.
 
-Only fresh exact-revision determinism, CI/provenance, installed-runtime validation and published digest evidence can mark this candidate Released/Final. The old pre-integration seven-page proof and zero-length-theme source commit are not acceptance evidence for the current candidate.
+## Data, privacy and reliability
 
-## v1.5.0 — Actionable Alerts & Session Export
+Session history is capped at **3,600 samples**. Daily traffic history is capped at **90 days** and is **off on disk by default**. It records observed adapter counters, not ISP billing totals; first samples, counter resets and long collection gaps are excluded. One pinned adapter reduces VPN/physical double counting.
 
-**v1.5.0 is the current public Latest release.** It builds on immutable v1.4.0 with a narrow Main/UI product-completion change set:
+There is no project cloud telemetry or background monitoring upload. Process inspection is read-only. Presentation profiles cannot import startup registrations, sensor paths, notification permissions or traffic-retention settings. Exports are initiated by the user; process and hardware exports can contain local application and device names. See [Privacy](PRIVACY.md).
 
-- optional rate-limited Windows notifications for CPU/GPU/disk temperature thresholds
-- 3 °C recovery hysteresis and 10-minute per-lane notification cooldown
-- notification click-through to the Alerts settings page
-- bounded 3,600-sample in-memory session telemetry with explicit CSV export
-- quick **Open Task Manager** context action
-- protected Broker/Supervisor binaries unchanged
+The non-elevated main UI retains process-isolated sensors, Explorer/taskbar recovery, continuous startup registration self-heal, adaptive battery polling, pause/resume, High Contrast and PerMonitorV2 configuration. Sensor availability is shown explicitly; unavailable values are not invented.
 
-### v1.5.0 validation
+## Installation and release integrity
 
-- build: **0 warnings / 0 errors**
-- reproducible build and clean-clone determinism **PASS**
-- candidate suite **11/11 PASS**
-- installed/postinstall suite **11/11 PASS**
-- installed binary equality **5/5 exact**
-- config migration preservation **PASS**
-- release-branch and main CI **PASS on the exact release SHA**
-- binary provenance, runtime-config provenance and Setup SBOM attestation **PASS**
-- immutable GitHub Release with **7/7 asset digest verification**
+Use the installer from the [official Releases page](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases). Each accepted release carries SHA-256 checksums, a release manifest, source archive, SPDX SBOM and acceptance evidence. [Download guidance](DOWNLOAD.md) records the current public release, not an unverified local build.
 
-## v1.4.0 — Windows Integration & Accessibility (previous immutable release)
+Automatic checks query the official GitHub Releases endpoint. Installer download/launch requires a user action and confirmation; the update path verifies canonical release identity, immutability and the exact SHA-256 immediately before launch.
 
-v1.4.0 remains an immutable previous public release. It built on v1.3.1 and focused on Windows integration, accessibility and security hardening.
+**Public-trust Authenticode signing is not yet established.** SHA-256/provenance verification is not a substitute for a trusted publisher certificate. See [Code signing](CODE_SIGNING.md).
 
-### New in v1.4.0
+## Build and verification
 
-- **PerMonitorV2 DPI awareness** through the deployed .NET Framework 4.8 WinForms runtime configuration.
-- **Taskbar display selection** supports the primary taskbar and discovered secondary Windows taskbars, with safe fallback to primary if a configured target disappears.
-- **Follow Windows light/dark mode** maps Windows appearance to any two built-in TBME themes and reacts to user-preference changes without restart.
-- **High Contrast support** uses Windows system colors.
-- Settings interactive controls expose accessible names/descriptions; **Ctrl+1…Ctrl+9**, **Ctrl+S** and **F5** provide keyboard shortcuts.
-- Automatic updates now require canonical repository release/tag/installer URLs, reject draft/prerelease metadata, reject reparse-point installers, and **re-hash SHA-256 immediately before launch**.
-- Process DLL lookup is hardened with `SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)`.
-- Privacy-safe local crash snapshots are written to `last_crash.json` and included in user-initiated Support ZIP exports when present.
-- The production renderer-backed real theme preview from v1.3.1 remains intact.
+Requirements: x64 Windows, .NET Framework 4.8, Git and the SDK pinned in `global.json`. Pinned dependency identities are in `build/dependencies.lock.json`.
 
-![v1.4.0 Settings](docs/screenshots/settings/settings-contact-sheet.png)
+```powershell
+./build/Build.ps1
+./build/Verify-Determinism.ps1
+./build/Test-Workspace.ps1 -Visual -OutputDirectory .local/proof-unique
+./build/Test-Runtime.ps1 -Executable ./build/_out/App/TaskbarMonitorEnhanced.exe -OutputDirectory .local/runtime-unique
+```
 
-### Validation
+Use a new exact evidence directory for every test run; existing evidence is never silently replaced. Clean-clone determinism requires committed, clean source. Runtime tests require an interactive Windows desktop and the installed monitoring environment for hardware-dependent checks.
 
-v1.4.0 passed:
+The tests cover schema migration, unavailable/nonfinite data, traffic resets/retention/persistence, profile boundaries, actual UI actions, 48 themes and 20 distinct Studio geometries. Compilation alone is not release acceptance. Exact revision, installed runtime and publication evidence are recorded under [acceptance](docs/acceptance/) and [project control](docs/project-control/).
 
-- build: 0 warnings / 0 errors
-- reproducible build and clean-clone determinism
-- candidate suite **9/9 PASS**
-- installed runtime suite **10/10 PASS**
-- Settings **9/9**, 67 interactive controls with **0 accessibility-name gaps**
-- High Contrast validation: 143 controls, **0 style gaps**
-- DPI proof: **PerMonitorV2**
-- 28/28 theme regression
-- compact 592/500 regression with zero overflow
-- hover, hardware, temperature, health, shell and Start-transition regression
-- canonical update identity + pre-launch rehash tests
-- crash snapshot privacy proof
-- live install on Emad-PC-Ultimate with exact sensor-layer reuse
-- release-branch CI and main CI success on exact release SHA
-- **5/5** local/CI hash equality: Main, runtime config, Broker, Supervisor and Setup
-- provenance for binaries and runtime DPI config, plus Setup SBOM attestation
-- immutable GitHub Release with **7/7** asset digest verification
+## Scope and compatibility
 
-The current validation host has one physical monitor/taskbar. Secondary-taskbar selection is deterministic-test covered; physical two-monitor attachment proof is explicitly not claimed on this host.
+This release is a taskbar monitor and practical monitoring workspace, not a complete substitute for kernel handle/DLL inspection, every hardware sensor supported by specialist utilities, arbitrary executable plugins, overclocking or fan control. The [primary-source capability map](docs/project-control/R37_BENCHMARK.md) identifies implemented and deferred capabilities.
 
-### Protected sensor layer
+The validation host has one physical monitor. Deterministic taskbar selection is covered; physical two-monitor attachment is not claimed on that host. Protected sensor versions remain Broker **1.1.2+r21** and Supervisor **1.3.0+r33**.
 
-No sensor binary/protocol change was required:
+## Authorship and license
 
-- Broker protocol: `1.1.2+r21`
-- Sensor Supervisor: `1.3.0+r33`
-- R21 process isolation retained
+**Lead Developer & Maintainer:** Dr. Ali-Akbar Emadeddin (`GOD13emad`).
 
-## Download
-
-Official immutable release:
-
-https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.5.0
-
-Installer SHA-256:
-
-`0329d3a49cd1a73dbb95c28f3a22ba6befe65cd65e5c562606c02972392586e1`
-
-See [DOWNLOAD.md](DOWNLOAD.md), [release notes](docs/releases/v1.5.0/RELEASE_NOTES.md), [public acceptance](docs/acceptance/v1.5.0/PUBLIC_RELEASE_ACCEPTANCE.json), [CODE_SIGNING.md](CODE_SIGNING.md) and [PRIVACY.md](PRIVACY.md).
-
-## Core capabilities
-
-- CPU, RAM, disk, GPU, VRAM, network and temperature monitoring
-- 48 built-in themes (including 20 Studio designs), live sparklines and real renderer theme preview
-- 9-page Settings with alerts, hardware selection, diagnostics and advanced controls
-- multi-device selection and aggregation
-- adaptive battery polling and Session Pause/Resume
-- rate-limited temperature notifications and bounded session CSV export
-- quick Open Task Manager action
-- Copy Diagnostics and privacy-hardened Support ZIP
-- safe reset-to-defaults with backup-first behavior
-- left/center/right placement, compact layouts and taskbar-display targeting
-- Explorer/taskbar recovery and continuous Start-with-Windows self-heal
-- non-elevated Main with protected process-isolated hardware sensors
-- deterministic builds, SBOM/provenance and immutable release verification
-
-## Release integrity
-
-v1.5.0, v1.4.0, v1.3.1 and all earlier public releases are immutable. Historical tags/assets are never overwritten.
-
-Public trusted Authenticode signing remains pending an external provider; no trusted-signature claim is made.
-
-## Project authorship
-
-**Lead Developer & Maintainer:** Dr. Ali-Akbar Emadeddin  
-GitHub: `GOD13emad`
-
-Derived from the GPL-licensed `leandrosa81/taskbar-monitor` project with upstream attribution preserved.
-
-## License
-
-GNU General Public License v3.0.
+Derived from `leandrosa81/taskbar-monitor` with GPL/upstream attribution preserved. Licensed under GNU GPL v3.0. See [License](LICENSE), [Authors](AUTHORS.md), [Attribution](COPYRIGHT_AND_ATTRIBUTION.md), [Third-party notices](THIRD_PARTY_NOTICES.md) and [AI-assisted development disclosure](AI_ASSISTED_DEVELOPMENT.md).

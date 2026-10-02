@@ -10,6 +10,14 @@ Taskbar Monitor Enhanced does **not** upload monitoring telemetry, configuration
 
 No analytics, advertising SDK, user tracking, or project cloud-telemetry service is included.
 
+## Local retention and exports in v1.6.0
+
+The session chart history keeps at most 3,600 samples in memory. Alert history keeps at most 200 entries in memory. Both are lost when the process ends unless the user explicitly exports them.
+
+**Network traffic persistence is disabled by default.** Enabling `Keep 90 days locally` on the Network page stores at most 90 daily totals in `%LOCALAPPDATA%\TaskbarMonitorEnhanced\traffic_history.json`, with a local `.bak` recovery file. Totals contain local dates and observed download/upload byte counts, not packet contents, browsing history, remote endpoints or ISP billing data. Turning the option off stops future scheduled saves; it does not silently delete the existing file or an already queued write. Files can be removed manually after closing the application.
+
+CSV/JSON/PNG exports are user-initiated local files. Process exports include process names and identifiers; hardware inventory exports can include device names, manufacturers and part numbers. Review these files before sharing. Presentation profile backups and ordinary diagnostic/sensor logs are also local. No export is automatically uploaded.
+
 ## GitHub update checks
 
 Automatic update checking is enabled by default and can be disabled in **Settings > Behavior > Automatically check GitHub Releases for updates**.

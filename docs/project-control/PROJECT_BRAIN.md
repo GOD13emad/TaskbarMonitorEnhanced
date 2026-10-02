@@ -1,3 +1,15 @@
+# CURRENT AUTHORITY - R38 / v1.6.0 finalization
+
+Updated UTC: 2026-10-02T22:43:42.582431+00:00
+
+Canonical development has been consolidated at `C:\Users\Aa.Emad\source\repos\TaskbarMonitorEnhanced`, branch `release/v1.6.0-final`, based on corrected source `182c4ed11d78fa3c52f8bbf104a7e791cd2491bf`. The isolated worktree and original candidate are retained as historical lineages, not current execution roots. Scope is eight workspace pages and 48 themes (20 new original geometries), preserving locked sensors and configuration.
+
+A regression-first cold-shutdown traffic data-loss repair passed all three contract suites (red operation `920abe69-1532-43d2-a0e4-36966e90f094`, green operation `36c6d7b0-83ce-401c-808e-3e6c11c4bc0d`). See `R38_FINALIZATION.md` for failure class/root cause, exact guards, baseline hashes, roadmap, exclusions and next action.
+
+Stage: VERIFICATION / exact source freeze. Full build/determinism, fresh UI/runtime, CI/provenance, configuration-preserving final installation and public immutable publication remain OPEN. Public v1.5.0 remains the accepted external release until verified v1.6 publication. Control record CURRENT; cumulative transfer ZIP INCOMPLETE until closure packaging. Earlier CURRENT/FINAL headings below are historical and superseded for the active v1.6 release.
+
+---
+
 # CURRENT CONTINUATION — R37 isolated integration verification
 
 Project: Taskbar Monitor Enhanced. Canonical root is C:\Users\Aa.Emad\source\repos\TaskbarMonitorEnhanced; active verified development is its .local\r37-work linked worktree, branch release/v1.6.0-r37-verified. Previous public authority remains immutable v1.5.0. Original-worktree candidate f170a8a is defective (empty committed StudioThemes.cs) and MUST NOT be installed/published.

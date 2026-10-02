@@ -55,6 +55,18 @@ namespace TaskbarMonitorEnhanced
                 Check(!File.Exists(retentionPath),"retention opt-out stays memory only");
                 var snap=retention.Snapshot();snap[0].DownloadBytes=999999;
                 Check(retention.Snapshot()[0].DownloadBytes!=999999,"traffic snapshot isolation");
+                string coldPath=Path.Combine(dir,"cold.json");
+                File.WriteAllText(coldPath,new JavaScriptSerializer().Serialize(new[]{new TrafficDay{Day=day.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture),DownloadBytes=321,UploadBytes=123}}));
+                var cold=new TrafficLedger(coldPath);
+                Check(cold.FlushAndWait(3000),"cold shutdown flush completes");
+                var coldRows=new JavaScriptSerializer().Deserialize<TrafficDay[]>(File.ReadAllText(coldPath));
+                Check(coldRows.Length==1&&coldRows[0].DownloadBytes==321&&coldRows[0].UploadBytes==123,"shutdown before first sample preserves existing traffic history");
+                string coldBadPath=Path.Combine(dir,"cold-bad.json");File.WriteAllText(coldBadPath,"{ unreadable original");
+                var coldBad=new TrafficLedger(coldBadPath);
+                Check(!coldBad.FlushAndWait(3000)&&File.ReadAllText(coldBadPath)=="{ unreadable original","cold corrupt history preserved without overwrite");
+                string unwritable=Path.Combine(dir,"destination-is-directory");Directory.CreateDirectory(unwritable);
+                var failedWrite=new TrafficLedger(unwritable);
+                Check(!failedWrite.FlushAndWait(3000)&&failedWrite.LastError!=null,"flush must report write failure rather than successful queue drain");
             }
             finally {try{Directory.Delete(dir,true);}catch{}}
         }

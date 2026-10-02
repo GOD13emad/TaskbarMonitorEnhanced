@@ -1,16 +1,16 @@
 # Code signing policy
 
-Taskbar Monitor Enhanced is an open-source Windows project distributed under **GNU GPL-3.0-or-later**. The authoritative repository is:
+Taskbar Monitor Enhanced is an open-source Windows project distributed under **GNU GPL v3.0**. The authoritative repository is:
 
 https://github.com/GOD13emad/TaskbarMonitorEnhanced
 
 ## Provider and current status
 
-**Free code signing provided by SignPath.io, certificate by SignPath Foundation.**
+**Planned provider option: SignPath Foundation. Program acceptance and actual public-trust signing remain unverified.**
 
 The project is prepared for the SignPath Foundation open-source signing program. **External acceptance and a production public-trust signature are not yet proven.** The self-signed development certificate documented under `docs/security/` validates the signing pipeline only and is not public publisher trust.
 
-Therefore, the current public release, **v1.5.0**, is treated as unsigned unless its release artifact carries an independently verifiable Authenticode signature from a publicly trusted provider. The accepted v1.5.0 release evidence records `PublicTrust=UNSIGNED_PENDING_EXTERNAL_PROVIDER`; Windows may show **Unknown publisher**. This status is stated explicitly rather than inferred from provider-readiness work.
+The v1.6.0 release line is treated as unsigned unless its exact artifact carries an independently verifiable Authenticode signature from a publicly trusted provider. Release evidence records `PublicTrust=UNSIGNED_PENDING_EXTERNAL_PROVIDER`; Windows may show **Unknown publisher**. Repository-side readiness is not provider acceptance or a trusted signature.
 
 ## Official release artifacts
 
