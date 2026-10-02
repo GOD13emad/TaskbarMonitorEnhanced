@@ -41,6 +41,7 @@ The release candidate must pass:
 
 - 0-warning / 0-error deterministic build
 - Setup verification including the deployed `TaskbarMonitorEnhanced.exe.config`
+- build manifest, SPDX SBOM, CI artifact and dedicated provenance attestation include the runtime `.exe.config` DPI authority
 - built-in self-test and extended feature contract
 - Settings 9/9 proof with PerMonitorV2, zero accessibility-name gaps and zero High Contrast style gaps
 - 28/28 theme regression
