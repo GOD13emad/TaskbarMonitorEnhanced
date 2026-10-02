@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0 — Windows Integration & Accessibility
+
+- enable PerMonitorV2 DPI through .NET Framework 4.8 application configuration
+- add selectable primary/secondary Windows taskbar targeting with safe primary fallback
+- add Follow Windows app light/dark mode with configurable TBME theme pairs
+- add High Contrast system-color rendering, explicit accessibility metadata, and keyboard navigation
+- harden update identity to canonical GitHub tag/release/asset URLs and reject draft/prerelease/mutable candidates
+- re-verify installer SHA-256 immediately before launch and block reparse-point update paths
+- harden DLL search paths with LOAD_LIBRARY_SEARCH_DEFAULT_DIRS
+- add privacy-safe local crash snapshots and include them in user-initiated support bundles
+- retain the exact protected sensor layer: Broker protocol `1.1.2+r21`, Sensor Supervisor `1.3.0+r33`
+
 ## 1.3.1 — Real Theme Preview
 
 - replace the Display-page palette mock with a renderer-backed preview that uses the same taskbar paint pipeline as the live monitor

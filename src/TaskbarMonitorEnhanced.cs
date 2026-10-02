@@ -33,18 +33,18 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Live system monitor integrated into the Windows taskbar")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.3.1+r34")]
+[assembly: AssemblyInformationalVersion("1.4.0+r35")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.3.1.0")]
-[assembly: AssemblyFileVersion("1.3.1.0")]
+[assembly: AssemblyVersion("1.4.0.0")]
+[assembly: AssemblyFileVersion("1.4.0.0")]
 
 namespace TaskbarMonitorEnhanced
 {
     internal static class BuildInfo
     {
-        public const string Version = "V1_3_1_R34_REAL_THEME_PREVIEW";
+        public const string Version = "V1_4_0_R35_WINDOWS_INTEGRATION_ACCESSIBILITY";
         public const string Product = "Taskbar Monitor Enhanced";
-        public const string PublicVersion = "1.3.1";
+        public const string PublicVersion = "1.4.0";
         public const string ShortcutName = "Taskbar Monitor Enhanced";
         public const string ProductDescription = "Live system monitor integrated into the Windows taskbar";
         public const string Author = "Dr. Ali-Akbar Emadeddin";
@@ -70,6 +70,7 @@ namespace TaskbarMonitorEnhanced
         public static readonly string StorageBrokerData = Path.Combine(Root, "storage_temp_broker.json");
         public static readonly string SensorSupervisorState = Path.Combine(Root, "sensor_supervisor_state.json");
         public static readonly string InstallState = Path.Combine(Root, "install_state.json");
+        public static readonly string CrashState = Path.Combine(Root, "last_crash.json");
         public static readonly string Updates = Path.Combine(Root, "Updates");
         public static readonly string Log = Path.Combine(Logs, "tbme_csharp_" + DateTime.Now.ToString("yyyyMMdd") + ".log");
     }
@@ -258,6 +259,61 @@ namespace TaskbarMonitorEnhanced
     internal static class RuntimeGuard
     {
         private static int installed=0;
+        private static string SafeCrashText(string value)
+        {
+            string s=value??"";
+            try
+            {
+                if(!String.IsNullOrWhiteSpace(AppPaths.Root))s=s.Replace(AppPaths.Root,"%TBME_DATA%");
+                string profile=Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                if(!String.IsNullOrWhiteSpace(profile))s=s.Replace(profile,"%USERPROFILE%");
+            }
+            catch{}
+            return s.Length<=4000?s:s.Substring(0,4000);
+        }
+        private static Dictionary<string,object> CrashSnapshot(string kind,Exception ex,bool terminating)
+        {
+            Dictionary<string,object> d=new Dictionary<string,object>();
+            d["SchemaVersion"]=1;
+            d["GeneratedUtc"]=DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture);
+            d["Build"]=BuildInfo.Version;
+            d["PublicVersion"]=BuildInfo.PublicVersion;
+            d["Kind"]=kind??"UNKNOWN";
+            d["Terminating"]=terminating;
+            d["ExceptionType"]=ex==null?"UNKNOWN":ex.GetType().FullName;
+            d["Message"]=SafeCrashText(ex==null?"":ex.Message);
+            d["StackTrace"]=SafeCrashText(ex==null?"":ex.StackTrace);
+            d["UiThreadExceptionCount"]=UiThreadExceptionCount;
+            d["AppDomainUnhandledCount"]=AppDomainUnhandledCount;
+            return d;
+        }
+        private static void WriteCrashSnapshotTo(string path,string kind,Exception ex,bool terminating)
+        {
+            AtomicTextFile.Write(path,new JavaScriptSerializer().Serialize(CrashSnapshot(kind,ex,terminating)),Encoding.UTF8,null);
+        }
+        private static void WriteCrashSnapshot(string kind,Exception ex,bool terminating)
+        {
+            try{WriteCrashSnapshotTo(AppPaths.CrashState,kind,ex,terminating);}catch{}
+        }
+        internal static int ProbeCrashSnapshot(string outputPath)
+        {
+            try
+            {
+                if(String.IsNullOrWhiteSpace(outputPath))throw new ArgumentException("output path");
+                Exception sample;
+                try{throw new InvalidOperationException("probe "+Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)+" "+AppPaths.Root);}
+                catch(Exception ex){sample=ex;}
+                WriteCrashSnapshotTo(outputPath,"PROOF",sample,false);
+                string json=File.ReadAllText(outputPath,Encoding.UTF8);
+                string profile=Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                if(!String.IsNullOrWhiteSpace(profile)&&json.IndexOf(profile,StringComparison.OrdinalIgnoreCase)>=0)throw new InvalidDataException("crash snapshot leaks user profile");
+                if(!String.IsNullOrWhiteSpace(AppPaths.Root)&&json.IndexOf(AppPaths.Root,StringComparison.OrdinalIgnoreCase)>=0)throw new InvalidDataException("crash snapshot leaks app data path");
+                if(json.IndexOf("%USERPROFILE%",StringComparison.Ordinal)<0||json.IndexOf("%TBME_DATA%",StringComparison.Ordinal)<0)throw new InvalidDataException("crash snapshot redaction markers missing");
+                Console.WriteLine("TBME_CRASH_SNAPSHOT_PROOF=PASS PRIVACY=PASS");
+                return 0;
+            }
+            catch(Exception ex){Console.Error.WriteLine("TBME_CRASH_SNAPSHOT_PROOF=FAIL "+ex);return 18;}
+        }
         public static int UiThreadExceptionCount=0;
         public static int AppDomainUnhandledCount=0;
 
@@ -270,7 +326,8 @@ namespace TaskbarMonitorEnhanced
                 Application.ThreadException+=delegate(object sender,ThreadExceptionEventArgs e)
                 {
                     Interlocked.Increment(ref UiThreadExceptionCount);
-                    Log.Write("ERROR","UI_THREAD_EXCEPTION "+(e!=null&&e.Exception!=null?e.Exception.ToString():"UNKNOWN"));
+                    Exception crash=e!=null?e.Exception:null;WriteCrashSnapshot("UI_THREAD_EXCEPTION",crash,false);
+                    Log.Write("ERROR","UI_THREAD_EXCEPTION "+(crash!=null?crash.ToString():"UNKNOWN"));
                 };
             }
             catch(Exception ex){Log.Write("WARN","RUNTIME_GUARD_UI_INSTALL "+ex.Message);}
@@ -279,6 +336,7 @@ namespace TaskbarMonitorEnhanced
                 AppDomain.CurrentDomain.UnhandledException+=delegate(object sender,UnhandledExceptionEventArgs e)
                 {
                     Interlocked.Increment(ref AppDomainUnhandledCount);
+                    Exception crash=e.ExceptionObject as Exception;WriteCrashSnapshot("APPDOMAIN_UNHANDLED",crash,e.IsTerminating);
                     Log.Write("ERROR","APPDOMAIN_UNHANDLED terminating="+e.IsTerminating+" "+(e.ExceptionObject==null?"UNKNOWN":e.ExceptionObject.ToString()));
                 };
             }
@@ -354,6 +412,10 @@ namespace TaskbarMonitorEnhanced
         public bool AdaptiveBatteryMode { get; set; }
         public int BatteryUpdateIntervalMs { get; set; }
         public int SparklineHistoryLength { get; set; }
+        public bool FollowWindowsTheme { get; set; }
+        public string WindowsLightTheme { get; set; }
+        public string WindowsDarkTheme { get; set; }
+        public string TaskbarDisplay { get; set; }
         public int ConfigSchemaVersion { get; set; }
 
         public AppConfig()
@@ -386,7 +448,8 @@ namespace TaskbarMonitorEnhanced
             EnableHardwareFlyout = true; HoverShowAllDevices = true; AutoCheckUpdates = true;
             EnableTemperatureAlerts = true; CpuTempWarningC = 85; GpuTempWarningC = 85; DiskTempWarningC = 60;
             AdaptiveBatteryMode = true; BatteryUpdateIntervalMs = 3000; SparklineHistoryLength = 120;
-            ConfigSchemaVersion = 4;
+            FollowWindowsTheme=false;WindowsLightTheme="Nordic Light";WindowsDarkTheme="Dark Minimal Pro";TaskbarDisplay="Primary";
+            ConfigSchemaVersion = 5;
         }
 
         public void Normalize()
@@ -416,6 +479,13 @@ namespace TaskbarMonitorEnhanced
                 EnableTemperatureAlerts=true;CpuTempWarningC=85;GpuTempWarningC=85;DiskTempWarningC=60;
                 AdaptiveBatteryMode=true;BatteryUpdateIntervalMs=3000;SparklineHistoryLength=120;ConfigSchemaVersion=4;
             }
+            if(ConfigSchemaVersion<5)
+            {
+                FollowWindowsTheme=false;WindowsLightTheme="Nordic Light";WindowsDarkTheme="Dark Minimal Pro";TaskbarDisplay="Primary";ConfigSchemaVersion=5;
+            }
+            if(String.IsNullOrWhiteSpace(WindowsLightTheme)||!ThemeCatalog.Names.Contains(WindowsLightTheme))WindowsLightTheme="Nordic Light";
+            if(String.IsNullOrWhiteSpace(WindowsDarkTheme)||!ThemeCatalog.Names.Contains(WindowsDarkTheme))WindowsDarkTheme="Dark Minimal Pro";
+            TaskbarDisplay=TaskbarTargetPolicy.NormalizeConfigId(TaskbarDisplay);
             CpuTempWarningC=Math.Max(50,Math.Min(110,CpuTempWarningC));
             GpuTempWarningC=Math.Max(50,Math.Min(110,GpuTempWarningC));
             DiskTempWarningC=Math.Max(40,Math.Min(90,DiskTempWarningC));
@@ -568,6 +638,50 @@ namespace TaskbarMonitorEnhanced
         }
     }
 
+    internal static class WindowsThemePolicy
+    {
+        public static bool AppsUseLightTheme()
+        {
+            try
+            {
+                using(RegistryKey k=Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
+                {
+                    object v=k==null?null:k.GetValue("AppsUseLightTheme");
+                    if(v!=null)return Convert.ToInt32(v,CultureInfo.InvariantCulture)!=0;
+                }
+            }
+            catch{}
+            return false;
+        }
+        internal static string ResolveName(AppConfig c,bool appsUseLightTheme)
+        {
+            if(c==null)return "Dark Minimal Pro";
+            if(!c.FollowWindowsTheme)return c.Theme;
+            return appsUseLightTheme?c.WindowsLightTheme:c.WindowsDarkTheme;
+        }
+        public static string ResolveName(AppConfig c)
+        {
+            return ResolveName(c,AppsUseLightTheme());
+        }
+        public static ThemeDefinition HighContrastTheme()
+        {
+            Color bg=SystemColors.Window,fg=SystemColors.WindowText,accent=SystemColors.Highlight;
+            Color muted=SystemColors.GrayText,border=SystemColors.WindowText;
+            return new ThemeDefinition("Windows High Contrast",bg,bg,fg,muted,border,
+                new Color[]{accent,accent,accent,accent,accent,accent},"minimal","Segoe UI",bg.GetBrightness()>0.5f);
+        }
+        public static ThemeDefinition Resolve(AppConfig c)
+        {
+            if(SystemInformation.HighContrast)return HighContrastTheme();
+            return ThemeCatalog.Get(ResolveName(c));
+        }
+        public static ThemeDefinition ResolveChoice(string name)
+        {
+            if(SystemInformation.HighContrast)return HighContrastTheme();
+            return ThemeCatalog.Get(name);
+        }
+    }
+
     internal sealed class CpuDeviceSnapshot
     {
         public string Id,Name,Socket;
@@ -658,7 +772,7 @@ namespace TaskbarMonitorEnhanced
     internal sealed class ReleaseUpdateInfo
     {
         public string Version,Tag,Name,HtmlUrl,SetupName,SetupUrl,SetupDigest,PublishedAt,Status;
-        public bool HasUpdate,SetupAssetAvailable,DigestAvailable,Immutable;
+        public bool HasUpdate,SetupAssetAvailable,DigestAvailable,Immutable,Draft,Prerelease,TagValid,ReleaseUrlValid,SetupUrlValid;
     }
 
     internal static class UpdateManager
@@ -686,6 +800,24 @@ namespace TaskbarMonitorEnhanced
         {
             return "TaskbarMonitorEnhanced_Setup_"+(version??"")+".exe";
         }
+        private static bool Bool(Dictionary<string,object> d,string key)
+        {
+            try{object v;return d!=null&&d.TryGetValue(key,out v)&&v!=null&&Convert.ToBoolean(v,CultureInfo.InvariantCulture);}catch{return false;}
+        }
+        internal static bool IsOfficialReleaseUrl(string value,string version)
+        {
+            Uri u;if(!Uri.TryCreate(value,UriKind.Absolute,out u))return false;
+            if(!String.Equals(u.Scheme,"https",StringComparison.OrdinalIgnoreCase)||!String.Equals(u.Host,"github.com",StringComparison.OrdinalIgnoreCase))return false;
+            string expected="/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v"+version;
+            return String.Equals(u.AbsolutePath.TrimEnd('/'),expected,StringComparison.OrdinalIgnoreCase);
+        }
+        internal static bool IsOfficialSetupUrl(string value,string version,string setupName)
+        {
+            Uri u;if(!Uri.TryCreate(value,UriKind.Absolute,out u))return false;
+            if(!String.Equals(u.Scheme,"https",StringComparison.OrdinalIgnoreCase)||!String.Equals(u.Host,"github.com",StringComparison.OrdinalIgnoreCase))return false;
+            string expected="/GOD13emad/TaskbarMonitorEnhanced/releases/download/v"+version+"/"+setupName;
+            return String.Equals(u.AbsolutePath,expected,StringComparison.OrdinalIgnoreCase);
+        }
 
         private static WebClient Client()
         {
@@ -706,8 +838,11 @@ namespace TaskbarMonitorEnhanced
             if(root==null)throw new InvalidDataException("GitHub latest-release response is not an object.");
             info.Tag=Text(root,"tag_name");info.Name=Text(root,"name");info.HtmlUrl=Text(root,"html_url");info.PublishedAt=Text(root,"published_at");
             object immutableObj;if(root.TryGetValue("immutable",out immutableObj)&&immutableObj!=null){try{info.Immutable=Convert.ToBoolean(immutableObj,CultureInfo.InvariantCulture);}catch{}}
+            info.Draft=Bool(root,"draft");info.Prerelease=Bool(root,"prerelease");
             Version latest=ParseVersionString(info.Tag);if(latest.Major==0&&latest.Minor==0&&latest.Build==0)latest=ParseVersionString(info.Name);
             info.Version=latest.Major+"."+latest.Minor+"."+Math.Max(0,latest.Build);
+            info.TagValid=Regex.IsMatch(info.Tag??"",@"^v\d+\.\d+\.\d+$",RegexOptions.CultureInvariant)&&String.Equals(info.Tag,"v"+info.Version,StringComparison.OrdinalIgnoreCase);
+            info.ReleaseUrlValid=IsOfficialReleaseUrl(info.HtmlUrl,info.Version);
             Version current=ParseVersionString(BuildInfo.PublicVersion);info.HasUpdate=latest.CompareTo(current)>0;
             object assetsObj;root.TryGetValue("assets",out assetsObj);System.Collections.IEnumerable assets=assetsObj as System.Collections.IEnumerable;
             if(assets!=null)
@@ -727,14 +862,18 @@ namespace TaskbarMonitorEnhanced
                     info.SetupDigest=Text(exact,"digest");
                     info.SetupAssetAvailable=!String.IsNullOrWhiteSpace(info.SetupUrl);
                     info.DigestAvailable=IsStrictSha256Digest(info.SetupDigest);
+                    info.SetupUrlValid=IsOfficialSetupUrl(info.SetupUrl,info.Version,expectedName);
                 }
             }
             if(info.HasUpdate)
             {
-                if(!info.SetupAssetAvailable)info.Status="Update available, but installer asset was not found.";
+                if(info.Draft||info.Prerelease)info.Status="Automatic installation is blocked for draft or prerelease builds.";
+                else if(!info.TagValid||!info.ReleaseUrlValid)info.Status="Automatic installation is blocked because release identity metadata is not canonical.";
+                else if(!info.SetupAssetAvailable)info.Status="Update available, but installer asset was not found.";
+                else if(!info.SetupUrlValid)info.Status="Automatic installation is blocked because the installer URL is not the canonical repository release path.";
                 else if(!info.DigestAvailable)info.Status="Update available, but GitHub SHA-256 digest is missing.";
                 else if(!info.Immutable)info.Status="Update available and SHA-256 metadata is present, but the GitHub Release is mutable. Automatic installation is blocked; use the release page for manual review.";
-                else info.Status="Update available. GitHub Release is immutable and installer SHA-256 metadata is present.";
+                else info.Status="Update available. Immutable canonical release identity and installer SHA-256 metadata verified.";
             }
             else if(latest.CompareTo(current)==0)info.Status="You are running the latest public release. Release immutable="+info.Immutable+".";
             else info.Status="This build is newer than the latest public release. Latest release immutable="+info.Immutable+".";
@@ -754,8 +893,10 @@ namespace TaskbarMonitorEnhanced
                 throw new InvalidOperationException("Automatic installation is blocked because the release does not contain the exact expected installer asset "+expectedName+".");
             if(!info.DigestAvailable||!IsStrictSha256Digest(info.SetupDigest))
                 throw new InvalidOperationException("Automatic installation is blocked because the release asset does not have an exact sha256:<64-hex> GitHub digest.");
+            if(info.Draft||info.Prerelease||!info.TagValid||!info.ReleaseUrlValid||!info.SetupUrlValid)
+                throw new InvalidOperationException("Automatic installation is blocked because release identity metadata is not canonical.");
             if(!info.Immutable)throw new InvalidOperationException("Automatic installation is blocked because the GitHub Release is mutable. Open the release page and review it manually.");
-            Uri u=new Uri(info.SetupUrl);if(!String.Equals(u.Scheme,"https",StringComparison.OrdinalIgnoreCase)||!String.Equals(u.Host,"github.com",StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Unexpected update host: "+u.Host);
+            Uri u=new Uri(info.SetupUrl);if(!IsOfficialSetupUrl(info.SetupUrl,info.Version,expectedName))throw new InvalidDataException("Unexpected update URL: "+u.Host+u.AbsolutePath);
             Directory.CreateDirectory(AppPaths.Updates);string safe=Path.GetFileName(info.SetupName);if(!String.Equals(safe,expectedName,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Unexpected update asset name.");string path=Path.Combine(AppPaths.Updates,safe);
             string partial=path+".download";try{if(File.Exists(partial))File.Delete(partial);}catch{}
             using(WebClient wc=Client())wc.DownloadFile(info.SetupUrl,partial);
@@ -763,10 +904,19 @@ namespace TaskbarMonitorEnhanced
             if(File.Exists(path))File.Delete(path);File.Move(partial,path);Log.Write("INFO","UPDATE_DOWNLOAD_VERIFIED version="+info.Version+" sha256="+actual+" path="+path);return path;
         }
 
-        public static void StartInstaller(string path)
+        internal static string VerifyInstallerBeforeLaunch(string path,string expectedDigest)
         {
             if(String.IsNullOrWhiteSpace(path)||!File.Exists(path))throw new FileNotFoundException("Verified update installer not found.",path);
-            ProcessStartInfo psi=new ProcessStartInfo();psi.FileName=path;psi.UseShellExecute=true;Process p=Process.Start(psi);if(p==null)throw new InvalidOperationException("Windows did not start the update installer.");Log.Write("INFO","UPDATE_INSTALLER_STARTED path="+path);
+            if(!IsStrictSha256Digest(expectedDigest))throw new InvalidDataException("Expected installer digest is invalid.");
+            FileAttributes attrs=File.GetAttributes(path);if((attrs&FileAttributes.ReparsePoint)!=0)throw new InvalidDataException("Verified update installer path is a reparse point.");
+            string expected=expectedDigest.Substring(expectedDigest.IndexOf(':')+1).Trim().ToUpperInvariant();
+            string actual=Sha256File(path);if(!String.Equals(expected,actual,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Installer changed after verification.");
+            return actual;
+        }
+        public static void StartInstaller(string path,string expectedDigest)
+        {
+            string actual=VerifyInstallerBeforeLaunch(path,expectedDigest);
+            ProcessStartInfo psi=new ProcessStartInfo();psi.FileName=path;psi.UseShellExecute=true;Process p=Process.Start(psi);if(p==null)throw new InvalidOperationException("Windows did not start the update installer.");Log.Write("INFO","UPDATE_INSTALLER_STARTED reverifiedSha256="+actual+" path="+path);
         }
     }
 
@@ -3010,9 +3160,12 @@ namespace TaskbarMonitorEnhanced
         [DllImport("user32.dll")] public static extern IntPtr CallNextHookEx(IntPtr hhk,int nCode,IntPtr wParam,IntPtr lParam);
         [DllImport("user32.dll",CharSet=CharSet.Auto)] public static extern IntPtr SendMessage(IntPtr hWnd,int msg,IntPtr wParam,IntPtr lParam);
         [DllImport("kernel32.dll",CharSet=CharSet.Auto)] public static extern IntPtr GetModuleHandle(string lpModuleName);
+        [DllImport("kernel32.dll",SetLastError=true)] private static extern bool SetDefaultDllDirectories(uint DirectoryFlags);
         [DllImport("user32.dll")] private static extern void keybd_event(byte bVk,byte bScan,uint dwFlags,UIntPtr dwExtraInfo);
         [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd,int attr,out int value,int cb);
         [DllImport("user32.dll")] private static extern bool SetProcessDPIAware();
+        [DllImport("user32.dll")] private static extern IntPtr GetThreadDpiAwarenessContext();
+        [DllImport("user32.dll")] private static extern bool AreDpiAwarenessContextsEqual(IntPtr a,IntPtr b);
         [DllImport("user32.dll",CharSet=CharSet.Auto)] public static extern uint RegisterWindowMessage(string lpString);
 
         [DllImport("user32.dll", EntryPoint="GetWindowLongPtr", SetLastError=true)] private static extern IntPtr GetWindowLongPtr64(IntPtr hWnd,int nIndex);
@@ -3081,7 +3234,36 @@ namespace TaskbarMonitorEnhanced
             return found;
         }
 
-        public static void EnableDpi(){try{SetProcessDPIAware();}catch{}}
+        private const uint LOAD_LIBRARY_SEARCH_DEFAULT_DIRS=0x00001000;
+        private static int dllSearchHardened=0;
+        public static bool EnableDllSearchHardening()
+        {
+            if(Interlocked.CompareExchange(ref dllSearchHardened,1,1)==1)return true;
+            try
+            {
+                bool ok=SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+                if(ok){Interlocked.Exchange(ref dllSearchHardened,1);Log.Write("INFO","DLL_SEARCH_HARDENING=PASS mode=LOAD_LIBRARY_SEARCH_DEFAULT_DIRS");return true;}
+                Log.Write("WARN","DLL_SEARCH_HARDENING=FAIL win32="+Marshal.GetLastWin32Error());
+            }
+            catch(Exception ex){Log.Write("WARN","DLL_SEARCH_HARDENING=FAIL "+ex.GetType().Name+" "+ex.Message);}
+            return false;
+        }
+        public static bool DllSearchHardeningActive { get { return Interlocked.CompareExchange(ref dllSearchHardened,1,1)==1; } }
+
+        public static string DpiAwarenessMode()
+        {
+            try
+            {
+                IntPtr c=GetThreadDpiAwarenessContext();
+                if(AreDpiAwarenessContextsEqual(c,new IntPtr(-4)))return "PerMonitorV2";
+                if(AreDpiAwarenessContextsEqual(c,new IntPtr(-3)))return "PerMonitor";
+                if(AreDpiAwarenessContextsEqual(c,new IntPtr(-2)))return "SystemAware";
+                if(AreDpiAwarenessContextsEqual(c,new IntPtr(-1)))return "Unaware";
+            }
+            catch{}
+            return "Unknown";
+        }
+        public static void EnableDpi(){Log.Write("INFO","DPI_CONTEXT "+DpiAwarenessMode());}
     }
 
     internal static class ShellUi
@@ -3203,6 +3385,105 @@ namespace TaskbarMonitorEnhanced
                 Thread.Sleep(50);
             }
             return false;
+        }
+    }
+
+    internal sealed class TaskbarTargetInfo
+    {
+        public IntPtr Handle;
+        public string ClassName;
+        public string DeviceId;
+        public bool Primary;
+        public Rectangle Bounds;
+    }
+
+    internal static class TaskbarTargetPolicy
+    {
+        public const string PrimaryId="Primary";
+        private static readonly object FallbackSync=new object();
+        private static string lastFallbackKey="";
+        private static DateTime lastFallbackUtc=DateTime.MinValue;
+        internal static string DeviceId(string deviceName)
+        {
+            string s=(deviceName??"").Trim();
+            if(s.StartsWith(@"\\.\",StringComparison.Ordinal))s=s.Substring(4);
+            return s.ToUpperInvariant();
+        }
+        public static string NormalizeConfigId(string value)
+        {
+            string s=(value??"").Trim();
+            if(String.IsNullOrWhiteSpace(s)||String.Equals(s,PrimaryId,StringComparison.OrdinalIgnoreCase))return PrimaryId;
+            s=DeviceId(s);
+            return Regex.IsMatch(s,@"^DISPLAY\d+$",RegexOptions.CultureInvariant)?s:PrimaryId;
+        }
+        public static List<TaskbarTargetInfo> Enumerate()
+        {
+            List<TaskbarTargetInfo> list=new List<TaskbarTargetInfo>();
+            try
+            {
+                Native.EnumWindows(delegate(IntPtr h,IntPtr l)
+                {
+                    StringBuilder b=new StringBuilder(128);Native.GetClassName(h,b,b.Capacity);string cls=b.ToString();
+                    if(!String.Equals(cls,"Shell_TrayWnd",StringComparison.Ordinal)&&!String.Equals(cls,"Shell_SecondaryTrayWnd",StringComparison.Ordinal))return true;
+                    Native.RECT nr;if(!Native.GetWindowRect(h,out nr))return true;Rectangle r=nr.ToRectangle();if(r.Width<=0||r.Height<=0)return true;
+                    Screen screen=Screen.FromRectangle(r);
+                    list.Add(new TaskbarTargetInfo{Handle=h,ClassName=cls,DeviceId=DeviceId(screen.DeviceName),Primary=screen.Primary,Bounds=r});
+                    return true;
+                },IntPtr.Zero);
+            }
+            catch(Exception ex){Log.Write("WARN","TASKBAR_ENUM_FAIL "+ex.Message);}
+            return list.OrderByDescending(t=>t.Primary).ThenBy(t=>t.DeviceId,StringComparer.OrdinalIgnoreCase).ToList();
+        }
+        internal static TaskbarTargetInfo Select(string requested,IList<TaskbarTargetInfo> items)
+        {
+            if(items==null||items.Count==0)return null;
+            string id=NormalizeConfigId(requested);
+            if(!String.Equals(id,PrimaryId,StringComparison.OrdinalIgnoreCase))
+            {
+                TaskbarTargetInfo exact=items.FirstOrDefault(t=>String.Equals(t.DeviceId,id,StringComparison.OrdinalIgnoreCase));
+                if(exact!=null)return exact;
+            }
+            TaskbarTargetInfo primary=items.FirstOrDefault(t=>t.Primary||String.Equals(t.ClassName,"Shell_TrayWnd",StringComparison.Ordinal));
+            return primary??items[0];
+        }
+        public static IntPtr Resolve(AppConfig c,out string resolvedId)
+        {
+            string requested=c==null?PrimaryId:c.TaskbarDisplay;
+            TaskbarTargetInfo chosen=Select(requested,Enumerate());
+            bool primaryAlias=chosen!=null&&(chosen.Primary||String.Equals(chosen.ClassName,"Shell_TrayWnd",StringComparison.Ordinal));
+            resolvedId=chosen==null?"":(primaryAlias?PrimaryId:chosen.DeviceId);
+            if(chosen!=null&&!String.Equals(NormalizeConfigId(requested),resolvedId,StringComparison.OrdinalIgnoreCase))
+            {
+                string key=NormalizeConfigId(requested)+"->"+resolvedId;bool write=false;
+                lock(FallbackSync)
+                {
+                    if(!String.Equals(lastFallbackKey,key,StringComparison.OrdinalIgnoreCase)||(DateTime.UtcNow-lastFallbackUtc).TotalSeconds>=60)
+                    {lastFallbackKey=key;lastFallbackUtc=DateTime.UtcNow;write=true;}
+                }
+                if(write)Log.Write("WARN","TASKBAR_TARGET_FALLBACK requested="+NormalizeConfigId(requested)+" resolved="+resolvedId);
+            }
+            return chosen==null?IntPtr.Zero:chosen.Handle;
+        }
+        public static string[] SettingChoices(string configured)
+        {
+            List<string> ids=new List<string>();ids.Add(PrimaryId);
+            foreach(TaskbarTargetInfo t in Enumerate())
+                if(!t.Primary&&!String.IsNullOrWhiteSpace(t.DeviceId)&&!ids.Contains(t.DeviceId,StringComparer.OrdinalIgnoreCase))ids.Add(t.DeviceId);
+            string normalized=NormalizeConfigId(configured);
+            if(!String.Equals(normalized,PrimaryId,StringComparison.OrdinalIgnoreCase)&&!ids.Contains(normalized,StringComparer.OrdinalIgnoreCase))ids.Add(normalized);
+            return ids.ToArray();
+        }
+        internal static bool SelfTest()
+        {
+            List<TaskbarTargetInfo> fake=new List<TaskbarTargetInfo>{
+                new TaskbarTargetInfo{Handle=new IntPtr(1),ClassName="Shell_TrayWnd",DeviceId="DISPLAY1",Primary=true},
+                new TaskbarTargetInfo{Handle=new IntPtr(2),ClassName="Shell_SecondaryTrayWnd",DeviceId="DISPLAY2",Primary=false}
+            };
+            return Select("Primary",fake).Handle==new IntPtr(1)&&
+                   Select("DISPLAY2",fake).Handle==new IntPtr(2)&&
+                   Select(@"\\.\DISPLAY2",fake).Handle==new IntPtr(2)&&
+                   Select("DISPLAY9",fake).Handle==new IntPtr(1)&&
+                   NormalizeConfigId("nonsense")==PrimaryId;
         }
     }
 
@@ -4237,7 +4518,7 @@ namespace TaskbarMonitorEnhanced
             }
         }
 
-        private Bitmap RenderThemeProof(string themeName,int width,int height)
+        private Bitmap RenderThemeDefinition(ThemeDefinition theme,int width,int height)
         {
             width=Math.Max(320,width);height=Math.Max(32,height);
             Bitmap bmp=new Bitmap(width,height,System.Drawing.Imaging.PixelFormat.Format32bppArgb);
@@ -4246,7 +4527,6 @@ namespace TaskbarMonitorEnhanced
                 g.SmoothingMode=SmoothingMode.AntiAlias;
                 g.TextRenderingHint=System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
                 Rectangle rect=new Rectangle(0,0,width,height);
-                ThemeDefinition theme=ThemeCatalog.Get(themeName);
                 PaintBackground(g,theme,rect);
 
                 List<MetricView> metrics=BuildMetricViews(theme,width);
@@ -4262,10 +4542,16 @@ namespace TaskbarMonitorEnhanced
             }
             return bmp;
         }
+        private Bitmap RenderThemeProof(string themeName,int width,int height)
+        {
+            return RenderThemeDefinition(ThemeCatalog.Get(themeName),width,height);
+        }
 
         internal Bitmap RenderSettingsThemePreview(string themeName,int width,int height)
         {
-            return RenderThemeProof(themeName,width,height);
+            ThemeDefinition t=(SystemInformation.HighContrast||String.Equals(themeName,"Windows High Contrast",StringComparison.Ordinal))?
+                WindowsThemePolicy.HighContrastTheme():ThemeCatalog.Get(themeName);
+            return RenderThemeDefinition(t,width,height);
         }
 
         internal void PrimeSettingsThemePreviewFromLiveMetrics(int sampleCount,int intervalMs)
@@ -4389,6 +4675,7 @@ namespace TaskbarMonitorEnhanced
             {
                 SystemEvents.DisplaySettingsChanged+=OnDisplaySettingsChanged;
                 SystemEvents.PowerModeChanged+=OnPowerModeChanged;
+                SystemEvents.UserPreferenceChanged+=OnUserPreferenceChanged;
                 systemEventsSubscribed=true;
                 Log.Write("INFO","RECOVERY_EVENTS_SUBSCRIBED");
             }
@@ -4405,6 +4692,7 @@ namespace TaskbarMonitorEnhanced
             {
                 SystemEvents.DisplaySettingsChanged-=OnDisplaySettingsChanged;
                 SystemEvents.PowerModeChanged-=OnPowerModeChanged;
+                SystemEvents.UserPreferenceChanged-=OnUserPreferenceChanged;
             }
             catch{}
             systemEventsSubscribed=false;
@@ -4413,6 +4701,20 @@ namespace TaskbarMonitorEnhanced
         private void OnDisplaySettingsChanged(object sender,EventArgs e)
         {
             SafeScheduleRecovery("DISPLAY_SETTINGS_CHANGED",500);
+        }
+
+        private void OnUserPreferenceChanged(object sender,UserPreferenceChangedEventArgs e)
+        {
+            try
+            {
+                if(config.FollowWindowsTheme||SystemInformation.HighContrast)
+                {
+                    Invalidate();
+                    if(settingsForm!=null&&!settingsForm.IsDisposed)settingsForm.NotifySystemPreferenceChanged();
+                    Log.Write("INFO","SYSTEM_APPEARANCE_CHANGED category="+e.Category+" resolvedTheme="+WindowsThemePolicy.ResolveName(config)+" highContrast="+SystemInformation.HighContrast);
+                }
+            }
+            catch(Exception ex){Log.Write("WARN","SYSTEM_APPEARANCE_CHANGE "+ex.Message);}
         }
 
         private void OnPowerModeChanged(object sender,PowerModeChangedEventArgs e)
@@ -4519,7 +4821,7 @@ namespace TaskbarMonitorEnhanced
             try
             {
                 recoveryAttempt++;
-                IntPtr current=Native.FindWindow("Shell_TrayWnd",null);
+                string resolvedTarget;IntPtr current=TaskbarTargetPolicy.Resolve(config,out resolvedTarget);
 
                 if(current==IntPtr.Zero)
                 {
@@ -4706,7 +5008,7 @@ namespace TaskbarMonitorEnhanced
 
         private void AttachIntegrated()
         {
-            taskbar=Native.FindWindow("Shell_TrayWnd",null);
+            string resolvedTarget;taskbar=TaskbarTargetPolicy.Resolve(config,out resolvedTarget);
             if(taskbar==IntPtr.Zero)
             {
                 Log.Write("WARN","UPSTREAM_ENGINE_TASKBAR_NOT_FOUND");
@@ -4791,7 +5093,7 @@ namespace TaskbarMonitorEnhanced
         {
             lastPositionAt=DateTime.UtcNow;
 
-            IntPtr currentTaskbar=Native.FindWindow("Shell_TrayWnd",null);
+            string resolvedTarget;IntPtr currentTaskbar=TaskbarTargetPolicy.Resolve(config,out resolvedTarget);
             if(currentTaskbar==IntPtr.Zero)return;
             taskbar=currentTaskbar;
 
@@ -4922,7 +5224,7 @@ namespace TaskbarMonitorEnhanced
             try
             {
                 SensorSupervisorSelfHealWatchdog();
-                IntPtr currentTaskbar=Native.FindWindow("Shell_TrayWnd",null);
+                string probeTargetNow;IntPtr currentTaskbar=TaskbarTargetPolicy.Resolve(AppConfig.Load(),out probeTargetNow);
 
                 if(currentTaskbar==IntPtr.Zero)
                 {
@@ -4974,7 +5276,7 @@ namespace TaskbarMonitorEnhanced
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e); e.Graphics.SmoothingMode=SmoothingMode.AntiAlias; e.Graphics.TextRenderingHint=System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-            ThemeDefinition theme=ThemeCatalog.Get(config.Theme);
+            ThemeDefinition theme=WindowsThemePolicy.Resolve(config);
             PaintBackground(e.Graphics,theme,ClientRectangle);
             List<MetricView> metrics=BuildMetricViews(theme);
             lastPaintMetrics=metrics;
@@ -5021,7 +5323,7 @@ namespace TaskbarMonitorEnhanced
                 int index=(int)Math.Floor(location.X/(ClientRectangle.Width/(double)lastPaintMetrics.Count));index=Math.Max(0,Math.Min(lastPaintMetrics.Count-1,index));MetricView m=lastPaintMetrics[index];string group=m.GroupKey??m.Key;
                 lastHardwareHoverAt=DateTime.UtcNow;
                 if(hardwareFlyout.Visible&&index==lastHoverIndex&&String.Equals(group,lastHoverGroup,StringComparison.Ordinal)&&lastHoverGeneration==metricSnapshotGeneration)return;
-                ThemeDefinition t=ThemeCatalog.Get(config.Theme);List<HardwareFlyoutRow> rows=BuildHardwareFlyoutRows(group,t);if(rows.Count==0){hardwareFlyout.Hide();lastHoverIndex=-1;lastHoverGroup="";return;}
+                ThemeDefinition t=WindowsThemePolicy.Resolve(config);List<HardwareFlyoutRow> rows=BuildHardwareFlyoutRows(group,t);if(rows.Count==0){hardwareFlyout.Hide();lastHoverIndex=-1;lastHoverGroup="";return;}
                 float seg=ClientRectangle.Width/(float)lastPaintMetrics.Count;Rectangle client=Rectangle.Round(new RectangleF(index*seg,0,seg,ClientRectangle.Height));Point a=PointToScreen(client.Location);Rectangle anchor=new Rectangle(a,new Size(client.Width,client.Height));string title=group=="RAM"?("RAM — "+snapshot.MemoryModules.Count+" module"+(snapshot.MemoryModules.Count==1?"":"s")):(group+" — "+rows.Count+" device"+(rows.Count==1?"":"s"));hardwareFlyout.UpdateContent(title,rows,t,anchor);lastHoverIndex=index;lastHoverGroup=group;lastHoverGeneration=metricSnapshotGeneration;
             }catch(Exception ex){Log.Write("WARN","HARDWARE_HOVER "+ex.Message);}
         }
@@ -6083,6 +6385,7 @@ namespace TaskbarMonitorEnhanced
                 AddFile(zip,AppPaths.CpuTempBrokerData,"runtime/cpu_temp_broker.json",manifest);
                 AddFile(zip,AppPaths.GpuBrokerData,"runtime/gpu_temp_broker.json",manifest);
                 AddFile(zip,AppPaths.StorageBrokerData,"runtime/storage_temp_broker.json",manifest);
+                AddFile(zip,AppPaths.CrashState,"runtime/last_crash.json",manifest);
 
                 try
                 {
@@ -6141,6 +6444,13 @@ namespace TaskbarMonitorEnhanced
 
     internal static class FeatureContractSelfTest
     {
+        private static string Sha256Hex(string path)
+        {
+            using(SHA256 sha=SHA256.Create())using(FileStream fs=File.OpenRead(path))
+            {
+                byte[] h=sha.ComputeHash(fs);StringBuilder b=new StringBuilder();foreach(byte x in h)b.Append(x.ToString("X2",CultureInfo.InvariantCulture));return b.ToString();
+            }
+        }
         public static int Run()
         {
             string dir=Path.Combine(Path.GetTempPath(),"tbme_feature_contract_"+Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture));
@@ -6149,7 +6459,8 @@ namespace TaskbarMonitorEnhanced
             {
                 Directory.CreateDirectory(dir);
                 AppConfig c=new AppConfig();c.Normalize();
-                if(c.ConfigSchemaVersion<4)throw new InvalidOperationException("config schema");
+                if(c.ConfigSchemaVersion<5)throw new InvalidOperationException("config schema");
+                if(c.FollowWindowsTheme||c.WindowsLightTheme!="Nordic Light"||c.WindowsDarkTheme!="Dark Minimal Pro"||c.TaskbarDisplay!="Primary")throw new InvalidOperationException("Windows integration defaults");
                 if(!c.EnableTemperatureAlerts||c.CpuTempWarningC!=85||c.GpuTempWarningC!=85||c.DiskTempWarningC!=60)
                     throw new InvalidOperationException("temperature alert defaults");
                 if(!AlertPolicy.IsCpuHot(true,85,c)||AlertPolicy.IsCpuHot(true,84.9f,c))throw new InvalidOperationException("CPU alert boundary");
@@ -6169,6 +6480,25 @@ namespace TaskbarMonitorEnhanced
                 if(h.Get("CPU").Count!=120)throw new InvalidOperationException("history grow");
 
                 if(SupportBundleBuilder.Probe(zip)!=0)throw new InvalidOperationException("support bundle");
+                if(!UpdateManager.IsOfficialReleaseUrl("https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.4.0","1.4.0"))throw new InvalidOperationException("official release URL");
+                if(UpdateManager.IsOfficialReleaseUrl("https://github.com/evil/repo/releases/tag/v1.4.0","1.4.0"))throw new InvalidOperationException("foreign release URL");
+                if(!UpdateManager.IsOfficialSetupUrl("https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.4.0/TaskbarMonitorEnhanced_Setup_1.4.0.exe","1.4.0","TaskbarMonitorEnhanced_Setup_1.4.0.exe"))throw new InvalidOperationException("official setup URL");
+                if(UpdateManager.IsOfficialSetupUrl("https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.4.0/other.exe","1.4.0","TaskbarMonitorEnhanced_Setup_1.4.0.exe"))throw new InvalidOperationException("wrong setup URL");
+
+                AppConfig follow=new AppConfig();follow.FollowWindowsTheme=true;follow.WindowsLightTheme="Nordic Light";follow.WindowsDarkTheme="OLED Mono";follow.Normalize();
+                if(WindowsThemePolicy.ResolveName(follow,true)!="Nordic Light"||WindowsThemePolicy.ResolveName(follow,false)!="OLED Mono")throw new InvalidOperationException("Windows light/dark resolver");
+                ThemeDefinition hc=WindowsThemePolicy.HighContrastTheme();
+                if(hc==null||hc.Accents==null||hc.Accents.Length<1||hc.Foreground.ToArgb()==hc.Background.ToArgb())throw new InvalidOperationException("high contrast theme");
+
+                string updateProbe=Path.Combine(dir,"verified-update.bin");File.WriteAllText(updateProbe,"A",Encoding.UTF8);
+                string goodDigest="sha256:"+Sha256Hex(updateProbe).ToLowerInvariant();
+                UpdateManager.VerifyInstallerBeforeLaunch(updateProbe,goodDigest);
+                File.AppendAllText(updateProbe,"B",Encoding.UTF8);
+                bool tamperBlocked=false;try{UpdateManager.VerifyInstallerBeforeLaunch(updateProbe,goodDigest);}catch(InvalidDataException){tamperBlocked=true;}
+                if(!tamperBlocked)throw new InvalidOperationException("update TOCTOU tamper gate");
+
+                string crashProbe=Path.Combine(dir,"last_crash.json");
+                if(RuntimeGuard.ProbeCrashSnapshot(crashProbe)!=0)throw new InvalidOperationException("crash snapshot privacy");
 
                 string resetConfig=Path.Combine(dir,"reset-config.json");
                 string resetBackups=Path.Combine(dir,"reset-backups");
@@ -6186,7 +6516,7 @@ namespace TaskbarMonitorEnhanced
                    File.ReadAllText(resetBackup2,Encoding.UTF8)!=resetPayload)
                     throw new InvalidOperationException("safe reset backup preservation");
 
-                Console.WriteLine("TBME_FEATURE_CONTRACT_SELFTEST=PASS FEATURES=10 ALERTS_CPU_GPU_DISK=TRUE HOT_VISUAL=TRUE BATTERY_ADAPTIVE=TRUE SESSION_PAUSE=TRUE HISTORY_CONFIG=TRUE COPY_DIAGNOSTICS=TRUE SUPPORT_ZIP=TRUE SUPPORT_PRIVACY_MANIFEST=TRUE SAFE_RESET=TRUE SAFE_RESET_BACKUP_UNIQUE=TRUE HEALTH_BADGE=TRUE");
+                Console.WriteLine("TBME_FEATURE_CONTRACT_SELFTEST=PASS FEATURES=18 WINDOWS_THEME_FOLLOW=TRUE HIGH_CONTRAST=TRUE MULTI_MONITOR_SELECTOR=TRUE UPDATE_CANONICAL_IDENTITY=TRUE UPDATE_PRELAUNCH_REHASH=TRUE CRASH_SNAPSHOT_PRIVACY=TRUE ALERTS_CPU_GPU_DISK=TRUE HOT_VISUAL=TRUE BATTERY_ADAPTIVE=TRUE SESSION_PAUSE=TRUE HISTORY_CONFIG=TRUE COPY_DIAGNOSTICS=TRUE SUPPORT_ZIP=TRUE SUPPORT_PRIVACY_MANIFEST=TRUE SAFE_RESET=TRUE SAFE_RESET_BACKUP_UNIQUE=TRUE HEALTH_BADGE=TRUE");
                 return 0;
             }
             catch(Exception ex)
@@ -6204,9 +6534,9 @@ namespace TaskbarMonitorEnhanced
             public string Id,Name; public override string ToString(){return Name??Id??"Device";}
         }
         private readonly AppConfig c; private readonly MetricsSnapshot snapshot; private readonly Func<string,int,int,Bitmap> themePreviewRenderer;
-        private ComboBox theme,position,cpuMode,gpuMode,diskMode,netMode,multiLayout,memoryUnit,storageUnit,networkUnit,diskRateUnit;
+        private ComboBox theme,windowsLightTheme,windowsDarkTheme,position,taskbarDisplay,cpuMode,gpuMode,diskMode,netMode,multiLayout,memoryUnit,storageUnit,networkUnit,diskRateUnit;
         private NumericUpDown opacity,interval,width,cpuWarn,gpuWarn,diskWarn,batteryInterval,historyLength;
-        private CheckBox cpu,ram,disk,gpu,vram,net,temp,spark,startup,safe,ramNumeric,diskNumeric,flyout,hoverAll,autoCheckUpdates,tempAlerts,adaptiveBattery;
+        private CheckBox cpu,ram,disk,gpu,vram,net,temp,spark,startup,safe,ramNumeric,diskNumeric,flyout,hoverAll,autoCheckUpdates,tempAlerts,adaptiveBattery,followWindowsTheme;
         private CheckedListBox cpuList,gpuList,diskList,netList;
         private Label updateCurrent,updateLatest,updateStatus;
         private Button checkUpdate,installUpdate,openRelease;
@@ -6218,6 +6548,7 @@ namespace TaskbarMonitorEnhanced
         private readonly List<Button> settingsNavButtons=new List<Button>();
         private Label settingsPageTitle,settingsPageSubtitle;
         private ThemePreviewControl themePreview;
+        private readonly Dictionary<Control,Tuple<Color,Color>> normalPalette=new Dictionary<Control,Tuple<Color,Color>>();
         private static readonly Color SettingsWindow=Color.FromArgb(10,14,20);
         private static readonly Color SettingsSidebar=Color.FromArgb(15,21,29);
         private static readonly Color SettingsSurface=Color.FromArgb(20,28,38);
@@ -6277,7 +6608,12 @@ namespace TaskbarMonitorEnhanced
             foreach(TabPage page in tabs.TabPages){page.AutoScroll=true;page.Padding=new Padding(10);page.BackColor=SettingsWindow;page.ForeColor=SettingsText;}
             display.AutoScrollMinSize=new Size(760,440);metrics.AutoScrollMinSize=new Size(760,430);alerts.AutoScrollMinSize=new Size(760,430);hardware.AutoScrollMinSize=new Size(760,760);units.AutoScrollMinSize=new Size(760,540);behavior.AutoScrollMinSize=new Size(760,520);updates.AutoScrollMinSize=new Size(760,540);diagnostics.AutoScrollMinSize=new Size(840,700);advanced.AutoScrollMinSize=new Size(760,540);
 
-            theme=Combo(display,"Theme",ThemeCatalog.Names,c.Theme,22);position=Combo(display,"Position",new string[]{"Left","Center","Right"},c.Position,68);opacity=Number(display,"Opacity %",(decimal)(c.Opacity*100),55,100,114);width=Number(display,"Locked width px",c.MinWidthLogicalPx,900,1500,160);
+            theme=Combo(display,"Theme",ThemeCatalog.Names,c.Theme,22);position=Combo(display,"Position",new string[]{"Left","Center","Right"},c.Position,68);
+            taskbarDisplay=Combo(display,"Taskbar monitor",TaskbarTargetPolicy.SettingChoices(c.TaskbarDisplay),c.TaskbarDisplay,114);
+            opacity=Number(display,"Opacity %",(decimal)(c.Opacity*100),55,100,160);width=Number(display,"Locked width px",c.MinWidthLogicalPx,900,1500,206);
+            followWindowsTheme=Check(display,"Follow Windows app light/dark mode",c.FollowWindowsTheme,254);
+            windowsLightTheme=Combo(display,"Windows light theme",ThemeCatalog.Names,c.WindowsLightTheme,290);
+            windowsDarkTheme=Combo(display,"Windows dark theme",ThemeCatalog.Names,c.WindowsDarkTheme,332);
             cpu=Check(metrics,"CPU",c.ShowCpu,24);ram=Check(metrics,"RAM",c.ShowRam,55);disk=Check(metrics,"Disk / storage",c.ShowDisk,86);gpu=Check(metrics,"GPU",c.ShowGpu,117);vram=Check(metrics,"VRAM",c.ShowVram,148);net=Check(metrics,"Network",c.ShowNetwork,179);temp=Check(metrics,"CPU/GPU temperature",c.ShowTemperatures,210);spark=Check(metrics,"Real sparklines",c.ShowSparklines,241);
 
             tempAlerts=Check(alerts,"Enable temperature warning highlights",c.EnableTemperatureAlerts,24);
@@ -6313,7 +6649,7 @@ namespace TaskbarMonitorEnhanced
             openRelease=new Button();openRelease.Text="Open release page";openRelease.Location=new Point(362,196);openRelease.Size=new Size(145,34);openRelease.Enabled=false;openRelease.Click+=delegate{OpenReleasePage();};updates.Controls.Add(openRelease);
             Label updateNote=new Label();updateNote.Location=new Point(24,250);updateNote.Size=new Size(660,150);updateNote.Text="Updates come only from the official GitHub Releases feed. Automatic installation requires an immutable release, the exact setup asset and GitHub SHA-256 digest metadata. Mutable releases are never auto-installed.";updates.Controls.Add(updateNote);
 
-            diagnosticsText=new TextBox();diagnosticsText.Location=new Point(24,72);diagnosticsText.Size=new Size(800,390);diagnosticsText.Multiline=true;diagnosticsText.ReadOnly=true;diagnosticsText.ScrollBars=ScrollBars.Both;diagnosticsText.WordWrap=false;diagnosticsText.Font=new Font("Cascadia Mono",9f);diagnostics.Controls.Add(diagnosticsText);
+            diagnosticsText=new TextBox();SetA11y(diagnosticsText,"Diagnostics report","Read-only runtime health and diagnostics report.");diagnosticsText.Location=new Point(24,72);diagnosticsText.Size=new Size(800,390);diagnosticsText.Multiline=true;diagnosticsText.ReadOnly=true;diagnosticsText.ScrollBars=ScrollBars.Both;diagnosticsText.WordWrap=false;diagnosticsText.Font=new Font("Cascadia Mono",9f);diagnostics.Controls.Add(diagnosticsText);
             refreshDiagnostics=new Button();refreshDiagnostics.Text="Refresh health";refreshDiagnostics.Location=new Point(24,24);refreshDiagnostics.Size=new Size(130,34);refreshDiagnostics.Click+=delegate{RefreshDiagnostics();};diagnostics.Controls.Add(refreshDiagnostics);
             saveDiagnostics=new Button();saveDiagnostics.Text="Save report...";saveDiagnostics.Location=new Point(168,24);saveDiagnostics.Size=new Size(130,34);saveDiagnostics.Click+=delegate{SaveDiagnosticsReport();};diagnostics.Controls.Add(saveDiagnostics);
             openDataFolder=new Button();openDataFolder.Text="Open data folder";openDataFolder.Location=new Point(312,24);openDataFolder.Size=new Size(135,34);openDataFolder.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Root);}catch{}};diagnostics.Controls.Add(openDataFolder);
@@ -6336,14 +6672,16 @@ namespace TaskbarMonitorEnhanced
             ModernizeSettingsPage(diagnostics,"Diagnostics","Inspect live health, copy reports and export support evidence.");
             ModernizeSettingsPage(advanced,"Advanced","Maintenance, logs and safe configuration reset.");
 
-            themePreview=new ThemePreviewControl(themePreviewRenderer);themePreview.Location=new Point(24,294);themePreview.Size=new Size(650,132);themePreview.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;themePreview.ThemeName=Convert.ToString(theme.SelectedItem,CultureInfo.InvariantCulture);display.Controls.Add(themePreview);themePreview.BringToFront();
-            theme.SelectedIndexChanged+=delegate{if(themePreview!=null)themePreview.ThemeName=Convert.ToString(theme.SelectedItem,CultureInfo.InvariantCulture);};
+            themePreview=new ThemePreviewControl(themePreviewRenderer);themePreview.Location=new Point(24,390);themePreview.Size=new Size(650,132);themePreview.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;display.AutoScrollMinSize=new Size(760,565);display.Controls.Add(themePreview);themePreview.BringToFront();
+            theme.SelectedIndexChanged+=delegate{UpdateThemeModeUi();};windowsLightTheme.SelectedIndexChanged+=delegate{UpdateThemeModeUi();};windowsDarkTheme.SelectedIndexChanged+=delegate{UpdateThemeModeUi();};followWindowsTheme.CheckedChanged+=delegate{UpdateThemeModeUi();};UpdateThemeModeUi();
+            EnsureAccessibilityMetadata(this);
 
             Panel actions=new Panel();actions.Dock=DockStyle.Fill;actions.BackColor=SettingsWindow;actions.Padding=new Padding(0,10,4,10);contentArea.Controls.Add(actions,0,2);
             FlowLayoutPanel buttons=new FlowLayoutPanel();buttons.Dock=DockStyle.Right;buttons.Width=250;buttons.FlowDirection=FlowDirection.RightToLeft;buttons.WrapContents=false;buttons.BackColor=SettingsWindow;actions.Controls.Add(buttons);
-            Button ok=new Button();ok.Text="Save && Apply";ok.Size=new Size(118,38);StyleActionButton(ok,true);ok.Click+=delegate{Apply();DialogResult=DialogResult.OK;Close();};
-            Button cancel=new Button();cancel.Text="Cancel";cancel.Size=new Size(98,38);StyleActionButton(cancel,false);cancel.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};
+            Button ok=new Button();ok.Text="Save && Apply";SetA11y(ok,"Save and Apply","Save all Settings changes and apply them to the taskbar monitor. Shortcut Ctrl+S.");ok.Size=new Size(118,38);StyleActionButton(ok,true);ok.Click+=delegate{Apply();DialogResult=DialogResult.OK;Close();};
+            Button cancel=new Button();cancel.Text="Cancel";SetA11y(cancel,"Cancel","Close Settings without applying unsaved changes.");cancel.Size=new Size(98,38);StyleActionButton(cancel,false);cancel.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};
             buttons.Controls.Add(ok);buttons.Controls.Add(cancel);AcceptButton=ok;CancelButton=cancel;
+            CaptureNormalPalette(this);ApplyAccessibilityPalette();
 
             tabs.SelectedIndexChanged+=delegate{UpdateSettingsNavigation();if(tabs.SelectedTab!=null&&String.Equals(tabs.SelectedTab.Text,"Diagnostics",StringComparison.OrdinalIgnoreCase))RefreshDiagnostics();};
             if(!String.IsNullOrWhiteSpace(initialTab))foreach(TabPage tp in tabs.TabPages)if(String.Equals(tp.Text,initialTab,StringComparison.OrdinalIgnoreCase)){tabs.SelectedTab=tp;break;}
@@ -6353,7 +6691,7 @@ namespace TaskbarMonitorEnhanced
 
         private Button CreateNavigationButton(string text,int index)
         {
-            Button b=new Button();b.Text=text;b.Tag=index;b.Size=new Size(182,44);b.Margin=new Padding(1,3,1,3);b.Padding=new Padding(13,0,0,0);
+            Button b=new Button();b.Text=text;b.Tag=index;b.Size=new Size(182,44);SetA11y(b,text+" settings","Open the "+text+" settings page. Shortcut Ctrl+"+(index+1).ToString(CultureInfo.InvariantCulture));b.Margin=new Padding(1,3,1,3);b.Padding=new Padding(13,0,0,0);
             b.TextAlign=ContentAlignment.MiddleLeft;b.FlatStyle=FlatStyle.Flat;b.FlatAppearance.BorderSize=0;b.BackColor=SettingsSidebar;b.ForeColor=SettingsMuted;b.Font=new Font("Segoe UI Semibold",9.6f,FontStyle.Bold);b.Cursor=Cursors.Hand;
             b.Click+=delegate(object sender,EventArgs e){Button x=sender as Button;if(x!=null&&tabsControl!=null)tabsControl.SelectedIndex=Convert.ToInt32(x.Tag,CultureInfo.InvariantCulture);};
             return b;
@@ -6438,6 +6776,123 @@ namespace TaskbarMonitorEnhanced
             b.FlatAppearance.MouseDownBackColor=primary?Color.FromArgb(55,133,225):Color.FromArgb(28,39,52);
         }
 
+        private static void SetA11y(Control c,string name,string description)
+        {
+            if(c==null)return;c.AccessibleName=name??"";c.AccessibleDescription=description??"";
+        }
+        private static string AccessibleText(string text)
+        {
+            return (text??"").Replace("&&","&").Replace("&","").Trim().TrimEnd('.');
+        }
+        private static void EnsureAccessibilityMetadata(Control root)
+        {
+            if(root==null)return;
+            foreach(Control c0 in root.Controls)
+            {
+                bool relevant=c0 is Button||c0 is CheckBox;
+                if(relevant&&String.IsNullOrWhiteSpace(c0.AccessibleName)&&!String.IsNullOrWhiteSpace(c0.Text))
+                {
+                    string name=AccessibleText(c0.Text);SetA11y(c0,name,"Activate "+name+".");
+                }
+                EnsureAccessibilityMetadata(c0);
+            }
+        }
+        private void CaptureNormalPalette(Control root)
+        {
+            if(root==null)return;if(!normalPalette.ContainsKey(root))normalPalette[root]=Tuple.Create(root.BackColor,root.ForeColor);
+            foreach(Control c0 in root.Controls)CaptureNormalPalette(c0);
+        }
+        private void ApplyAccessibilityPalette()
+        {
+            ApplyAccessibilityPalette(null);
+        }
+        private void ApplyAccessibilityPalette(bool? highContrastOverride)
+        {
+            bool high=highContrastOverride.HasValue?highContrastOverride.Value:SystemInformation.HighContrast;
+            if(high)
+            {
+                foreach(KeyValuePair<Control,Tuple<Color,Color>> kv in normalPalette)
+                {
+                    Control c0=kv.Key;if(c0==null||c0.IsDisposed)continue;
+                    bool field=c0 is TextBox||c0 is ComboBox||c0 is NumericUpDown||c0 is CheckedListBox;
+                    c0.BackColor=field?SystemColors.Window:SystemColors.Control;
+                    c0.ForeColor=field?SystemColors.WindowText:SystemColors.ControlText;
+                }
+            }
+            else
+            {
+                foreach(KeyValuePair<Control,Tuple<Color,Color>> kv in normalPalette)
+                    if(kv.Key!=null&&!kv.Key.IsDisposed){kv.Key.BackColor=kv.Value.Item1;kv.Key.ForeColor=kv.Value.Item2;}
+                UpdateSettingsNavigation();
+            }
+            Invalidate(true);
+        }
+        internal int HighContrastCoverageGapCount(out int checkedControls)
+        {
+            checkedControls=0;int gaps=0;
+            try
+            {
+                ApplyAccessibilityPalette(true);
+                Stack<Control> stack=new Stack<Control>();stack.Push(this);
+                while(stack.Count>0)
+                {
+                    Control c0=stack.Pop();foreach(Control child in c0.Controls)stack.Push(child);
+                    if(c0==this)continue;checkedControls++;
+                    bool field=c0 is TextBox||c0 is ComboBox||c0 is NumericUpDown||c0 is CheckedListBox;
+                    Color eb=field?SystemColors.Window:SystemColors.Control;
+                    Color ef=field?SystemColors.WindowText:SystemColors.ControlText;
+                    if(c0.BackColor.ToArgb()!=eb.ToArgb()||c0.ForeColor.ToArgb()!=ef.ToArgb())gaps++;
+                }
+            }
+            finally{ApplyAccessibilityPalette(SystemInformation.HighContrast);}
+            return gaps;
+        }
+        internal void NotifySystemPreferenceChanged()
+        {
+            UpdateThemeModeUi();ApplyAccessibilityPalette();
+        }
+        private string ResolvedPreviewThemeName()
+        {
+            if(SystemInformation.HighContrast)return "Windows High Contrast";
+            if(followWindowsTheme!=null&&followWindowsTheme.Checked)
+                return WindowsThemePolicy.AppsUseLightTheme()?Convert.ToString(windowsLightTheme.SelectedItem,CultureInfo.InvariantCulture):Convert.ToString(windowsDarkTheme.SelectedItem,CultureInfo.InvariantCulture);
+            return Convert.ToString(theme.SelectedItem,CultureInfo.InvariantCulture);
+        }
+        private void UpdateThemeModeUi()
+        {
+            if(theme==null)return;bool follow=followWindowsTheme!=null&&followWindowsTheme.Checked;
+            theme.Enabled=!follow;if(windowsLightTheme!=null)windowsLightTheme.Enabled=follow;if(windowsDarkTheme!=null)windowsDarkTheme.Enabled=follow;
+            if(themePreview!=null)themePreview.ThemeName=ResolvedPreviewThemeName();
+        }
+        internal int AccessibilityGapCount(out int interactive)
+        {
+            interactive=0;int missing=0;List<string> gaps=new List<string>();Stack<Control> stack=new Stack<Control>();stack.Push(this);
+            while(stack.Count>0)
+            {
+                Control c0=stack.Pop();foreach(Control child in c0.Controls)stack.Push(child);
+                bool internalChild=c0.Parent is NumericUpDown||c0.Parent is ComboBox||c0.Parent is CheckedListBox;
+                bool relevant=!internalChild&&(c0 is Button||c0 is ComboBox||c0 is NumericUpDown||c0 is CheckBox||c0 is CheckedListBox||c0 is TextBox);
+                if(!relevant)continue;interactive++;
+                if(String.IsNullOrWhiteSpace(c0.AccessibleName))
+                {
+                    missing++;gaps.Add(c0.GetType().Name+" text='"+(c0.Text??"").Replace("\r"," ").Replace("\n"," ")+"'");
+                }
+            }
+            if(gaps.Count>0)Console.Error.WriteLine("TBME_A11Y_GAPS "+String.Join(" | ",gaps.ToArray()));
+            return missing;
+        }
+        protected override bool ProcessCmdKey(ref Message msg,Keys keyData)
+        {
+            if((keyData&Keys.Control)==Keys.Control)
+            {
+                Keys k=keyData&Keys.KeyCode;
+                if(k>=Keys.D1&&k<=Keys.D9&&tabsControl!=null){int i=(int)k-(int)Keys.D1;if(i<tabsControl.TabPages.Count){tabsControl.SelectedIndex=i;return true;}}
+                if(k==Keys.S){Apply();DialogResult=DialogResult.OK;Close();return true;}
+            }
+            if(keyData==Keys.F5&&tabsControl!=null&&tabsControl.SelectedTab!=null&&String.Equals(tabsControl.SelectedTab.Text,"Diagnostics",StringComparison.OrdinalIgnoreCase)){RefreshDiagnostics();return true;}
+            return base.ProcessCmdKey(ref msg,keyData);
+        }
+
         public void SelectTab(string tabName)
         {
             if(String.IsNullOrWhiteSpace(tabName)||tabsControl==null)return;
@@ -6462,8 +6917,8 @@ namespace TaskbarMonitorEnhanced
             {
                 try
                 {
-                    ReleaseUpdateInfo info=UpdateManager.CheckLatest();latestUpdate=info;Ui(delegate{updateLatest.Text="Latest public release: "+(String.IsNullOrWhiteSpace(info.Version)?info.Tag:info.Version)+"  |  Immutable: "+(info.Immutable?"Yes":"No");updateStatus.Text=info.Status;openRelease.Enabled=!String.IsNullOrWhiteSpace(info.HtmlUrl);installUpdate.Enabled=info.HasUpdate&&info.SetupAssetAvailable&&info.DigestAvailable&&info.Immutable;checkUpdate.Enabled=true;});
-                    Log.Write("INFO","UPDATE_CHECK latest="+info.Version+" hasUpdate="+info.HasUpdate+" asset="+info.SetupAssetAvailable+" digest="+info.DigestAvailable);
+                    ReleaseUpdateInfo info=UpdateManager.CheckLatest();latestUpdate=info;Ui(delegate{updateLatest.Text="Latest public release: "+(String.IsNullOrWhiteSpace(info.Version)?info.Tag:info.Version)+"  |  Immutable: "+(info.Immutable?"Yes":"No");updateStatus.Text=info.Status;openRelease.Enabled=info.ReleaseUrlValid;installUpdate.Enabled=info.HasUpdate&&info.SetupAssetAvailable&&info.DigestAvailable&&info.Immutable&&!info.Draft&&!info.Prerelease&&info.TagValid&&info.ReleaseUrlValid&&info.SetupUrlValid;checkUpdate.Enabled=true;});
+                    Log.Write("INFO","UPDATE_CHECK latest="+info.Version+" hasUpdate="+info.HasUpdate+" asset="+info.SetupAssetAvailable+" digest="+info.DigestAvailable+" immutable="+info.Immutable+" canonical="+(info.TagValid&&info.ReleaseUrlValid&&info.SetupUrlValid));
                 }
                 catch(Exception ex){Log.Write("WARN","UPDATE_CHECK_FAIL "+ex.Message);Ui(delegate{updateStatus.Text="Update check failed: "+ex.Message;checkUpdate.Enabled=true;installUpdate.Enabled=false;});}
             });
@@ -6477,9 +6932,9 @@ namespace TaskbarMonitorEnhanced
             {
                 try
                 {
-                    string path=UpdateManager.DownloadAndVerify(info);Ui(delegate{updateStatus.Text="SHA-256 verified. Starting Windows installer...";});Thread.Sleep(250);UpdateManager.StartInstaller(path);Ui(delegate{DialogResult=DialogResult.Cancel;Close();});Thread.Sleep(300);Application.Exit();
+                    string path=UpdateManager.DownloadAndVerify(info);Ui(delegate{updateStatus.Text="SHA-256 verified. Re-checking immediately before launch...";});Thread.Sleep(250);UpdateManager.StartInstaller(path,info.SetupDigest);Ui(delegate{DialogResult=DialogResult.Cancel;Close();});Thread.Sleep(300);Application.Exit();
                 }
-                catch(Exception ex){Log.Write("ERROR","UPDATE_INSTALL_FAIL "+ex.ToString());Ui(delegate{updateStatus.Text="Update failed safely: "+ex.Message;checkUpdate.Enabled=true;installUpdate.Enabled=info.HasUpdate&&info.SetupAssetAvailable&&info.DigestAvailable&&info.Immutable;});}
+                catch(Exception ex){Log.Write("ERROR","UPDATE_INSTALL_FAIL "+ex.ToString());Ui(delegate{updateStatus.Text="Update failed safely: "+ex.Message;checkUpdate.Enabled=true;installUpdate.Enabled=info.HasUpdate&&info.SetupAssetAvailable&&info.DigestAvailable&&info.Immutable&&!info.Draft&&!info.Prerelease&&info.TagValid&&info.ReleaseUrlValid&&info.SetupUrlValid;});}
             });
         }
         private void OpenReleasePage(){try{if(latestUpdate!=null&&!String.IsNullOrWhiteSpace(latestUpdate.HtmlUrl))Process.Start(latestUpdate.HtmlUrl);else Process.Start(BuildInfo.RepositoryUrl+"/releases");}catch(Exception ex){MessageBox.Show(ex.Message,"Open release page");}}
@@ -6519,6 +6974,9 @@ namespace TaskbarMonitorEnhanced
             b.AppendLine("TelemetryIntervalMs: "+c.UpdateIntervalMs);
             b.AppendLine("AdaptiveBatteryMode: "+c.AdaptiveBatteryMode+" BatteryIntervalMs="+c.BatteryUpdateIntervalMs);
             b.AppendLine("SparklineHistorySamples: "+c.SparklineHistoryLength);
+            b.AppendLine("DpiAwareness: "+Native.DpiAwarenessMode()+" HighContrast="+SystemInformation.HighContrast+" DllSearchHardened="+Native.DllSearchHardeningActive);
+            b.AppendLine("Theme: configured="+c.Theme+" followWindows="+c.FollowWindowsTheme+" resolved="+WindowsThemePolicy.ResolveName(c));
+            string resolvedTaskbar;IntPtr diagTaskbar=TaskbarTargetPolicy.Resolve(c,out resolvedTaskbar);b.AppendLine("TaskbarTarget: configured="+c.TaskbarDisplay+" resolved="+resolvedTaskbar+" hwnd="+diagTaskbar.ToInt64());
             b.AppendLine("TemperatureAlerts: "+c.EnableTemperatureAlerts+" CPU="+c.CpuTempWarningC+"C GPU="+c.GpuTempWarningC+"C DISK="+c.DiskTempWarningC+"C");
             bool diagHealth; b.AppendLine(CurrentHealthSummary(out diagHealth));
             b.AppendLine();
@@ -6535,6 +6993,7 @@ namespace TaskbarMonitorEnhanced
             b.AppendLine(DiagnosticFileLine("GPU broker",AppPaths.GpuBrokerData));
             b.AppendLine(DiagnosticFileLine("Storage broker",AppPaths.StorageBrokerData));
             b.AppendLine(DiagnosticFileLine("Backend state",AppPaths.SensorBackendState));
+            b.AppendLine(DiagnosticFileLine("Last crash snapshot",AppPaths.CrashState));
             b.AppendLine();
             b.AppendLine("Supervisor state JSON");
             b.AppendLine(ReadSharedDiagnostic(AppPaths.SensorSupervisorState));
@@ -6637,7 +7096,7 @@ namespace TaskbarMonitorEnhanced
                 ramNumeric.Checked=d.ShowRamNumeric;diskNumeric.Checked=d.ShowDiskNumeric;flyout.Checked=d.EnableHardwareFlyout;hoverAll.Checked=d.HoverShowAllDevices;
                 interval.Value=d.UpdateIntervalMs;startup.Checked=d.StartWithWindows;safe.Checked=d.SafePlacement;autoCheckUpdates.Checked=d.AutoCheckUpdates;
                 tempAlerts.Checked=d.EnableTemperatureAlerts;cpuWarn.Value=d.CpuTempWarningC;gpuWarn.Value=d.GpuTempWarningC;diskWarn.Value=d.DiskTempWarningC;
-                adaptiveBattery.Checked=d.AdaptiveBatteryMode;batteryInterval.Value=d.BatteryUpdateIntervalMs;historyLength.Value=d.SparklineHistoryLength;
+                adaptiveBattery.Checked=d.AdaptiveBatteryMode;batteryInterval.Value=d.BatteryUpdateIntervalMs;historyLength.Value=d.SparklineHistoryLength;followWindowsTheme.Checked=d.FollowWindowsTheme;windowsLightTheme.SelectedItem=d.WindowsLightTheme;windowsDarkTheme.SelectedItem=d.WindowsDarkTheme;taskbarDisplay.SelectedItem=d.TaskbarDisplay;
                 CheckAll(cpuList);CheckAll(gpuList);CheckAll(diskList);CheckAll(netList);
                 if(themePreview!=null)themePreview.ThemeName=d.Theme;
                 MessageBox.Show("Defaults loaded. Review them, then choose Save & Apply to commit the reset.","Safe reset",MessageBoxButtons.OK,MessageBoxIcon.Information);
@@ -6691,21 +7150,21 @@ namespace TaskbarMonitorEnhanced
         private List<HardwareChoice> ChoicesNet(){return snapshot.NetworkDevices.Select(x=>new HardwareChoice{Id=x.Id,Name=x.Name+(!String.IsNullOrWhiteSpace(x.Description)?" — "+x.Description:"")}).ToList();}
         private void AddHardwareSection(Control p,string label,string modeValue,List<HardwareChoice> choices,string selectedIds,int y,out ComboBox mode,out CheckedListBox list)
         {
-            Label h=new Label();h.Text=label;h.Location=new Point(24,y+4);h.Width=95;h.Font=new Font(Font,FontStyle.Bold);p.Controls.Add(h);Label ml=new Label();ml.Text="Mode";ml.Location=new Point(122,y+4);ml.Width=45;p.Controls.Add(ml);mode=new ComboBox();mode.DropDownStyle=ComboBoxStyle.DropDownList;mode.Location=new Point(170,y);mode.Width=180;mode.Items.AddRange(new string[]{"Overall","Auto","Single","Multiple"});mode.SelectedItem=modeValue;if(mode.SelectedIndex<0)mode.SelectedIndex=0;p.Controls.Add(mode);
-            list=new CheckedListBox();list.Location=new Point(370,y);list.Size=new Size(330,92);list.CheckOnClick=true;HashSet<string> selected=SelectionUtil.Parse(selectedIds);bool all=selected.Count==0;foreach(HardwareChoice c0 in choices){int i=list.Items.Add(c0);if(all||selected.Contains(c0.Id))list.SetItemChecked(i,true);}if(choices.Count==0)list.Items.Add("No device detected yet");p.Controls.Add(list);
+            Label h=new Label();h.Text=label;h.Location=new Point(24,y+4);h.Width=95;h.Font=new Font(Font,FontStyle.Bold);p.Controls.Add(h);Label ml=new Label();ml.Text="Mode";ml.Location=new Point(122,y+4);ml.Width=45;p.Controls.Add(ml);mode=new ComboBox();SetA11y(mode,label+" display mode","Choose how "+label+" devices are aggregated on the taskbar.");mode.DropDownStyle=ComboBoxStyle.DropDownList;mode.Location=new Point(170,y);mode.Width=180;mode.Items.AddRange(new string[]{"Overall","Auto","Single","Multiple"});mode.SelectedItem=modeValue;if(mode.SelectedIndex<0)mode.SelectedIndex=0;p.Controls.Add(mode);
+            list=new CheckedListBox();SetA11y(list,label+" devices","Select which "+label+" devices are monitored.");list.Location=new Point(370,y);list.Size=new Size(330,92);list.CheckOnClick=true;HashSet<string> selected=SelectionUtil.Parse(selectedIds);bool all=selected.Count==0;foreach(HardwareChoice c0 in choices){int i=list.Items.Add(c0);if(all||selected.Contains(c0.Id))list.SetItemChecked(i,true);}if(choices.Count==0)list.Items.Add("No device detected yet");p.Controls.Add(list);
         }
         private string CheckedIds(CheckedListBox list)
         {
             List<string> ids=new List<string>();if(list==null)return "";foreach(object o in list.CheckedItems){HardwareChoice c0=o as HardwareChoice;if(c0!=null&&!String.IsNullOrWhiteSpace(c0.Id))ids.Add(c0.Id);}return SelectionUtil.Join(ids);
         }
-        private ComboBox Combo(Control p,string label,string[] items,string value,int y){Label l=new Label();l.Text=label;l.Location=new Point(24,y+4);l.Width=145;p.Controls.Add(l);ComboBox x=new ComboBox();x.DropDownStyle=ComboBoxStyle.DropDownList;x.Location=new Point(180,y);x.Width=250;x.Items.AddRange(items);x.SelectedItem=value;if(x.SelectedIndex<0)x.SelectedIndex=0;p.Controls.Add(x);return x;}
-        private NumericUpDown Number(Control p,string label,decimal val,decimal min,decimal max,int y){Label l=new Label();l.Text=label;l.Location=new Point(24,y+4);l.Width=145;p.Controls.Add(l);NumericUpDown n=new NumericUpDown();n.Location=new Point(180,y);n.Width=120;n.Minimum=min;n.Maximum=max;n.Value=Math.Min(max,Math.Max(min,val));p.Controls.Add(n);return n;}
-        private CheckBox Check(Control p,string label,bool val,int y){CheckBox x=new CheckBox();x.Text=label;x.Checked=val;x.Location=new Point(24,y);x.AutoSize=true;p.Controls.Add(x);return x;}
+        private ComboBox Combo(Control p,string label,string[] items,string value,int y){Label l=new Label();l.Text=label;l.Location=new Point(24,y+4);l.Width=145;p.Controls.Add(l);ComboBox x=new ComboBox();SetA11y(x,label,"Select "+label+".");x.DropDownStyle=ComboBoxStyle.DropDownList;x.Location=new Point(180,y);x.Width=250;x.Items.AddRange(items);x.SelectedItem=value;if(x.SelectedIndex<0)x.SelectedIndex=0;p.Controls.Add(x);return x;}
+        private NumericUpDown Number(Control p,string label,decimal val,decimal min,decimal max,int y){Label l=new Label();l.Text=label;l.Location=new Point(24,y+4);l.Width=145;p.Controls.Add(l);NumericUpDown n=new NumericUpDown();SetA11y(n,label,"Set "+label+".");n.Location=new Point(180,y);n.Width=120;n.Minimum=min;n.Maximum=max;n.Value=Math.Min(max,Math.Max(min,val));p.Controls.Add(n);return n;}
+        private CheckBox Check(Control p,string label,bool val,int y){CheckBox x=new CheckBox();x.Text=label;SetA11y(x,label,"Toggle "+label+".");x.Checked=val;x.Location=new Point(24,y);x.AutoSize=true;p.Controls.Add(x);return x;}
         private void Apply()
         {
             c.Theme=(string)theme.SelectedItem;c.Position=(string)position.SelectedItem;c.Opacity=(double)opacity.Value/100.0;c.MinWidthLogicalPx=(int)width.Value;c.UpdateIntervalMs=(int)interval.Value;c.ShowCpu=cpu.Checked;c.ShowRam=ram.Checked;c.ShowDisk=disk.Checked;c.ShowGpu=gpu.Checked;c.ShowVram=vram.Checked;c.ShowNetwork=net.Checked;c.ShowTemperatures=temp.Checked;c.ShowSparklines=spark.Checked;c.StartWithWindows=startup.Checked;c.SafePlacement=safe.Checked;
             c.CpuDisplayMode=(string)cpuMode.SelectedItem;c.GpuDisplayMode=(string)gpuMode.SelectedItem;c.DiskDisplayMode=(string)diskMode.SelectedItem;c.NetworkDisplayMode=(string)netMode.SelectedItem;c.SelectedCpuIds=CheckedIds(cpuList);c.SelectedGpuIds=CheckedIds(gpuList);c.SelectedDiskIds=CheckedIds(diskList);c.SelectedNetworkIds=CheckedIds(netList);c.MultipleDeviceLayout=(string)multiLayout.SelectedItem;c.MemoryUnit=(string)memoryUnit.SelectedItem;c.StorageUnit=(string)storageUnit.SelectedItem;c.DiskRateUnit=(string)diskRateUnit.SelectedItem;c.NetworkUnit=(string)networkUnit.SelectedItem;c.ShowRamNumeric=ramNumeric.Checked;c.ShowDiskNumeric=diskNumeric.Checked;c.EnableHardwareFlyout=flyout.Checked;c.HoverShowAllDevices=hoverAll.Checked;c.AutoCheckUpdates=autoCheckUpdates.Checked;
-            c.EnableTemperatureAlerts=tempAlerts.Checked;c.CpuTempWarningC=(int)cpuWarn.Value;c.GpuTempWarningC=(int)gpuWarn.Value;c.DiskTempWarningC=(int)diskWarn.Value;c.AdaptiveBatteryMode=adaptiveBattery.Checked;c.BatteryUpdateIntervalMs=(int)batteryInterval.Value;c.SparklineHistoryLength=(int)historyLength.Value;
+            c.EnableTemperatureAlerts=tempAlerts.Checked;c.CpuTempWarningC=(int)cpuWarn.Value;c.GpuTempWarningC=(int)gpuWarn.Value;c.DiskTempWarningC=(int)diskWarn.Value;c.AdaptiveBatteryMode=adaptiveBattery.Checked;c.BatteryUpdateIntervalMs=(int)batteryInterval.Value;c.SparklineHistoryLength=(int)historyLength.Value;c.FollowWindowsTheme=followWindowsTheme.Checked;c.WindowsLightTheme=Convert.ToString(windowsLightTheme.SelectedItem,CultureInfo.InvariantCulture);c.WindowsDarkTheme=Convert.ToString(windowsDarkTheme.SelectedItem,CultureInfo.InvariantCulture);c.TaskbarDisplay=TaskbarTargetPolicy.NormalizeConfigId(Convert.ToString(taskbarDisplay.SelectedItem,CultureInfo.InvariantCulture));
         }
     }
 
@@ -7189,6 +7648,7 @@ namespace TaskbarMonitorEnhanced
                 Native.EnableDpi();Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
                 AppConfig c=AppConfig.Load();c.Normalize();
                 MetricsSnapshot snapshot=new MetricsSnapshot();
+                int interactive=0;int a11yGaps=0;int highContrastChecked=0;int highContrastGaps=0;
                 string[] pages=new string[]{"Display","Metrics","Alerts","Hardware","Units","Behavior","Updates","Diagnostics","Advanced"};
                 using(OverlayForm previewRenderer=new OverlayForm(c,true))
                 {
@@ -7197,6 +7657,8 @@ namespace TaskbarMonitorEnhanced
                     {
                     f.Width=1080;f.Height=760;f.StartPosition=FormStartPosition.Manual;f.Location=new Point(-32000,-32000);
                     f.Show();Application.DoEvents();f.PerformLayout();
+                    a11yGaps=f.AccessibilityGapCount(out interactive);if(a11yGaps!=0)throw new InvalidDataException("Settings accessibility metadata gaps="+a11yGaps);
+                    highContrastGaps=f.HighContrastCoverageGapCount(out highContrastChecked);if(highContrastGaps!=0)throw new InvalidDataException("Settings high contrast gaps="+highContrastGaps);
                     for(int i=0;i<pages.Length;i++)
                     {
                         f.SelectTab(pages[i]);f.PerformLayout();Application.DoEvents();
@@ -7209,7 +7671,7 @@ namespace TaskbarMonitorEnhanced
                 }
                 }
                 Dictionary<string,object> manifest=new Dictionary<string,object>();
-                manifest["Version"]=BuildInfo.Version;manifest["PublicVersion"]=BuildInfo.PublicVersion;manifest["Pages"]=pages;manifest["Width"]=1080;manifest["Height"]=760;manifest["ThemePreview"]="ACTUAL_TASKBAR_RENDERER";manifest["ThemePreviewHeight"]=48;manifest["ThemePreviewNoSyntheticMetricData"]=true;manifest["ThemePreviewLiveSampleCount"]=12;
+                manifest["Version"]=BuildInfo.Version;manifest["PublicVersion"]=BuildInfo.PublicVersion;manifest["Pages"]=pages;manifest["Width"]=1080;manifest["Height"]=760;manifest["ThemePreview"]="ACTUAL_TASKBAR_RENDERER";manifest["ThemePreviewHeight"]=48;manifest["ThemePreviewNoSyntheticMetricData"]=true;manifest["ThemePreviewLiveSampleCount"]=12;manifest["AccessibilityInteractiveControls"]=interactive;manifest["AccessibilityNameGaps"]=a11yGaps;manifest["HighContrastCheckedControls"]=highContrastChecked;manifest["HighContrastStyleGaps"]=highContrastGaps;manifest["DpiAwareness"]=Native.DpiAwarenessMode();
                 File.WriteAllText(Path.Combine(outputDirectory,"SETTINGS_PROOF_MANIFEST.json"),new JavaScriptSerializer().Serialize(manifest),Encoding.UTF8);
                 Console.WriteLine("TBME_SETTINGS_PROOF=PASS PAGES=9 DIR="+outputDirectory);
                 return 0;
@@ -7370,7 +7832,7 @@ namespace TaskbarMonitorEnhanced
                 Process main=mains[0];
                 mainPid=(uint)main.Id;
 
-                IntPtr taskbar=Native.FindWindow("Shell_TrayWnd",null);
+                AppConfig probeConfig=AppConfig.Load();string probeTarget;IntPtr taskbar=TaskbarTargetPolicy.Resolve(probeConfig,out probeTarget);
                 if(taskbar==IntPtr.Zero)
                     throw new InvalidOperationException("START_PROBE_TASKBAR_GATE");
 
@@ -7431,7 +7893,7 @@ namespace TaskbarMonitorEnhanced
 
                     if(fgShell||surface)shellSamples++;
 
-                    IntPtr currentTaskbar=Native.FindWindow("Shell_TrayWnd",null);
+                    string currentProbeTarget;IntPtr currentTaskbar=TaskbarTargetPolicy.Resolve(probeConfig,out currentProbeTarget);
                     if(currentTaskbar==IntPtr.Zero)currentTaskbar=taskbar;
 
                     // Hierarchy enumeration is diagnostic only. Windows 11 Start can make
@@ -7716,7 +8178,7 @@ namespace TaskbarMonitorEnhanced
                 Process main=mains[0];
                 uint mainPid=(uint)main.Id;
 
-                IntPtr taskbar=Native.FindWindow("Shell_TrayWnd",null);
+                AppConfig probeConfig=AppConfig.Load();string probeTarget;IntPtr taskbar=TaskbarTargetPolicy.Resolve(probeConfig,out probeTarget);
                 if(taskbar==IntPtr.Zero)throw new InvalidOperationException("TASKBAR_NOT_FOUND");
 
                 uint taskbarPid=0;
@@ -7863,7 +8325,9 @@ namespace TaskbarMonitorEnhanced
                 string[] expectedModes=new string[]{"minimal","glass","neon","white","round","hex","terminal","fluent","oled","cyber2","mission","blueprint","medical","carbon","aurora","luxe","zen","synth","matrix","paper","luxe","aurora","industrial","zen","industrial","synth","synth","paper"};
                 for(int i=0;i<expected.Length;i++){if(ThemeCatalog.Names[i]!=expected[i])throw new Exception("theme name " + i);if(ThemeCatalog.Get(expected[i]).Mode!=expectedModes[i])throw new Exception("theme mode " + i);}
                 AppConfig c=new AppConfig();c.Normalize();if(c.MinWidthLogicalPx!=1100||c.MarginLogicalPx!=0||c.VerticalMarginLogicalPx!=0)throw new Exception("geometry defaults");
-                if(c.ConfigSchemaVersion!=4||!c.EnableTemperatureAlerts||c.CpuTempWarningC!=85||c.GpuTempWarningC!=85||c.DiskTempWarningC!=60)throw new Exception("v1.3 alert defaults");
+                if(!Native.DllSearchHardeningActive)throw new Exception("DLL search hardening");
+                if(!TaskbarTargetPolicy.SelfTest())throw new Exception("taskbar target selector");
+                if(c.ConfigSchemaVersion<5||!c.EnableTemperatureAlerts||c.CpuTempWarningC!=85||c.GpuTempWarningC!=85||c.DiskTempWarningC!=60)throw new Exception("v1.3 alert defaults");
                 if(!c.AdaptiveBatteryMode||c.BatteryUpdateIntervalMs!=3000||c.SparklineHistoryLength!=120)throw new Exception("v1.3 telemetry defaults");
                 if(TelemetryPolicy.EffectiveIntervalMs(c,PowerLineStatus.Online)!=1000||TelemetryPolicy.EffectiveIntervalMs(c,PowerLineStatus.Offline)!=3000)throw new Exception("adaptive telemetry policy");
                 if(!TelemetryPolicy.ShouldPause(true,false)||!TelemetryPolicy.ShouldPause(false,true)||TelemetryPolicy.ShouldPause(false,false))throw new Exception("pause policy");
@@ -7932,10 +8396,10 @@ namespace TaskbarMonitorEnhanced
                         throw new Exception("sensor selfheal missing state");
                 }
                 finally{try{Directory.Delete(healDir,true);}catch{}}
-                Console.WriteLine("TBME_V1_3_1_R34_SELFTEST=PASS PUBLIC_VERSION=1.3.1 REAL_THEME_PREVIEW=TRUE THEME_PREVIEW_ACTUAL_RENDERER=TRUE STARTUP_DUAL_REGISTRATION=TRUE STARTUP_RECOVERY_DELAY_SEC=12 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE CPU_HARD_STALL_WATCHDOG_SEC=60 CPU_SUPERVISOR_STARTUP_GRACE_SEC=60 THEMES=28 WIDTH=1100 HISTORY=120 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE SENSOR_SUPERVISOR_AUTOHEAL=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE ALERTS_CPU_GPU_DISK=TRUE ALERT_VISUAL_HOTSTATE=TRUE ADAPTIVE_BATTERY=TRUE SESSION_PAUSE=TRUE CONFIGURABLE_HISTORY=TRUE COPY_DIAGNOSTICS=TRUE SUPPORT_ZIP=TRUE SAFE_RESET=TRUE HEALTH_BADGE=TRUE SETTINGS_PAGES=9 CREATEPARAMS_NOACTIVATE=TRUE");
+                Console.WriteLine("TBME_V1_4_0_R35_SELFTEST=PASS PUBLIC_VERSION=1.4.0 PER_MONITOR_V2=TRUE ACCESSIBILITY_METADATA=TRUE HIGH_CONTRAST=TRUE WINDOWS_THEME_FOLLOW=TRUE MULTI_MONITOR_TASKBAR_TARGET=TRUE UPDATE_CANONICAL_IDENTITY=TRUE UPDATE_PRELAUNCH_REHASH=TRUE DLL_SEARCH_HARDENING=TRUE CRASH_SNAPSHOT_PRIVACY=TRUE REAL_THEME_PREVIEW=TRUE THEME_PREVIEW_ACTUAL_RENDERER=TRUE STARTUP_DUAL_REGISTRATION=TRUE STARTUP_RECOVERY_DELAY_SEC=12 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE CPU_HARD_STALL_WATCHDOG_SEC=60 CPU_SUPERVISOR_STARTUP_GRACE_SEC=60 THEMES=28 WIDTH=1100 HISTORY=120 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE SENSOR_SUPERVISOR_AUTOHEAL=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE ALERTS_CPU_GPU_DISK=TRUE ALERT_VISUAL_HOTSTATE=TRUE ADAPTIVE_BATTERY=TRUE SESSION_PAUSE=TRUE CONFIGURABLE_HISTORY=TRUE COPY_DIAGNOSTICS=TRUE SUPPORT_ZIP=TRUE SAFE_RESET=TRUE HEALTH_BADGE=TRUE SETTINGS_PAGES=9 CREATEPARAMS_NOACTIVATE=TRUE");
                 return 0;
             }
-            catch(Exception ex){Console.Error.WriteLine("TBME_V1_3_1_R34_SELFTEST=FAIL " + ex);return 2;}
+            catch(Exception ex){Console.Error.WriteLine("TBME_V1_4_0_R35_SELFTEST=FAIL " + ex);return 2;}
         }
 
         public static int RunJson(string outputPath)
@@ -7988,7 +8452,7 @@ namespace TaskbarMonitorEnhanced
             timer.Tick+=delegate{TickHost();};
 
             Log.Write("INFO","HOST_CONTEXT_START version="+BuildInfo.Version+" pid="+Process.GetCurrentProcess().Id);
-            IntPtr tb=Native.FindWindow("Shell_TrayWnd",null);
+            string resolvedTarget;IntPtr tb=TaskbarTargetPolicy.Resolve(config,out resolvedTarget);
             if(tb!=IntPtr.Zero)
             {
                 lastTaskbar=tb;
@@ -8006,7 +8470,7 @@ namespace TaskbarMonitorEnhanced
         private void CreateOverlay(string reason)
         {
             if(shuttingDown)return;
-            IntPtr tb=Native.FindWindow("Shell_TrayWnd",null);
+            string resolvedTarget;IntPtr tb=TaskbarTargetPolicy.Resolve(config,out resolvedTarget);
             if(tb==IntPtr.Zero)return;
 
             try
@@ -8086,7 +8550,7 @@ namespace TaskbarMonitorEnhanced
                     if(!startupHealthy)Log.Write("WARN","HOST_STARTUP_MAINTENANCE_DEGRADED enabled="+config.StartWithWindows);
                 }
 
-                IntPtr current=Native.FindWindow("Shell_TrayWnd",null);
+                string resolvedTarget;IntPtr current=TaskbarTargetPolicy.Resolve(config,out resolvedTarget);
 
                 if(current==IntPtr.Zero)
                 {
@@ -8192,6 +8656,7 @@ namespace TaskbarMonitorEnhanced
         [STAThread]
         private static int Main(string[] args)
         {
+            Native.EnableDllSearchHardening();
             if(args!=null && args.Length>0 && args[0]=="--selftest")return SelfTest.Run();
             if(args!=null && args.Length>0 && args[0]=="--selftestjson")
             {

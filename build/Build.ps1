@@ -71,6 +71,7 @@ Assert-PeSubsystem (Join-Path $Out 'Broker\TaskbarMonitorSensorBroker.exe') 2
 Assert-PeSubsystem (Join-Path $Out 'Supervisor\TaskbarMonitorSensorSupervisor.exe') 2
 Write-Host 'TBME_SENSOR_WINDOWLESS_PE=PASS'
 Copy-Item (Join-Path $Out 'App\TaskbarMonitorEnhanced.exe') $Package
+Copy-Item (Join-Path $Out 'App\TaskbarMonitorEnhanced.exe.config') $Package
 Copy-Item (Join-Path $Out 'Broker\TaskbarMonitorSensorBroker.exe') $Package
 Copy-Item (Join-Path $Out 'Supervisor\TaskbarMonitorSensorSupervisor.exe') $Package
 
@@ -80,12 +81,12 @@ $CanonicalTextResources=[ordered]@{
     'TaskbarMonitorSensorSupervisor.cs'=(Join-Path $Root 'src\sensors\TaskbarMonitorSensorSupervisor.cs')
     'TBME_Setup_Elevated_Helper.ps1'=(Join-Path $Root 'installer\TBME_Setup_Elevated_Helper.ps1')
     'LICENSE'=(Join-Path $Root 'LICENSE')
-    'README.md'=(Join-Path $Root 'docs\releases\v1.3.1\INSTALLER_README.txt')
+    'README.md'=(Join-Path $Root 'docs\releases\v1.4.0\INSTALLER_README.txt')
     'AUTHORS.md'=(Join-Path $Root 'AUTHORS.md')
     'COPYRIGHT_AND_ATTRIBUTION.md'=(Join-Path $Root 'COPYRIGHT_AND_ATTRIBUTION.md')
     'AI_ASSISTED_DEVELOPMENT.md'=(Join-Path $Root 'AI_ASSISTED_DEVELOPMENT.md')
     'THIRD_PARTY_NOTICES.md'=(Join-Path $Root 'THIRD_PARTY_NOTICES.md')
-    'RELEASE_NOTES_v1.3.1.md'=(Join-Path $Root 'docs\releases\v1.3.1\RELEASE_NOTES.md')
+    'RELEASE_NOTES_v1.4.0.md'=(Join-Path $Root 'docs\releases\v1.4.0\RELEASE_NOTES.md')
     'UPSTREAM_REFERENCE_GPL_NOTICE.md'=(Join-Path $Root 'UPSTREAM_REFERENCE_GPL_NOTICE.md')
     'TaskbarMonitorEnhanced_Setup.cs'=(Join-Path $Root 'installer\TaskbarMonitorEnhanced_Setup.cs')
 }
@@ -95,7 +96,7 @@ foreach($entry in $CanonicalTextResources.GetEnumerator()){
 Write-Host 'TBME_CANONICAL_TEXT_PAYLOAD=PASS'
 
 Build (Join-Path $PSScriptRoot 'TaskbarMonitorEnhanced_Setup.csproj')
-$Setup=Join-Path $Out 'Setup\TaskbarMonitorEnhanced_Setup_1.3.1.exe'
+$Setup=Join-Path $Out 'Setup\TaskbarMonitorEnhanced_Setup_1.4.0.exe'
 if(!(Test-Path -LiteralPath $Setup)){throw 'Setup output missing.'}
 
 $Verify=Join-Path $Out 'setup_verify.json'
@@ -104,15 +105,15 @@ $vp=Start-Process -FilePath $Setup -ArgumentList @('/verify',("/verifyfile="+$Ve
 if($vp.ExitCode -ne 0){throw "Setup /verify failed with exit $($vp.ExitCode)"}
 if(!(Test-Path -LiteralPath $Verify)){throw 'Setup /verify did not create its verification file.'}
 $v=Get-Content -LiteralPath $Verify -Raw|ConvertFrom-Json
-if([string]$v.Status -ne 'PASS' -or [int]$v.Resources -ne 19){throw 'Setup resource verification failed.'}
+if([string]$v.Status -ne 'PASS' -or [int]$v.Resources -ne 20){throw 'Setup resource verification failed.'}
 
 $Self=Join-Path $Out 'selftest.txt'
 & (Join-Path $Package 'TaskbarMonitorEnhanced.exe') --selftest | Set-Content -LiteralPath $Self -Encoding UTF8
 if($LASTEXITCODE -ne 0){throw 'Application self-test failed.'}
 
 $manifest=[ordered]@{
-    Version='1.3.1'
-    Build='V1_3_1_R34_REAL_THEME_PREVIEW'
+    Version='1.4.0'
+    Build='V1_4_0_R35_WINDOWS_INTEGRATION_ACCESSIBILITY'
     GeneratedUtc=[datetime]::UtcNow.ToString('o')
     Dependencies=[ordered]@{
         LibreHardwareMonitor=[ordered]@{Version=[string]$Lock.dependencies.LibreHardwareMonitor.version;Url=$LhmUrl;SHA256=$LhmSha}
