@@ -938,3 +938,12 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - R36 determinism defect: Setup-only mismatch traced to missing EOL policy for installer/setup.manifest; minimum fix is LF pin in .gitattributes. Status: fix applied, exact-commit regression pending.
 
 - R36 live-install gate: FAIL due stale install_state Version/PublicVersion=1.4.0 despite deployed Main 1.5.0. Root cause confirmed as two installer hardcodes; narrow fix applied. Rebuild/determinism/reinstall pending.
+
+
+## R36 milestone — LOCAL CANDIDATE ACCEPTED / GITHUB CI NEXT
+
+- Local release gates are green: reproducible build PASS, clean-clone determinism PASS, candidate 11/11, installed/postinstall 11/11, installed hashes 5/5 exact, config migration preservation PASS, health STABLE.
+- v1.5.0 is installed on the validation host with exact current Main/Setup hashes and unchanged protected sensor pair (Broker 1.1.2+r21, Supervisor 1.3.0+r33).
+- Authority remains CANDIDATE; v1.4.0 remains public Latest.
+- Critical path: release-branch exact-head CI/provenance -> main exact-head CI/provenance -> immutable v1.5.0 tag/assets/digests/public acceptance.
+- Exact next action: commit acceptance records and push release/v1.5.0-r36.

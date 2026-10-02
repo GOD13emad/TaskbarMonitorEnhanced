@@ -688,3 +688,18 @@ Prevention rule: temporary release branches are transport/control surfaces, not 
 - Determinism root cause refinement: after committing R36, Setup alone still mismatched between primary and clean clone. Audit found src/app.manifest was explicitly LF-pinned in .gitattributes while installer/setup.manifest was not. The primary patched manifest was LF; Windows clean clone could materialize CRLF. Because the setup application manifest is embedded into the PE, this can alter Setup bytes while Main/Broker/Supervisor remain identical. Minimum control added: installer/setup.manifest text eol=lf. Regression requires rebuild from exact commit and clean-clone determinism PASS.
 
 - Live-install gate failure: first v1.5.0 quiet install deployed Main hash 94E76E2D7A09BBBA47DC77CBFAAC536A929D1537A912CBF82053E7B2FFC8857F and FileVersion 1.5.0.0 while preserving the existing Supervisor PID, but install_state.json was rewritten with Version/PublicVersion 1.4.0. Root cause: two stale hardcoded 1.4.0 strings in SetupProgram.WriteInstallState. Fix is limited to those two fields; update-manager 1.4.0 URLs remain intentional test fixtures. Regression requires rebuild, determinism and reinstall with install_state Version/PublicVersion 1.5.0 plus unchanged protected sensor identity.
+
+
+## 2026-10-02 — R36 local acceptance complete; GitHub promotion gate opened
+
+- Candidate build head audited: 3a7d9668f735e86c30d60ff3626dfd9f8e9a30b7.
+- Exact-head Build.ps1 -NoDownload: PASS, all four projects 0 warnings / 0 errors; setup 1.5.0, canonical payload and windowless sensor PE gates PASS.
+- Exact-head clean-clone determinism: PASS after fixing installer/setup.manifest EOL policy.
+- Candidate proof suite: 11/11 PASS (selftest, feature contracts, Settings, theme, compact, hover, startup, health, shell, hardware, temperature).
+- Live upgrade evidence: v1.4.0 -> v1.5.0; protected Supervisor PID preserved across upgrade; installed state reports CURRENT_EXACT_R33 and correct v1.5.0 identity.
+- Postinstall/installed acceptance: 11/11 PASS; installed Main/config/Broker/Supervisor/Uninstaller hashes match current BUILD_MANIFEST 5/5.
+- Config migration preservation: PASS. Comparing current config against backup while excluding the intended migration fields ConfigSchemaVersion and EnableTemperatureNotifications produced zero other semantic differences; schema=6 and new notification setting defaults false.
+- Final live health evidence: PASS / STABLE, process containment true, CPU/GPU/storage transport and data lanes healthy.
+- Candidate acceptance record: docs/acceptance/v1.5.0/CANDIDATE_ACCEPTANCE.json.
+- Status: LOCAL_CANDIDATE_ACCEPTED_PENDING_GITHUB_CI. Public release authority remains v1.4.0 until release-branch CI, main CI/provenance and immutable GitHub release verification pass.
+- Exact next action: commit local-acceptance records, push release/v1.5.0-r36, require exact-SHA GitHub CI PASS before promotion to main.

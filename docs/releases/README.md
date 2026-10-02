@@ -1,5 +1,13 @@
 # Release records
 
+## Current release candidate
+
+- [v1.5.0 release notes](v1.5.0/RELEASE_NOTES.md)
+- [v1.5.0 candidate acceptance](../acceptance/v1.5.0/CANDIDATE_ACCEPTANCE.json)
+- [v1.5.0 installer README payload](v1.5.0/INSTALLER_README.txt)
+
+v1.5.0 remains a candidate until GitHub CI/provenance and immutable publication gates are complete.
+
 ## Current public release
 
 - [v1.4.0 release notes](v1.4.0/RELEASE_NOTES.md)
