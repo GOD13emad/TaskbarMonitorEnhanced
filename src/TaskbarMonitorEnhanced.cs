@@ -5977,6 +5977,27 @@ namespace TaskbarMonitorEnhanced
             p.AddArc(r.X,r.Y,d,d,180,90);p.AddArc(r.Right-d,r.Y,d,d,270,90);p.AddArc(r.Right-d,r.Bottom-d,d,d,0,90);p.AddArc(r.X,r.Bottom-d,d,d,90,90);p.CloseFigure();return p;
         }
     }
+    internal static class SafeResetPolicy
+    {
+        public static string BackupCurrentConfig(string configPath,string backupDir,DateTime localNow)
+        {
+            if(String.IsNullOrWhiteSpace(configPath)||!File.Exists(configPath))return "";
+            if(String.IsNullOrWhiteSpace(backupDir))throw new ArgumentException("backup directory");
+            Directory.CreateDirectory(backupDir);
+            string stamp=localNow.ToString("yyyyMMdd_HHmmss_fff",CultureInfo.InvariantCulture);
+            string baseName="config_before_reset_"+stamp;
+            string backup=Path.Combine(backupDir,baseName+".json");
+            int suffix=1;
+            while(File.Exists(backup))
+            {
+                backup=Path.Combine(backupDir,baseName+"_"+suffix.ToString(CultureInfo.InvariantCulture)+".json");
+                suffix++;
+            }
+            File.Copy(configPath,backup,false);
+            return backup;
+        }
+    }
+
     internal static class SupportBundleBuilder
     {
         private static void AddText(ZipArchive zip,string name,string text)
@@ -5995,7 +6016,7 @@ namespace TaskbarMonitorEnhanced
                 ZipArchiveEntry entry=zip.CreateEntry(entryName,CompressionLevel.Optimal);
                 using(Stream input=new FileStream(source,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete))
                 using(Stream output=entry.Open())input.CopyTo(output);
-                manifest.Add(entryName+" | "+new FileInfo(source).Length.ToString(CultureInfo.InvariantCulture)+" bytes | "+source);
+                manifest.Add(entryName+" | "+new FileInfo(source).Length.ToString(CultureInfo.InvariantCulture)+" bytes");
                 return true;
             }
             catch(Exception ex)
@@ -6041,8 +6062,8 @@ namespace TaskbarMonitorEnhanced
                 meta.AppendLine("Taskbar Monitor Enhanced support bundle");
                 meta.AppendLine("GeneratedUtc: "+DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture));
                 meta.AppendLine("Build: "+BuildInfo.Version+" / "+BuildInfo.PublicVersion);
-                meta.AppendLine("Machine: "+Environment.MachineName);
                 meta.AppendLine("OS: "+Environment.OSVersion);
+                meta.AppendLine("Privacy: local user-initiated export; machine name and absolute source paths are omitted from this manifest.");
                 meta.AppendLine();
                 foreach(string line in manifest)meta.AppendLine(line);
                 AddText(zip,"support_manifest.txt",meta.ToString());
@@ -6058,9 +6079,18 @@ namespace TaskbarMonitorEnhanced
                 using(ZipArchive zip=new ZipArchive(fs,ZipArchiveMode.Read,false,Encoding.UTF8))
                 {
                     if(zip.GetEntry("diagnostics.txt")==null)throw new InvalidDataException("diagnostics entry missing");
-                    if(zip.GetEntry("support_manifest.txt")==null)throw new InvalidDataException("manifest entry missing");
+                    ZipArchiveEntry manifestEntry=zip.GetEntry("support_manifest.txt");
+                    if(manifestEntry==null)throw new InvalidDataException("manifest entry missing");
                     if(zip.Entries.Count<2)throw new InvalidDataException("bundle entry count");
-                    Console.WriteLine("TBME_SUPPORT_BUNDLE_PROOF=PASS ENTRIES="+zip.Entries.Count);
+                    string manifestText;
+                    using(Stream ms=manifestEntry.Open())
+                    using(StreamReader mr=new StreamReader(ms,Encoding.UTF8,true))
+                        manifestText=mr.ReadToEnd();
+                    if(manifestText.IndexOf(Environment.MachineName,StringComparison.OrdinalIgnoreCase)>=0)
+                        throw new InvalidDataException("manifest leaks machine name");
+                    if(manifestText.IndexOf(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),StringComparison.OrdinalIgnoreCase)>=0)
+                        throw new InvalidDataException("manifest leaks user profile path");
+                    Console.WriteLine("TBME_SUPPORT_BUNDLE_PROOF=PASS ENTRIES="+zip.Entries.Count+" PRIVACY_MANIFEST=PASS");
                 }
                 return 0;
             }
@@ -6102,7 +6132,24 @@ namespace TaskbarMonitorEnhanced
                 if(h.Get("CPU").Count!=120)throw new InvalidOperationException("history grow");
 
                 if(SupportBundleBuilder.Probe(zip)!=0)throw new InvalidOperationException("support bundle");
-                Console.WriteLine("TBME_FEATURE_CONTRACT_SELFTEST=PASS FEATURES=10 ALERTS_CPU_GPU_DISK=TRUE HOT_VISUAL=TRUE BATTERY_ADAPTIVE=TRUE SESSION_PAUSE=TRUE HISTORY_CONFIG=TRUE COPY_DIAGNOSTICS=TRUE SUPPORT_ZIP=TRUE SAFE_RESET=TRUE HEALTH_BADGE=TRUE");
+
+                string resetConfig=Path.Combine(dir,"reset-config.json");
+                string resetBackups=Path.Combine(dir,"reset-backups");
+                const string resetPayload="{\"Theme\":\"USER_KEEP\"}";
+                File.WriteAllText(resetConfig,resetPayload,Encoding.UTF8);
+                DateTime fixedResetTime=new DateTime(2026,10,2,7,30,0,123,DateTimeKind.Local);
+                string resetBackup1=SafeResetPolicy.BackupCurrentConfig(resetConfig,resetBackups,fixedResetTime);
+                string resetBackup2=SafeResetPolicy.BackupCurrentConfig(resetConfig,resetBackups,fixedResetTime);
+                if(String.IsNullOrWhiteSpace(resetBackup1)||String.IsNullOrWhiteSpace(resetBackup2)||
+                   String.Equals(resetBackup1,resetBackup2,StringComparison.OrdinalIgnoreCase)||
+                   !File.Exists(resetBackup1)||!File.Exists(resetBackup2))
+                    throw new InvalidOperationException("safe reset backup uniqueness");
+                if(File.ReadAllText(resetConfig,Encoding.UTF8)!=resetPayload||
+                   File.ReadAllText(resetBackup1,Encoding.UTF8)!=resetPayload||
+                   File.ReadAllText(resetBackup2,Encoding.UTF8)!=resetPayload)
+                    throw new InvalidOperationException("safe reset backup preservation");
+
+                Console.WriteLine("TBME_FEATURE_CONTRACT_SELFTEST=PASS FEATURES=10 ALERTS_CPU_GPU_DISK=TRUE HOT_VISUAL=TRUE BATTERY_ADAPTIVE=TRUE SESSION_PAUSE=TRUE HISTORY_CONFIG=TRUE COPY_DIAGNOSTICS=TRUE SUPPORT_ZIP=TRUE SUPPORT_PRIVACY_MANIFEST=TRUE SAFE_RESET=TRUE SAFE_RESET_BACKUP_UNIQUE=TRUE HEALTH_BADGE=TRUE");
                 return 0;
             }
             catch(Exception ex)
@@ -6540,13 +6587,9 @@ namespace TaskbarMonitorEnhanced
             try
             {
                 if(MessageBox.Show("Load safe defaults into this Settings window? A timestamped backup of the current config will be created first. Nothing changes until you choose Save & Apply.","Safe reset",MessageBoxButtons.YesNo,MessageBoxIcon.Question)!=DialogResult.Yes)return;
-                string backupDir=Path.Combine(AppPaths.Root,"Backups");Directory.CreateDirectory(backupDir);
-                if(File.Exists(AppPaths.Config))
-                {
-                    string backup=Path.Combine(backupDir,"config_before_reset_"+DateTime.Now.ToString("yyyyMMdd_HHmmss",CultureInfo.InvariantCulture)+".json");
-                    File.Copy(AppPaths.Config,backup,false);
-                    Log.Write("INFO","CONFIG_SAFE_RESET_BACKUP "+backup);
-                }
+                string backupDir=Path.Combine(AppPaths.Root,"Backups");
+                string backup=SafeResetPolicy.BackupCurrentConfig(AppPaths.Config,backupDir,DateTime.Now);
+                if(!String.IsNullOrWhiteSpace(backup))Log.Write("INFO","CONFIG_SAFE_RESET_BACKUP "+backup);
 
                 AppConfig d=new AppConfig();d.Normalize();
                 theme.SelectedItem=d.Theme;position.SelectedItem=d.Position;opacity.Value=(decimal)(d.Opacity*100);width.Value=d.MinWidthLogicalPx;
