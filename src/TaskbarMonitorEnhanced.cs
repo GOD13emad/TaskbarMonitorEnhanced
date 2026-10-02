@@ -33,18 +33,18 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Live system monitor integrated into the Windows taskbar")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.4.0+r35")]
+[assembly: AssemblyInformationalVersion("1.5.0+r36")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.4.0.0")]
-[assembly: AssemblyFileVersion("1.4.0.0")]
+[assembly: AssemblyVersion("1.5.0.0")]
+[assembly: AssemblyFileVersion("1.5.0.0")]
 
 namespace TaskbarMonitorEnhanced
 {
     internal static class BuildInfo
     {
-        public const string Version = "V1_4_0_R35_WINDOWS_INTEGRATION_ACCESSIBILITY";
+        public const string Version = "V1_5_0_R36_ACTIONABLE_ALERTS_SESSION_EXPORT";
         public const string Product = "Taskbar Monitor Enhanced";
-        public const string PublicVersion = "1.4.0";
+        public const string PublicVersion = "1.5.0";
         public const string ShortcutName = "Taskbar Monitor Enhanced";
         public const string ProductDescription = "Live system monitor integrated into the Windows taskbar";
         public const string Author = "Dr. Ali-Akbar Emadeddin";
@@ -406,6 +406,7 @@ namespace TaskbarMonitorEnhanced
         public bool HoverShowAllDevices { get; set; }
         public bool AutoCheckUpdates { get; set; }
         public bool EnableTemperatureAlerts { get; set; }
+        public bool EnableTemperatureNotifications { get; set; }
         public int CpuTempWarningC { get; set; }
         public int GpuTempWarningC { get; set; }
         public int DiskTempWarningC { get; set; }
@@ -446,10 +447,10 @@ namespace TaskbarMonitorEnhanced
             MemoryUnit = "Auto"; StorageUnit = "Auto"; NetworkUnit = "Auto"; DiskRateUnit = "Auto";
             ShowRamNumeric = true; ShowDiskNumeric = true;
             EnableHardwareFlyout = true; HoverShowAllDevices = true; AutoCheckUpdates = true;
-            EnableTemperatureAlerts = true; CpuTempWarningC = 85; GpuTempWarningC = 85; DiskTempWarningC = 60;
+            EnableTemperatureAlerts = true; EnableTemperatureNotifications = false; CpuTempWarningC = 85; GpuTempWarningC = 85; DiskTempWarningC = 60;
             AdaptiveBatteryMode = true; BatteryUpdateIntervalMs = 3000; SparklineHistoryLength = 120;
             FollowWindowsTheme=false;WindowsLightTheme="Nordic Light";WindowsDarkTheme="Dark Minimal Pro";TaskbarDisplay="Primary";
-            ConfigSchemaVersion = 5;
+            ConfigSchemaVersion = 6;
         }
 
         public void Normalize()
@@ -482,6 +483,10 @@ namespace TaskbarMonitorEnhanced
             if(ConfigSchemaVersion<5)
             {
                 FollowWindowsTheme=false;WindowsLightTheme="Nordic Light";WindowsDarkTheme="Dark Minimal Pro";TaskbarDisplay="Primary";ConfigSchemaVersion=5;
+            }
+            if(ConfigSchemaVersion<6)
+            {
+                EnableTemperatureNotifications=false;ConfigSchemaVersion=6;
             }
             if(String.IsNullOrWhiteSpace(WindowsLightTheme)||!ThemeCatalog.Names.Contains(WindowsLightTheme))WindowsLightTheme="Nordic Light";
             if(String.IsNullOrWhiteSpace(WindowsDarkTheme)||!ThemeCatalog.Names.Contains(WindowsDarkTheme))WindowsDarkTheme="Dark Minimal Pro";
@@ -954,6 +959,97 @@ namespace TaskbarMonitorEnhanced
         public static bool IsDiskHot(bool available,float value,AppConfig c)
         { return c!=null&&c.EnableTemperatureAlerts&&available&&value>=c.DiskTempWarningC; }
         public static Color AlertColor { get { return Color.FromArgb(255,82,82); } }
+    }
+
+    internal sealed class TemperatureNotificationState
+    {
+        internal const float HysteresisC=3f;
+        internal const int CooldownMinutes=10;
+        private sealed class LaneState
+        {
+            public bool LatchedHot;
+            public DateTime LastNotifiedUtc=DateTime.MinValue;
+        }
+        private readonly Dictionary<string,LaneState> lanes=new Dictionary<string,LaneState>(StringComparer.OrdinalIgnoreCase);
+
+        public bool ShouldNotify(string lane,bool available,float value,float threshold,DateTime nowUtc)
+        {
+            if(String.IsNullOrWhiteSpace(lane))return false;
+            LaneState state;
+            if(!lanes.TryGetValue(lane,out state)){state=new LaneState();lanes[lane]=state;}
+            if(!available)return false;
+            if(value<=threshold-HysteresisC){state.LatchedHot=false;return false;}
+            if(value<threshold||state.LatchedHot)return false;
+            state.LatchedHot=true;
+            if(state.LastNotifiedUtc!=DateTime.MinValue&&(nowUtc-state.LastNotifiedUtc).TotalMinutes<CooldownMinutes)return false;
+            state.LastNotifiedUtc=nowUtc;
+            return true;
+        }
+
+        public void Reset(){lanes.Clear();}
+    }
+
+    internal sealed class SessionTelemetrySample
+    {
+        public DateTime Utc;
+        public float CpuPercent,RamPercent,GpuPercent,VramUsedGb,VramTotalGb,NetDownMbps,NetUpMbps;
+        public double DiskReadMBps,DiskWriteMBps;
+        public float? CpuTempC,GpuTempC,DiskTempC;
+    }
+
+    internal static class SessionTelemetryHistory
+    {
+        internal const int MaxSamples=3600;
+        private static readonly object Sync=new object();
+        private static readonly Queue<SessionTelemetrySample> Samples=new Queue<SessionTelemetrySample>();
+
+        public static int Count{get{lock(Sync)return Samples.Count;}}
+
+        public static void Add(MetricsSnapshot s)
+        {
+            if(s==null)return;
+            SessionTelemetrySample x=new SessionTelemetrySample();
+            x.Utc=DateTime.UtcNow;
+            x.CpuPercent=s.Cpu;x.RamPercent=s.Ram;x.GpuPercent=s.Gpu;x.VramUsedGb=s.VramUsedGb;x.VramTotalGb=s.VramTotalGb;
+            x.NetDownMbps=s.NetDownMbps;x.NetUpMbps=s.NetUpMbps;
+            x.DiskReadMBps=s.DiskReadBytesPerSec/(1024d*1024d);x.DiskWriteMBps=s.DiskWriteBytesPerSec/(1024d*1024d);
+            if(s.CpuTempAvailable)x.CpuTempC=s.CpuTempCurrent;
+            if(s.GpuTempAvailable)x.GpuTempC=s.GpuTemp;
+            List<float> disks=(s.DiskDevices??new List<DiskDeviceSnapshot>()).Where(d=>d!=null&&d.TemperatureAvailable).Select(d=>d.Temperature).ToList();
+            if(disks.Count>0)x.DiskTempC=disks.Max();
+            lock(Sync)
+            {
+                Samples.Enqueue(x);
+                while(Samples.Count>MaxSamples)Samples.Dequeue();
+            }
+        }
+
+        private static string N(double value){return value.ToString("0.###",CultureInfo.InvariantCulture);}
+        private static string N(float value){return value.ToString("0.###",CultureInfo.InvariantCulture);}
+        private static string N(float? value){return value.HasValue?N(value.Value):"";}
+
+        public static int ExportCsv(string path)
+        {
+            if(String.IsNullOrWhiteSpace(path))throw new ArgumentException("CSV path is required.","path");
+            SessionTelemetrySample[] snapshot;
+            lock(Sync)snapshot=Samples.ToArray();
+            string parent=Path.GetDirectoryName(path);
+            if(!String.IsNullOrWhiteSpace(parent))Directory.CreateDirectory(parent);
+            using(StreamWriter w=new StreamWriter(path,false,new UTF8Encoding(false)))
+            {
+                w.WriteLine("Utc,CpuPercent,RamPercent,DiskReadMBps,DiskWriteMBps,GpuPercent,VramUsedGb,VramTotalGb,NetDownMbps,NetUpMbps,CpuTempC,GpuTempC,DiskTempC");
+                foreach(SessionTelemetrySample x in snapshot)
+                {
+                    w.WriteLine(String.Join(",",new string[]{
+                        x.Utc.ToString("o",CultureInfo.InvariantCulture),N(x.CpuPercent),N(x.RamPercent),N(x.DiskReadMBps),N(x.DiskWriteMBps),
+                        N(x.GpuPercent),N(x.VramUsedGb),N(x.VramTotalGb),N(x.NetDownMbps),N(x.NetUpMbps),N(x.CpuTempC),N(x.GpuTempC),N(x.DiskTempC)
+                    }));
+                }
+            }
+            return snapshot.Length;
+        }
+
+        internal static void ClearForTest(){lock(Sync)Samples.Clear();}
     }
 
     internal static class TelemetryPolicy
@@ -3744,6 +3840,7 @@ namespace TaskbarMonitorEnhanced
         private readonly AppConfig config;
         private readonly MetricsEngine engine;
         private readonly MetricHistory history=new MetricHistory();
+        private readonly TemperatureNotificationState temperatureNotificationState=new TemperatureNotificationState();
         private MetricsSnapshot snapshot=new MetricsSnapshot();
         private readonly System.Windows.Forms.Timer metricTimer=new System.Windows.Forms.Timer();
         private readonly System.Windows.Forms.Timer watchdog=new System.Windows.Forms.Timer();
@@ -3848,6 +3945,7 @@ namespace TaskbarMonitorEnhanced
                 trayIcon.Visible=true;
                 trayIcon.ContextMenuStrip=menu;
                 trayIcon.DoubleClick+=delegate{OpenSettings();};
+                trayIcon.BalloonTipClicked+=delegate{OpenSettings("Alerts");};
 
                 // R07: the overlay itself is interactive. Left click opens Settings,
                 // right click opens the normal ContextMenuStrip. Because the window
@@ -4206,6 +4304,7 @@ namespace TaskbarMonitorEnhanced
             ToolStripMenuItem diagnostics=new ToolStripMenuItem("Diagnostics...");diagnostics.Click+=delegate{OpenSettings("Diagnostics");};m.Items.Add(diagnostics);
             updateMenuItem=new ToolStripMenuItem("Updates...");updateMenuItem.Click+=delegate{OpenSettings("Updates");};m.Items.Add(updateMenuItem);
             pauseMenuItem=new ToolStripMenuItem("Pause monitoring");pauseMenuItem.Click+=delegate{SetUserTelemetryPaused(!userTelemetryPaused);};m.Items.Add(pauseMenuItem);
+            ToolStripMenuItem taskManager=new ToolStripMenuItem("Open Task Manager");taskManager.Click+=delegate{try{Process.Start(new ProcessStartInfo("taskmgr.exe"){UseShellExecute=true});Log.Write("INFO","TASK_MANAGER_OPEN");}catch(Exception ex){Log.Write("WARN","TASK_MANAGER_OPEN_FAIL "+ex.Message);}};m.Items.Add(taskManager);
             ToolStripMenuItem logs=new ToolStripMenuItem("Open Logs"); logs.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Logs);}catch{}}; m.Items.Add(logs);
             m.Items.Add(new ToolStripSeparator());
             ToolStripMenuItem exit=new ToolStripMenuItem("Exit"); exit.Click+=delegate{UserExitRequested=true;Close();}; m.Items.Add(exit);
@@ -4373,6 +4472,41 @@ namespace TaskbarMonitorEnhanced
             foreach(GpuDeviceSnapshot d in snapshot.GpuDevices)history.Add("GPU:"+d.Id,d.Usage);
             foreach(DiskDeviceSnapshot d in snapshot.DiskDevices)history.Add("DISK:"+d.Id,(float)((d.ReadBytesPerSec+d.WriteBytesPerSec)/(1024d*1024d)));
             foreach(NetworkDeviceSnapshot d in snapshot.NetworkDevices)history.Add("NET:"+d.Id,(float)((d.DownBytesPerSec+d.UpBytesPerSec)*8d/1000000d));
+            SessionTelemetryHistory.Add(snapshot);
+            EvaluateTemperatureNotifications();
+        }
+
+        private void EvaluateTemperatureNotifications()
+        {
+            if(proofMode||trayIcon==null)return;
+            if(!config.EnableTemperatureNotifications){temperatureNotificationState.Reset();return;}
+            DateTime now=DateTime.UtcNow;
+
+            List<CpuDeviceSnapshot> cpus=SelectedCpuDevices();
+            List<float> cpuTemps=cpus.Where(d=>d!=null&&d.TemperatureAvailable).Select(d=>d.Temperature).ToList();
+            bool cpuAvailable=cpuTemps.Count>0||snapshot.CpuTempAvailable;
+            float cpuTemp=cpuTemps.Count>0?cpuTemps.Max():snapshot.CpuTempCurrent;
+            ShowTemperatureNotification("CPU",cpuAvailable,cpuTemp,config.CpuTempWarningC,now);
+
+            List<GpuDeviceSnapshot> gpus=SelectedGpuDevices();
+            List<float> gpuTemps=gpus.Where(d=>d!=null&&d.TemperatureAvailable).Select(d=>d.Temperature).ToList();
+            bool gpuAvailable=gpuTemps.Count>0||snapshot.GpuTempAvailable;
+            float gpuTemp=gpuTemps.Count>0?gpuTemps.Max():snapshot.GpuTemp;
+            ShowTemperatureNotification("GPU",gpuAvailable,gpuTemp,config.GpuTempWarningC,now);
+
+            List<DiskDeviceSnapshot> disks=SelectedDiskDevices();
+            List<float> diskTemps=disks.Where(d=>d!=null&&d.TemperatureAvailable).Select(d=>d.Temperature).ToList();
+            bool diskAvailable=diskTemps.Count>0;
+            float diskTemp=diskAvailable?diskTemps.Max():0f;
+            ShowTemperatureNotification("Disk",diskAvailable,diskTemp,config.DiskTempWarningC,now);
+        }
+
+        private void ShowTemperatureNotification(string lane,bool available,float value,float threshold,DateTime nowUtc)
+        {
+            if(!temperatureNotificationState.ShouldNotify(lane,available,value,threshold,nowUtc))return;
+            string body=lane+" temperature reached "+value.ToString("0.0",CultureInfo.InvariantCulture)+" C (warning "+threshold.ToString("0",CultureInfo.InvariantCulture)+" C).";
+            try{trayIcon.ShowBalloonTip(10000,"Taskbar Monitor Enhanced - temperature warning",body,ToolTipIcon.Warning);Log.Write("WARN","TEMPERATURE_NOTIFICATION lane="+lane+" valueC="+value.ToString("0.0",CultureInfo.InvariantCulture)+" thresholdC="+threshold.ToString("0",CultureInfo.InvariantCulture));}
+            catch(Exception ex){Log.Write("WARN","TEMPERATURE_NOTIFICATION_FAIL lane="+lane+" "+ex.Message);}
         }
 
         private void ReadMetrics()
@@ -6459,13 +6593,32 @@ namespace TaskbarMonitorEnhanced
             {
                 Directory.CreateDirectory(dir);
                 AppConfig c=new AppConfig();c.Normalize();
-                if(c.ConfigSchemaVersion<5)throw new InvalidOperationException("config schema");
+                if(c.ConfigSchemaVersion<6)throw new InvalidOperationException("config schema");
                 if(c.FollowWindowsTheme||c.WindowsLightTheme!="Nordic Light"||c.WindowsDarkTheme!="Dark Minimal Pro"||c.TaskbarDisplay!="Primary")throw new InvalidOperationException("Windows integration defaults");
-                if(!c.EnableTemperatureAlerts||c.CpuTempWarningC!=85||c.GpuTempWarningC!=85||c.DiskTempWarningC!=60)
+                if(!c.EnableTemperatureAlerts||c.EnableTemperatureNotifications||c.CpuTempWarningC!=85||c.GpuTempWarningC!=85||c.DiskTempWarningC!=60)
                     throw new InvalidOperationException("temperature alert defaults");
                 if(!AlertPolicy.IsCpuHot(true,85,c)||AlertPolicy.IsCpuHot(true,84.9f,c))throw new InvalidOperationException("CPU alert boundary");
                 if(!AlertPolicy.IsGpuHot(true,90,c)||AlertPolicy.IsGpuHot(false,100,c))throw new InvalidOperationException("GPU alert boundary");
                 if(!AlertPolicy.IsDiskHot(true,60,c)||AlertPolicy.IsDiskHot(true,59.9f,c))throw new InvalidOperationException("disk alert boundary");
+                TemperatureNotificationState notificationState=new TemperatureNotificationState();
+                DateTime nt=new DateTime(2026,10,2,12,0,0,DateTimeKind.Utc);
+                if(!notificationState.ShouldNotify("CPU",true,85,85,nt))throw new InvalidOperationException("notification first crossing");
+                if(notificationState.ShouldNotify("CPU",true,95,85,nt.AddMinutes(1)))throw new InvalidOperationException("notification latch");
+                if(notificationState.ShouldNotify("CPU",true,83,85,nt.AddMinutes(2)))throw new InvalidOperationException("notification hysteresis band");
+                if(notificationState.ShouldNotify("CPU",true,81,85,nt.AddMinutes(3)))throw new InvalidOperationException("notification cool reset");
+                if(notificationState.ShouldNotify("CPU",true,90,85,nt.AddMinutes(4)))throw new InvalidOperationException("notification cooldown");
+                if(notificationState.ShouldNotify("CPU",true,81,85,nt.AddMinutes(10)))throw new InvalidOperationException("notification second cool reset");
+                if(!notificationState.ShouldNotify("CPU",true,90,85,nt.AddMinutes(11)))throw new InvalidOperationException("notification rearm");
+                if(notificationState.ShouldNotify("GPU",false,100,85,nt))throw new InvalidOperationException("notification unavailable");
+
+                SessionTelemetryHistory.ClearForTest();
+                MetricsSnapshot sessionProbe=new MetricsSnapshot();sessionProbe.Cpu=12.5f;sessionProbe.Ram=34.5f;sessionProbe.Gpu=56.5f;sessionProbe.NetDownMbps=7.5f;sessionProbe.NetUpMbps=1.5f;sessionProbe.DiskReadBytesPerSec=2d*1024d*1024d;sessionProbe.DiskWriteBytesPerSec=3d*1024d*1024d;sessionProbe.CpuTempAvailable=true;sessionProbe.CpuTempCurrent=65.5f;
+                for(int si=0;si<SessionTelemetryHistory.MaxSamples+5;si++)SessionTelemetryHistory.Add(sessionProbe);
+                if(SessionTelemetryHistory.Count!=SessionTelemetryHistory.MaxSamples)throw new InvalidOperationException("session history bound");
+                string csvProbe=Path.Combine(dir,"session.csv");int csvRows=SessionTelemetryHistory.ExportCsv(csvProbe);
+                string csvText=File.ReadAllText(csvProbe,Encoding.UTF8);
+                if(csvRows!=SessionTelemetryHistory.MaxSamples||csvText.IndexOf("Utc,CpuPercent,RamPercent",StringComparison.Ordinal)!=0||csvText.IndexOf("12.5,34.5",StringComparison.Ordinal)<0)throw new InvalidOperationException("session CSV export");
+                SessionTelemetryHistory.ClearForTest();
 
                 c.UpdateIntervalMs=1000;c.AdaptiveBatteryMode=true;c.BatteryUpdateIntervalMs=3000;
                 if(TelemetryPolicy.EffectiveIntervalMs(c,PowerLineStatus.Online)!=1000)throw new InvalidOperationException("AC interval");
@@ -6516,7 +6669,7 @@ namespace TaskbarMonitorEnhanced
                    File.ReadAllText(resetBackup2,Encoding.UTF8)!=resetPayload)
                     throw new InvalidOperationException("safe reset backup preservation");
 
-                Console.WriteLine("TBME_FEATURE_CONTRACT_SELFTEST=PASS FEATURES=18 WINDOWS_THEME_FOLLOW=TRUE HIGH_CONTRAST=TRUE MULTI_MONITOR_SELECTOR=TRUE UPDATE_CANONICAL_IDENTITY=TRUE UPDATE_PRELAUNCH_REHASH=TRUE CRASH_SNAPSHOT_PRIVACY=TRUE ALERTS_CPU_GPU_DISK=TRUE HOT_VISUAL=TRUE BATTERY_ADAPTIVE=TRUE SESSION_PAUSE=TRUE HISTORY_CONFIG=TRUE COPY_DIAGNOSTICS=TRUE SUPPORT_ZIP=TRUE SUPPORT_PRIVACY_MANIFEST=TRUE SAFE_RESET=TRUE SAFE_RESET_BACKUP_UNIQUE=TRUE HEALTH_BADGE=TRUE");
+                Console.WriteLine("TBME_FEATURE_CONTRACT_SELFTEST=PASS FEATURES=20 TEMPERATURE_NOTIFICATIONS=TRUE SESSION_CSV_EXPORT=TRUE WINDOWS_THEME_FOLLOW=TRUE HIGH_CONTRAST=TRUE MULTI_MONITOR_SELECTOR=TRUE UPDATE_CANONICAL_IDENTITY=TRUE UPDATE_PRELAUNCH_REHASH=TRUE CRASH_SNAPSHOT_PRIVACY=TRUE ALERTS_CPU_GPU_DISK=TRUE HOT_VISUAL=TRUE BATTERY_ADAPTIVE=TRUE SESSION_PAUSE=TRUE HISTORY_CONFIG=TRUE COPY_DIAGNOSTICS=TRUE SUPPORT_ZIP=TRUE SUPPORT_PRIVACY_MANIFEST=TRUE SAFE_RESET=TRUE SAFE_RESET_BACKUP_UNIQUE=TRUE HEALTH_BADGE=TRUE");
                 return 0;
             }
             catch(Exception ex)
@@ -6536,13 +6689,13 @@ namespace TaskbarMonitorEnhanced
         private readonly AppConfig c; private readonly MetricsSnapshot snapshot; private readonly Func<string,int,int,Bitmap> themePreviewRenderer;
         private ComboBox theme,windowsLightTheme,windowsDarkTheme,position,taskbarDisplay,cpuMode,gpuMode,diskMode,netMode,multiLayout,memoryUnit,storageUnit,networkUnit,diskRateUnit;
         private NumericUpDown opacity,interval,width,cpuWarn,gpuWarn,diskWarn,batteryInterval,historyLength;
-        private CheckBox cpu,ram,disk,gpu,vram,net,temp,spark,startup,safe,ramNumeric,diskNumeric,flyout,hoverAll,autoCheckUpdates,tempAlerts,adaptiveBattery,followWindowsTheme;
+        private CheckBox cpu,ram,disk,gpu,vram,net,temp,spark,startup,safe,ramNumeric,diskNumeric,flyout,hoverAll,autoCheckUpdates,tempAlerts,tempNotifications,adaptiveBattery,followWindowsTheme;
         private CheckedListBox cpuList,gpuList,diskList,netList;
         private Label updateCurrent,updateLatest,updateStatus;
         private Button checkUpdate,installUpdate,openRelease;
         private TextBox diagnosticsText;
         private Label healthBadge;
-        private Button refreshDiagnostics,saveDiagnostics,openDataFolder,repairSensors,copyDiagnostics,exportSupportBundle,resetDefaults;
+        private Button refreshDiagnostics,saveDiagnostics,openDataFolder,repairSensors,copyDiagnostics,exportSupportBundle,exportSessionCsv,resetDefaults;
         private TabControl tabsControl;
         private ReleaseUpdateInfo latestUpdate;
         private readonly List<Button> settingsNavButtons=new List<Button>();
@@ -6559,7 +6712,7 @@ namespace TaskbarMonitorEnhanced
         private static readonly string[] SettingsPageDescriptions=new string[]{
             "Appearance, theme, placement and taskbar footprint.",
             "Choose the live metrics that are visible on the taskbar.",
-            "Temperature warnings and visual hot-state thresholds.",
+            "Temperature warnings, optional Windows notifications and hot-state thresholds.",
             "Select devices, aggregation modes and hover-detail behavior.",
             "Control memory, storage and network measurement units.",
             "Startup, adaptive polling, history depth and placement safeguards.",
@@ -6617,10 +6770,11 @@ namespace TaskbarMonitorEnhanced
             cpu=Check(metrics,"CPU",c.ShowCpu,24);ram=Check(metrics,"RAM",c.ShowRam,55);disk=Check(metrics,"Disk / storage",c.ShowDisk,86);gpu=Check(metrics,"GPU",c.ShowGpu,117);vram=Check(metrics,"VRAM",c.ShowVram,148);net=Check(metrics,"Network",c.ShowNetwork,179);temp=Check(metrics,"CPU/GPU temperature",c.ShowTemperatures,210);spark=Check(metrics,"Real sparklines",c.ShowSparklines,241);
 
             tempAlerts=Check(alerts,"Enable temperature warning highlights",c.EnableTemperatureAlerts,24);
-            cpuWarn=Number(alerts,"CPU warning °C",c.CpuTempWarningC,50,110,76);
-            gpuWarn=Number(alerts,"GPU warning °C",c.GpuTempWarningC,50,110,126);
-            diskWarn=Number(alerts,"Disk warning °C",c.DiskTempWarningC,40,90,176);
-            Label alertNote=new Label();alertNote.Location=new Point(24,232);alertNote.Size=new Size(690,110);alertNote.Text="When a selected CPU, GPU or disk reaches its threshold, the metric card switches to a high-visibility warning accent. Alerts use real sensor availability; unsupported or stale temperature data never creates a false hot state.";alerts.Controls.Add(alertNote);
+            tempNotifications=Check(alerts,"Show Windows notification when a threshold is crossed",c.EnableTemperatureNotifications,55);
+            cpuWarn=Number(alerts,"CPU warning °C",c.CpuTempWarningC,50,110,102);
+            gpuWarn=Number(alerts,"GPU warning °C",c.GpuTempWarningC,50,110,152);
+            diskWarn=Number(alerts,"Disk warning °C",c.DiskTempWarningC,40,90,202);
+            Label alertNote=new Label();alertNote.Location=new Point(24,258);alertNote.Size=new Size(690,120);alertNote.Text="Selected CPU, GPU or disk temperatures can switch the metric card to a high-visibility warning accent. Optional Windows notifications fire only on a new hot transition, use a 3 C recovery hysteresis and a 10-minute per-lane cooldown. Unsupported or stale temperature data never creates a false hot state.";alerts.Controls.Add(alertNote);
 
             hardware.AutoScroll=true;hardware.AutoScrollMargin=new Size(0,24);int y=16;
             AddHardwareSection(hardware,"CPU",c.CpuDisplayMode,ChoicesCpu(),c.SelectedCpuIds,y,out cpuMode,out cpuList);y+=118;
@@ -6657,6 +6811,7 @@ namespace TaskbarMonitorEnhanced
             healthBadge=new Label();healthBadge.Location=new Point(24,478);healthBadge.Size=new Size(205,34);healthBadge.TextAlign=ContentAlignment.MiddleCenter;healthBadge.Font=new Font("Segoe UI Semibold",9.3f,FontStyle.Bold);healthBadge.BorderStyle=BorderStyle.FixedSingle;healthBadge.Text="Health: checking...";diagnostics.Controls.Add(healthBadge);
             copyDiagnostics=new Button();copyDiagnostics.Text="Copy diagnostics";copyDiagnostics.Location=new Point(246,478);copyDiagnostics.Size=new Size(135,34);copyDiagnostics.Click+=delegate{CopyDiagnosticsToClipboard();};diagnostics.Controls.Add(copyDiagnostics);
             exportSupportBundle=new Button();exportSupportBundle.Text="Export support ZIP...";exportSupportBundle.Location=new Point(396,478);exportSupportBundle.Size=new Size(165,34);exportSupportBundle.Click+=delegate{ExportSupportBundleZip();};diagnostics.Controls.Add(exportSupportBundle);
+            exportSessionCsv=new Button();exportSessionCsv.Text="Export session CSV...";SetA11y(exportSessionCsv,"Export session CSV","Export the bounded in-memory telemetry history for this application session as CSV.");exportSessionCsv.Location=new Point(576,478);exportSessionCsv.Size=new Size(165,34);exportSessionCsv.Click+=delegate{ExportSessionCsvFile();};diagnostics.Controls.Add(exportSessionCsv);
 
             Button openLog=new Button();openLog.Text="Open Logs";openLog.Location=new Point(24,28);openLog.Width=120;openLog.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Logs);}catch{}};advanced.Controls.Add(openLog);
             resetDefaults=new Button();resetDefaults.Text="Load safe defaults...";resetDefaults.Location=new Point(24,78);resetDefaults.Size=new Size(155,34);resetDefaults.Click+=delegate{ResetControlsToSafeDefaults();};advanced.Controls.Add(resetDefaults);
@@ -6664,7 +6819,7 @@ namespace TaskbarMonitorEnhanced
 
             ModernizeSettingsPage(display,"Display","Choose the visual language and placement of the taskbar monitor.");
             ModernizeSettingsPage(metrics,"Metrics","Turn individual taskbar readings on or off without changing the sensor layer.");
-            ModernizeSettingsPage(alerts,"Alerts","Define real sensor thresholds for high-visibility temperature warnings.");
+            ModernizeSettingsPage(alerts,"Alerts","Define real sensor thresholds and optional rate-limited Windows notifications.");
             ModernizeSettingsPage(hardware,"Hardware","Choose physical devices, aggregation and hover-detail behavior.");
             ModernizeSettingsPage(units,"Units","Choose how memory, storage and transfer rates are formatted.");
             ModernizeSettingsPage(behavior,"Behavior","Control startup, adaptive polling, history depth and placement safeguards.");
@@ -6974,6 +7129,8 @@ namespace TaskbarMonitorEnhanced
             b.AppendLine("TelemetryIntervalMs: "+c.UpdateIntervalMs);
             b.AppendLine("AdaptiveBatteryMode: "+c.AdaptiveBatteryMode+" BatteryIntervalMs="+c.BatteryUpdateIntervalMs);
             b.AppendLine("SparklineHistorySamples: "+c.SparklineHistoryLength);
+            b.AppendLine("SessionTelemetrySamples: "+SessionTelemetryHistory.Count+" / "+SessionTelemetryHistory.MaxSamples);
+            b.AppendLine("TemperatureNotifications: "+c.EnableTemperatureNotifications+" hysteresisC="+TemperatureNotificationState.HysteresisC+" cooldownMin="+TemperatureNotificationState.CooldownMinutes);
             b.AppendLine("DpiAwareness: "+Native.DpiAwarenessMode()+" HighContrast="+SystemInformation.HighContrast+" DllSearchHardened="+Native.DllSearchHardeningActive);
             b.AppendLine("Theme: configured="+c.Theme+" followWindows="+c.FollowWindowsTheme+" resolved="+WindowsThemePolicy.ResolveName(c));
             string resolvedTaskbar;IntPtr diagTaskbar=TaskbarTargetPolicy.Resolve(c,out resolvedTaskbar);b.AppendLine("TaskbarTarget: configured="+c.TaskbarDisplay+" resolved="+resolvedTaskbar+" hwnd="+diagTaskbar.ToInt64());
@@ -7074,6 +7231,22 @@ namespace TaskbarMonitorEnhanced
             catch(Exception ex){MessageBox.Show(ex.Message,"Export support bundle",MessageBoxButtons.OK,MessageBoxIcon.Warning);}
         }
 
+        private void ExportSessionCsvFile()
+        {
+            try
+            {
+                using(SaveFileDialog d=new SaveFileDialog())
+                {
+                    d.Filter="CSV telemetry history (*.csv)|*.csv";
+                    d.FileName="TBME_SessionTelemetry_"+DateTime.Now.ToString("yyyyMMdd_HHmmss",CultureInfo.InvariantCulture)+".csv";
+                    if(d.ShowDialog(this)!=DialogResult.OK)return;
+                    int rows=SessionTelemetryHistory.ExportCsv(d.FileName);
+                    if(diagnosticsText!=null)diagnosticsText.Text=BuildDiagnosticsReport()+"\r\n\r\nSession CSV: "+d.FileName+"\r\nRows: "+rows.ToString(CultureInfo.InvariantCulture);
+                }
+            }
+            catch(Exception ex){MessageBox.Show(ex.Message,"Export session CSV",MessageBoxButtons.OK,MessageBoxIcon.Warning);}
+        }
+
         private static void CheckAll(CheckedListBox list)
         {
             if(list==null)return;for(int i=0;i<list.Items.Count;i++)if(list.Items[i] is HardwareChoice)list.SetItemChecked(i,true);
@@ -7095,7 +7268,7 @@ namespace TaskbarMonitorEnhanced
                 memoryUnit.SelectedItem=d.MemoryUnit;storageUnit.SelectedItem=d.StorageUnit;diskRateUnit.SelectedItem=d.DiskRateUnit;networkUnit.SelectedItem=d.NetworkUnit;
                 ramNumeric.Checked=d.ShowRamNumeric;diskNumeric.Checked=d.ShowDiskNumeric;flyout.Checked=d.EnableHardwareFlyout;hoverAll.Checked=d.HoverShowAllDevices;
                 interval.Value=d.UpdateIntervalMs;startup.Checked=d.StartWithWindows;safe.Checked=d.SafePlacement;autoCheckUpdates.Checked=d.AutoCheckUpdates;
-                tempAlerts.Checked=d.EnableTemperatureAlerts;cpuWarn.Value=d.CpuTempWarningC;gpuWarn.Value=d.GpuTempWarningC;diskWarn.Value=d.DiskTempWarningC;
+                tempAlerts.Checked=d.EnableTemperatureAlerts;tempNotifications.Checked=d.EnableTemperatureNotifications;cpuWarn.Value=d.CpuTempWarningC;gpuWarn.Value=d.GpuTempWarningC;diskWarn.Value=d.DiskTempWarningC;
                 adaptiveBattery.Checked=d.AdaptiveBatteryMode;batteryInterval.Value=d.BatteryUpdateIntervalMs;historyLength.Value=d.SparklineHistoryLength;followWindowsTheme.Checked=d.FollowWindowsTheme;windowsLightTheme.SelectedItem=d.WindowsLightTheme;windowsDarkTheme.SelectedItem=d.WindowsDarkTheme;taskbarDisplay.SelectedItem=d.TaskbarDisplay;
                 CheckAll(cpuList);CheckAll(gpuList);CheckAll(diskList);CheckAll(netList);
                 if(themePreview!=null)themePreview.ThemeName=d.Theme;
@@ -7164,7 +7337,7 @@ namespace TaskbarMonitorEnhanced
         {
             c.Theme=(string)theme.SelectedItem;c.Position=(string)position.SelectedItem;c.Opacity=(double)opacity.Value/100.0;c.MinWidthLogicalPx=(int)width.Value;c.UpdateIntervalMs=(int)interval.Value;c.ShowCpu=cpu.Checked;c.ShowRam=ram.Checked;c.ShowDisk=disk.Checked;c.ShowGpu=gpu.Checked;c.ShowVram=vram.Checked;c.ShowNetwork=net.Checked;c.ShowTemperatures=temp.Checked;c.ShowSparklines=spark.Checked;c.StartWithWindows=startup.Checked;c.SafePlacement=safe.Checked;
             c.CpuDisplayMode=(string)cpuMode.SelectedItem;c.GpuDisplayMode=(string)gpuMode.SelectedItem;c.DiskDisplayMode=(string)diskMode.SelectedItem;c.NetworkDisplayMode=(string)netMode.SelectedItem;c.SelectedCpuIds=CheckedIds(cpuList);c.SelectedGpuIds=CheckedIds(gpuList);c.SelectedDiskIds=CheckedIds(diskList);c.SelectedNetworkIds=CheckedIds(netList);c.MultipleDeviceLayout=(string)multiLayout.SelectedItem;c.MemoryUnit=(string)memoryUnit.SelectedItem;c.StorageUnit=(string)storageUnit.SelectedItem;c.DiskRateUnit=(string)diskRateUnit.SelectedItem;c.NetworkUnit=(string)networkUnit.SelectedItem;c.ShowRamNumeric=ramNumeric.Checked;c.ShowDiskNumeric=diskNumeric.Checked;c.EnableHardwareFlyout=flyout.Checked;c.HoverShowAllDevices=hoverAll.Checked;c.AutoCheckUpdates=autoCheckUpdates.Checked;
-            c.EnableTemperatureAlerts=tempAlerts.Checked;c.CpuTempWarningC=(int)cpuWarn.Value;c.GpuTempWarningC=(int)gpuWarn.Value;c.DiskTempWarningC=(int)diskWarn.Value;c.AdaptiveBatteryMode=adaptiveBattery.Checked;c.BatteryUpdateIntervalMs=(int)batteryInterval.Value;c.SparklineHistoryLength=(int)historyLength.Value;c.FollowWindowsTheme=followWindowsTheme.Checked;c.WindowsLightTheme=Convert.ToString(windowsLightTheme.SelectedItem,CultureInfo.InvariantCulture);c.WindowsDarkTheme=Convert.ToString(windowsDarkTheme.SelectedItem,CultureInfo.InvariantCulture);c.TaskbarDisplay=TaskbarTargetPolicy.NormalizeConfigId(Convert.ToString(taskbarDisplay.SelectedItem,CultureInfo.InvariantCulture));
+            c.EnableTemperatureAlerts=tempAlerts.Checked;c.EnableTemperatureNotifications=tempNotifications.Checked;c.CpuTempWarningC=(int)cpuWarn.Value;c.GpuTempWarningC=(int)gpuWarn.Value;c.DiskTempWarningC=(int)diskWarn.Value;c.AdaptiveBatteryMode=adaptiveBattery.Checked;c.BatteryUpdateIntervalMs=(int)batteryInterval.Value;c.SparklineHistoryLength=(int)historyLength.Value;c.FollowWindowsTheme=followWindowsTheme.Checked;c.WindowsLightTheme=Convert.ToString(windowsLightTheme.SelectedItem,CultureInfo.InvariantCulture);c.WindowsDarkTheme=Convert.ToString(windowsDarkTheme.SelectedItem,CultureInfo.InvariantCulture);c.TaskbarDisplay=TaskbarTargetPolicy.NormalizeConfigId(Convert.ToString(taskbarDisplay.SelectedItem,CultureInfo.InvariantCulture));
         }
     }
 
@@ -8327,13 +8500,14 @@ namespace TaskbarMonitorEnhanced
                 AppConfig c=new AppConfig();c.Normalize();if(c.MinWidthLogicalPx!=1100||c.MarginLogicalPx!=0||c.VerticalMarginLogicalPx!=0)throw new Exception("geometry defaults");
                 if(!Native.DllSearchHardeningActive)throw new Exception("DLL search hardening");
                 if(!TaskbarTargetPolicy.SelfTest())throw new Exception("taskbar target selector");
-                if(c.ConfigSchemaVersion<5||!c.EnableTemperatureAlerts||c.CpuTempWarningC!=85||c.GpuTempWarningC!=85||c.DiskTempWarningC!=60)throw new Exception("v1.3 alert defaults");
+                if(c.ConfigSchemaVersion<6||!c.EnableTemperatureAlerts||c.EnableTemperatureNotifications||c.CpuTempWarningC!=85||c.GpuTempWarningC!=85||c.DiskTempWarningC!=60)throw new Exception("v1.5 alert defaults");
                 if(!c.AdaptiveBatteryMode||c.BatteryUpdateIntervalMs!=3000||c.SparklineHistoryLength!=120)throw new Exception("v1.3 telemetry defaults");
                 if(TelemetryPolicy.EffectiveIntervalMs(c,PowerLineStatus.Online)!=1000||TelemetryPolicy.EffectiveIntervalMs(c,PowerLineStatus.Offline)!=3000)throw new Exception("adaptive telemetry policy");
                 if(!TelemetryPolicy.ShouldPause(true,false)||!TelemetryPolicy.ShouldPause(false,true)||TelemetryPolicy.ShouldPause(false,false))throw new Exception("pause policy");
                 if(!AlertPolicy.IsCpuHot(true,85,c)||AlertPolicy.IsCpuHot(true,84.9f,c))throw new Exception("CPU alert boundary");
                 if(!AlertPolicy.IsGpuHot(true,85,c)||AlertPolicy.IsGpuHot(false,100,c))throw new Exception("GPU alert boundary");
                 if(!AlertPolicy.IsDiskHot(true,60,c)||AlertPolicy.IsDiskHot(true,59.9f,c))throw new Exception("disk alert boundary");
+                TemperatureNotificationState stateProbe=new TemperatureNotificationState();DateTime stateAt=new DateTime(2026,10,2,12,0,0,DateTimeKind.Utc);if(!stateProbe.ShouldNotify("CPU",true,85,85,stateAt)||stateProbe.ShouldNotify("CPU",true,90,85,stateAt.AddMinutes(1)))throw new Exception("notification transition");
                 MetricHistory featureHistory=new MetricHistory();featureHistory.SetLimit(30);for(int hi=0;hi<50;hi++)featureHistory.Add("TEST",hi);if(featureHistory.Get("TEST").Count!=30)throw new Exception("history limit");
                 if(!c.ShowTemperatures)throw new Exception("temperature default");if(c.CpuDisplayMode!="Overall"||c.GpuDisplayMode!="Auto"||c.DiskDisplayMode!="Overall"||c.NetworkDisplayMode!="Overall")throw new Exception("hardware mode defaults");if(c.MemoryUnit!="Auto"||c.StorageUnit!="Auto"||c.NetworkUnit!="Auto"||c.DiskRateUnit!="Auto")throw new Exception("unit defaults");if(!c.ShowRamNumeric||!c.ShowDiskNumeric||!c.EnableHardwareFlyout||!c.AutoCheckUpdates||c.ConfigSchemaVersion<3)throw new Exception("R08 feature defaults");
                 if(UnitFormatter.Pair(1024d*1024d*1024d,2d*1024d*1024d*1024d,"GB").IndexOf("GB",StringComparison.Ordinal)<0)throw new Exception("unit formatter pair");
@@ -8396,10 +8570,10 @@ namespace TaskbarMonitorEnhanced
                         throw new Exception("sensor selfheal missing state");
                 }
                 finally{try{Directory.Delete(healDir,true);}catch{}}
-                Console.WriteLine("TBME_V1_4_0_R35_SELFTEST=PASS PUBLIC_VERSION=1.4.0 PER_MONITOR_V2=TRUE ACCESSIBILITY_METADATA=TRUE HIGH_CONTRAST=TRUE WINDOWS_THEME_FOLLOW=TRUE MULTI_MONITOR_TASKBAR_TARGET=TRUE UPDATE_CANONICAL_IDENTITY=TRUE UPDATE_PRELAUNCH_REHASH=TRUE DLL_SEARCH_HARDENING=TRUE CRASH_SNAPSHOT_PRIVACY=TRUE REAL_THEME_PREVIEW=TRUE THEME_PREVIEW_ACTUAL_RENDERER=TRUE STARTUP_DUAL_REGISTRATION=TRUE STARTUP_RECOVERY_DELAY_SEC=12 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE CPU_HARD_STALL_WATCHDOG_SEC=60 CPU_SUPERVISOR_STARTUP_GRACE_SEC=60 THEMES=28 WIDTH=1100 HISTORY=120 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE SENSOR_SUPERVISOR_AUTOHEAL=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE ALERTS_CPU_GPU_DISK=TRUE ALERT_VISUAL_HOTSTATE=TRUE ADAPTIVE_BATTERY=TRUE SESSION_PAUSE=TRUE CONFIGURABLE_HISTORY=TRUE COPY_DIAGNOSTICS=TRUE SUPPORT_ZIP=TRUE SAFE_RESET=TRUE HEALTH_BADGE=TRUE SETTINGS_PAGES=9 CREATEPARAMS_NOACTIVATE=TRUE");
+                Console.WriteLine("TBME_V1_5_0_R36_SELFTEST=PASS PUBLIC_VERSION=1.5.0 TEMPERATURE_NOTIFICATIONS=TRUE SESSION_CSV_EXPORT=TRUE TASK_MANAGER_ACTION=TRUE PER_MONITOR_V2=TRUE ACCESSIBILITY_METADATA=TRUE HIGH_CONTRAST=TRUE WINDOWS_THEME_FOLLOW=TRUE MULTI_MONITOR_TASKBAR_TARGET=TRUE UPDATE_CANONICAL_IDENTITY=TRUE UPDATE_PRELAUNCH_REHASH=TRUE DLL_SEARCH_HARDENING=TRUE CRASH_SNAPSHOT_PRIVACY=TRUE REAL_THEME_PREVIEW=TRUE THEME_PREVIEW_ACTUAL_RENDERER=TRUE STARTUP_DUAL_REGISTRATION=TRUE STARTUP_RECOVERY_DELAY_SEC=12 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE CPU_HARD_STALL_WATCHDOG_SEC=60 CPU_SUPERVISOR_STARTUP_GRACE_SEC=60 THEMES=28 WIDTH=1100 HISTORY=120 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE SENSOR_SUPERVISOR_AUTOHEAL=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE ALERTS_CPU_GPU_DISK=TRUE ALERT_VISUAL_HOTSTATE=TRUE ADAPTIVE_BATTERY=TRUE SESSION_PAUSE=TRUE CONFIGURABLE_HISTORY=TRUE COPY_DIAGNOSTICS=TRUE SUPPORT_ZIP=TRUE SAFE_RESET=TRUE HEALTH_BADGE=TRUE SETTINGS_PAGES=9 CREATEPARAMS_NOACTIVATE=TRUE");
                 return 0;
             }
-            catch(Exception ex){Console.Error.WriteLine("TBME_V1_4_0_R35_SELFTEST=FAIL " + ex);return 2;}
+            catch(Exception ex){Console.Error.WriteLine("TBME_V1_5_0_R36_SELFTEST=FAIL " + ex);return 2;}
         }
 
         public static int RunJson(string outputPath)

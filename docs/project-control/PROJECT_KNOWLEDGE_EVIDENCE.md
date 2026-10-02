@@ -669,3 +669,18 @@ Status: CONFIRMED / PASS.
 - After cleanup, the remote branch surface is only `main`.
 
 Prevention rule: temporary release branches are transport/control surfaces, not permanent release authority. Delete them only after tag/release immutability and ancestry are proven.
+
+
+## 2026-10-02 — R36 v1.5.0 candidate: actionable alerts and session export
+
+- Date/Context: post-v1.4.0 benchmark-driven product completion change set.
+- Claim/Decision: retain the existing protected sensor layer and implement only high-value Main/UI gaps: actionable temperature notifications, bounded session CSV export, and a Task Manager quick action.
+- External method evidence: Microsoft Learn documents WinForms NotifyIcon balloon notifications and BalloonTipClicked on the .NET Framework stack; TrafficMonitor v1.86 continues to invest in taskbar usability/secondary-monitor/localization rather than requiring a plugin architecture for every product increment.
+- Decision rationale: reuse the existing NotifyIcon and avoid a Windows App SDK dependency. This is the minimum-sufficient path for native Windows-visible alerts on the current net48 WinForms architecture.
+- Implementation: optional notifications are disabled by default; CPU/GPU/disk lanes notify only on a new threshold crossing, require 3 C cooling hysteresis to re-arm, and enforce a 10-minute per-lane cooldown. Clicking the notification opens Alerts settings.
+- Implementation: SessionTelemetryHistory is in-memory only, bounded to 3,600 samples, and exports CSV only on explicit user action. It records UTC time, CPU/RAM/GPU, VRAM, disk throughput, network throughput and available temperatures. No cloud upload or persistent telemetry database is added.
+- Implementation: taskbar context menu adds Open Task Manager using taskmgr.exe.
+- Validation pre-commit: app build PASS with 0 warnings / 0 errors; --selftest PASS; --feature-contract-selftest PASS; full Build.ps1 -NoDownload PASS including Setup 1.5.0, setup verification, canonical payload and sensor windowless PE gates.
+- Failure/Root Cause/Prevention: first determinism attempt failed because Verify-Determinism.ps1 clones committed Git HEAD while R36 was still uncommitted. The clone correctly built v1.4.0, so comparison against uncommitted v1.5.0 outputs was invalid. Prevention: run clean-clone determinism only after candidate commit; do not treat this as a product determinism failure.
+- Confidence/Status: implementation Confirmed; pre-commit build/tests PASS; exact-commit determinism, runtime install regression, CI and publication PENDING.
+- Reuse Targets: v1.5.0 release notes, audit report, Project Brain, future notification/history design.

@@ -2,6 +2,17 @@
 
 A Windows taskbar system monitor for live CPU, RAM, disk, network, GPU, VRAM and temperature telemetry.
 
+## v1.5.0 candidate — Actionable Alerts & Session Export
+
+Development candidate on top of immutable v1.4.0:
+
+- optional rate-limited Windows notifications for CPU/GPU/disk temperature thresholds
+- bounded in-memory session telemetry with explicit CSV export
+- quick Open Task Manager context action
+- protected Broker/Supervisor binaries remain unchanged
+
+v1.4.0 remains the current public Latest release until v1.5.0 completes exact-commit validation and immutable publication.
+
 ## v1.4.0 — Windows Integration & Accessibility
 
 **v1.4.0 is the current public Latest release.** It builds on the immutable v1.3.1 release and focuses on Windows integration, accessibility and security hardening.

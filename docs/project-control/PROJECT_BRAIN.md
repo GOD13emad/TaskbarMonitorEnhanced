@@ -921,3 +921,16 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - GitHub Release id `401760081`; immutable/latest; seven assets; Setup SHA256 `7d528911113c6be86a42aa6174957d85367d5b8d8f607c66f46d6e42e349fd6a`.
 - Product DoD: COMPLETE / FINAL_PUBLIC_RELEASE_ACCEPTED.
 - Temporary release branch `release/v1.4.0-r35` was deleted after ancestor guard PASS; remote branch surface is now only `main`. This documentation/evidence commit is the final repository mutation for v1.4.0. Its exact-head CI is the final external control verifier; once green, no further v1.4.0 mutation is required.
+
+
+## R36 / v1.5.0 ACTIONABLE ALERTS & SESSION EXPORT — CANDIDATE
+
+- Previous accepted state: immutable v1.4.0 public release on main.
+- Current delta: Main/UI-only candidate adds optional temperature notifications with 3 C hysteresis + 10-minute lane cooldown, bounded 3,600-sample session CSV export, and Open Task Manager quick action.
+- Protected sensor authority unchanged: Broker 1.1.2+r21; Supervisor 1.3.0+r33; no sensor source mutation in R36.
+- Benchmark/method choice: existing WinForms NotifyIcon is reused per Microsoft platform documentation; no Windows App SDK dependency or plugin framework added because those would increase architecture/deployment cost without being required for the identified gap.
+- Pre-commit gates: app compile 0 warnings/0 errors PASS; selftest PASS; feature-contract selftest PASS; full Build.ps1 -NoDownload PASS and Setup 1.5.0 produced.
+- Determinism pre-commit run: INVALID/EXPECTED FAIL because verifier clones committed HEAD (v1.4.0) while R36 was uncommitted. Root cause confirmed; rerun required after candidate commit.
+- Current status: CANDIDATE / UNPROVEN FOR PUBLIC RELEASE.
+- Open gates: exact-commit determinism, candidate proof suite, live install with sensor-layer reuse, installed runtime regression, GitHub CI/provenance, immutable release asset verification.
+- Exact next action: commit R36 candidate, rerun clean-clone determinism on that exact commit, then continue through runtime/release gates.

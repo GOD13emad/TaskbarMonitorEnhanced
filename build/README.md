@@ -1,6 +1,6 @@
 # Reproducible build
 
-Build.ps1 is the authoritative local and CI build path for the v1.4.0 Windows integration and accessibility release, retaining the accepted protected sensor architecture.
+Build.ps1 is the authoritative local and CI build path for the v1.5.0 actionable alerts and session export candidate, retaining the accepted protected sensor architecture.
 
 It performs the following gates:
 

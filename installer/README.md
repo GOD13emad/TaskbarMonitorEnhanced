@@ -4,11 +4,11 @@ This folder contains the custom Windows installer source used by Taskbar Monitor
 
 ## Current public authority
 
-This source tree targets the v1.4.0 Windows Integration & Accessibility candidate. The immutable v1.3.1 release is the current accepted public baseline while v1.4.0 is qualified independently.
+This source tree targets the v1.5.0 Actionable Alerts & Session Export candidate. The immutable v1.4.0 release is the current accepted public baseline while v1.5.0 is qualified independently.
 
 ## Protected sensor baseline
 
-The installer source targets v1.4.0. The protected R21 process-isolated architecture and Broker protocol `1.1.2+r21` are retained, and the already-accepted Sensor Supervisor remains `1.3.0+r33`. v1.4.0 is a Main/UI integration release adding PerMonitorV2 DPI, Windows light/dark following, High Contrast/accessibility, monitor-target selection, update hardening and privacy-safe crash snapshots. Sensor reuse is allowed only when exact payload hashes, both sensor identities, and live health all match.
+The installer source targets v1.5.0. The protected R21 process-isolated architecture and Broker protocol 1.1.2+r21 are retained, and the accepted Sensor Supervisor remains 1.3.0+r33. v1.5.0 is a Main/UI-only change set adding rate-limited temperature notifications, bounded session CSV export and a Task Manager quick action on top of the v1.4.0 integration/accessibility baseline. Sensor reuse remains gated by exact payload hashes, both sensor identities and live health.
 
 Installer behavior includes:
 
@@ -28,4 +28,4 @@ The authoritative reproducible build path is ../build/Build.ps1.
 
 PawnIO is intentionally retained on uninstall because another hardware-monitoring application may depend on it.
 
-See ../docs/acceptance/v1.3.1/PUBLIC_RELEASE_ACCEPTANCE.json for the immutable previous public authority until v1.4.0 publication completes. Earlier releases remain immutable historical authorities.
+See ../docs/acceptance/v1.4.0/PUBLIC_RELEASE_ACCEPTANCE.json for the immutable public authority until v1.5.0 publication completes. Earlier releases remain immutable historical authorities.

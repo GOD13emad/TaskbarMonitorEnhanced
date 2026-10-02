@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.0 — Actionable Alerts & Session Export (candidate)
+
+- add optional WinForms NotifyIcon temperature notifications for CPU, GPU and disk threshold crossings
+- add 3 °C recovery hysteresis and 10-minute per-lane notification cooldown
+- open Alerts settings when a temperature notification is clicked
+- add bounded 3,600-sample in-memory session telemetry history with user-initiated CSV export
+- add a quick Open Task Manager context-menu action
+- retain protected Broker protocol 1.1.2+r21 and Sensor Supervisor 1.3.0+r33
+- no background telemetry upload or persistent telemetry database is introduced
+
 ## 1.4.0 — Windows Integration & Accessibility
 
 - enable PerMonitorV2 DPI through .NET Framework 4.8 application configuration
