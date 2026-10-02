@@ -4268,6 +4268,17 @@ namespace TaskbarMonitorEnhanced
             return RenderThemeProof(themeName,width,height);
         }
 
+        internal void PrimeSettingsThemePreviewFromLiveMetrics(int sampleCount,int intervalMs)
+        {
+            sampleCount=Math.Max(1,Math.Min(30,sampleCount));
+            intervalMs=Math.Max(0,Math.Min(500,intervalMs));
+            for(int i=0;i<sampleCount;i++)
+            {
+                ReadMetrics();
+                if(intervalMs>0&&i<sampleCount-1)Thread.Sleep(intervalMs);
+            }
+        }
+
         internal int ExportCompactProofs(string outputDirectory)
         {
             try
@@ -7180,8 +7191,10 @@ namespace TaskbarMonitorEnhanced
                 MetricsSnapshot snapshot=new MetricsSnapshot();
                 string[] pages=new string[]{"Display","Metrics","Alerts","Hardware","Units","Behavior","Updates","Diagnostics","Advanced"};
                 using(OverlayForm previewRenderer=new OverlayForm(c,true))
-                using(SettingsForm f=new SettingsForm(c,snapshot,"Display",previewRenderer.RenderSettingsThemePreview))
                 {
+                    previewRenderer.PrimeSettingsThemePreviewFromLiveMetrics(12,100);
+                    using(SettingsForm f=new SettingsForm(c,snapshot,"Display",previewRenderer.RenderSettingsThemePreview))
+                    {
                     f.Width=1080;f.Height=760;f.StartPosition=FormStartPosition.Manual;f.Location=new Point(-32000,-32000);
                     f.Show();Application.DoEvents();f.PerformLayout();
                     for(int i=0;i<pages.Length;i++)
@@ -7194,8 +7207,9 @@ namespace TaskbarMonitorEnhanced
                         }
                     }
                 }
+                }
                 Dictionary<string,object> manifest=new Dictionary<string,object>();
-                manifest["Version"]=BuildInfo.Version;manifest["PublicVersion"]=BuildInfo.PublicVersion;manifest["Pages"]=pages;manifest["Width"]=1080;manifest["Height"]=760;manifest["ThemePreview"]="ACTUAL_TASKBAR_RENDERER";manifest["ThemePreviewHeight"]=48;
+                manifest["Version"]=BuildInfo.Version;manifest["PublicVersion"]=BuildInfo.PublicVersion;manifest["Pages"]=pages;manifest["Width"]=1080;manifest["Height"]=760;manifest["ThemePreview"]="ACTUAL_TASKBAR_RENDERER";manifest["ThemePreviewHeight"]=48;manifest["ThemePreviewNoSyntheticMetricData"]=true;manifest["ThemePreviewLiveSampleCount"]=12;
                 File.WriteAllText(Path.Combine(outputDirectory,"SETTINGS_PROOF_MANIFEST.json"),new JavaScriptSerializer().Serialize(manifest),Encoding.UTF8);
                 Console.WriteLine("TBME_SETTINGS_PROOF=PASS PAGES=9 DIR="+outputDirectory);
                 return 0;
