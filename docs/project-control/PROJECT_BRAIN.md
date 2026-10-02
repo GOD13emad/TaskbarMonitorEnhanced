@@ -1,8 +1,33 @@
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
-Brain Version: PB-2026-10-02-R35-V1.4.0-PUBLIC
-Status: CURRENT_FINAL_PUBLIC_RELEASE_ACCEPTED
-Updated: 2026-10-02T14:42:00+03:30
+Brain Version: PB-2026-10-02-R37-V1.6.0-CANDIDATE
+Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
+Updated: 2026-10-02T23:25:00+03:30
+
+## CURRENT AUTHORITY - 2026-10-02 R37 / v1.6.0 LOCAL CANDIDATE
+
+This section supersedes older current authority/progress/next-action statements where they conflict. Historical evidence below remains immutable history.
+
+- PROJECT: Taskbar Monitor Enhanced, Windows taskbar system monitor.
+- FINAL OBJECTIVE / DoD: immutable Stable/Latest v1.6.0 release from an exact Git commit; deterministic build; exact-head CI/provenance; live upgrade preserving user configuration and protected sensor compatibility; installed-runtime regression; 7-asset digest-verified publication; current account-transfer-ready Brain.
+- CURRENT STAGE: VERIFICATION -> candidate commit preparation. DEVELOPMENT is complete for R37; public RELEASE is not yet accepted.
+- BRANCH: feature/v1.6.0-workspace-theme-studio.
+- BASELINE: public immutable v1.5.0 remains current Latest at release SHA d952a87fab02fe74046b8d19ae14a2801d6da644. Pre-R37 main/control head: 7402249276ef3b7fb87fa6cad4a26652d7f57db4.
+- R37 CHANGE SET / CONFIRMED: seven-page Performance Workspace; 20 original Studio renderer modes/themes for 48 total; bounded interactive analytics; read-only process inventory; per-adapter network view; opt-in 90-day local traffic history; sustained usage/capacity alerts; quiet hours/snooze; theme favorites/search; presentation profiles; metric ordering; config schema 7.
+- PRIVACY / CONFIRMED: traffic persistence defaults OFF; no cloud telemetry/background upload added; presentation-profile import is allowlisted and cannot change startup/sensor/traffic-retention/notification-sensitive settings.
+- SENSOR AUTHORITY / CONFIRMED: sensor source/binaries/protocol intentionally unchanged, Broker 1.1.2+r21, Supervisor 1.3.0+r33.
+- BUILD / CONFIRMED: Main/Broker/Supervisor/Setup 0 warnings / 0 errors; sensor windowless PE PASS; canonical text payload PASS; reproducible build PASS; setup resource verify 24/24.
+- REGRESSION / CONFIRMED: corrected fresh regression3 suite 15/15 PASS using real child-process exit codes. Theme 48/48; Workspace 7/7; compact 96 images; Settings 9/9; startup/hover/start/shell/hardware/temp/health/support PASS. Health STABLE.
+- EVIDENCE / CONFIRMED: full build operation b8afdb36-1026-43b0-afd2-d68da9263b91; accepted regression operation 14a4c0cc-4d73-440c-9c54-412b03d530fa; local evidence under .local\v1.6.0\regression3.
+- PRE-COMMIT HASHES / CONFIRMED: Main 5ECE8EA77F51D9630702DEB0517683A4A4A667A630373FA4FF14FAC90C88E9FC; runtime config D2E51872D93F0793C02AD07DCBF8C2802F59708C666548372A4FDDDA5C7C5E4F; Broker 182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833; Supervisor 0E28911AACDE0C3B1C6997C8BC6FF141C0FAA650B58438A9991CB3AD6C13C785; Setup pre-commit 5722E8B7A184C40EB1967B0ECA6AF588E37A15D890DC2E358792BC7C920095F0. Setup hash is not final until exact candidate commit rebuild.
+- FAILURES / PREVENTION: R37-F1 missing proof helper -> proof-only helper added; R37-F2 malformed canonical-resource Join-Path -> direct paths; R37-F3 harness null Trim and PowerShell automatic $args collision -> invalid prior PASS explicitly rejected, null-safe $arguments harness rerun from fresh evidence and 15/15 PASS. R37-F4 unsafe newline-write truncated StudioThemes.cs during an amend -> corrupted SHA f170a8a is SUPERSEDED/DO NOT USE; exact blob restored from bc6d4fd, one trailing byte removed with in-memory write_bytes; exact-commit rebuild/determinism required.
+- COMPLETED: definition, architecture, implementation, app/full build, self-tests, visual proofs, local regression, versioned release notes, candidate acceptance draft.
+- OPEN CRITICAL GATES: exact candidate commit -> clean-clone determinism -> exact-head GitHub CI/provenance -> live v1.5->v1.6 upgrade/config-preservation/installed-runtime checks -> immutable 7-asset draft digest check -> public Stable/Latest publish -> post-publish verification -> closeout Brain.
+- DEFERRED EXTERNAL: publicly trusted Authenticode provider remains external; no trusted-signature claim.
+- AUTHORITATIVE CURRENT FILES: tracked R37 source/build/installer/docs plus docs/acceptance/v1.6.0/CANDIDATE_ACCEPTANCE.json. .local evidence is read-only validation evidence, not release source.
+- SUPERSEDED—DO NOT RUN: R37 regression wrappers that used null Trim or function parameter $args; accepted harness is regression3 semantics using $arguments.
+- EXACT NEXT ACTION: update remaining current-facing documentation, git diff --check, commit the exact R37 candidate, rebuild that exact commit, then run clean-clone determinism. Do not install/publish before determinism + exact-head CI.
+- BRAIN STATUS: CURRENT for pre-commit R37 candidate; must be updated at exact candidate SHA, CI, install and public-release milestones.
 
 ## CURRENT AUTHORITY - 2026-10-02 R35 / v1.4.0 FINAL PUBLIC RELEASE
 
@@ -200,7 +225,7 @@ This section supersedes older current-state sections where they conflict; histor
 This section is the final current authority for v1.1.2 and supersedes older current-state/open-gate sections where they conflict. Historical sections remain provenance.
 
 - Project lifecycle: FINAL for v1.1.2 Definition of Done.
-- Brain Status: CURRENT
+- Brain Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 - Behavior/build authority: 5916db0ef7fe19fea8cc13ebde73d01021d7c3d6.
 - Immutable public release authority: tag v1.1.2 -> aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0.
 - Publication-control commit before release: d9f3ed150abab77d0ecce7a88cc71ed150f9a42d.
@@ -417,7 +442,7 @@ PASS for understanding/continuation: a new account can identify project goal, ro
 
 ## CI FAILURE / PREVENTION — 2026-09-26 RUN 36244394685
 
-- Status: CURRENT
+- Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 - Failed GitHub run: 36244394685 at control commit 483367af265eae8bd6043c11570f8f6be58531de.
 - Failure point: Git whitespace check before any build or attestation step.
 - Exact error: fatal: ambiguous argument HEAD^: unknown revision or path not in the working tree.
@@ -462,7 +487,7 @@ This section supersedes R23 as the current maintenance authority where they conf
 - Hard external interaction gate: Remote Commander rejects browser input with `WORKFLOW_GUI_TAKEOVER_REQUIRES_DIRECT_USER_SESSION`. Chat authorization cannot override this platform gate. Application submission therefore remains NOT SUBMITTED.
 - Prepared application packet: `docs/security/SIGNPATH_APPLICATION_PACKET.json`, status `READY_TO_SUBMIT_DIRECT_USER_GUI_ACTION_REQUIRED`.
 - Immutable release regression remains PASS: tag v1.1.2 -> `aab35e5e0e3420f3b21e8febe49bc9e2cc8bb8c0`; Setup SHA256 `25744A0A0F78B787A5FC3601577748B80353ADC9DAFB9FE91A111A53C56216FB`.
-- Publicly trusted signature status: PENDING. Development Authenticode pipeline remains PASS but does not provide public publisher trust.
+- Publicly trusted signature Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 - Current critical path: commit/push readiness docs -> fast-forward default `main` to the accepted readiness commit without force -> verify immutable release -> user/direct-GUI submission of SignPath application -> SignPath Foundation review/acceptance -> create a NEW signed release, never rewrite v1.1.2.
 
 ## R24 REPOSITORY-SIDE READINESS CLOSEOUT
@@ -493,7 +518,7 @@ This section supersedes R23 as the current maintenance authority where they conf
 - Connector limitation: the tool schema exposed to this ChatGPT session for `gui_session_begin` accepts only `ttlSeconds` and always creates an observe-only lease. The server-side intended takeover parameters (`mode=takeover`, `explicitUserAuthorization`) are not exposed through this session. Direct takeover therefore cannot be acquired; workflow takeover is separately blocked by `WORKFLOW_GUI_TAKEOVER_REQUIRES_DIRECT_USER_SESSION`.
 - Security decision: no raw MCP request, SendInput, UIAutomation, Chrome DevTools Protocol or shell-based injection will be used to circumvent the takeover/CAPTCHA gates.
 - Official application and Code of Conduct pages were opened on the user's Windows desktop; application page was reopened as the newest browser tab.
-- Application status: `READY_FOR_EXPLICIT_CONSENT_AND_RECAPTCHA`; Submitted = FALSE.
+- Application Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 - Repository-side public-signing readiness remains PASS. Publicly trusted signing remains PENDING SignPath submission/review/acceptance and a future NEW signed release. v1.1.2 remains immutable.
 - Exact next action: user must personally attest the two mandatory consent statements and complete reCAPTCHA on the already-open official form. After submission evidence is available, update packet/Brain and proceed with SignPath review/acceptance and a new signed release.
 
@@ -532,7 +557,7 @@ This section supersedes R23 as the current maintenance authority where they conf
 
 ## R25 / v1.1.3 PUBLIC RELEASE CLOSEOUT — 2026-09-27
 
-- Status: FINAL_PUBLIC_RELEASE_ACCEPTED.
+- Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 - Immutable release tag `v1.1.3` points exactly to `fa8c75d0b59343ccb7eae86320a351e3b4064c48`; no force push or tag rewrite was used.
 - GitHub release: `https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.1.3`; published 2026-09-27T10:06:33Z; Latest=true; Draft=false; Prerelease=false.
 - Exact-head GitHub Actions PASS on both pushed refs: main run `36311195266` and release-branch run `36311191121`. Both passed whitespace, reproducible build, deterministic clean clone, SPDX SBOM, binary provenance attestation, Setup SBOM attestation, evidence upload and manifest gates.
@@ -562,7 +587,7 @@ This section supersedes R23 as the current maintenance authority where they conf
 - Full R21 workflow passed: whitespace, reproducible build, deterministic clean clone, SPDX SBOM, binary provenance attestation, Setup SBOM attestation, evidence upload and manifest.
 - The previous Node.js 20 deprecation annotation is absent on this run. The `actions/upload-artifact` v7.0.1 / Node.js 24 pin therefore resolves the known post-release CI warning.
 - v1.1.3 release tag/assets remain untouched at `fa8c75d0b59343ccb7eae86320a351e3b4064c48`.
-- CI maintenance status: PASS / CLOSED.
+- CI maintenance Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 
 
 ## R26 / REPOSITORY HYGIENE + WORKSPACE CONSOLIDATION — 2026-09-27
@@ -599,7 +624,7 @@ This section supersedes R23 as the current maintenance authority where they conf
 - Current canonical source root: `C:\Users\Aa.Emad\source\repos\TaskbarMonitorEnhanced`.
 - Current preserved external archive: `C:\Users\Aa.Emad\source\archives\TaskbarMonitorEnhanced\2026-09-27_cleanup`.
 - Residual: `C:\Users\Aa.Emad\source\repos\TaskbarMonitorEnhanced_R20` is an empty directory only, no longer a Git worktree, but Windows reports it held open by another process. This is a cosmetic/non-blocking residue and contains zero project items.
-- R26 status: PASS. Repository and local workspace are consolidated and professionally maintainable without sacrificing accepted evidence or pinned offline dependencies.
+- R26 Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 
 
 ## R27 / PUBLIC-README VISUAL + ROOT ARTIFACT CLEANUP — 2026-09-27
@@ -667,7 +692,7 @@ This section supersedes R23 as the current maintenance authority where they conf
   - active workflow surface contains only `.github/workflows/ci.yml`;
   - active build surface uses `build/Build.ps1` and generic helper names.
 - Markdown relative-link audit: 74 local links checked, zero broken.
-- R29 status: PASS / CLOSED.
+- R29 Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 
 
 ## R30 / FINAL PUBLIC-TREE CLEANUP — 2026-09-27
@@ -703,7 +728,7 @@ This section supersedes R23 as the current maintenance authority where they conf
   - `release/v1.1.0` -> `c800eeefc89b1fba2d94c1aeb21555ac88e3f014`
 - After bundle verification, both historical remote branches were deleted. Remote branch surface is now only `main`.
 - Immutable public release tags remain unchanged, including `v1.1.3` -> `fa8c75d0b59343ccb7eae86320a351e3b4064c48`.
-- R30 status: PASS / CLOSED. Public repository tree and branch surface are professionally consolidated without loss of recoverability.
+- R30 Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 
 
 ## R31 / v1.2.0 MODERN SETTINGS + THEME LIBRARY — CANDIDATE CURRENT AUTHORITY — 2026-09-27
@@ -770,7 +795,7 @@ This section supersedes older current-state/next-action sections where they conf
 - Read-only pre-PR audit found 11 translated README files modified together after the prior candidate commit.
 - The changes correctly advanced displayed candidate identity from 1.0.0 to 1.2.0 and theme count from 14 to 28, but also asserted that v1.2.0 itself had completed upgrade/full-uninstall/clean-install lifecycle validation.
 - That lifecycle claim was not supported by current v1.2.0 evidence and was therefore rejected rather than promoted.
-- The 11 translated files now state only evidence-backed candidate status: local build, determinism, visual proof and installed runtime health PASS; exact GitHub-head CI/publication remain required.
+- The 11 translated files now state only evidence-backed candidate Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 - No code, sensor binaries, installer payload, public tag or release was changed by this correction.
 - Exact next action remains: commit/push this documentation-only correction, open PR to main, require exact-head GitHub CI PASS before any merge/public promotion.
 
@@ -815,7 +840,7 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Immutability policy: release-tag payload inputs `docs/releases/v1.2.0/RELEASE_NOTES.md` and `INSTALLER_README.txt` remain frozen after publication; post-publication status is documented elsewhere so the release build hash is not rewritten.
 - Optional CI artifact ZIP download was abandoned after network stalls produced no bytes. No blind rerun was performed. Instead, GitHub's successful exact-head CI, provenance/SBOM attestations and the authoritative printed CI build manifest were used for binary hash equality.
 - Evidence staging root: `C:\Users\Aa.Emad\source\archives\TaskbarMonitorEnhanced\2026-09-27_v1.2.0-publication\assets`.
-- Current DoD status: PUBLIC RELEASE ACHIEVED. Remaining housekeeping is non-product: commit/push this post-publication documentation/Brain delta, require its main CI PASS, then delete the merged feature branch.
+- Current DoD Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 - Exact next action: commit the post-publication evidence-only delta on `main`, push, require exact-head CI success, verify release remains immutable/latest, then remove remote/local `feature/modern-settings-theme-library`.
 
 ### R31E / MERGED-BRANCH CLEANUP — PASS
@@ -849,7 +874,7 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
   - remote branch surface: only `main`.
   - worktree at audit time: clean.
 - Product DoD: COMPLETE / FINAL_PUBLIC_RELEASE_ACCEPTED.
-- Project Brain status: CURRENT.
+- Project Brain Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 - Open product blockers/gates: none.
 - Deferred external item: publicly trusted Authenticode signing remains external/unproven; no signing claim is made.
 - Exact next action: none required for v1.2.0. Future work should begin as a new scoped change set from current `main`; do not mutate the immutable v1.2.0 tag/release.
@@ -931,11 +956,11 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Benchmark/method choice: existing WinForms NotifyIcon is reused per Microsoft platform documentation; no Windows App SDK dependency or plugin framework added because those would increase architecture/deployment cost without being required for the identified gap.
 - Pre-commit gates: app compile 0 warnings/0 errors PASS; selftest PASS; feature-contract selftest PASS; full Build.ps1 -NoDownload PASS and Setup 1.5.0 produced.
 - Determinism pre-commit run: INVALID/EXPECTED FAIL because verifier clones committed HEAD (v1.4.0) while R36 was uncommitted. Root cause confirmed; rerun required after candidate commit.
-- Current status: CANDIDATE / UNPROVEN FOR PUBLIC RELEASE.
+- Current Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 - Open gates: exact-commit determinism, candidate proof suite, live install with sensor-layer reuse, installed runtime regression, GitHub CI/provenance, immutable release asset verification.
 - Exact next action: commit R36 candidate, rerun clean-clone determinism on that exact commit, then continue through runtime/release gates.
 
-- R36 determinism defect: Setup-only mismatch traced to missing EOL policy for installer/setup.manifest; minimum fix is LF pin in .gitattributes. Status: fix applied, exact-commit regression pending.
+- R36 determinism defect: Setup-only mismatch traced to missing EOL policy for installer/setup.manifest; minimum fix is LF pin in .gitattributes. Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 
 - R36 live-install gate: FAIL due stale install_state Version/PublicVersion=1.4.0 despite deployed Main 1.5.0. Root cause confirmed as two installer hardcodes; narrow fix applied. Rebuild/determinism/reinstall pending.
 
@@ -958,6 +983,6 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Protected sensor authority unchanged: Broker 1.1.2+r21; Supervisor 1.3.0+r33.
 - Public signing: UNSIGNED_PENDING_EXTERNAL_PROVIDER; no public-trust signature claim.
 - Previous authority: v1.4.0 remains immutable.
-- Current Project Brain status: CURRENT.
+- Current Project Brain Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 - Open blocker for v1.5.0 product finalization: NONE. External optional future gate only: publicly trusted Authenticode provider.
 - Exact next action for future development: branch from immutable v1.5.0/main baseline; do not mutate v1.5.0 tag/assets.

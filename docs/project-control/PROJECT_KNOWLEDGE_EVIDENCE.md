@@ -721,3 +721,18 @@ Prevention rule: temporary release branches are transport/control surfaces, not 
 - Release assets: Setup, source ZIP from exact release SHA, release notes, SPDX SBOM, candidate/publication acceptance asset, release manifest, and SHA256SUMS.
 - Root-cause prevention carried forward: installer/setup.manifest is explicitly LF-pinned to preserve Setup determinism across Windows clean clones.
 - Reuse Targets: release auditing, future updater verification, next-version baseline, article/report/thesis provenance.
+
+## 2026-10-02 — R37 v1.6.0 Performance Workspace & Theme Studio local candidate
+
+- Fact/Confirmed: R37 adds a seven-page Performance Workspace and 20 original Studio renderer themes, increasing the built-in catalog to 48.
+- Fact/Confirmed: Config schema advances to 7. New traffic retention is opt-in/off by default; no cloud telemetry or background upload is introduced.
+- Fact/Confirmed: protected sensor implementation is unchanged at Broker 1.1.2+r21 and Supervisor 1.3.0+r33.
+- Verification: full authoritative build operation b8afdb36-1026-43b0-afd2-d68da9263b91 PASS with zero warnings/errors for Main/Broker/Supervisor/Setup, sensor PE PASS, canonical payload PASS, setup 24-resource verify PASS and reproducible-build PASS.
+- Validation: corrected fresh regression operation 14a4c0cc-4d73-440c-9c54-412b03d530fa PASS 15/15 with real child-process exit codes. 48 theme images, 7 Workspace pages, 96 compact images and 9 Settings pages physically exist. Theme manifest reports 30 live samples and no synthetic metric data.
+- Live host result: shell/start/hardware/temperature/health/support proofs PASS; health reports STABLE, R21 process containment true and CPU/GPU/Storage data available.
+- Failure R37-F1: proof harness omitted PrepareProofProcesses; root cause proof-only helper omission; fixed and compile regression PASS.
+- Failure R37-F2: generated Build.ps1 used malformed Join-Path expressions for four new source resources; fixed to direct canonical paths; full Build.ps1 regression PASS.
+- Failure R37-F3: an intermediate regression wrapper used null Trim and then PowerShell automatic $args, creating unreliable/invalid summary behavior. That claimed PASS is superseded and MUST NOT be used. Fresh regression3 with null-safe $arguments ran for the full proof duration and is the accepted local regression authority.
+- Status: LOCAL CANDIDATE PASS; clean-clone determinism, exact-head CI, live upgrade/installed-runtime and immutable publication remain open gates.
+- Exact next action: commit exact candidate, rebuild exact commit and run clean-clone determinism before push/install/publication.
+- Failure R37-F4: an unsafe failed newline-write truncated StudioThemes.cs to zero bytes during an amend. Commit f170a8a is SUPERSEDED—DO NOT USE. The exact prior blob was restored from bc6d4fd, the single trailing byte sequence was corrected with an in-memory write-bytes mutation, and exact-commit rebuild/determinism are mandatory before promotion.

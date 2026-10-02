@@ -2,6 +2,36 @@
 
 A Windows taskbar system monitor for live CPU, RAM, disk, network, GPU, VRAM and temperature telemetry.
 
+## v1.6.0 — Performance Workspace & Theme Studio (candidate)
+
+**v1.6.0 is the current R37 candidate; v1.5.0 remains the public Latest release until publication gates close.**
+
+R37 adds:
+- a seven-page **Performance Workspace** for Overview, Processes, Network, Storage, Alerts, Themes and Profiles
+- **20 original Studio themes**, increasing the renderer-backed built-in catalog from 28 to **48 themes**
+- bounded interactive session charts with min/max/average/P95 statistics plus CSV/PNG/JSON export
+- a read-only process table with CPU, memory, thread and handle visibility
+- per-adapter network throughput/link utilization and optional **90-day local traffic history**, disabled by default
+- sustained CPU/RAM/GPU/disk-capacity alerts with dwell, cooldown, quiet hours and global snooze
+- theme search/filter/favorites plus production-renderer preview
+- presentation-only profiles and taskbar metric reordering with a strict import allowlist
+
+### v1.6.0 local candidate validation
+
+- Main/Broker/Supervisor/Setup build: **0 warnings / 0 errors**
+- canonical text payload and windowless sensor PE gates: **PASS**
+- reproducible build gate: **PASS**
+- legacy + feature + v1.6 workspace self-tests: **PASS**
+- full regression suite: **15/15 PASS with real process exit codes**
+- theme proof: **48/48**, 30 live samples, no synthetic metric data
+- workspace proof: **7/7 pages**
+- compact proof: **96 images** across 48 themes at 592/500 px
+- Settings proof: **9/9 pages**
+- shell/start/hardware/temperature/health/support proofs: **PASS**
+- sensor architecture unchanged: Broker 1.1.2+r21, Supervisor 1.3.0+r33
+
+Clean-clone determinism, exact-head CI, installed-runtime acceptance and immutable public publication remain release gates and are not claimed by this candidate section.
+
 ## v1.5.0 — Actionable Alerts & Session Export
 
 **v1.5.0 is the current public Latest release.** It builds on immutable v1.4.0 with a narrow Main/UI product-completion change set:
@@ -90,7 +120,7 @@ See [DOWNLOAD.md](DOWNLOAD.md), [release notes](docs/releases/v1.5.0/RELEASE_NOT
 ## Core capabilities
 
 - CPU, RAM, disk, GPU, VRAM, network and temperature monitoring
-- 28 built-in themes, live sparklines and real renderer theme preview
+- 48 built-in themes (including 20 Studio designs), live sparklines and real renderer theme preview
 - 9-page Settings with alerts, hardware selection, diagnostics and advanced controls
 - multi-device selection and aggregation
 - adaptive battery polling and Session Pause/Resume

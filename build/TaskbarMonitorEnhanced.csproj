@@ -6,5 +6,9 @@
     <ApplicationIcon>assets\TaskbarMonitorEnhanced.ico</ApplicationIcon><ApplicationManifest>..\src\app.manifest</ApplicationManifest><AppConfig>..\src\App.config</AppConfig>
     <AssemblyName>TaskbarMonitorEnhanced</AssemblyName><OutputPath>_out\App\</OutputPath><AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
-  <ItemGroup><Compile Include="..\src\TaskbarMonitorEnhanced.cs" /><Reference Include="System.Management" /><Reference Include="System.Web.Extensions" /><Reference Include="System.IO.Compression" /><Reference Include="System.IO.Compression.FileSystem" /><Reference Include="UIAutomationClient" /><Reference Include="UIAutomationTypes" /><Reference Include="WindowsBase" /></ItemGroup>
+  <ItemGroup><Compile Include="..\src\TaskbarMonitorEnhanced.cs" />
+    <Compile Include="..\src\StudioThemes.cs" />
+    <Compile Include="..\src\WorkspaceModels.cs" />
+    <Compile Include="..\src\MonitorWorkspace.cs" />
+    <Compile Include="..\src\WorkspaceSelfTest.cs" /><Reference Include="System.Management" /><Reference Include="System.Web.Extensions" /><Reference Include="System.IO.Compression" /><Reference Include="System.IO.Compression.FileSystem" /><Reference Include="UIAutomationClient" /><Reference Include="UIAutomationTypes" /><Reference Include="WindowsBase" /></ItemGroup>
 </Project>
