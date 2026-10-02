@@ -1,8 +1,24 @@
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
-Brain Version: PB-2026-10-02-R33-V1.3.0-PUBLIC
+Brain Version: PB-2026-10-02-R34-V1.3.1-PUBLIC
 Status: CURRENT_FINAL_PUBLIC_RELEASE_ACCEPTED
-Updated: 2026-10-02T11:41:24.6174993+03:30
+Updated: 2026-10-02T12:35:00+03:30
+
+## CURRENT AUTHORITY - 2026-10-02 R34 / v1.3.1 FINAL PUBLIC RELEASE
+
+- FACT / CONFIRMED: Current public Latest release is v1.3.1 — Real Theme Preview.
+- FACT / CONFIRMED: Release id 401668211; immutable, non-draft, non-prerelease.
+- FACT / CONFIRMED: Annotated tag object `3d3734d4161cdb1cd974f6e1af2fed498be16766` peels to release commit `6e1edfe0f89ea9981360b904dd93fc198d891f04`.
+- FACT / CONFIRMED: Main v1.3.1+r34 hash `8009574BD5FBB44FC699476149F8F5315BA99D2045F3884F629D550B1FA3BBCF`; Setup hash `67CC88D429FFA9E8D17609ECF8814CF6ABF2C70979B10BB1840071A1AC5FDF26`.
+- FACT / CONFIRMED: Sensor layer unchanged: Broker protocol 1.1.2+r21, Supervisor 1.3.0+r33.
+- FACT / CONFIRMED: Display theme preview now uses the exact taskbar renderer pipeline and live runtime snapshot/history. Palette-only mock preview was removed.
+- FACT / CONFIRMED: Settings proof uses 12 live samples, no synthetic metric data, real 48 px taskbar strip and 9/9 page capture.
+- FACT / CONFIRMED: Installed v1.3.1 on Emad-PC-Ultimate; CPU/GPU/Storage health PASS.
+- FACT / CONFIRMED: Exact-head CI run 36986831343 SUCCESS with 4/4 binary hash equality, provenance and Setup SBOM attestation.
+- FACT / CONFIRMED: Public release assets 7/7 digest-verified.
+- Product DoD: COMPLETE / FINAL_PUBLIC_RELEASE_ACCEPTED.
+- Open product blockers/gates: none.
+- Deferred external item only: publicly trusted Authenticode signing remains unproven.
 
 ## CURRENT AUTHORITY - 2026-10-02 R33 / v1.3.0 FINAL PUBLIC RELEASE
 
@@ -857,3 +873,14 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Deferred external item only: publicly trusted Authenticode signing remains unproven; no trusted-signature claim is made.
 - This Brain-finalization commit is documentation-only. Its external exact-head CI result is the final control verifier; once green, no additional repository mutation is required for v1.3.0.
 - Exact next action: none for v1.3.0 product/release. Future work must start as a new scoped change set from `main` without mutating the immutable v1.3.0 tag/release.
+
+## R34 / v1.3.1 REAL THEME PREVIEW — 2026-10-02
+
+- Replaced synthetic palette preview with actual taskbar renderer preview in Display Settings.
+- Runtime preview uses active Overlay snapshot + history; changing Theme redraws immediately.
+- Off-screen render no longer mutates live OverlayForm size; render width is passed explicitly to layout selection.
+- Installed proof and tracked Settings screenshot show live CPU/RAM/Disk/GPU/VRAM/Network data and real graphs.
+- Release commit: `6e1edfe0f89ea9981360b904dd93fc198d891f04`; CI `36986831343` SUCCESS; release id `401668211`; 7/7 assets verified.
+- Exact hashes: Main `8009574BD5FBB44FC699476149F8F5315BA99D2045F3884F629D550B1FA3BBCF`; Setup `67CC88D429FFA9E8D17609ECF8814CF6ABF2C70979B10BB1840071A1AC5FDF26`.
+- Sensor binaries unchanged from v1.3.0.
+- Signing remains UNSIGNED_PENDING_EXTERNAL_PROVIDER.

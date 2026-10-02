@@ -593,3 +593,15 @@ Status: CONFIRMED / PASS.
 - After branch deletion, the remote branch surface contains only `main`; no release history was lost.
 
 Prevention rule: branch cleanup is housekeeping, not release authority. Delete only after merge/ancestor proof and after immutable tag/release evidence exists.
+
+
+### K-R34-01 - Theme previews must reuse the production renderer
+
+Status: CONFIRMED / RELEASED.
+
+- A palette swatch is not an accurate preview of a theme whose identity includes card geometry, font treatment, graphs, compact behavior and metric layout.
+- v1.3.1 removed the synthetic palette preview and routes Settings through the same `PaintBackground -> BuildMetricViews -> PaintMetric` pipeline used by the live taskbar monitor.
+- The runtime preview uses the active Overlay snapshot and sparkline history; proof mode gathers 12 live samples with no synthetic data.
+- Off-screen preview rendering must not mutate the live Overlay window size. Width is supplied as an explicit layout input.
+
+Prevention rule: visual configuration previews must share the production renderer or a tested shared rendering primitive; do not maintain a second hand-drawn approximation.

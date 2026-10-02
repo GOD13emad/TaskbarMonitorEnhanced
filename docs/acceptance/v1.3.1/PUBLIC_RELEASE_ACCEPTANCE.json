@@ -1,0 +1,103 @@
+{
+  "SchemaVersion": 1,
+  "Release": "v1.3.1",
+  "Status": "FINAL_PUBLIC_RELEASE_ACCEPTED",
+  "AcceptedAtUtc": "2026-10-02T08:59:52Z",
+  "ReleaseUrl": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.3.1",
+  "ReleaseId": 401668211,
+  "ReleaseName": "Taskbar Monitor Enhanced v1.3.1 — Real Theme Preview",
+  "Latest": true,
+  "Draft": false,
+  "Prerelease": false,
+  "Immutable": true,
+  "Authority": {
+    "ReleaseTag": "v1.3.1",
+    "AnnotatedTagObject": "3d3734d4161cdb1cd974f6e1af2fed498be16766",
+    "ReleaseTagCommit": "6e1edfe0f89ea9981360b904dd93fc198d891f04",
+    "BuildIdentity": "V1_3_1_R34_REAL_THEME_PREVIEW"
+  },
+  "Acceptance": {
+    "Build": "PASS_0_WARNINGS_0_ERRORS",
+    "SetupVerify": "PASS_19_OF_19",
+    "SelfTest": "PASS_REAL_THEME_PREVIEW",
+    "SettingsProof": "PASS_9_OF_9_ACTUAL_TASKBAR_RENDERER",
+    "ThemePreviewLiveData": "PASS_12_SAMPLES_NO_SYNTHETIC_DATA",
+    "VisualInspection": "PASS_REAL_TASKBAR_STRIP_IN_SETTINGS",
+    "ThemeRegression": "PASS_28_OF_28",
+    "CompactRegression": "PASS_592_500_ZERO_OVERFLOW",
+    "HoverGuard": "PASS",
+    "Health": "PASS",
+    "Shell": "PASS",
+    "DeterministicCleanClone": "PASS",
+    "InstalledRuntime": "PASS_EXACT_MAIN_V1_3_1_R34",
+    "SensorReuse": "PASS_BROKER_AND_SUPERVISOR_UNCHANGED",
+    "ExactHeadCI": "PASS",
+    "CIBinaryHashEquality": "PASS_4_OF_4",
+    "BinaryProvenance": "PASS",
+    "SetupSbomAttestation": "PASS",
+    "ReleaseAssetDigestVerification": "PASS_7_OF_7"
+  },
+  "CI": {
+    "MainRunId": 36986831343,
+    "ExactHeadSha": "6e1edfe0f89ea9981360b904dd93fc198d891f04",
+    "ArtifactId": 11218042179,
+    "ArtifactDigest": "sha256:660a0cbeb95d6d82b8ba8233f25e34d648e1a3688f2e37009946751b8322094b"
+  },
+  "Hashes": {
+    "Main": "8009574BD5FBB44FC699476149F8F5315BA99D2045F3884F629D550B1FA3BBCF",
+    "Broker": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833",
+    "Supervisor": "0E28911AACDE0C3B1C6997C8BC6FF141C0FAA650B58438A9991CB3AD6C13C785",
+    "Setup": "67CC88D429FFA9E8D17609ECF8814CF6ABF2C70979B10BB1840071A1AC5FDF26"
+  },
+  "Assets": [
+    {
+      "Name": "RELEASE_MANIFEST_v1.3.1.json",
+      "Bytes": 1422,
+      "SHA256": "5606a133216b314ec96150a23a34edd0bca07278f47cd08f95ad7e6865595e5c"
+    },
+    {
+      "Name": "RELEASE_NOTES_v1.3.1.md",
+      "Bytes": 1911,
+      "SHA256": "427bed226248c573bb3befbf2bd69c7eb1ba2f6acc33e75ea556cccd202d83ea"
+    },
+    {
+      "Name": "SBOM_v1.3.1.spdx.json",
+      "Bytes": 4959,
+      "SHA256": "803ba54d85b805a4ca461fea25712472a35c7afefbd277470fe0588c094b4d9d"
+    },
+    {
+      "Name": "SHA256SUMS_v1.3.1.txt",
+      "Bytes": 602,
+      "SHA256": "82627066e1623b3dd96a6ae3eeae35684fd5d6a07d96b3bcaa8bf485c825b8b8"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_1.3.1_SOURCE.zip",
+      "Bytes": 3040992,
+      "SHA256": "78d32e5bffa044400cb35376b9d3b386427fd229c0ea1b6d600da1743795548b"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.3.1.exe",
+      "Bytes": 11149824,
+      "SHA256": "67cc88d429ffa9e8d17609ecf8814cf6abf2c70979b10bb1840071a1ac5fdf26"
+    },
+    {
+      "Name": "V1_3_1_R34_REAL_THEME_PREVIEW_ACCEPTANCE.json",
+      "Bytes": 1547,
+      "SHA256": "d5183fba0ad78446a61c7e33e2c47127cd867eef669146d90bb74a9c6307f20f"
+    }
+  ],
+  "SensorLayer": {
+    "Architecture": "R21_PROCESS_ISOLATED",
+    "BrokerProtocolVersion": "1.1.2+r21",
+    "SupervisorVersion": "1.3.0+r33",
+    "Changed": false
+  },
+  "Signing": {
+    "PublicTrust": "UNSIGNED_PENDING_EXTERNAL_PROVIDER",
+    "TrustedSignatureClaim": false
+  },
+  "PreviousRelease": {
+    "Release": "v1.3.0",
+    "Immutable": true
+  }
+}

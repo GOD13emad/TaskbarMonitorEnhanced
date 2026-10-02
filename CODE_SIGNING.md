@@ -10,7 +10,7 @@ https://github.com/GOD13emad/TaskbarMonitorEnhanced
 
 The project is prepared for the SignPath Foundation open-source signing program. **External acceptance and a production public-trust signature are not yet proven.** The self-signed development certificate documented under `docs/security/` validates the signing pipeline only and is not public publisher trust.
 
-Therefore, the current public release, **v1.3.0**, is treated as unsigned unless its release artifact carries an independently verifiable Authenticode signature from a publicly trusted provider. The accepted v1.3.0 release evidence records `PublicTrust=UNSIGNED_PENDING_EXTERNAL_PROVIDER`; Windows may show **Unknown publisher**. This status is stated explicitly rather than inferred from provider-readiness work.
+Therefore, the current public release, **v1.3.1**, is treated as unsigned unless its release artifact carries an independently verifiable Authenticode signature from a publicly trusted provider. The accepted v1.3.1 release evidence records `PublicTrust=UNSIGNED_PENDING_EXTERNAL_PROVIDER`; Windows may show **Unknown publisher**. This status is stated explicitly rather than inferred from provider-readiness work.
 
 ## Official release artifacts
 
