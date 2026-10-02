@@ -4,11 +4,11 @@ This folder contains the custom Windows installer source used by Taskbar Monitor
 
 ## Current public authority
 
-This source tree targets the v1.3.0 reliability/alerts/support candidate identity. The immutable v1.2.0 release remains the historical accepted baseline while v1.3.0 is qualified independently.
+This source tree targets the v1.3.1 reliability/alerts/support candidate identity. The immutable v1.2.0 release remains the historical accepted baseline while v1.3.1 is qualified independently.
 
 ## Protected sensor baseline
 
-The installer source targets v1.3.0. The protected R21 process-isolated architecture and Broker protocol `1.1.2+r21` are retained, while the Sensor Supervisor is upgraded to build identity `1.3.0+r33` for Storage completion hardening. Reuse is allowed only when exact payload hashes, both identities, and live health all match the candidate.
+The installer source targets v1.3.1. The protected R21 process-isolated architecture and Broker protocol `1.1.2+r21` are retained, and the already-accepted Sensor Supervisor remains `1.3.0+r33`. v1.3.1 is a Main/UI patch adding renderer-backed theme previews. Sensor reuse is allowed only when exact payload hashes, both sensor identities, and live health all match.
 
 Installer behavior includes:
 
@@ -28,4 +28,4 @@ The authoritative reproducible build path is ../build/Build.ps1.
 
 PawnIO is intentionally retained on uninstall because another hardware-monitoring application may depend on it.
 
-See ../docs/acceptance/v1.2.0/PUBLIC_RELEASE_ACCEPTANCE.json for the immutable previous public authority until v1.3.0 publication completes. The candidate record is retained as pre-publication evidence; v1.1.3 remains immutable historical authority.
+See ../docs/acceptance/v1.2.0/PUBLIC_RELEASE_ACCEPTANCE.json for the immutable previous public authority until v1.3.1 publication completes. The candidate record is retained as pre-publication evidence; v1.1.3 remains immutable historical authority.

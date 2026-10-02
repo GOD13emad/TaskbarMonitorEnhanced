@@ -33,18 +33,18 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Live system monitor integrated into the Windows taskbar")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.3.0+r33")]
+[assembly: AssemblyInformationalVersion("1.3.1+r34")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.3.0.0")]
-[assembly: AssemblyFileVersion("1.3.0.0")]
+[assembly: AssemblyVersion("1.3.1.0")]
+[assembly: AssemblyFileVersion("1.3.1.0")]
 
 namespace TaskbarMonitorEnhanced
 {
     internal static class BuildInfo
     {
-        public const string Version = "V1_3_0_R33_RELIABILITY_ALERTS_SUPPORT";
+        public const string Version = "V1_3_1_R34_REAL_THEME_PREVIEW";
         public const string Product = "Taskbar Monitor Enhanced";
-        public const string PublicVersion = "1.3.0";
+        public const string PublicVersion = "1.3.1";
         public const string ShortcutName = "Taskbar Monitor Enhanced";
         public const string ProductDescription = "Live system monitor integrated into the Windows taskbar";
         public const string Author = "Dr. Ali-Akbar Emadeddin";
@@ -3974,7 +3974,7 @@ namespace TaskbarMonitorEnhanced
                 settingsHoverWasRunning=hoverTimer.Enabled;
                 hoverTimer.Stop();
 
-                SettingsForm f=new SettingsForm(config,snapshot,initialTab);
+                SettingsForm f=new SettingsForm(config,snapshot,initialTab,RenderSettingsThemePreview);
                 settingsForm=f;
 
                 f.FormClosed+=delegate(object sender,FormClosedEventArgs e)
@@ -4239,8 +4239,7 @@ namespace TaskbarMonitorEnhanced
 
         private Bitmap RenderThemeProof(string themeName,int width,int height)
         {
-            Size priorSize=Size;
-            Size=new Size(width,height);
+            width=Math.Max(320,width);height=Math.Max(32,height);
             Bitmap bmp=new Bitmap(width,height,System.Drawing.Imaging.PixelFormat.Format32bppArgb);
             using(Graphics g=Graphics.FromImage(bmp))
             {
@@ -4250,7 +4249,7 @@ namespace TaskbarMonitorEnhanced
                 ThemeDefinition theme=ThemeCatalog.Get(themeName);
                 PaintBackground(g,theme,rect);
 
-                List<MetricView> metrics=BuildMetricViews(theme);
+                List<MetricView> metrics=BuildMetricViews(theme,width);
                 if(metrics.Count>0)
                 {
                     float seg=(float)width/metrics.Count;
@@ -4261,8 +4260,12 @@ namespace TaskbarMonitorEnhanced
                     }
                 }
             }
-            Size=priorSize;
             return bmp;
+        }
+
+        internal Bitmap RenderSettingsThemePreview(string themeName,int width,int height)
+        {
+            return RenderThemeProof(themeName,width,height);
         }
 
         internal int ExportCompactProofs(string outputDirectory)
@@ -4975,7 +4978,7 @@ namespace TaskbarMonitorEnhanced
             SettingsForm prior=settingsForm;
             try
             {
-                using(SettingsForm probe=new SettingsForm(config,snapshot,"Display"))
+                using(SettingsForm probe=new SettingsForm(config,snapshot,"Display",RenderSettingsThemePreview))
                 {
                     settingsForm=probe;
                     lastHoverIndex=7;lastHoverGroup="CPU";lastHoverGeneration=9;
@@ -5177,7 +5180,7 @@ namespace TaskbarMonitorEnhanced
             if(Mode(mode,"Overall"))return all;if(Mode(mode,"Auto"))return new List<NetworkDeviceSnapshot>{all.OrderByDescending(x=>x.DownBytesPerSec+x.UpBytesPerSec).First()};if(Mode(mode,"Single"))return new List<NetworkDeviceSnapshot>{selected.Count>0?selected[0]:all[0]};return selected.Count>0?selected:all;
         }
 
-        private List<MetricView> BuildMetricViews(ThemeDefinition t)
+        private List<MetricView> BuildMetricViews(ThemeDefinition t,int availableWidthOverride=0)
         {
             List<MetricView> x=new List<MetricView>();int idx=0;
             if(config.ShowCpu)
@@ -5232,7 +5235,7 @@ namespace TaskbarMonitorEnhanced
             }
 
             ApplyMetricAlerts(x);
-            int availableWidth=ClientRectangle.Width>0?ClientRectangle.Width:Width;
+            int availableWidth=availableWidthOverride>0?availableWidthOverride:(ClientRectangle.Width>0?ClientRectangle.Width:Width);
             if(availableWidth>0 && availableWidth<620){int vramIndex=x.FindIndex(delegate(MetricView m){return m.Key=="VRAM";});if(vramIndex>=0)x.RemoveAt(vramIndex);}
             if(availableWidth>0 && availableWidth<520){int diskIndex=x.FindIndex(delegate(MetricView m){return m.GroupKey=="DISK";});if(diskIndex>=0)x.RemoveAt(diskIndex);}
             string compactKey=availableWidth.ToString(CultureInfo.InvariantCulture)+"|"+String.Join(",",x.ConvertAll(delegate(MetricView m){return m.Key;}).ToArray());if(!String.Equals(compactKey,lastCompactLayoutKey,StringComparison.Ordinal)){lastCompactLayoutKey=compactKey;Log.Write("INFO","COMPACT_LAYOUT width="+availableWidth+" metrics="+String.Join(",",x.ConvertAll(delegate(MetricView m){return m.Key;}).ToArray())+" font="+config.FontSize.ToString("0.0",CultureInfo.InvariantCulture));}
@@ -5918,58 +5921,80 @@ namespace TaskbarMonitorEnhanced
 
     internal sealed class ThemePreviewControl : Control
     {
+        private readonly Func<string,int,int,Bitmap> renderer;
         private string themeName="Dark Minimal Pro";
         public string ThemeName
         {
             get{return themeName;}
             set{themeName=String.IsNullOrWhiteSpace(value)?"Dark Minimal Pro":value;Invalidate();}
         }
-        public ThemePreviewControl()
+        public ThemePreviewControl(Func<string,int,int,Bitmap> realRenderer)
         {
+            renderer=realRenderer;
             DoubleBuffered=true;
             SetStyle(ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.UserPaint,true);
-            Height=122;
+            Height=132;
         }
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
-            ThemeDefinition t=ThemeCatalog.Get(themeName);
             Rectangle r=ClientRectangle;
-            if(r.Width<20||r.Height<20)return;
+            if(r.Width<80||r.Height<80)return;
             e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
+            e.Graphics.TextRenderingHint=System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
             using(GraphicsPath gp=RoundRectPreview(new RectangleF(1,1,r.Width-2,r.Height-2),12))
-            using(LinearGradientBrush bg=new LinearGradientBrush(r,t.Background,t.Background2,0f))
-            using(Pen edge=new Pen(Color.FromArgb(150,t.Border),1f))
+            using(SolidBrush bg=new SolidBrush(Color.FromArgb(18,25,34)))
+            using(Pen edge=new Pen(Color.FromArgb(70,105,132),1f))
             {
                 e.Graphics.FillPath(bg,gp);
                 e.Graphics.DrawPath(edge,gp);
             }
-            using(Font title=new Font("Segoe UI",10.2f,FontStyle.Bold))
-            using(Font small=new Font("Segoe UI",8.3f,FontStyle.Regular))
-            using(SolidBrush fg=new SolidBrush(t.Foreground))
-            using(SolidBrush muted=new SolidBrush(t.Muted))
+
+            using(Font title=new Font("Segoe UI Semibold",10.1f,FontStyle.Bold))
+            using(Font small=new Font("Segoe UI",8.2f,FontStyle.Regular))
+            using(SolidBrush fg=new SolidBrush(Color.FromArgb(238,244,250)))
+            using(SolidBrush muted=new SolidBrush(Color.FromArgb(153,169,186)))
             {
-                e.Graphics.DrawString(themeName,title,fg,15,12);
-                e.Graphics.DrawString("Live palette preview",small,muted,15,34);
+                e.Graphics.DrawString(themeName,title,fg,15,10);
+                e.Graphics.DrawString("Actual taskbar renderer preview",small,muted,15,32);
             }
-            int sw=Math.Max(20,(r.Width-42)/6);
-            for(int i=0;i<6;i++)
+
+            Rectangle strip=new Rectangle(15,58,Math.Max(320,r.Width-30),48);
+            using(SolidBrush shadow=new SolidBrush(Color.FromArgb(75,0,0,0)))
+                e.Graphics.FillRectangle(shadow,strip.X+2,strip.Y+3,strip.Width,strip.Height);
+
+            if(renderer==null)
             {
-                Color c=t.Accents[i%t.Accents.Length];
-                RectangleF chip=new RectangleF(15+i*sw,58,Math.Max(14,sw-7),11);
-                using(GraphicsPath gp=RoundRectPreview(chip,4))
-                using(SolidBrush b=new SolidBrush(c))e.Graphics.FillPath(b,gp);
+                using(SolidBrush muted=new SolidBrush(Color.FromArgb(153,169,186)))
+                using(Font small=new Font("Segoe UI",8.2f,FontStyle.Regular))
+                    e.Graphics.DrawString("Renderer unavailable",small,muted,strip.X+8,strip.Y+15);
+                return;
             }
-            RectangleF card1=new RectangleF(15,82,(r.Width-45)*0.47f,23);
-            RectangleF card2=new RectangleF(card1.Right+15,82,(r.Width-45)*0.53f,23);
-            using(GraphicsPath a=RoundRectPreview(card1,6))
-            using(GraphicsPath b=RoundRectPreview(card2,6))
-            using(SolidBrush fill=new SolidBrush(Color.FromArgb(t.Light?155:75,t.Background2)))
-            using(Pen line=new Pen(Color.FromArgb(110,t.Border),1))
+
+            try
             {
-                e.Graphics.FillPath(fill,a);e.Graphics.DrawPath(line,a);
-                e.Graphics.FillPath(fill,b);e.Graphics.DrawPath(line,b);
+                using(Bitmap actual=renderer(themeName,strip.Width,48))
+                {
+                    e.Graphics.InterpolationMode=InterpolationMode.NearestNeighbor;
+                    e.Graphics.PixelOffsetMode=PixelOffsetMode.HighQuality;
+                    e.Graphics.DrawImageUnscaled(actual,strip.X,strip.Y);
+                }
+                using(Pen line=new Pen(Color.FromArgb(105,138,165),1))
+                    e.Graphics.DrawRectangle(line,strip.X,strip.Y,strip.Width-1,strip.Height-1);
             }
+            catch(Exception ex)
+            {
+                using(SolidBrush warn=new SolidBrush(Color.FromArgb(235,173,72)))
+                using(Font small=new Font("Segoe UI",8.2f,FontStyle.Regular))
+                    e.Graphics.DrawString("Preview renderer error: "+ShortPreviewError(ex.Message),small,warn,strip.X+8,strip.Y+15);
+            }
+        }
+        private static string ShortPreviewError(string s)
+        {
+            if(String.IsNullOrWhiteSpace(s))return "unknown";
+            s=s.Replace("\r"," ").Replace("\n"," ").Trim();
+            return s.Length<=72?s:s.Substring(0,69)+"...";
         }
         private static GraphicsPath RoundRectPreview(RectangleF r,float rad)
         {
@@ -5977,6 +6002,7 @@ namespace TaskbarMonitorEnhanced
             p.AddArc(r.X,r.Y,d,d,180,90);p.AddArc(r.Right-d,r.Y,d,d,270,90);p.AddArc(r.Right-d,r.Bottom-d,d,d,0,90);p.AddArc(r.X,r.Bottom-d,d,d,90,90);p.CloseFigure();return p;
         }
     }
+
     internal static class SafeResetPolicy
     {
         public static string BackupCurrentConfig(string configPath,string backupDir,DateTime localNow)
@@ -6166,7 +6192,7 @@ namespace TaskbarMonitorEnhanced
         {
             public string Id,Name; public override string ToString(){return Name??Id??"Device";}
         }
-        private readonly AppConfig c; private readonly MetricsSnapshot snapshot;
+        private readonly AppConfig c; private readonly MetricsSnapshot snapshot; private readonly Func<string,int,int,Bitmap> themePreviewRenderer;
         private ComboBox theme,position,cpuMode,gpuMode,diskMode,netMode,multiLayout,memoryUnit,storageUnit,networkUnit,diskRateUnit;
         private NumericUpDown opacity,interval,width,cpuWarn,gpuWarn,diskWarn,batteryInterval,historyLength;
         private CheckBox cpu,ram,disk,gpu,vram,net,temp,spark,startup,safe,ramNumeric,diskNumeric,flyout,hoverAll,autoCheckUpdates,tempAlerts,adaptiveBattery;
@@ -6199,10 +6225,11 @@ namespace TaskbarMonitorEnhanced
             "Runtime health, sensor state and support diagnostics.",
             "Logs, safe reset and maintenance information."
         };
-        public SettingsForm(AppConfig config,MetricsSnapshot current) : this(config,current,null) { }
-        public SettingsForm(AppConfig config,MetricsSnapshot current,string initialTab)
+        public SettingsForm(AppConfig config,MetricsSnapshot current) : this(config,current,null,null) { }
+        public SettingsForm(AppConfig config,MetricsSnapshot current,string initialTab) : this(config,current,initialTab,null) { }
+        internal SettingsForm(AppConfig config,MetricsSnapshot current,string initialTab,Func<string,int,int,Bitmap> realThemePreviewRenderer)
         {
-            c=config;snapshot=current??new MetricsSnapshot();
+            c=config;snapshot=current??new MetricsSnapshot();themePreviewRenderer=realThemePreviewRenderer;
             Text="Taskbar Monitor Enhanced - Settings";
             Width=1080;Height=760;MinimumSize=new Size(900,650);StartPosition=FormStartPosition.CenterScreen;
             FormBorderStyle=FormBorderStyle.Sizable;MaximizeBox=true;MinimizeBox=false;AutoScaleMode=AutoScaleMode.Dpi;KeyPreview=true;
@@ -6298,7 +6325,7 @@ namespace TaskbarMonitorEnhanced
             ModernizeSettingsPage(diagnostics,"Diagnostics","Inspect live health, copy reports and export support evidence.");
             ModernizeSettingsPage(advanced,"Advanced","Maintenance, logs and safe configuration reset.");
 
-            themePreview=new ThemePreviewControl();themePreview.Location=new Point(24,300);themePreview.Size=new Size(650,122);themePreview.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;themePreview.ThemeName=Convert.ToString(theme.SelectedItem,CultureInfo.InvariantCulture);display.Controls.Add(themePreview);themePreview.BringToFront();
+            themePreview=new ThemePreviewControl(themePreviewRenderer);themePreview.Location=new Point(24,294);themePreview.Size=new Size(650,132);themePreview.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;themePreview.ThemeName=Convert.ToString(theme.SelectedItem,CultureInfo.InvariantCulture);display.Controls.Add(themePreview);themePreview.BringToFront();
             theme.SelectedIndexChanged+=delegate{if(themePreview!=null)themePreview.ThemeName=Convert.ToString(theme.SelectedItem,CultureInfo.InvariantCulture);};
 
             Panel actions=new Panel();actions.Dock=DockStyle.Fill;actions.BackColor=SettingsWindow;actions.Padding=new Padding(0,10,4,10);contentArea.Controls.Add(actions,0,2);
@@ -7152,7 +7179,8 @@ namespace TaskbarMonitorEnhanced
                 AppConfig c=AppConfig.Load();c.Normalize();
                 MetricsSnapshot snapshot=new MetricsSnapshot();
                 string[] pages=new string[]{"Display","Metrics","Alerts","Hardware","Units","Behavior","Updates","Diagnostics","Advanced"};
-                using(SettingsForm f=new SettingsForm(c,snapshot,"Display"))
+                using(OverlayForm previewRenderer=new OverlayForm(c,true))
+                using(SettingsForm f=new SettingsForm(c,snapshot,"Display",previewRenderer.RenderSettingsThemePreview))
                 {
                     f.Width=1080;f.Height=760;f.StartPosition=FormStartPosition.Manual;f.Location=new Point(-32000,-32000);
                     f.Show();Application.DoEvents();f.PerformLayout();
@@ -7167,7 +7195,7 @@ namespace TaskbarMonitorEnhanced
                     }
                 }
                 Dictionary<string,object> manifest=new Dictionary<string,object>();
-                manifest["Version"]=BuildInfo.Version;manifest["PublicVersion"]=BuildInfo.PublicVersion;manifest["Pages"]=pages;manifest["Width"]=1080;manifest["Height"]=760;
+                manifest["Version"]=BuildInfo.Version;manifest["PublicVersion"]=BuildInfo.PublicVersion;manifest["Pages"]=pages;manifest["Width"]=1080;manifest["Height"]=760;manifest["ThemePreview"]="ACTUAL_TASKBAR_RENDERER";manifest["ThemePreviewHeight"]=48;
                 File.WriteAllText(Path.Combine(outputDirectory,"SETTINGS_PROOF_MANIFEST.json"),new JavaScriptSerializer().Serialize(manifest),Encoding.UTF8);
                 Console.WriteLine("TBME_SETTINGS_PROOF=PASS PAGES=9 DIR="+outputDirectory);
                 return 0;
@@ -7890,10 +7918,10 @@ namespace TaskbarMonitorEnhanced
                         throw new Exception("sensor selfheal missing state");
                 }
                 finally{try{Directory.Delete(healDir,true);}catch{}}
-                Console.WriteLine("TBME_V1_3_0_R33_SELFTEST=PASS PUBLIC_VERSION=1.3.0 STARTUP_DUAL_REGISTRATION=TRUE STARTUP_RECOVERY_DELAY_SEC=12 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE CPU_HARD_STALL_WATCHDOG_SEC=60 CPU_SUPERVISOR_STARTUP_GRACE_SEC=60 THEMES=28 WIDTH=1100 HISTORY=120 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE SENSOR_SUPERVISOR_AUTOHEAL=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE ALERTS_CPU_GPU_DISK=TRUE ALERT_VISUAL_HOTSTATE=TRUE ADAPTIVE_BATTERY=TRUE SESSION_PAUSE=TRUE CONFIGURABLE_HISTORY=TRUE COPY_DIAGNOSTICS=TRUE SUPPORT_ZIP=TRUE SAFE_RESET=TRUE HEALTH_BADGE=TRUE SETTINGS_PAGES=9 CREATEPARAMS_NOACTIVATE=TRUE");
+                Console.WriteLine("TBME_V1_3_1_R34_SELFTEST=PASS PUBLIC_VERSION=1.3.1 REAL_THEME_PREVIEW=TRUE THEME_PREVIEW_ACTUAL_RENDERER=TRUE STARTUP_DUAL_REGISTRATION=TRUE STARTUP_RECOVERY_DELAY_SEC=12 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE CPU_HARD_STALL_WATCHDOG_SEC=60 CPU_SUPERVISOR_STARTUP_GRACE_SEC=60 THEMES=28 WIDTH=1100 HISTORY=120 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE SENSOR_SUPERVISOR_AUTOHEAL=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE ALERTS_CPU_GPU_DISK=TRUE ALERT_VISUAL_HOTSTATE=TRUE ADAPTIVE_BATTERY=TRUE SESSION_PAUSE=TRUE CONFIGURABLE_HISTORY=TRUE COPY_DIAGNOSTICS=TRUE SUPPORT_ZIP=TRUE SAFE_RESET=TRUE HEALTH_BADGE=TRUE SETTINGS_PAGES=9 CREATEPARAMS_NOACTIVATE=TRUE");
                 return 0;
             }
-            catch(Exception ex){Console.Error.WriteLine("TBME_V1_3_0_R33_SELFTEST=FAIL " + ex);return 2;}
+            catch(Exception ex){Console.Error.WriteLine("TBME_V1_3_1_R34_SELFTEST=FAIL " + ex);return 2;}
         }
 
         public static int RunJson(string outputPath)

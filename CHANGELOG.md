@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.1 — Real Theme Preview
+
+- replace the Display-page palette mock with a renderer-backed preview that uses the same taskbar paint pipeline as the live monitor
+- render the preview at the real 48 px taskbar height and update it immediately when the selected theme changes
+- use the running Overlay instance for the preview so live runtime metrics and existing sparkline history are shown inside Settings
+- make off-screen theme rendering width-aware without temporarily resizing the live taskbar OverlayForm
+- record `ThemePreview=ACTUAL_TASKBAR_RENDERER` in Settings proof evidence
+- retain the exact v1.3.0 sensor layer: Broker protocol `1.1.2+r21`, Sensor Supervisor `1.3.0+r33`
+- focused renderer/UI regression: theme, compact, hover, health and shell proofs all PASS
+
 ## 1.3.0 — Reliability, Alerts & Support Tools
 
 - fix intermittent storage-temperature false degradation by accepting fresh atomic output independently from delayed worker exit, with bounded exit grace/reaping and a 20-second no-output budget

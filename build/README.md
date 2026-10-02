@@ -1,6 +1,6 @@
 # Reproducible build
 
-Build.ps1 is the authoritative local and CI build path for the v1.3.0 reliability/alerts/support release, retaining the accepted protected sensor architecture.
+Build.ps1 is the authoritative local and CI build path for the v1.3.1 real-theme-preview patch release, retaining the accepted protected sensor architecture.
 
 It performs the following gates:
 

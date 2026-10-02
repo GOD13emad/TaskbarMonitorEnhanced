@@ -80,12 +80,12 @@ $CanonicalTextResources=[ordered]@{
     'TaskbarMonitorSensorSupervisor.cs'=(Join-Path $Root 'src\sensors\TaskbarMonitorSensorSupervisor.cs')
     'TBME_Setup_Elevated_Helper.ps1'=(Join-Path $Root 'installer\TBME_Setup_Elevated_Helper.ps1')
     'LICENSE'=(Join-Path $Root 'LICENSE')
-    'README.md'=(Join-Path $Root 'docs\releases\v1.3.0\INSTALLER_README.txt')
+    'README.md'=(Join-Path $Root 'docs\releases\v1.3.1\INSTALLER_README.txt')
     'AUTHORS.md'=(Join-Path $Root 'AUTHORS.md')
     'COPYRIGHT_AND_ATTRIBUTION.md'=(Join-Path $Root 'COPYRIGHT_AND_ATTRIBUTION.md')
     'AI_ASSISTED_DEVELOPMENT.md'=(Join-Path $Root 'AI_ASSISTED_DEVELOPMENT.md')
     'THIRD_PARTY_NOTICES.md'=(Join-Path $Root 'THIRD_PARTY_NOTICES.md')
-    'RELEASE_NOTES_v1.3.0.md'=(Join-Path $Root 'docs\releases\v1.3.0\RELEASE_NOTES.md')
+    'RELEASE_NOTES_v1.3.1.md'=(Join-Path $Root 'docs\releases\v1.3.1\RELEASE_NOTES.md')
     'UPSTREAM_REFERENCE_GPL_NOTICE.md'=(Join-Path $Root 'UPSTREAM_REFERENCE_GPL_NOTICE.md')
     'TaskbarMonitorEnhanced_Setup.cs'=(Join-Path $Root 'installer\TaskbarMonitorEnhanced_Setup.cs')
 }
@@ -95,7 +95,7 @@ foreach($entry in $CanonicalTextResources.GetEnumerator()){
 Write-Host 'TBME_CANONICAL_TEXT_PAYLOAD=PASS'
 
 Build (Join-Path $PSScriptRoot 'TaskbarMonitorEnhanced_Setup.csproj')
-$Setup=Join-Path $Out 'Setup\TaskbarMonitorEnhanced_Setup_1.3.0.exe'
+$Setup=Join-Path $Out 'Setup\TaskbarMonitorEnhanced_Setup_1.3.1.exe'
 if(!(Test-Path -LiteralPath $Setup)){throw 'Setup output missing.'}
 
 $Verify=Join-Path $Out 'setup_verify.json'
@@ -111,8 +111,8 @@ $Self=Join-Path $Out 'selftest.txt'
 if($LASTEXITCODE -ne 0){throw 'Application self-test failed.'}
 
 $manifest=[ordered]@{
-    Version='1.3.0'
-    Build='V1_3_0_R33_RELIABILITY_ALERTS_SUPPORT'
+    Version='1.3.1'
+    Build='V1_3_1_R34_REAL_THEME_PREVIEW'
     GeneratedUtc=[datetime]::UtcNow.ToString('o')
     Dependencies=[ordered]@{
         LibreHardwareMonitor=[ordered]@{Version=[string]$Lock.dependencies.LibreHardwareMonitor.version;Url=$LhmUrl;SHA256=$LhmSha}
