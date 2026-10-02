@@ -71,6 +71,8 @@ jobs:
           name: build-evidence
           if-no-files-found: error
           path: |
+            build/_out/contracts/SUMMARY.json
+            artifacts/DETERMINISM.json
             artifacts/BUILD_MANIFEST.json
             artifacts/SBOM.spdx.json
             build/_out/App/TaskbarMonitorEnhanced.exe

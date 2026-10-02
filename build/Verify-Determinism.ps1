@@ -6,12 +6,19 @@ $Root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $PrimaryManifest=Join-Path $Root 'artifacts\BUILD_MANIFEST.json'
 if(!(Test-Path -LiteralPath $PrimaryManifest)){throw 'Run Build.ps1 before Verify-Determinism.ps1.'}
 
+$ExactHead=(& git -C $Root rev-parse HEAD).Trim()
+if($LASTEXITCODE -ne 0){throw 'Cannot identify exact source revision'}
+$dirty=@(& git -C $Root status --porcelain --untracked-files=normal)
+if($dirty.Count -gt 0){throw 'Determinism requires a committed clean worktree, including all source and build inputs.'}
 $Temp=Join-Path ([IO.Path]::GetTempPath()) ('tbme_det_'+[Guid]::NewGuid().ToString('N'))
 $Clone=Join-Path $Temp 'repo'
 try{
     New-Item -ItemType Directory -Force -Path $Temp|Out-Null
     & git clone --no-local --quiet $Root $Clone
     if($LASTEXITCODE -ne 0){throw 'Determinism clone failed.'}
+    & git -C $Clone checkout --detach --quiet $ExactHead
+    if($LASTEXITCODE -ne 0){throw 'Exact revision checkout failed.'}
+    if((& git -C $Clone rev-parse HEAD).Trim() -ne $ExactHead){throw 'Clone revision differs from requested candidate'}
 
     $PrimaryDeps=Join-Path $PSScriptRoot '_deps'
     $CloneDeps=Join-Path $Clone 'build\_deps'
@@ -33,6 +40,7 @@ try{
             throw "Determinism mismatch for $k primary=$($am[$k]) clone=$($bm[$k])"
         }
     }
+    [ordered]@{Status='PASS';ExactHead=$ExactHead;Outputs=$a.Outputs;GeneratedUtc=[DateTime]::UtcNow.ToString('o')}|ConvertTo-Json -Depth 8|Set-Content -LiteralPath (Join-Path $Root 'artifacts\DETERMINISM.json') -Encoding UTF8
     Write-Host 'TBME_DETERMINISM=PASS'
 }finally{
     Remove-Item -LiteralPath $Temp -Recurse -Force -ErrorAction SilentlyContinue

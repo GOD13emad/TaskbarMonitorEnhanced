@@ -76,3 +76,17 @@ Open blocker/critical path: complete fresh integration tests -> UI/lifecycle/per
 
 Brain status: INCOMPLETE for this active continuation until this delta, predecessor history, required source/evidence and exact next action are packaged with hashes into one cumulative transfer ZIP.
 Exact next action: read the current build/test receipt and address demonstrated failures only; then validate real UI and bounded traffic behavior before adding any further scope.
+
+
+## Eight-page completeness checkpoint
+
+Operation `73616abd-ac9b-4e72-a208-364fee0844a6` passed compilation with 0 warnings/errors, all three contract suites, and actual-data eight-page UI proof. The proof exercised 16 actual interface actions, 58 interactive controls without missing accessible names, normal/minimum-size captures, and 20 different geometry hashes under identical color/font/data inputs. Hardware inventory is snapshot-only, availability-aware, filterable and exportable. Product feature scope is now frozen; remaining changes must address demonstrated defects or release evidence/tooling.
+
+Additional failures: the owner-draw event initially lacked the sender parameter; compiler rejected it and the exact signature was corrected. Test-Workspace initially used Start-Process without -Wait followed by WaitForExit; Windows PowerShell returned a null ExitCode despite successful child output. That result was correctly marked FAIL, not silently accepted. The harness now owns a System.Diagnostics.Process, starts both asynchronous stream drains before waiting, retrieves its actual exit code and rejects timeouts. Parameter-root initialization was moved from default expressions into script body after one explicit-root evaluation error. Each failed run is retained as invalid evidence; no blind rerun is an acceptance gate.
+
+Primary technical reference for redirected-pipe deadlock prevention: Microsoft .NET process documentation / official .NET team explanation (https://devblogs.microsoft.com/dotnet/process-api-improvements-in-dotnet-11/). The implementation uses the .NET Framework-compatible existing Process API, not .NET 11-only APIs.
+
+
+## Source freeze readiness
+
+Operation d884b433-6431-45ce-a8a4-44d50ae9f93a completed all seven suites with actual exit code 0: legacy, feature, workspace, eight-page live workspace/actions, 48-theme rendering, 96 compact renderings and nine Settings pages. Candidate Main SHA256 is 15D1BFFA8A01173A6BB7982283674EF4CBA6576F4F8112A05476B68BCA3869A6. New source/tooling now enters exact-revision freeze. Full setup build/clean clone, CI and installed acceptance remain mandatory.

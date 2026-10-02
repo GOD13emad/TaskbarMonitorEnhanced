@@ -236,4 +236,79 @@ namespace TaskbarMonitorEnhanced
             foreach(var p in typeof(AppConfig).GetProperties())if(allowed.ContainsKey(p.Name))p.SetValue(c,p.GetValue(candidate,null),null);
         }
     }
+    internal sealed class HardwareRow
+    {
+        public string Group {get;set;} public string Device {get;set;} public string Metric {get;set;}
+        public string Value {get;set;} public string Unit {get;set;} public string Status {get;set;}
+    }
+    internal static class HardwareInventory
+    {
+        internal static List<HardwareRow> Read(MetricsSnapshot s)
+        {
+            var rows=new List<HardwareRow>();if(s==null)return rows;
+            Action<string,string,string,string,string,bool> add=(group,device,metric,value,unit,available)=>rows.Add(new HardwareRow{Group=group,Device=String.IsNullOrWhiteSpace(device)?group:device,Metric=metric,Value=available?value:"",Unit=unit,Status=available?"Available":"Unavailable"});
+            Action<string,string,string,double,string,bool> number=(group,device,metric,value,unit,available)=>add(group,device,metric,value.ToString("0.###",CultureInfo.InvariantCulture),unit,available&&MetricStatistics.Finite(value));
+            foreach(var d in s.CpuDevices??new List<CpuDeviceSnapshot>())
+            {
+                if(d==null)continue;
+                number("CPU",d.Name,"Physical cores",d.PhysicalCores,"cores",d.PhysicalCores>0);
+                number("CPU",d.Name,"Logical processors",d.LogicalProcessors,"threads",d.LogicalProcessors>0);
+                number("CPU",d.Name,"Reported clock (cached)",d.CurrentClockMHz,"MHz",d.CurrentClockMHz>0);
+                number("CPU",d.Name,"Maximum reported clock",d.MaxClockMHz,"MHz",d.MaxClockMHz>0);
+                number("CPU",d.Name,"Usage",d.Usage,"%",d.UsageAvailable);
+                number("CPU",d.Name,"Temperature",d.Temperature,"C",d.TemperatureAvailable);
+                number("CPU",d.Name,"Package power",d.PowerW,"W",d.PowerAvailable);
+            }
+            number("Memory","System RAM","Used",s.RamUsedBytes/1073741824d,"GiB",s.RamTotalBytes>0);
+            number("Memory","System RAM","Total",s.RamTotalBytes/1073741824d,"GiB",s.RamTotalBytes>0);
+            foreach(var d in s.MemoryModules??new List<MemoryModuleSnapshot>())
+            {
+                if(d==null)continue;string device=String.IsNullOrWhiteSpace(d.DeviceLocator)?d.BankLabel:d.DeviceLocator;
+                number("Memory",device,"Module capacity",d.CapacityBytes/1073741824d,"GiB",d.CapacityBytes>0);
+                number("Memory",device,"Configured clock",d.ConfiguredClockMHz,"MHz",d.ConfiguredClockMHz>0);
+                number("Memory",device,"Rated speed",d.SpeedMHz,"MHz",d.SpeedMHz>0);
+                add("Memory",device,"Manufacturer",d.Manufacturer,"",!String.IsNullOrWhiteSpace(d.Manufacturer));
+                add("Memory",device,"Part number",d.PartNumber,"",!String.IsNullOrWhiteSpace(d.PartNumber));
+                add("Memory",device,"Memory type",d.MemoryType,"",!String.IsNullOrWhiteSpace(d.MemoryType));
+            }
+            foreach(var d in s.GpuDevices??new List<GpuDeviceSnapshot>())
+            {
+                if(d==null)continue;
+                number("GPU",d.Name,"Usage",d.Usage,"%",d.UsageAvailable);
+                number("GPU",d.Name,"Temperature",d.Temperature,"C",d.TemperatureAvailable);
+                number("GPU",d.Name,"VRAM used",d.VramUsedGb,"GiB",d.VramTotalGb>0);
+                number("GPU",d.Name,"VRAM total",d.VramTotalGb,"GiB",d.VramTotalGb>0);
+                number("GPU",d.Name,"Core clock",d.CoreClockMHz,"MHz",d.CoreClockAvailable);
+                number("GPU",d.Name,"Memory clock",d.MemoryClockMHz,"MHz",d.MemoryClockAvailable);
+                number("GPU",d.Name,"Power",d.PowerW,"W",d.PowerAvailable);
+                number("GPU",d.Name,"Fan speed",d.FanRpm,"RPM",d.FanRpmAvailable);
+                number("GPU",d.Name,"Fan duty",d.FanPercent,"%",d.FanPercentAvailable);
+                number("GPU",d.Name,"PCIe generation",d.PcieGeneration,"",d.PcieGeneration>0);
+                number("GPU",d.Name,"PCIe lanes",d.PcieWidth,"lanes",d.PcieWidth>0);
+                add("GPU",d.Name,"Telemetry source",d.Source,"",!String.IsNullOrWhiteSpace(d.Source));
+            }
+            foreach(var d in s.DiskDevices??new List<DiskDeviceSnapshot>())
+            {
+                if(d==null)continue;
+                add("Storage",d.Name,"Bus",d.BusType,"",!String.IsNullOrWhiteSpace(d.BusType));
+                add("Storage",d.Name,"Media",d.MediaType,"",!String.IsNullOrWhiteSpace(d.MediaType));
+                number("Storage",d.Name,"Physical size",d.PhysicalSizeBytes/1073741824d,"GiB",d.PhysicalSizeBytes>0);
+                number("Storage",d.Name,"Temperature",d.Temperature,"C",d.TemperatureAvailable);
+            }
+            foreach(var d in s.NetworkDevices??new List<NetworkDeviceSnapshot>())
+            {
+                if(d==null)continue;
+                add("Network",d.Name,"Description",d.Description,"",!String.IsNullOrWhiteSpace(d.Description));
+                number("Network",d.Name,"Reported link speed",d.LinkSpeedBitsPerSec/1000000d,"Mbps",d.LinkSpeedBitsPerSec>0);
+            }
+            return rows;
+        }
+        internal static void ExportCsv(string path,IEnumerable<HardwareRow> rows)
+        {
+            var b=new StringBuilder("Group,Device,Metric,Value,Unit,Status\r\n");
+            foreach(var r in rows)b.AppendLine(String.Join(",",new[]{r.Group,r.Device,r.Metric,r.Value,r.Unit,r.Status}.Select(WorkspaceExport.CsvCell).ToArray()));
+            File.WriteAllText(path,b.ToString(),new UTF8Encoding(false));
+        }
+    }
+
 }

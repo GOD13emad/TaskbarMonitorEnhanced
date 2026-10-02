@@ -64,6 +64,11 @@ if(!(Test-Path -LiteralPath (Join-Path $LhmDir 'LibreHardwareMonitorLib.dll'))){
 Remove-Item -LiteralPath $Out,$Package,$TextPackage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $Out,$Package,$TextPackage|Out-Null
 
+# Reject truncated/missing source before compiling or packaging a candidate.
+foreach($source in @('TaskbarMonitorEnhanced.cs','StudioThemes.cs','WorkspaceModels.cs','MonitorWorkspace.cs','WorkspaceSelfTest.cs')){
+    $sourcePath=Join-Path $Root ('src\'+$source)
+    if(!(Test-Path -LiteralPath $sourcePath) -or (Get-Item -LiteralPath $sourcePath).Length -lt 1000){throw "Missing/truncated source: $sourcePath"}
+}
 Build (Join-Path $PSScriptRoot 'TaskbarMonitorEnhanced.csproj')
 Build (Join-Path $PSScriptRoot 'TaskbarMonitorSensorBroker.csproj')
 Build (Join-Path $PSScriptRoot 'TaskbarMonitorSensorSupervisor.csproj')
@@ -111,9 +116,8 @@ if(!(Test-Path -LiteralPath $Verify)){throw 'Setup /verify did not create its ve
 $v=Get-Content -LiteralPath $Verify -Raw|ConvertFrom-Json
 if([string]$v.Status -ne 'PASS' -or [int]$v.Resources -ne 24){throw 'Setup resource verification failed.'}
 
-$Self=Join-Path $Out 'selftest.txt'
-& (Join-Path $Package 'TaskbarMonitorEnhanced.exe') --selftest | Set-Content -LiteralPath $Self -Encoding UTF8
-if($LASTEXITCODE -ne 0){throw 'Application self-test failed.'}
+& (Join-Path $PSScriptRoot 'Test-Workspace.ps1') -Executable (Join-Path $Package 'TaskbarMonitorEnhanced.exe') -OutputDirectory (Join-Path $Out 'contracts')
+if($LASTEXITCODE -ne 0){throw 'Application contract suite failed.'}
 
 $manifest=[ordered]@{
     Version='1.6.0'

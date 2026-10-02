@@ -79,6 +79,20 @@ namespace TaskbarMonitorEnhanced
             finally{try{File.Delete(path);}catch{}}
         }
 
+        private static double Luminance(Color c)
+        {Func<byte,double> channel=b=>{double v=b/255d;return v<=.04045?v/12.92:Math.Pow((v+.055)/1.055,2.4);};return .2126*channel(c.R)+.7152*channel(c.G)+.0722*channel(c.B);}
+        private static void CheckHardwareAndContrast()
+        {
+            foreach(var t in StudioThemes.Create()){
+                double a=Luminance(t.Foreground),b=Luminance(t.Background2);
+                Check((Math.Max(a,b)+.05)/(Math.Min(a,b)+.05)>=4.5,"Studio primary text contrast "+t.Name);
+            }
+            Check(HardwareInventory.Read(null).Count==0,"null hardware snapshot");
+            var s=new MetricsSnapshot();s.GpuDevices.Add(new GpuDeviceSnapshot{Name="Fixture GPU",UsageAvailable=false,PowerAvailable=true,PowerW=float.NaN});
+            var rows=HardwareInventory.Read(s);
+            Check(rows.First(r=>r.Group=="GPU"&&r.Metric=="Usage").Status=="Unavailable","unavailable GPU sensor remains blank");
+            Check(rows.First(r=>r.Group=="GPU"&&r.Metric=="Power").Status=="Unavailable","nonfinite sensor remains unavailable");
+        }
         internal static int Run()
         {
             try
@@ -158,7 +172,7 @@ namespace TaskbarMonitorEnhanced
                     string[] keys=renderer.WorkspaceMetricKeysForProof();
                     Check(keys.Length==6&&keys[0]=="NET"&&keys[1]=="VRAM"&&keys[2]=="GPU","renderer applies group ordering with independent VRAM");
                 }
-                CheckTrafficLedger();CheckProfileAndStatistics();
+                CheckTrafficLedger();CheckProfileAndStatistics();CheckHardwareAndContrast();
                 Console.WriteLine("TBME_WORKSPACE_SELFTEST=PASS THEMES=48 STUDIO=20 SCHEMA=7 LEGACY_SCHEMA_RANGE=0..6 ORDER_INTEGRATED=TRUE UNAVAILABLE_GAPS=TRUE");
                 return 0;
             }
@@ -180,6 +194,7 @@ namespace TaskbarMonitorEnhanced
                 AppConfig c=new AppConfig();c.Theme="Art Deco Gold";c.Normalize();
                 Native.EnableDpi();
                 Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
+                bool paused=false;Dictionary<string,object> actions=null;int geometry=0;
                 using(var renderer=new OverlayForm(c,true))
                 {
                     renderer.PrimeSettingsThemePreviewFromLiveMetrics(15,250);
@@ -187,16 +202,20 @@ namespace TaskbarMonitorEnhanced
                     ledger.Observe(renderer.WorkspaceSnapshotForProof(),c,DateTime.Now,0);
                     System.Threading.Thread.Sleep(250);renderer.WorkspaceReadForProof();
                     ledger.Observe(renderer.WorkspaceSnapshotForProof(),c,DateTime.Now,.25);
-                    using(var f=new WorkspaceForm(c,renderer.WorkspaceSnapshotForProof,()=>false,b=>{},ledger,()=>new AlertRecord[0],()=>{},()=>{},renderer.RenderSettingsThemePreview,true))
+                    using(var f=new WorkspaceForm(c,renderer.WorkspaceSnapshotForProof,()=>paused,b=>paused=b,ledger,()=>new AlertRecord[0],()=>{},()=>{},renderer.RenderSettingsThemePreview,true))
                     {
-                        f.PrepareProofProcesses();f.Show();Application.DoEvents();f.CapturePages(outputDirectory);f.Close();
+                        f.PrepareProofProcesses();f.Show();Application.DoEvents();
+                        actions=f.VerifyActualActions(renderer.WorkspaceMetricKeysForProof,renderer.WorkspaceNetworkTextForProof);
+                        geometry=renderer.VerifyStudioGeometry();
+                        f.CapturePages(outputDirectory);
+                        f.Size=new Size(900,620);Application.DoEvents();f.CapturePages(Path.Combine(outputDirectory,"minimum"));f.Close();
                     }
                 }
-                string[] pages={"overview.png","processes.png","network.png","storage.png","alerts.png","themes.png","profiles.png"};
+                string[] pages={"overview.png","processes.png","network.png","storage.png","alerts.png","themes.png","profiles.png","hardware.png"};
                 foreach(string p in pages)CheckFile(Path.Combine(outputDirectory,p));
-                var manifest=new Dictionary<string,object>{{"Version",BuildInfo.Version},{"PublicVersion",BuildInfo.PublicVersion},{"GeneratedUtc",DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture)},{"Status","PASS"},{"NoSyntheticMetricData",true},{"LiveSampleCount",16},{"ThemeCount",ThemeCatalog.Names.Length},{"StudioThemeCount",20},{"Pages",pages}};
+                var manifest=new Dictionary<string,object>{{"Version",BuildInfo.Version},{"PublicVersion",BuildInfo.PublicVersion},{"GeneratedUtc",DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture)},{"Status","PASS"},{"NoSyntheticMetricData",true},{"LiveSampleCount",SessionTelemetryHistory.Count},{"UIActions",actions},{"GeometryUniqueSamePalette",geometry},{"MinimumSizePages",8},{"ThemeCount",ThemeCatalog.Names.Length},{"StudioThemeCount",20},{"Pages",pages}};
                 File.WriteAllText(Path.Combine(outputDirectory,"WORKSPACE_PROOF_MANIFEST.json"),new JavaScriptSerializer().Serialize(manifest),new UTF8Encoding(false));
-                Console.WriteLine("TBME_WORKSPACE_PROOF=PASS PAGES=7 THEMES=48 DIR="+outputDirectory);
+                Console.WriteLine("TBME_WORKSPACE_PROOF=PASS PAGES=8 THEMES=48 DIR="+outputDirectory);
                 return 0;
             }
             catch(Exception ex)

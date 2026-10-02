@@ -4749,6 +4749,7 @@ namespace TaskbarMonitorEnhanced
                                 foreach(MetricView mv in metrics)
                                 {
                                     float readableMin=theme.Mode=="terminal"?7.5f:(theme.Mode=="hex"?7.3f:7.4f);
+                                    if(StudioThemes.IsStudio(theme.Mode))readableMin=7.4f*(float)Math.Max(.85,Math.Min(1.2,config.FontSize/10.0));
                                     float maxWidth;
                                     if(theme.Mode=="hex")
                                     {
@@ -4761,6 +4762,7 @@ namespace TaskbarMonitorEnhanced
                                         float badgeWidth=Math.Min(maxBadge,Math.Max(88f,innerWidth*0.72f));
                                         maxWidth=Math.Max(50f,badgeWidth-18f);
                                     }
+                                    else if(StudioThemes.IsStudio(theme.Mode))maxWidth=Math.Max(8,seg-26);
                                     else maxWidth=IsExtendedThemeMode(theme.Mode)?Math.Max(50,seg-28):Math.Max(50,seg-16);
                                     string adaptive=BuildMetricHeadline(mg,theme,mv,readableMin,maxWidth);
                                     bool stacked=HeadlineIsStacked(adaptive);

@@ -4,33 +4,26 @@ A Windows taskbar system monitor for live CPU, RAM, disk, network, GPU, VRAM and
 
 ## v1.6.0 — Performance Workspace & Theme Studio (candidate)
 
-**v1.6.0 is the current R37 candidate; v1.5.0 remains the public Latest release until publication gates close.**
+The current candidate adds an eight-page workspace: **Overview, Processes, Network, Storage, Alerts, Themes, Profiles and Hardware**. Public authority remains the immutable v1.5.0 release until the v1.6 publication gates are recorded as closed.
 
-R37 adds:
-- a seven-page **Performance Workspace** for Overview, Processes, Network, Storage, Alerts, Themes and Profiles
-- **20 original Studio themes**, increasing the renderer-backed built-in catalog from 28 to **48 themes**
-- bounded interactive session charts with min/max/average/P95 statistics plus CSV/PNG/JSON export
-- a read-only process table with CPU, memory, thread and handle visibility
-- per-adapter network throughput/link utilization and optional **90-day local traffic history**, disabled by default
-- sustained CPU/RAM/GPU/disk-capacity alerts with dwell, cooldown, quiet hours and global snooze
-- theme search/filter/favorites plus production-renderer preview
-- presentation-only profiles and taskbar metric reordering with a strict import allowlist
+**48 built-in themes** include twenty original Studio designs. An identical-palette/font/data rendering test produces twenty distinct geometry fingerprints. Search, favorites, light/dark filters and the actual taskbar renderer are available in Theme Studio.
 
-### v1.6.0 local candidate validation
+The workspace provides bounded session charts, min/max/average/P95, CSV/PNG/JSON exports, read-only process inspection, per-adapter network traffic, opt-in 90-day local accounting, sustained usage/capacity alerts, quiet hours/snooze, safe presentation profiles, real taskbar metric ordering, and exportable hardware inventory from the existing isolated sensor snapshot. No cloud upload is introduced and traffic persistence defaults off.
 
-- Main/Broker/Supervisor/Setup build: **0 warnings / 0 errors**
-- canonical text payload and windowless sensor PE gates: **PASS**
-- reproducible build gate: **PASS**
-- legacy + feature + v1.6 workspace self-tests: **PASS**
-- full regression suite: **15/15 PASS with real process exit codes**
-- theme proof: **48/48**, 30 live samples, no synthetic metric data
-- workspace proof: **7/7 pages**
-- compact proof: **96 images** across 48 themes at 592/500 px
-- Settings proof: **9/9 pages**
-- shell/start/hardware/temperature/health/support proofs: **PASS**
-- sensor architecture unchanged: Broker 1.1.2+r21, Supervisor 1.3.0+r33
+### The twenty new themes — actual renderer captures
 
-Clean-clone determinism, exact-head CI, installed-runtime acceptance and immutable public publication remain release gates and are not claimed by this candidate section.
+![Studio themes 1–5](docs/screenshots/v1.6.0/studio-1.png)
+![Studio themes 6–10](docs/screenshots/v1.6.0/studio-2.png)
+![Studio themes 11–15](docs/screenshots/v1.6.0/studio-3.png)
+![Studio themes 16–20](docs/screenshots/v1.6.0/studio-4.png)
+
+### Current verification scope
+
+Application compilation and the legacy/feature/workspace contract suites passed after repairing migration, runtime connections, unavailable-data handling and source-integrity defects. A live-data UI proof passed **16 actual interface-action checks**, with **58 interactive controls / zero accessible-name gaps**, and rendered all eight pages at normal and minimum window sizes. New-theme primary text contrast is tested.
+
+The current release gates, exact revisions and failure history are tracked in [R37 verification](docs/project-control/R37_VERIFICATION.md). The [primary-source capability map](docs/project-control/R37_BENCHMARK.md) identifies implemented, partial and deferred comparisons; this product is not represented as a universal replacement for every specialist monitoring tool.
+
+Only fresh exact-revision determinism, CI/provenance, installed-runtime validation and published digest evidence can mark this candidate Released/Final. The old pre-integration seven-page proof and zero-length-theme source commit are not acceptance evidence for the current candidate.
 
 ## v1.5.0 — Actionable Alerts & Session Export
 

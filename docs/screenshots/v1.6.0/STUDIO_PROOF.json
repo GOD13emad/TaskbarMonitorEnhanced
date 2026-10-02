@@ -1,0 +1,51 @@
+{
+  "Version": "1.6.0",
+  "NoSyntheticMetricData": true,
+  "OriginalProofGenerated": "2026-10-03T00:01:39.8574358+03:30",
+  "Sheets": [
+    {
+      "File": "studio-1.png",
+      "SHA256": "41e9fc33d93e60ac3a54a7b38cdc14bfeff79a747d691e9a34bbcff3acf6a8b7",
+      "Themes": [
+        "Bauhaus Blocks",
+        "Swiss Grid",
+        "Art Deco Gold",
+        "E Ink Ledger",
+        "Noir Cinema"
+      ]
+    },
+    {
+      "File": "studio-2.png",
+      "SHA256": "6279d5b076772c5d9402238a73cd01478727d24d691f41eccea1eb25140442be",
+      "Themes": [
+        "Metro Signal",
+        "LCD Quartz",
+        "Oscilloscope Phosphor",
+        "Radar Vector",
+        "Aviation HUD"
+      ]
+    },
+    {
+      "File": "studio-3.png",
+      "SHA256": "a1a33267a5cf96277022ed8a0673418e918f946ebca775cc51b96c711dcc29c8",
+      "Themes": [
+        "Isometric Prism",
+        "Ribbon Flow",
+        "Circuit Trace",
+        "Dot Matrix",
+        "Topographic Moss"
+      ]
+    },
+    {
+      "File": "studio-4.png",
+      "SHA256": "2622ffce5e8db58d2f88bb2f00697e735ab85f48ae0982041265fad2b24b1cb7",
+      "Themes": [
+        "Memphis Pop",
+        "Origami Snow",
+        "Kintsugi Ink",
+        "Brutalist Concrete",
+        "Stained Glass"
+      ]
+    }
+  ]
+}

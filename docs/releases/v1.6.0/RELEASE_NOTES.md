@@ -4,7 +4,7 @@ v1.6.0 expands the v1.5.0 release with a desktop-grade monitoring workspace and 
 
 ## New monitoring workspace
 
-A new seven-page Performance Workspace is available from the taskbar menu:
+A new eight-page Performance Workspace is available from the taskbar menu:
 
 - **Overview** — bounded session charting for CPU, RAM, GPU, VRAM, network, disk rates and available temperatures; selectable history window; min/max/average/P95 statistics; CSV, PNG and JSON export.
 - **Processes** — read-only process inventory with filter/sort, normalized CPU, working/private memory, thread count and handle count, plus visible-row CSV export.
@@ -52,7 +52,7 @@ Release acceptance requires:
 - zero-warning application and setup builds,
 - legacy and v1.6 self-tests,
 - 48/48 theme proof,
-- 7/7 workspace-page proof,
+- 8/8 workspace-page proof,
 - clean-clone determinism,
 - full existing regression suite,
 - installed-runtime hash/behavior checks,
@@ -63,3 +63,13 @@ Release acceptance requires:
 Unchanged from v1.5.0:
 - Broker protocol: 1.1.2+r21
 - Sensor Supervisor: 1.3.0+r33
+
+## Hardware and independent interaction verification
+
+The Hardware page exposes existing CPU topology, cached clocks, RAM modules, GPU clocks/power/fans/PCIe, storage media and network inventory. Sensor availability remains explicit; it triggers no new privileged polling. Inventory can be filtered and exported as CSV/JSON.
+
+The workspace validation drives real UI buttons and checks the production renderer after theme selection, favorites, presets, ordering and bit-rate changes. Twenty Studio geometries are rendered with identical colors, fonts and metrics to prove they are not palette-only duplicates. Primary text contrast is tested across the new themes. These checks supplement, not replace, installed-runtime validation.
+
+## Scope limits
+
+This release is not a full replacement for Process Explorer's kernel handle/DLL inspection, HWiNFO's entire hardware-support matrix or TrafficMonitor's arbitrary executable plugin system. Those capabilities need separate engineering and validation. No universal product-superiority claim is made.

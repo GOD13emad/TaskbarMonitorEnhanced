@@ -5,7 +5,7 @@ v1.6.0 adds a full Performance Workspace, 20 original Studio themes (48 built-in
 Key points:
 - CPU, RAM, disk, network, GPU, VRAM and temperature monitoring.
 - 48 built-in themes, including 20 new Studio designs with distinct renderer geometry.
-- Seven-page Performance Workspace: Overview, Processes, Network, Storage, Alerts, Themes and Profiles.
+- Eight-page Performance Workspace: Overview, Processes, Network, Storage, Alerts, Themes, Profiles and Hardware.
 - Bounded session history with interactive charts, statistics JSON, chart PNG and CSV exports.
 - Read-only process table with CPU, memory, thread and handle visibility.
 - Per-adapter network view and optional 90-day local traffic accounting; persistence is off by default.
