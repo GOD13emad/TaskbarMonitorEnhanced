@@ -220,8 +220,8 @@ internal static class SetupProgram
         string sensorMode=sensorOutcome==null?"":(sensorOutcome.LayerMode??"");
         string json="{\r\n"+
           "  \"App\": \"Taskbar Monitor Enhanced\",\r\n"+
-          "  \"Version\": \"1.4.0\",\r\n"+
-          "  \"PublicVersion\": \"1.4.0\",\r\n"+
+          "  \"Version\": \"1.5.0\",\r\n"+
+          "  \"PublicVersion\": \"1.5.0\",\r\n"+
           "  \"InternalRuntimeBaseline\": \"V1_1_2_R21_PRODUCTION_HARDENING\",\r\n"+
           "  \"SensorSupervisor\": \"V1_3_0_R33_STORAGE_COMPLETION_HARDENING\",\r\n"+
           "  \"SensorLayerStatus\": \""+sensorStatus.Replace("\\","\\\\").Replace("\"","\\\"")+"\",\r\n"+

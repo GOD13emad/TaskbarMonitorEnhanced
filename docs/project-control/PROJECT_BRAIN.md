@@ -936,3 +936,5 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Exact next action: commit R36 candidate, rerun clean-clone determinism on that exact commit, then continue through runtime/release gates.
 
 - R36 determinism defect: Setup-only mismatch traced to missing EOL policy for installer/setup.manifest; minimum fix is LF pin in .gitattributes. Status: fix applied, exact-commit regression pending.
+
+- R36 live-install gate: FAIL due stale install_state Version/PublicVersion=1.4.0 despite deployed Main 1.5.0. Root cause confirmed as two installer hardcodes; narrow fix applied. Rebuild/determinism/reinstall pending.
