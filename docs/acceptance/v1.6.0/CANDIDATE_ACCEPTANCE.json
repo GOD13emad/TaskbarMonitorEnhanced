@@ -1,0 +1,84 @@
+{
+  "SchemaVersion": 1,
+  "Release": "v1.6.0",
+  "Revision": "R37",
+  "Status": "LOCAL_CANDIDATE_PASS_CI_INSTALL_PUBLICATION_PENDING",
+  "RecordedAtUtc": "2026-10-02T19:55:00Z",
+  "BuildIdentity": "V1_6_0_R37_WORKSPACE_THEME_STUDIO",
+  "PreCandidateHead": "7402249276ef3b7fb87fa6cad4a26652d7f57db4",
+  "Branch": "feature/v1.6.0-workspace-theme-studio",
+  "Acceptance": {
+    "Build": "PASS_0_WARNINGS_0_ERRORS",
+    "ReproducibleBuild": "PASS",
+    "SetupVerify": "PASS_24_RESOURCES",
+    "LegacySelfTest": "PASS",
+    "FeatureContractSelfTest": "PASS",
+    "WorkspaceSelfTest": "PASS_THEMES_48_STUDIO_20_SCHEMA_7",
+    "RegressionSuite": "PASS_15_OF_15_REAL_PROCESS_EXIT_CODES",
+    "ThemeProof": "PASS_48_OF_48_LIVE_SAMPLES_NO_SYNTHETIC",
+    "WorkspaceProof": "PASS_7_OF_7",
+    "CompactProof": "PASS_96_IMAGES_48_THEMES_592_500",
+    "SettingsProof": "PASS_9_OF_9",
+    "StartupContract": "PASS",
+    "HoverGuard": "PASS",
+    "StartProbe": "PASS",
+    "ShellState": "PASS",
+    "Hardware": "PASS",
+    "Temperature": "PASS",
+    "Health": "PASS_STABLE",
+    "SupportBundle": "PASS_PRIVACY_MANIFEST",
+    "DeterministicCleanClone": "PENDING_EXACT_COMMIT",
+    "ExactHeadCI": "PENDING",
+    "InstalledRuntime": "PENDING",
+    "PublicRelease": "PENDING"
+  },
+  "Evidence": {
+    "FullBuildOperation": "b8afdb36-1026-43b0-afd2-d68da9263b91",
+    "RegressionOperation": "14a4c0cc-4d73-440c-9c54-412b03d530fa",
+    "RegressionSummary": ".local/v1.6.0/regression3/SUMMARY.json",
+    "ThemeManifest": ".local/v1.6.0/regression3/themes/THEME_PROOF_MANIFEST.json",
+    "WorkspaceManifest": ".local/v1.6.0/regression3/workspace/WORKSPACE_PROOF_MANIFEST.json"
+  },
+  "Hashes": {
+    "Main": "5ECE8EA77F51D9630702DEB0517683A4A4A667A630373FA4FF14FAC90C88E9FC",
+    "RuntimeConfig": "D2E51872D93F0793C02AD07DCBF8C2802F59708C666548372A4FDDDA5C7C5E4F",
+    "Broker": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833",
+    "Supervisor": "0E28911AACDE0C3B1C6997C8BC6FF141C0FAA650B58438A9991CB3AD6C13C785",
+    "SetupPreCommit": "5722E8B7A184C40EB1967B0ECA6AF588E37A15D890DC2E358792BC7C920095F0"
+  },
+  "SensorLayer": {
+    "Changed": false,
+    "BrokerProtocolVersion": "1.1.2+r21",
+    "SupervisorVersion": "1.3.0+r33"
+  },
+  "Failures": [
+    {
+      "Id": "R37-F1",
+      "Class": "PROOF_HARNESS_COMPILE",
+      "RootCause": "proof helper omitted",
+      "Resolution": "proof-only helper added",
+      "Regression": "build PASS"
+    },
+    {
+      "Id": "R37-F2",
+      "Class": "BUILD_SCRIPT",
+      "RootCause": "malformed Join-Path expressions for four new canonical source resources",
+      "Resolution": "direct canonical paths",
+      "Regression": "full reproducible build PASS"
+    },
+    {
+      "Id": "R37-F3",
+      "Class": "TEST_HARNESS",
+      "RootCause": "null Trim and PowerShell automatic $args collision produced invalid summary behavior",
+      "Resolution": "null-safe output and $arguments parameter",
+      "Regression": "fresh regression3 15/15 PASS"
+    }
+  ],
+  "OpenGates": [
+    "EXACT_CANDIDATE_COMMIT",
+    "CLEAN_CLONE_DETERMINISM",
+    "EXACT_HEAD_GITHUB_CI",
+    "LIVE_UPGRADE_AND_INSTALLED_RUNTIME",
+    "IMMUTABLE_RELEASE_DIGEST_VERIFICATION"
+  ]
+}

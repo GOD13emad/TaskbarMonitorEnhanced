@@ -33,18 +33,18 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Live system monitor integrated into the Windows taskbar")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.5.0+r36")]
+[assembly: AssemblyInformationalVersion("1.6.0+r37")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.5.0.0")]
-[assembly: AssemblyFileVersion("1.5.0.0")]
+[assembly: AssemblyVersion("1.6.0.0")]
+[assembly: AssemblyFileVersion("1.6.0.0")]
 
 namespace TaskbarMonitorEnhanced
 {
     internal static class BuildInfo
     {
-        public const string Version = "V1_5_0_R36_ACTIONABLE_ALERTS_SESSION_EXPORT";
+        public const string Version = "V1_6_0_R37_WORKSPACE_THEME_STUDIO";
         public const string Product = "Taskbar Monitor Enhanced";
-        public const string PublicVersion = "1.5.0";
+        public const string PublicVersion = "1.6.0";
         public const string ShortcutName = "Taskbar Monitor Enhanced";
         public const string ProductDescription = "Live system monitor integrated into the Windows taskbar";
         public const string Author = "Dr. Ali-Akbar Emadeddin";
@@ -360,7 +360,7 @@ namespace TaskbarMonitorEnhanced
         }
     }
 
-    public sealed class AppConfig
+    public sealed partial class AppConfig
     {
         public string Theme { get; set; }
         public string Position { get; set; }
@@ -450,11 +450,13 @@ namespace TaskbarMonitorEnhanced
             EnableTemperatureAlerts = true; EnableTemperatureNotifications = false; CpuTempWarningC = 85; GpuTempWarningC = 85; DiskTempWarningC = 60;
             AdaptiveBatteryMode = true; BatteryUpdateIntervalMs = 3000; SparklineHistoryLength = 120;
             FollowWindowsTheme=false;WindowsLightTheme="Nordic Light";WindowsDarkTheme="Dark Minimal Pro";TaskbarDisplay="Primary";
-            ConfigSchemaVersion = 6;
+            InitializeWorkspaceDefaults();
+            ConfigSchemaVersion = 7;
         }
 
         public void Normalize()
         {
+            NormalizeWorkspace();
             if (String.IsNullOrWhiteSpace(Theme) || String.Equals(Theme, "Auto", StringComparison.OrdinalIgnoreCase)) Theme = "Dark Minimal Pro";
             if (!ThemeCatalog.Names.Contains(Theme)) Theme = "Dark Minimal Pro";
             if (String.IsNullOrWhiteSpace(Position) || (Position != "Left" && Position != "Center" && Position != "Right")) Position = "Left";
@@ -635,6 +637,13 @@ namespace TaskbarMonitorEnhanced
             {"Monochrome Paper", new ThemeDefinition("Monochrome Paper", Color.FromArgb(247,247,244), Color.FromArgb(231,231,226), Color.FromArgb(30,31,33), Color.FromArgb(92,94,98), Color.FromArgb(185,186,181), new Color[]{Color.FromArgb(40,42,45),Color.FromArgb(91,94,99),Color.FromArgb(49,91,129),Color.FromArgb(54,105,76),Color.FromArgb(126,83,60),Color.FromArgb(99,72,125)}, "paper", "Segoe UI", true)}
         };
 
+        static ThemeCatalog()
+        {
+            ThemeDefinition[] studio=StudioThemes.Create();
+            foreach(ThemeDefinition theme in studio)Themes.Add(theme.Name,theme);
+            Names=Names.Concat(studio.Select(theme=>theme.Name)).ToArray();
+        }
+
         public static ThemeDefinition Get(string name)
         {
             ThemeDefinition t;
@@ -721,7 +730,7 @@ namespace TaskbarMonitorEnhanced
 
     internal sealed class NetworkDeviceSnapshot
     {
-        public string Id,Name,Description; public double DownBytesPerSec,UpBytesPerSec; public long LinkSpeedBitsPerSec; public bool Active;
+        public string Id,Name,Description; public double DownBytesPerSec,UpBytesPerSec; public long LinkSpeedBitsPerSec,ReceivedBytesTotal,SentBytesTotal; public bool Active,CountersAvailable;
     }
 
     internal sealed class MetricsSnapshot
@@ -997,7 +1006,7 @@ namespace TaskbarMonitorEnhanced
         public float? CpuTempC,GpuTempC,DiskTempC;
     }
 
-    internal static class SessionTelemetryHistory
+    internal static partial class SessionTelemetryHistory
     {
         internal const int MaxSamples=3600;
         private static readonly object Sync=new object();
@@ -3041,7 +3050,7 @@ namespace TaskbarMonitorEnhanced
         private void CaptureNetworkBaseline()
         {
             previousRx.Clear();previousTx.Clear();RefreshNetworkTopologyIfDue(true);
-            foreach(NetworkInterface n in networkInterfaces)try{IPv4InterfaceStatistics st=n.GetIPv4Statistics();previousRx[n.Id]=st.BytesReceived;previousTx[n.Id]=st.BytesSent;}catch{}
+            foreach(NetworkInterface n in networkInterfaces)try{IPInterfaceStatistics st=n.GetIPStatistics();previousRx[n.Id]=st.BytesReceived;previousTx[n.Id]=st.BytesSent;}catch{}
             previousNetAt=DateTime.UtcNow;
         }
 
@@ -3053,8 +3062,8 @@ namespace TaskbarMonitorEnhanced
             {
                 try
                 {
-                    if(n.OperationalStatus!=OperationalStatus.Up||n.NetworkInterfaceType==NetworkInterfaceType.Loopback)continue;IPv4InterfaceStatistics st=n.GetIPv4Statistics();long prx,ptx;long drx=previousRx.TryGetValue(n.Id,out prx)?Math.Max(0,st.BytesReceived-prx):0;long dtx=previousTx.TryGetValue(n.Id,out ptx)?Math.Max(0,st.BytesSent-ptx):0;previousRx[n.Id]=st.BytesReceived;previousTx[n.Id]=st.BytesSent;
-                    NetworkDeviceSnapshot d=new NetworkDeviceSnapshot();d.Id=n.Id;d.Name=n.Name;d.Description=n.Description;d.Active=true;try{d.LinkSpeedBitsPerSec=n.Speed;}catch{}d.DownBytesPerSec=drx/sec;d.UpBytesPerSec=dtx/sec;list.Add(d);rxAll+=d.DownBytesPerSec;txAll+=d.UpBytesPerSec;
+                    if(n.OperationalStatus!=OperationalStatus.Up||n.NetworkInterfaceType==NetworkInterfaceType.Loopback)continue;IPInterfaceStatistics st=n.GetIPStatistics();long prx,ptx;long drx=previousRx.TryGetValue(n.Id,out prx)?Math.Max(0,st.BytesReceived-prx):0;long dtx=previousTx.TryGetValue(n.Id,out ptx)?Math.Max(0,st.BytesSent-ptx):0;previousRx[n.Id]=st.BytesReceived;previousTx[n.Id]=st.BytesSent;
+                    NetworkDeviceSnapshot d=new NetworkDeviceSnapshot();d.Id=n.Id;d.Name=n.Name;d.Description=n.Description;d.Active=true;d.CountersAvailable=true;d.ReceivedBytesTotal=st.BytesReceived;d.SentBytesTotal=st.BytesSent;try{d.LinkSpeedBitsPerSec=n.Speed;}catch{}d.DownBytesPerSec=drx/sec;d.UpBytesPerSec=dtx/sec;list.Add(d);rxAll+=d.DownBytesPerSec;txAll+=d.UpBytesPerSec;
                 }catch{}
             }
             previousNetAt=now;s.NetworkDevices=list;s.NetDownBytesPerSec=rxAll;s.NetUpBytesPerSec=txAll;s.NetDownMbps=(float)(rxAll*8d/1000000d);s.NetUpMbps=(float)(txAll*8d/1000000d);
@@ -3835,7 +3844,7 @@ namespace TaskbarMonitorEnhanced
         }
     }
 
-    internal sealed class OverlayForm : Form
+    internal sealed partial class OverlayForm : Form
     {
         private readonly AppConfig config;
         private readonly MetricsEngine engine;
@@ -4290,6 +4299,7 @@ namespace TaskbarMonitorEnhanced
         private ContextMenuStrip BuildMenu()
         {
             ContextMenuStrip m=new ContextMenuStrip();
+            AddWorkspaceMenu(m);
             ToolStripMenuItem themes=new ToolStripMenuItem("Themes");
             foreach(string n in ThemeCatalog.Names)
             {
@@ -4473,13 +4483,14 @@ namespace TaskbarMonitorEnhanced
             foreach(DiskDeviceSnapshot d in snapshot.DiskDevices)history.Add("DISK:"+d.Id,(float)((d.ReadBytesPerSec+d.WriteBytesPerSec)/(1024d*1024d)));
             foreach(NetworkDeviceSnapshot d in snapshot.NetworkDevices)history.Add("NET:"+d.Id,(float)((d.DownBytesPerSec+d.UpBytesPerSec)*8d/1000000d));
             SessionTelemetryHistory.Add(snapshot);
+            CommitWorkspaceSample();
             EvaluateTemperatureNotifications();
         }
 
         private void EvaluateTemperatureNotifications()
         {
             if(proofMode||trayIcon==null)return;
-            if(!config.EnableTemperatureNotifications){temperatureNotificationState.Reset();return;}
+            if(!config.EnableTemperatureNotifications||NotificationsMuted()){temperatureNotificationState.Reset();return;}
             DateTime now=DateTime.UtcNow;
 
             List<CpuDeviceSnapshot> cpus=SelectedCpuDevices();
@@ -4505,6 +4516,7 @@ namespace TaskbarMonitorEnhanced
         {
             if(!temperatureNotificationState.ShouldNotify(lane,available,value,threshold,nowUtc))return;
             string body=lane+" temperature reached "+value.ToString("0.0",CultureInfo.InvariantCulture)+" C (warning "+threshold.ToString("0",CultureInfo.InvariantCulture)+" C).";
+            RecordAlert(lane+" temperature",body);
             try{trayIcon.ShowBalloonTip(10000,"Taskbar Monitor Enhanced - temperature warning",body,ToolTipIcon.Warning);Log.Write("WARN","TEMPERATURE_NOTIFICATION lane="+lane+" valueC="+value.ToString("0.0",CultureInfo.InvariantCulture)+" thresholdC="+threshold.ToString("0",CultureInfo.InvariantCulture));}
             catch(Exception ex){Log.Write("WARN","TEMPERATURE_NOTIFICATION_FAIL lane="+lane+" "+ex.Message);}
         }
@@ -5900,6 +5912,7 @@ namespace TaskbarMonitorEnhanced
             if(t.Mode=="neon")using(Pen p=new Pen(Color.FromArgb(150,t.Border),1))g.DrawLine(p,0,0,r.Width,0);
             if(t.Mode=="terminal")using(Pen p=new Pen(Color.FromArgb(35,t.Foreground),1)){for(int y=3;y<r.Height;y+=4)g.DrawLine(p,0,y,r.Width,y);}
             if(IsExtendedThemeMode(t.Mode))PaintExtendedBackground(g,t,r);
+            if(StudioThemes.IsStudio(t.Mode))PaintStudioBackground(g,t,r);
         }
 
         private void PaintMetric(Graphics g,ThemeDefinition t,MetricView m,RectangleF r,int index)
@@ -5930,7 +5943,8 @@ namespace TaskbarMonitorEnhanced
             Font valueFont=SafeFont(t.FontName,(t.Mode=="terminal"?8.8f:10.1f)*baseScale,FontStyle.Bold);
             try
             {
-                if(t.Mode=="hex") PaintHexMetric(g,t,m,inner,labelFont,valueFont);
+                if(StudioThemes.IsStudio(t.Mode)) PaintStudioMetric(g,t,m,inner,labelFont,valueFont);
+                else if(t.Mode=="hex") PaintHexMetric(g,t,m,inner,labelFont,valueFont);
                 else if(IsExtendedThemeMode(t.Mode)) PaintExtendedMetric(g,t,m,inner,labelFont,valueFont);
                 else if(t.Mode=="terminal") PaintTerminalMetric(g,t,m,inner,labelFont,valueFont);
                 else PaintStandardMetric(g,t,m,inner,labelFont,valueFont);
@@ -8493,7 +8507,7 @@ namespace TaskbarMonitorEnhanced
         {
             try
             {
-                if(ThemeCatalog.Names.Length!=28)throw new Exception("theme count");
+                if(ThemeCatalog.Names.Length!=48)throw new Exception("theme count"); if(ThemeCatalog.Names.Count(n=>StudioThemes.IsStudio(ThemeCatalog.Get(n).Mode))!=20)throw new Exception("studio theme count");
                 string[] expected=new string[]{"Dark Minimal Pro","Glass Morphism","Neon Cyberpunk","Sleek White","Round Compact","Honeycomb Tech","Retro Terminal","Fluent Glass","OLED Mono","Cyber Neon","Mission Control","Blueprint Tech","Medical Telemetry","Carbon Racing","Aurora Borealis","Solarized Luxe","Arctic Frost","Sakura Night","Matrix Grid","Desert Sand","Royal Amethyst","Ocean Depth","Copper Industrial","Nordic Light","Ember Forge","Synthwave Sunset","Quantum Violet","Monochrome Paper"};
                 string[] expectedModes=new string[]{"minimal","glass","neon","white","round","hex","terminal","fluent","oled","cyber2","mission","blueprint","medical","carbon","aurora","luxe","zen","synth","matrix","paper","luxe","aurora","industrial","zen","industrial","synth","synth","paper"};
                 for(int i=0;i<expected.Length;i++){if(ThemeCatalog.Names[i]!=expected[i])throw new Exception("theme name " + i);if(ThemeCatalog.Get(expected[i]).Mode!=expectedModes[i])throw new Exception("theme mode " + i);}
@@ -8570,10 +8584,10 @@ namespace TaskbarMonitorEnhanced
                         throw new Exception("sensor selfheal missing state");
                 }
                 finally{try{Directory.Delete(healDir,true);}catch{}}
-                Console.WriteLine("TBME_V1_5_0_R36_SELFTEST=PASS PUBLIC_VERSION=1.5.0 TEMPERATURE_NOTIFICATIONS=TRUE SESSION_CSV_EXPORT=TRUE TASK_MANAGER_ACTION=TRUE PER_MONITOR_V2=TRUE ACCESSIBILITY_METADATA=TRUE HIGH_CONTRAST=TRUE WINDOWS_THEME_FOLLOW=TRUE MULTI_MONITOR_TASKBAR_TARGET=TRUE UPDATE_CANONICAL_IDENTITY=TRUE UPDATE_PRELAUNCH_REHASH=TRUE DLL_SEARCH_HARDENING=TRUE CRASH_SNAPSHOT_PRIVACY=TRUE REAL_THEME_PREVIEW=TRUE THEME_PREVIEW_ACTUAL_RENDERER=TRUE STARTUP_DUAL_REGISTRATION=TRUE STARTUP_RECOVERY_DELAY_SEC=12 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE CPU_HARD_STALL_WATCHDOG_SEC=60 CPU_SUPERVISOR_STARTUP_GRACE_SEC=60 THEMES=28 WIDTH=1100 HISTORY=120 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE SENSOR_SUPERVISOR_AUTOHEAL=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE ALERTS_CPU_GPU_DISK=TRUE ALERT_VISUAL_HOTSTATE=TRUE ADAPTIVE_BATTERY=TRUE SESSION_PAUSE=TRUE CONFIGURABLE_HISTORY=TRUE COPY_DIAGNOSTICS=TRUE SUPPORT_ZIP=TRUE SAFE_RESET=TRUE HEALTH_BADGE=TRUE SETTINGS_PAGES=9 CREATEPARAMS_NOACTIVATE=TRUE");
+                Console.WriteLine("TBME_V1_6_0_R37_SELFTEST=PASS PUBLIC_VERSION=1.6.0 TEMPERATURE_NOTIFICATIONS=TRUE SESSION_CSV_EXPORT=TRUE TASK_MANAGER_ACTION=TRUE PER_MONITOR_V2=TRUE ACCESSIBILITY_METADATA=TRUE HIGH_CONTRAST=TRUE WINDOWS_THEME_FOLLOW=TRUE MULTI_MONITOR_TASKBAR_TARGET=TRUE UPDATE_CANONICAL_IDENTITY=TRUE UPDATE_PRELAUNCH_REHASH=TRUE DLL_SEARCH_HARDENING=TRUE CRASH_SNAPSHOT_PRIVACY=TRUE REAL_THEME_PREVIEW=TRUE THEME_PREVIEW_ACTUAL_RENDERER=TRUE STARTUP_DUAL_REGISTRATION=TRUE STARTUP_RECOVERY_DELAY_SEC=12 MULTI_HARDWARE=TRUE OVERALL_AUTO_SINGLE_MULTIPLE=TRUE UNIT_KB_MB_GB=TRUE NUMERIC_RAM_STORAGE=TRUE UPWARD_HOVER_FLYOUT=TRUE HOVER_DETAILS_SINGLE_OR_MULTI=TRUE HARDWARE_SELECTION=TRUE DISK_RW_SPEED=TRUE DISK_TEMPERATURE=TRUE DISK_CAPACITY_IN_HOVER=TRUE IN_APP_GITHUB_UPDATE=TRUE UPDATE_SHA256_DIGEST_GATE=TRUE UPDATE_EXACT_ASSET_MATCH=TRUE UPDATE_STRICT_SHA256_64HEX=TRUE WINDOWS_WDDM_GPU_FALLBACK=TRUE PRODUCT_IDENTITY_LOCKED=TRUE AUTHOR_IDENTITY_LOCKED=TRUE GPL3_ATTRIBUTION_LOCKED=TRUE AI_DISCLOSURE_DOCUMENTED=TRUE SHORTCUT_NAME_LOCKED=TRUE NVIDIA_SMI_TIMEOUT_SAFE=TRUE REDIRECTED_IO_ORDER_SAFE=TRUE BROKER_WATCHDOG_HARDENED=TRUE BROKER_FRESHNESS_15S=TRUE CPU_HARD_STALL_WATCHDOG_SEC=60 CPU_SUPERVISOR_STARTUP_GRACE_SEC=60 THEMES=48 STUDIO_THEMES=20 WIDTH=1100 HISTORY=120 HEADLINE_LABEL_VALUE_INLINE=TRUE CPU_TEMP_CURRENT=TRUE GPU_TEMP_AVG_MAX=TRUE AMD_INTEL_LHM_GPU_FALLBACK=ISOLATED LHM_ELEVATED_BROKER=TRUE LHM_DIRECT_FALLBACK=FALSE LHM_IN_UI_PROCESS=FALSE LHM_CPU_GPU_STORAGE_PROCESS_ISOLATION=TRUE CPU_USAGE_GETSYSTEMTIMES=TRUE CPU_TOPOLOGY_CACHE_MIN=5 NETWORK_TOPOLOGY_CACHE_SEC=30 DISK_TOPOLOGY_CACHE_MIN=5 RAM_TOPOLOGY_CACHE_MIN=10 RESUME_STATIC_TOPOLOGY_INVALIDATION=TRUE GPU_WDDM_ON_DEMAND=TRUE CPU_TEMP_FRESHNESS_SEC=15 CPU_TEMP_FALLBACK_THROTTLE_SEC=15 CPU_BROKER_SHARED_READ=TRUE ATOMIC_CONFIG_BACKUP=TRUE LOG_RETENTION_30D=TRUE SENSOR_LOG_ROTATION_4MB=TRUE HEALTH_RESILIENCE_STATE=TRUE KILL_ON_CLOSE_JOB_CONTAINMENT=TRUE SENSOR_SUPERVISOR_AUTOHEAL=TRUE OPTIONAL_POWER_FAN_TELEMETRY=TRUE BROKER_STALE_LOG_THROTTLE_SEC=30 METRIC_MIN_INTERVAL_MS=1000 POWER_AWARE_TELEMETRY=TRUE DIAGNOSTICS_TAB=TRUE SENSOR_REPAIR_UI=TRUE HEALTHPROBE_CLI=TRUE IMMUTABLE_RELEASE_UPDATE_GATE=TRUE NETWORK_RENDERER_THEME_CONSISTENT=TRUE RIGHTCLICK_BRIDGE=FALSE DIRECT_MOUSE_INTERACTION=TRUE NOACTIVATE_MOUSE=TRUE RECOVERY_HOST_CONTEXT=TRUE ACTIVE_VISUAL_BEACON=TRUE TEMP_PROBE=TRUE ADAPTIVE_SAFE_PLACEMENT=TRUE AMD_INTEL_GPU_FALLBACK=TRUE AMD_ADLX_GPU_TEMP_FALLBACK=TRUE COMPACT_READABLE_STACK=TRUE COMPACT_NET_LABEL_ELISION=TRUE COMPACT_PROOF=TRUE STABLE_PLACEMENT_LOCK=TRUE START_TRANSIENT_FREEZE=TRUE STYLE_SELF_HEAL=LOW_PRESSURE_5S WATCHDOG_MS=500 HOST_POLL_MS=1000 UIA_SAFE_PLACEMENT=EVENT_DRIVEN SETTINGS_SINGLE_INSTANCE=TRUE ALERTS_CPU_GPU_DISK=TRUE ALERT_VISUAL_HOTSTATE=TRUE ADAPTIVE_BATTERY=TRUE SESSION_PAUSE=TRUE CONFIGURABLE_HISTORY=TRUE COPY_DIAGNOSTICS=TRUE SUPPORT_ZIP=TRUE SAFE_RESET=TRUE HEALTH_BADGE=TRUE SETTINGS_PAGES=9 CREATEPARAMS_NOACTIVATE=TRUE");
                 return 0;
             }
-            catch(Exception ex){Console.Error.WriteLine("TBME_V1_5_0_R36_SELFTEST=FAIL " + ex);return 2;}
+            catch(Exception ex){Console.Error.WriteLine("TBME_V1_6_0_R37_SELFTEST=FAIL " + ex);return 2;}
         }
 
         public static int RunJson(string outputPath)
@@ -8831,6 +8845,8 @@ namespace TaskbarMonitorEnhanced
         private static int Main(string[] args)
         {
             Native.EnableDllSearchHardening();
+            if(args!=null && args.Length>0 && args[0]=="--workspace-selftest")return WorkspaceSelfTest.Run();
+            if(args!=null && args.Length>1 && args[0]=="--workspace-proof")return WorkspaceProof.Run(args[1]);
             if(args!=null && args.Length>0 && args[0]=="--selftest")return SelfTest.Run();
             if(args!=null && args.Length>0 && args[0]=="--selftestjson")
             {
