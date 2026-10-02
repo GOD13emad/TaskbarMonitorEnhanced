@@ -21,7 +21,7 @@ New controls:
 - Live Diagnostics health badge.
 - A dedicated Alerts Settings page.
 
-The protected sensor compatibility identity remains `1.1.2+r21`.
+The protected sensor architecture remains R21 process-isolated. Broker protocol compatibility remains `1.1.2+r21`, while the upgraded Sensor Supervisor build is `1.3.0+r33` and is verified independently during installation.
 
 ## Install and uninstall
 

@@ -1,6 +1,6 @@
 # Taskbar Monitor Enhanced v1.3.0 — Reliability, Alerts & Support Tools
 
-v1.3.0 is a reliability-and-operations feature release built from the immutable v1.2.0 public baseline while retaining the accepted protected sensor compatibility layer `1.1.2+r21`.
+v1.3.0 is a reliability-and-operations feature release built from the immutable v1.2.0 public baseline. It retains the accepted R21 process-isolated sensor architecture and broker protocol `1.1.2+r21`, while upgrading the Sensor Supervisor build to `1.3.0+r33` for Storage completion hardening.
 
 ## Reliability fixes
 
@@ -48,6 +48,7 @@ Additional UX improvement:
 
 - Main UI remains non-elevated.
 - CPU/GPU/storage native sensing remains isolated in protected worker processes.
+- Broker protocol compatibility remains `1.1.2+r21`; the Supervisor build identity is `1.3.0+r33` and is verified independently by Setup/readiness gates.
 - Existing 28 themes, compact-layout safeguards, taskbar parenting, hover behavior, immutable-update gates, deterministic build, SBOM and provenance controls remain in regression scope.
 - v1.2.0 and all earlier public tags/assets remain immutable.
 

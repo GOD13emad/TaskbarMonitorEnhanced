@@ -8,7 +8,7 @@ This source tree targets the v1.3.0 reliability/alerts/support candidate identit
 
 ## Protected sensor baseline
 
-The installer source targets v1.3.0. The protected sensor layer retains the accepted internal compatibility identity `1.1.2+r21` when its exact compatibility gate passes; v1.3.0 updates the main application/reliability/UI layer without replacing that validated sensor layer.
+The installer source targets v1.3.0. The protected R21 process-isolated architecture and Broker protocol `1.1.2+r21` are retained, while the Sensor Supervisor is upgraded to build identity `1.3.0+r33` for Storage completion hardening. Reuse is allowed only when exact payload hashes, both identities, and live health all match the candidate.
 
 Installer behavior includes:
 

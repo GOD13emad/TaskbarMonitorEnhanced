@@ -285,6 +285,7 @@ if($taskInstalled -and -not$rebootRequired){
                     $stateTs=[datetime]::Parse([string]$state.TimestampUtc,[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::AssumeUniversal).ToUniversalTime()
                     $stateAge=([datetime]::UtcNow-$stateTs).TotalSeconds
                     $version=[string]$state.BrokerVersion
+                    $supervisorVersion=[string]$state.SupervisorVersion
                     $CpuTransportHealthy=[bool]$state.CpuTransportHealthy
                     $GpuTransportHealthy=[bool]$state.GpuTransportHealthy
                     $StorageTransportHealthy=[bool]$state.StorageTransportHealthy
@@ -297,6 +298,7 @@ if($taskInstalled -and -not$rebootRequired){
                     $SupervisorHealthy=(
                         $stateAge -ge 0 -and $stateAge -lt 15 -and
                         $version -eq '1.1.2+r21' -and
+                        $supervisorVersion -eq '1.3.0+r33' -and
                         $JobContainmentHealthy -and
                         $CpuTransportHealthy -and $GpuTransportHealthy -and $StorageTransportHealthy
                     )
@@ -326,7 +328,7 @@ if($taskInstalled -and -not$rebootRequired){
             }catch{}
 
             if($SupervisorHealthy -and $healthy){
-                Write-Log ("R21_READY_MATCH cpu="+$currentC+" jobContainment="+$JobContainmentHealthy+" cpuTransport="+$CpuTransportHealthy+" gpuTransport="+$GpuTransportHealthy+" storageTransport="+$StorageTransportHealthy)
+                Write-Log ("R33_READY_MATCH supervisor="+$supervisorVersion+" brokerProtocol="+$version+" cpu="+$currentC+" jobContainment="+$JobContainmentHealthy+" cpuTransport="+$CpuTransportHealthy+" gpuTransport="+$GpuTransportHealthy+" storageTransport="+$StorageTransportHealthy)
                 break
             }
         }

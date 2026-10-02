@@ -10,9 +10,9 @@ using System.Threading;
 [assembly: AssemblyDescription("Failure-contained sensor worker supervisor for Taskbar Monitor Enhanced")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.1.2+r21")]
-[assembly: AssemblyVersion("1.1.2.0")]
-[assembly: AssemblyFileVersion("1.1.2.0")]
+[assembly: AssemblyInformationalVersion("1.3.0+r33")]
+[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyFileVersion("1.3.0.0")]
 
 internal static class TaskbarMonitorSensorSupervisor
 {
@@ -260,6 +260,8 @@ internal static class TaskbarMonitorSensorSupervisor
     const int StorageOutputExitGraceSeconds=3;
     const long MaxSensorLogBytes=4L*1024L*1024L;
     const int SensorLogBackups=3;
+    const string SupervisorVersion="1.3.0+r33";
+    const string BrokerProtocolVersion="1.1.2+r21";
 
     sealed class Worker
     {
@@ -436,7 +438,8 @@ internal static class TaskbarMonitorSensorSupervisor
                 "\"StorageLastFailureUtc\":\""+(StorageLastFailureUtc==DateTime.MinValue?"":StorageLastFailureUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
                 "\"StorageLastFailureReason\":\""+JsonEscape(StorageLastFailureReason)+"\","+
                 "\"StorageLastRecoveryUtc\":\""+(StorageLastRecoveryUtc==DateTime.MinValue?"":StorageLastRecoveryUtc.ToString("o",CultureInfo.InvariantCulture))+"\","+
-                "\"BrokerVersion\":\"1.1.2+r21\""+
+                "\"SupervisorVersion\":\""+SupervisorVersion+"\","+
+                "\"BrokerVersion\":\""+BrokerProtocolVersion+"\""+
                 "}";
             string tmp=StatePath+".tmp";
             File.WriteAllText(tmp,json);

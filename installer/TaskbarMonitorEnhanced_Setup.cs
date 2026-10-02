@@ -25,7 +25,8 @@ internal static class SetupProgram
 {
     const string Product="Taskbar Monitor Enhanced";
     const string Version="1.3.0";
-    const string SensorLayerVersion="1.1.2+r21";
+    const string SensorProtocolVersion="1.1.2+r21";
+    const string SensorSupervisorVersion="1.3.0+r33";
     const string Publisher="Dr. Ali-Akbar Emadeddin";
     const string AppFolder="TaskbarMonitorEnhanced";
     const string UninstallKey=@"Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced";
@@ -221,9 +222,11 @@ internal static class SetupProgram
           "  \"Version\": \"1.3.0\",\r\n"+
           "  \"PublicVersion\": \"1.3.0\",\r\n"+
           "  \"InternalRuntimeBaseline\": \"V1_1_2_R21_PRODUCTION_HARDENING\",\r\n"+
-          "  \"SensorSupervisor\": \"V1_1_2_R21_STAGGERED_HEALTH_SUPERVISOR\",\r\n"+
+          "  \"SensorSupervisor\": \"V1_3_0_R33_STORAGE_COMPLETION_HARDENING\",\r\n"+
           "  \"SensorLayerStatus\": \""+sensorStatus.Replace("\\","\\\\").Replace("\"","\\\"")+"\",\r\n"+
           "  \"SensorLayerVersion\": \""+sensorVersion.Replace("\\","\\\\").Replace("\"","\\\"")+"\",\r\n"+
+          "  \"SensorProtocolVersion\": \""+SensorProtocolVersion+"\",\r\n"+
+          "  \"SensorSupervisorVersion\": \""+SensorSupervisorVersion+"\",\r\n"+
           "  \"SensorLayerMode\": \""+sensorMode.Replace("\\","\\\\").Replace("\"","\\\"")+"\",\r\n"+
           "  \"MainLaunchMode\": \""+MainLaunchMode+"\",\r\n"+
           "  \"ProductIdentity\": \"LOCKED\",\r\n"+
@@ -261,7 +264,7 @@ internal static class SetupProgram
             outcome.IsHealthy=String.Equals(outcome.Status,"READY",StringComparison.OrdinalIgnoreCase);
             if(outcome.IsHealthy)
             {
-                outcome.LayerVersion=SensorLayerVersion;
+                outcome.LayerVersion=SensorSupervisorVersion;
                 outcome.LayerMode="INSTALLED_CURRENT";
             }
             if(String.IsNullOrEmpty(outcome.Status))outcome.Status="UNKNOWN";
@@ -321,7 +324,7 @@ internal static class SetupProgram
 
             string brokerSha=Sha256File(broker);
             string supervisorSha=Sha256File(supervisor);
-            string expectedVersion="";
+            string expectedProtocolVersion="";
             string mode="";
 
             string currentBrokerSha=Sha256Resource("Payload.TaskbarMonitorSensorBroker.exe");
@@ -329,8 +332,8 @@ internal static class SetupProgram
             if(String.Equals(brokerSha,currentBrokerSha,StringComparison.OrdinalIgnoreCase)&&
                String.Equals(supervisorSha,currentSupervisorSha,StringComparison.OrdinalIgnoreCase))
             {
-                expectedVersion=SensorLayerVersion;
-                mode="CURRENT_EXACT_1_1_2";
+                expectedProtocolVersion=SensorProtocolVersion;
+                mode="CURRENT_EXACT_R33";
             }
             else return false;
 
@@ -344,7 +347,8 @@ internal static class SetupProgram
                 return false;
             double age=(DateTime.UtcNow-ts).TotalSeconds;
             if(age<0||age>=CompatibleSensorStateFreshSeconds)return false;
-            if(!String.Equals(JsonString(json,"BrokerVersion"),expectedVersion,StringComparison.OrdinalIgnoreCase))return false;
+            if(!String.Equals(JsonString(json,"BrokerVersion"),expectedProtocolVersion,StringComparison.OrdinalIgnoreCase))return false;
+            if(!String.Equals(JsonString(json,"SupervisorVersion"),SensorSupervisorVersion,StringComparison.OrdinalIgnoreCase))return false;
 
             bool healthy=
                 JsonBool(json,"ChildJobKillOnClose")&&
@@ -357,9 +361,9 @@ internal static class SetupProgram
             outcome.Status="READY";
             outcome.IsHealthy=true;
             outcome.RebootRequired=false;
-            outcome.LayerVersion=expectedVersion;
+            outcome.LayerVersion=SensorSupervisorVersion;
             outcome.LayerMode=mode;
-            outcome.Message="Existing protected sensor layer "+expectedVersion+" passed exact-hash and live-health compatibility gates; Setup reused it without administrator changes.";
+            outcome.Message="Existing protected sensor supervisor "+SensorSupervisorVersion+" with broker protocol "+SensorProtocolVersion+" passed exact-hash and live-health gates; Setup reused it without administrator changes.";
             return true;
         }
         catch{return false;}
@@ -567,7 +571,7 @@ internal static class SetupProgram
                 }
             }
             if(!String.IsNullOrEmpty(path)){
-                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+",\"Version\":\"1.3.0\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\",\"SensorArchitecture\":\"R21_PROCESS_ISOLATED\",\"SensorUpgradePolicy\":\"REUSE_ACCEPTED_1_1_2_R21\"}";
+                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+",\"Version\":\"1.3.0\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\",\"SensorArchitecture\":\"R21_PROCESS_ISOLATED\",\"SensorUpgradePolicy\":\"EXACT_R33_SUPERVISOR_R21_PROTOCOL\"}";
                 File.WriteAllText(path,json,Encoding.UTF8);
             }
             return 0;

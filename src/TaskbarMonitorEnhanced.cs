@@ -6924,11 +6924,11 @@ namespace TaskbarMonitorEnhanced
                 }
                 else d["Fresh"]=freshnessSeconds<=0;
 
-                foreach(string key in new string[]{"Available","Error","BrokerPid","BrokerMode","BrokerVersion","Sequence","ReadDurationMs",
+                foreach(string key in new string[]{"Available","Error","BrokerPid","BrokerMode","BrokerVersion","SupervisorVersion","Sequence","ReadDurationMs",
                     "SupervisorStartedUtc","SupervisorUptimeSeconds","ChildJobKillOnClose","ChildJobLastError","CpuJobContained","GpuJobContained","StorageJobContained",
                     "CpuTransportHealthy","CpuDataAvailable","CpuRestartCount","CpuConsecutiveFailures","CpuLastReason","CpuWorkerStartedUtc","CpuWorkerAgeSeconds","CpuLastFailureUtc","CpuLastFailureReason","CpuLastRecoveryUtc",
                     "GpuTransportHealthy","GpuDataAvailable","GpuRestartCount","GpuConsecutiveFailures","GpuLastReason","GpuWorkerStartedUtc","GpuWorkerAgeSeconds","GpuLastFailureUtc","GpuLastFailureReason","GpuLastRecoveryUtc",
-                    "StorageTransportHealthy","StorageDataAvailable","StorageAttemptCount","StorageConsecutiveFailures","StorageLastReason","StorageWorkerStartedUtc","StorageWorkerAgeSeconds","StorageLastFailureUtc","StorageLastFailureReason","StorageLastRecoveryUtc"})
+                    "StorageTransportHealthy","StorageDataAvailable","StorageAttemptCount","StorageConsecutiveFailures","StorageTimeoutSeconds","StorageOutputExitGraceSeconds","StorageAcceptedBeforeExitCount","StorageReapCount","StorageLastCompletionMs","StorageLastReason","StorageWorkerStartedUtc","StorageWorkerAgeSeconds","StorageLastFailureUtc","StorageLastFailureReason","StorageLastRecoveryUtc"})
                 {
                     object v;if(root.TryGetValue(key,out v)&&v!=null)d[key]=v;
                 }
@@ -6992,7 +6992,9 @@ namespace TaskbarMonitorEnhanced
             Dictionary<string,object> gpu=ReadState(AppPaths.GpuBrokerData,20);
             Dictionary<string,object> storage=ReadState(AppPaths.StorageBrokerData,120);
             string brokerVersion=Convert.ToString(supervisor.ContainsKey("BrokerVersion")?supervisor["BrokerVersion"]:"",CultureInfo.InvariantCulture)??"";
+            string supervisorVersion=Convert.ToString(supervisor.ContainsKey("SupervisorVersion")?supervisor["SupervisorVersion"]:"",CultureInfo.InvariantCulture)??"";
             bool architectureR21=brokerVersion.IndexOf("r21",StringComparison.OrdinalIgnoreCase)>=0;
+            bool supervisorR33=String.Equals(supervisorVersion,"1.3.0+r33",StringComparison.OrdinalIgnoreCase);
             bool supervisorFresh=B(supervisor,"Fresh",false);
             bool cpuFresh=B(cpu,"Fresh",false);
             bool gpuFresh=B(gpu,"Fresh",false);
@@ -7005,7 +7007,7 @@ namespace TaskbarMonitorEnhanced
             bool gpuJob=B(supervisor,"GpuJobContained",false);
             bool storageJob=I(supervisor,"StorageAttemptCount",0)<=0||B(supervisor,"StorageJobContained",false);
             bool processContainment=jobKillOnClose&&cpuJob&&gpuJob&&storageJob;
-            bool pass=architectureR21&&supervisorFresh&&cpuFresh&&gpuFresh&&storageFresh&&cpuTransport&&gpuTransport&&storageTransport&&processContainment;
+            bool pass=architectureR21&&supervisorR33&&supervisorFresh&&cpuFresh&&gpuFresh&&storageFresh&&cpuTransport&&gpuTransport&&storageTransport&&processContainment;
 
             int activeFailures=I(supervisor,"CpuConsecutiveFailures",0)+I(supervisor,"GpuConsecutiveFailures",0)+I(supervisor,"StorageConsecutiveFailures",0);
             DateTime latestFailure=Latest(Utc(supervisor,"CpuLastFailureUtc"),Utc(supervisor,"GpuLastFailureUtc"),Utc(supervisor,"StorageLastFailureUtc"));
@@ -7017,7 +7019,8 @@ namespace TaskbarMonitorEnhanced
 
             Dictionary<string,object> result=new Dictionary<string,object>();
             result["Version"]=BuildInfo.Version;result["PublicVersion"]=BuildInfo.PublicVersion;result["GeneratedUtc"]=DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture);
-            result["Status"]=pass?"PASS":"DEGRADED";result["ArchitectureR21"]=architectureR21;
+            result["Status"]=pass?"PASS":"DEGRADED";result["ArchitectureR21"]=architectureR21;result["SupervisorR33"]=supervisorR33;
+            result["SupervisorVersion"]=supervisorVersion;result["BrokerProtocolVersion"]=brokerVersion;
             result["ProcessContainment"]=processContainment;
             result["ResilienceState"]=resilienceState;
             result["ActiveConsecutiveFailures"]=activeFailures;
