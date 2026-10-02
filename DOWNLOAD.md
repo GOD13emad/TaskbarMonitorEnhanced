@@ -1,29 +1,39 @@
-# Official downloads — Taskbar Monitor Enhanced
+# Download Taskbar Monitor Enhanced
 
-## v1.5.0 — Current public release
+## Current stable release: v1.6.0
 
-https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.5.0
+[Open the official immutable v1.6.0 release](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.6.0)
 
-Published assets:
+[Download the Windows x64 installer](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.6.0/TaskbarMonitorEnhanced_Setup_1.6.0.exe)
 
-- `TaskbarMonitorEnhanced_Setup_1.5.0.exe`
-- `TaskbarMonitorEnhanced_1.5.0_SOURCE.zip`
-- `SHA256SUMS_v1.5.0.txt`
-- `RELEASE_MANIFEST_v1.5.0.json`
-- `SBOM_v1.5.0.spdx.json`
-- `V1_5_0_R36_ACTIONABLE_ALERTS_SESSION_EXPORT_ACCEPTANCE.json`
-- `RELEASE_NOTES_v1.5.0.md`
+The release has eight monitoring workspace pages and 48 themes, including twenty original Studio geometries. The 28 previous themes and existing settings are preserved.
 
-Installer SHA-256:
+| Integrity field | Accepted value |
+|---|---|
+| Release ID | `402214671` |
+| Source commit | `1652989b80c5c6d301c6f05818c48c5207fd9b7a` |
+| Published UTC | `2026-10-02T23:13:33Z` |
+| Immutable / Latest | `true / true` |
+| Installer bytes | `11447808` |
+| Installer SHA-256 | `f5130bc2f81383e16912454fcc62e307501885a6256e7241e674a9cf10bac9c5` |
+| Published asset digest matches | `7 / 7` |
 
-`0329d3a49cd1a73dbb95c28f3a22ba6befe65cd65e5c562606c02972392586e1`
+Seven release files provide the installer, exact source ZIP, release notes, verified-CI SPDX SBOM, acceptance record, release manifest and SHA-256 checksums. The SBOM is the verified Setup attestation predicate with normalized JSON formatting.
 
-The release is immutable, non-draft, non-prerelease and Latest. All seven published asset digests match the accepted staging set.
+## Verification and installation
 
-The deployed runtime configuration SHA-256 is:
+```powershell
+Get-FileHash -Algorithm SHA256 -LiteralPath "$env:USERPROFILE\Downloads\TaskbarMonitorEnhanced_Setup_1.6.0.exe"
+```
 
-`d2e51872d93f0793c02ad07dcbf8c2802f59708c666548372a4fddda5c7c5e4f`
+Compare the entire SHA-256 value above before starting the installer. Use the exact filename; do not select a guessed newest/wildcard installer. Normal installation runs the main app without elevation. The optional protected sensor layer may require administrator approval; the tested upgrade reused the exact healthy existing R33/R21 layer without changes.
 
-v1.4.0 remains an immutable previous public release.
+**Public-trust Authenticode signing is pending.** Windows may display Unknown publisher. GitHub/Sigstore provenance and SHA-256 verification do not claim a trusted publisher certificate. See [Code signing](CODE_SIGNING.md).
 
-v1.5.0 does not claim a publicly trusted Authenticode signature.
+## Acceptance evidence
+
+[Public acceptance](docs/acceptance/v1.6.0/PUBLIC_RELEASE_ACCEPTANCE.json) records exact build, clean-clone determinism, 15 candidate suites, 15 installed suites, 69 unchanged configuration properties, actual UI actions, 48-theme/20-geometry proof and protected-sensor preservation.
+
+Exact-source CI: [release branch](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/37074301100) and [main](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/37075175655).
+
+Earlier releases remain unchanged as historical baselines. Pre-integration v1.6 installers are not the accepted v1.6 release; compare the SHA-256, not just the displayed version string.

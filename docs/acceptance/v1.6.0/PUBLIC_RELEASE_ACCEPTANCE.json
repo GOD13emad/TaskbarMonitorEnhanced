@@ -1,0 +1,493 @@
+{
+  "Schema": 1,
+  "Project": "Taskbar Monitor Enhanced",
+  "Version": "1.6.0",
+  "Build": {
+    "Warnings": 0,
+    "Errors": 0,
+    "CleanCloneDeterminism": "PASS",
+    "Outputs": [
+      {
+        "Name": "TaskbarMonitorEnhanced.exe",
+        "SHA256": "05F9E069C4598FDAD327A41BF1CA34A1498D022119DB81E09F4B3B091C9BA377",
+        "Bytes": 463360,
+        "Status": "PASS"
+      },
+      {
+        "Name": "TaskbarMonitorEnhanced.exe.config",
+        "SHA256": "D2E51872D93F0793C02AD07DCBF8C2802F59708C666548372A4FDDDA5C7C5E4F",
+        "Bytes": 456,
+        "Status": "PASS"
+      },
+      {
+        "Name": "TaskbarMonitorSensorBroker.exe",
+        "SHA256": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833",
+        "Bytes": 22528,
+        "Status": "PASS"
+      },
+      {
+        "Name": "TaskbarMonitorSensorSupervisor.exe",
+        "SHA256": "0E28911AACDE0C3B1C6997C8BC6FF141C0FAA650B58438A9991CB3AD6C13C785",
+        "Bytes": 34816,
+        "Status": "PASS"
+      },
+      {
+        "Name": "TaskbarMonitorEnhanced_Setup_1.6.0.exe",
+        "SHA256": "F5130BC2F81383E16912454FCC62E307501885A6256E7241E674A9CF10BAC9C5",
+        "Bytes": 11447808,
+        "Status": "PASS"
+      }
+    ]
+  },
+  "ControlRevision": "R38",
+  "Status": "RELEASED_ACCEPTED",
+  "SourceSHA": "1652989b80c5c6d301c6f05818c48c5207fd9b7a",
+  "GeneratedUtc": "2026-10-02T23:11:08.272823+00:00",
+  "Objective": "Eight-page monitoring workspace and 48 built-in themes including 20 original Studio geometries; preserve user configuration and protected sensors.",
+  "PreviousImmutableRelease": {
+    "Tag": "v1.5.0",
+    "SourceSHA": "d952a87fab02fe74046b8d19ae14a2801d6da644"
+  },
+  "Validation": {
+    "candidate-ui": {
+      "Status": "PASS",
+      "Tests": 7,
+      "Results": [
+        {
+          "Test": "selftest",
+          "ExitCode": 0,
+          "Status": "PASS",
+          "StdoutSHA256": "50FE44E9DFC1ACD2066126C98863975607E1F5DCB8A0BBBBD106EB3ED9E4666C",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "feature-contract-selftest",
+          "ExitCode": 0,
+          "Status": "PASS",
+          "StdoutSHA256": "14584B15B8AC355A91D0504016EE4DF1D058DAD65CACCBAB7476E8A9F4382A6C",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "workspace-selftest",
+          "ExitCode": 0,
+          "Status": "PASS",
+          "StdoutSHA256": "841E1471DEFAB887D7A18799BD487F1F3D11BE93C0B04E668E436FCD7089D25A",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "workspace-proof",
+          "ExitCode": 0,
+          "Status": "PASS",
+          "StdoutSHA256": "236FEAA9504D0C28E71139A70A46CC6126197F547349810E1DF4ADD3F15C09B4",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "themeproof",
+          "ExitCode": 0,
+          "Status": "PASS",
+          "StdoutSHA256": "EDB86EE7DF897663692E8D55E9366401E73D1E4162D864AB8EC01ACE35BB201D",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "compactproof",
+          "ExitCode": 0,
+          "Status": "PASS",
+          "StdoutSHA256": "D5AFC90EF0A22E5C0F4E39B431C480603B3849FB9F230CC18D0719C9426AE364",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "settingsproof",
+          "ExitCode": 0,
+          "Status": "PASS",
+          "StdoutSHA256": "AC25F2A562B4621528F8B881ACA9F61FD0C043C7DE4112E9766CB943D7D2C652",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        }
+      ],
+      "EvidenceSHA256": "549b5f50491534259fdabeb364e8e01101c4334996a660ed16282793de503936"
+    },
+    "candidate-runtime": {
+      "Status": "PASS",
+      "Tests": 8,
+      "Results": [
+        {
+          "Test": "startup",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "AD047702B6665BF5551F578BEB8C97651172FAB4A3A67D4CA3DF233A02359B3C",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "hover",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "A678DDE5AAB3CC20A9F4223C6F1C99888D7307ECB4EB5E61E2563AC222F002EC",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "hardware",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "4FA96E6C741DEACC99D5BEC6A37B77369898230D09C90E120CEFEA9A41C276B6",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "temperature",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "1A51D8A3D254E076955441C8A27FDFCA23DB09D088965FF5A361E0F648E4FC27",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "health",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "18614A78A01430E76D2C848132FD3F8CB3C4A21262B42A73E1226C8ADE7DD478",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "support",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "49FCF1E6F886BFE86272EEFC8F142407157ACA8C63BC5D1D3181E946A1348422",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "start",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "87A7164EDB05FF5D1C7D8A02473A3447C218C0B5C65A19CA4AC99459A46FE31F",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "shell",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "A34A876B68A689BB86D2594F98D6DED77B2546376D68A6FC9E41877E319BF7FB",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        }
+      ],
+      "EvidenceSHA256": "2e88a7ce0e93d55dca7521638e8880e626b32998a443b3a398c98f8e26c2cefc"
+    },
+    "installed-ui": {
+      "Status": "PASS",
+      "Tests": 7,
+      "Results": [
+        {
+          "Test": "selftest",
+          "ExitCode": 0,
+          "Status": "PASS",
+          "StdoutSHA256": "50FE44E9DFC1ACD2066126C98863975607E1F5DCB8A0BBBBD106EB3ED9E4666C",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "feature-contract-selftest",
+          "ExitCode": 0,
+          "Status": "PASS",
+          "StdoutSHA256": "14584B15B8AC355A91D0504016EE4DF1D058DAD65CACCBAB7476E8A9F4382A6C",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "workspace-selftest",
+          "ExitCode": 0,
+          "Status": "PASS",
+          "StdoutSHA256": "841E1471DEFAB887D7A18799BD487F1F3D11BE93C0B04E668E436FCD7089D25A",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "workspace-proof",
+          "ExitCode": 0,
+          "Status": "PASS",
+          "StdoutSHA256": "2CAE18D11056AE661F75F887122B9B8A75F189B3F422DCF00C68BB9E176F35D3",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "themeproof",
+          "ExitCode": 0,
+          "Status": "PASS",
+          "StdoutSHA256": "D67F750EC90D12F166856AD07C75175434720CEE75095642641FEDB5E16AA8CB",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "compactproof",
+          "ExitCode": 0,
+          "Status": "PASS",
+          "StdoutSHA256": "BBD17EADDA0A0DE0FB842AAFC3924589771A0DA3822A4B232AAE9266D38DBAFA",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "settingsproof",
+          "ExitCode": 0,
+          "Status": "PASS",
+          "StdoutSHA256": "1DB3C2D92331010C858756A178E01BB236E66C7799F70E4BC082C992E35A9F69",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        }
+      ],
+      "EvidenceSHA256": "2f9a18f54af6eefeb3e5f4c425fd4317c9a47ac9faddae3dd902b7bc7fe2b3dd"
+    },
+    "installed-runtime": {
+      "Status": "PASS",
+      "Tests": 8,
+      "Results": [
+        {
+          "Test": "startup",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "AD047702B6665BF5551F578BEB8C97651172FAB4A3A67D4CA3DF233A02359B3C",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "hover",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "A678DDE5AAB3CC20A9F4223C6F1C99888D7307ECB4EB5E61E2563AC222F002EC",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "hardware",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "4FA96E6C741DEACC99D5BEC6A37B77369898230D09C90E120CEFEA9A41C276B6",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "temperature",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "308FAB8A1B8B5FDC11CCBB2A4F4297C8120CA0F18C45B1B15448B401A0C7119C",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "health",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "18614A78A01430E76D2C848132FD3F8CB3C4A21262B42A73E1226C8ADE7DD478",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "support",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "A521D08C1B4B53ECD545817CF5C81A3A8BF4E5980981E017FA47446B3DE8B260",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "start",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "698B64CCCD703125453F1D1419328309BD1BF659863ED4B22418204F4C9DC0B2",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        },
+        {
+          "Test": "shell",
+          "Status": "PASS",
+          "ExitCode": 0,
+          "StdoutSHA256": "D57DC31D263F9F940BF2803FC1D3B8A8EBB7ECE646E25EEB45631EF879DC41D1",
+          "StderrSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+        }
+      ],
+      "EvidenceSHA256": "9b6d332158a88845d072a588afe962fe3bfd546bfd037fb0019d09ff96206812"
+    }
+  },
+  "Workspace": {
+    "Pages": 8,
+    "MinimumSizePages": 8,
+    "ThemeCount": 48,
+    "NewStudioThemes": 20,
+    "SamePaletteUniqueGeometries": 20,
+    "NoSyntheticMetricData": true,
+    "LiveSampleCount": 16,
+    "UIActions": {
+      "Status": "PASS",
+      "Checks": [
+        "all 48 themes reachable",
+        "20 Studio filter",
+        "case-insensitive theme search",
+        "theme apply and manual mode",
+        "favorite persisted in configuration",
+        "favorites filter",
+        "Focus preset reaches actual renderer",
+        "Balanced preset restores all six groups",
+        "order buttons change actual rendered order",
+        "bit-rate option reaches actual taskbar labels",
+        "alert controls save policy",
+        "pause action callback",
+        "resume action callback",
+        "hardware filter",
+        "visual/workspace actions preserve protected preferences",
+        "interactive accessibility names"
+      ],
+      "Count": 16,
+      "InteractiveControls": 58,
+      "AccessibilityNameGaps": 0
+    },
+    "LegacySettingsPages": 9,
+    "CompactWidths": [
+      592,
+      500
+    ]
+  },
+  "CI": {
+    "ReleaseBranchRun": 37074301100,
+    "ReleaseBranchURL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/37074301100",
+    "MainRun": 37075175655,
+    "MainURL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/37075175655",
+    "ExactSource": "1652989b80c5c6d301c6f05818c48c5207fd9b7a",
+    "Status": "PASS",
+    "SignedOutputDigestMatches": 5,
+    "CryptographicVerification": "PASS",
+    "Workflow": "GOD13emad/TaskbarMonitorEnhanced/.github/workflows/ci.yml",
+    "Method": "GitHub CLI offline verification of API-fetched Sigstore bundles; exact repository, workflow, source digest and predicate types enforced.",
+    "TrustRoot": {
+      "Repository": "sigstore/root-signing",
+      "Ref": "644d7f24720ff4cddbc49908ead3c6459e637616",
+      "Path": "targets/trusted_root.json",
+      "SHA256": "6494e21ea73fa7ee769f85f57d5a3e6a08725eae1e38c755fc3517c9e6bc0b66"
+    },
+    "SBOM": "Verified Setup attestation predicate, JSON formatting normalized.",
+    "ArtifactZipDownload": "Unavailable on validation host; signed subject digests and signed SBOM predicate used as the independent verification path."
+  },
+  "InstalledAcceptance": {
+    "Status": "PASS",
+    "OutputsMatchingBuild": 5,
+    "SourceModulesVerified": 4,
+    "SetupExitCode": 0,
+    "ConfigBytesPreserved": true,
+    "ConfigPropertiesPreserved": 69,
+    "RuntimeHealth": "STABLE",
+    "ActiveConsecutiveFailures": 0,
+    "MainLaunchMode": "LAUNCHED_NON_ELEVATED_SETUP",
+    "SensorLayerMode": "CURRENT_EXACT_R33"
+  },
+  "ProtectedSensors": {
+    "Changed": false,
+    "Broker": "1.1.2+r21",
+    "Supervisor": "1.3.0+r33",
+    "Architecture": "PROCESS_ISOLATED"
+  },
+  "SecurityAndPrivacy": {
+    "PublicTrust": "UNSIGNED_PENDING_EXTERNAL_PROVIDER",
+    "MonitoringUpload": false,
+    "TrafficPersistenceDefault": false,
+    "SessionSampleLimit": 3600,
+    "LocalTrafficDayLimit": 90,
+    "InMemoryAlertLimit": 200,
+    "ProcessControls": "READ_ONLY",
+    "ProfileImport": "PRESENTATION_ALLOWLIST"
+  },
+  "Limits": {
+    "PhysicalMonitorsValidated": 1,
+    "PhysicalDualMonitorProof": "NOT_CLAIMED",
+    "UniversalCompetitorSuperiority": "NOT_CLAIMED",
+    "Excluded": [
+      "Kernel handle/DLL inspection",
+      "Arbitrary executable plugins",
+      "Full specialist hardware-support parity",
+      "Overclocking and fan control"
+    ]
+  },
+  "Release": {
+    "Status": "PASS",
+    "Version": "1.6.0",
+    "ReleaseId": 402214671,
+    "Tag": "v1.6.0",
+    "SourceSHA": "1652989b80c5c6d301c6f05818c48c5207fd9b7a",
+    "Immutable": true,
+    "Latest": true,
+    "Draft": false,
+    "Prerelease": false,
+    "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.6.0",
+    "PublishedAt": "2026-10-02T23:13:33Z",
+    "VerifiedUtc": "2026-10-02T23:13:37.3656054Z",
+    "Assets": [
+      {
+        "Name": "RELEASE_MANIFEST_v1.6.0.json",
+        "SHA256": "d535be9db73b891cfb0a1a8d911dd0df028b22dd450dec42c2ae559910a3038a",
+        "Bytes": 2444,
+        "AssetId": 606686987,
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.6.0/RELEASE_MANIFEST_v1.6.0.json",
+        "Status": "PASS"
+      },
+      {
+        "Name": "RELEASE_NOTES_v1.6.0.md",
+        "SHA256": "bdc8a5d1df5636e825f5a97aaaa2361909876ebbbc4c5ea5a614411481651b0f",
+        "Bytes": 5199,
+        "AssetId": 606686983,
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.6.0/RELEASE_NOTES_v1.6.0.md",
+        "Status": "PASS"
+      },
+      {
+        "Name": "SBOM_v1.6.0.spdx.json",
+        "SHA256": "2b90854d93e8ae24181b07a86f98b5bf4cc6512056610c6affb319c53a1d4416",
+        "Bytes": 5540,
+        "AssetId": 606686990,
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.6.0/SBOM_v1.6.0.spdx.json",
+        "Status": "PASS"
+      },
+      {
+        "Name": "SHA256SUMS_v1.6.0.txt",
+        "SHA256": "0310e2516f93220b70d29ea6531bfec8034c416e5905aa1a1ee82dac0b977ca9",
+        "Bytes": 606,
+        "AssetId": 606686985,
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.6.0/SHA256SUMS_v1.6.0.txt",
+        "Status": "PASS"
+      },
+      {
+        "Name": "TaskbarMonitorEnhanced_1.6.0_SOURCE.zip",
+        "SHA256": "e2c149559e93235951453e142c9e56774f1fcfa41a687d3bed84acc354430953",
+        "Bytes": 3445197,
+        "AssetId": 606686982,
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.6.0/TaskbarMonitorEnhanced_1.6.0_SOURCE.zip",
+        "Status": "PASS"
+      },
+      {
+        "Name": "TaskbarMonitorEnhanced_Setup_1.6.0.exe",
+        "SHA256": "f5130bc2f81383e16912454fcc62e307501885a6256e7241e674a9cf10bac9c5",
+        "Bytes": 11447808,
+        "AssetId": 606686995,
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.6.0/TaskbarMonitorEnhanced_Setup_1.6.0.exe",
+        "Status": "PASS"
+      },
+      {
+        "Name": "V1_6_0_R37_WORKSPACE_THEME_STUDIO_ACCEPTANCE.json",
+        "SHA256": "69cafdb7c70fd96fc90db4238f712cdcaaa3d3ce7f250795c4738d2669a0bcee",
+        "Bytes": 15398,
+        "AssetId": 606686998,
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.6.0/V1_6_0_R37_WORKSPACE_THEME_STUDIO_ACCEPTANCE.json",
+        "Status": "PASS"
+      }
+    ],
+    "AssetDigestMatches": 7,
+    "DigestMethod": "GitHub computed uploaded asset SHA-256 compared with locally hashed staged files"
+  },
+  "PublicTrust": "UNSIGNED_PENDING_EXTERNAL_PROVIDER",
+  "IndependentRead": "GitHub connector GET /releases/latest confirmed release402214671, immutable=true, exact source, and seven uploaded digests.",
+  "ManualUI": {
+    "Status": "PASS",
+    "Checks": [
+      "Installed context menu opens Performance Workspace",
+      "Live Overview shows accumulating observed history",
+      "All eight page tabs visible",
+      "Themes page displays production renderer preview",
+      "20 Studio themes filter shows all twenty names",
+      "Bauhaus Blocks live preview visible",
+      "Art Deco Gold preview visibly different geometry",
+      "Workspace closed while main monitor stays running",
+      "User config byte-identical after manual navigation"
+    ],
+    "Resolution": "3440x1440",
+    "ConfigurationUnchanged": true
+  },
+  "ScopeOpenCriticalGates": [],
+  "OpenExternalOrDeferred": {
+    "PhysicalMonitorsValidated": 1,
+    "PhysicalDualMonitorProof": "NOT_CLAIMED",
+    "UniversalCompetitorSuperiority": "NOT_CLAIMED",
+    "Excluded": [
+      "Kernel handle/DLL inspection",
+      "Arbitrary executable plugins",
+      "Full specialist hardware-support parity",
+      "Overclocking and fan control"
+    ]
+  },
+  "RecordUpdatedUtc": "2026-10-02T23:15:56.337123+00:00"
+}

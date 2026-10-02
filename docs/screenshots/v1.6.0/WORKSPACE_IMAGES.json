@@ -1,0 +1,18 @@
+{
+  "SourceSHA": "1652989b80c5c6d301c6f05818c48c5207fd9b7a",
+  "ExecutableSHA256": "05f9e069c4598fdad327a41bf1ca34a1498d022119db81e09f4b3b091c9ba377",
+  "NoSyntheticMetricData": true,
+  "LiveSampleCount": 16,
+  "ProofSource": "Installed --workspace-proof",
+  "Images": [
+    {
+      "Name": "overview.png",
+      "SHA256": "7e4b1e7924b87c7a44a54941631076a6aca66a3fde53a2d6af08dc525e60370b"
+    },
+    {
+      "Name": "themes.png",
+      "SHA256": "357bb379a57fb15b9626d3dc4cb9f2ebdaf04a9d7036cd58304bc54eedfbb1bc"
+    }
+  ],
+  "PrivateDesktopImagesIncluded": false
+}

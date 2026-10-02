@@ -1,3 +1,13 @@
+# CURRENT PRODUCT AUTHORITY - v1.6.0 RELEASED / R38
+
+UTC 2026-10-02T23:15:56.337123+00:00. Current product: **Taskbar Monitor Enhanced v1.6.0**, eight workspace pages and 48 built-in themes (20 original Studio geometries). Public release402214671 is immutable/latest, with seven verified assets. Source/tag authority `1652989b80c5c6d301c6f05818c48c5207fd9b7a`; canonical root `C:\Users\Aa.Emad\source\repos\TaskbarMonitorEnhanced`; installed configuration preserved bit-for-bit (69 properties), exact sensors unchanged. Release and main CI, candidate 15/15 suites, installed 15/15 suites, production UI actions and independent manual UI all passed.
+
+Read `R38_CLOSEOUT.md` and `../acceptance/v1.6.0/PUBLIC_RELEASE_ACCEPTANCE.json` first. Product lifecycle through delivery/release is complete; no in-scope critical product gate remains. Cumulative transfer archive path is `.local/r38/BRAIN_R38.zip`; its final machine-local receipt and manifest determine archive integrity/account-transfer completion. Post-release documentation is not a new product binary. The historical CURRENT/OPEN/FINAL headings below are preserved verbatim and superseded for current action.
+
+External/deferred only: trusted Authenticode provider, physical two-monitor test, excluded specialist/kernel/plugin/control features. Exact next user action: use the installed app/Theme Studio; do not rerun any installer. Exact engineering continuation: verify newest Brain and immutable source identity, then branch a new revision for any new scope.
+
+---
+
 # CURRENT AUTHORITY - R38 / v1.6.0 finalization
 
 Updated UTC: 2026-10-02T22:43:42.582431+00:00

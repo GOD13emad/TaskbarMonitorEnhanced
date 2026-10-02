@@ -2,6 +2,8 @@
 
 **Live Windows taskbar monitoring, an eight-page Performance Workspace, and 48 built-in themes.**
 
+**Stable / Latest: [v1.6.0](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.6.0)** — immutable release, 7/7 uploaded digest matches. [Exact acceptance record](docs/acceptance/v1.6.0/PUBLIC_RELEASE_ACCEPTANCE.json).
+
 Monitor CPU, RAM, disk, network, GPU, VRAM and available temperatures without putting privileged sensor collection inside the desktop UI. Version 1.6.0 adds 20 original Studio designs, local analysis, hardware inventory and practical alert controls.
 
 ## Performance Workspace
