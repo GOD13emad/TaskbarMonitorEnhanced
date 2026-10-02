@@ -934,3 +934,5 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Current status: CANDIDATE / UNPROVEN FOR PUBLIC RELEASE.
 - Open gates: exact-commit determinism, candidate proof suite, live install with sensor-layer reuse, installed runtime regression, GitHub CI/provenance, immutable release asset verification.
 - Exact next action: commit R36 candidate, rerun clean-clone determinism on that exact commit, then continue through runtime/release gates.
+
+- R36 determinism defect: Setup-only mismatch traced to missing EOL policy for installer/setup.manifest; minimum fix is LF pin in .gitattributes. Status: fix applied, exact-commit regression pending.

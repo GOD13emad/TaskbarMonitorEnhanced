@@ -17,3 +17,5 @@ docs/releases/v1.1.3/INSTALLER_README.txt binary
 docs/releases/v1.2.0/INSTALLER_README.txt binary
 src/app.manifest text eol=lf
 src/App.config text eol=lf
+
+installer/setup.manifest text eol=lf
