@@ -605,3 +605,67 @@ Status: CONFIRMED / RELEASED.
 - Off-screen preview rendering must not mutate the live Overlay window size. Width is supplied as an explicit layout input.
 
 Prevention rule: visual configuration previews must share the production renderer or a tested shared rendering primitive; do not maintain a second hand-drawn approximation.
+
+
+## R35 v1.4.0 Knowledge Delta - 2026-10-02
+
+### K-R35-01 - DPI authority must be explicit and shipped with the executable
+
+Status: CONFIRMED / RELEASED.
+
+- WinForms DPI behavior is runtime configuration, not merely a source-level intention.
+- v1.4.0 deploys `TaskbarMonitorEnhanced.exe.config` with PerMonitorV2 and High-DPI auto-resizing, tracks it in deterministic build output, build manifest, CI artifact and dedicated provenance attestation.
+- Installed runtime config hash exactly matches build/CI authority.
+
+Prevention rule: treat runtime configuration that changes Windows behavior as a first-class release artifact with reproducibility and provenance evidence.
+
+### K-R35-02 - Accessibility acceptance needs machine-verifiable UI metadata and system-color behavior
+
+Status: CONFIRMED / RELEASED.
+
+- v1.4.0 Settings proof checks 67 interactive controls with zero missing accessible names and 143 High Contrast controls with zero style gaps.
+- Keyboard navigation shortcuts are part of the product contract, not a documentation-only claim.
+- High Contrast resolves through Windows system colors rather than hard-coded theme colors.
+
+Prevention rule: accessibility completion requires testable metadata, keyboard paths and system visual-mode behavior; visual inspection alone is insufficient.
+
+### K-R35-03 - In-app updates require canonical identity and a launch-time integrity recheck
+
+Status: CONFIRMED / RELEASED.
+
+- Digest validation alone is insufficient if release/tag/asset identity can point outside the canonical repository path or if a verified file changes before launch.
+- v1.4.0 rejects draft/prerelease, noncanonical tag/release/setup URLs and reparse-point installer paths.
+- SHA-256 is recomputed immediately before installer launch.
+
+Prevention rule: update trust is an end-to-end identity + immutability + digest + final-use verification chain, not a one-time download checksum.
+
+### K-R35-04 - Crash diagnostics should be local, bounded and privacy-safe
+
+Status: CONFIRMED / RELEASED.
+
+- v1.4.0 writes a bounded local `last_crash.json` for unhandled exceptions and redacts the user-profile and TBME data-root paths.
+- The snapshot is added only to user-initiated Support ZIP exports.
+- Feature-contract proof validates crash snapshot privacy.
+
+Prevention rule: diagnostic usefulness does not justify leaking machine/user path metadata; collect minimum necessary local evidence and export only on user action.
+
+### K-R35-05 - Multi-monitor capability and multi-monitor physical validation are different claims
+
+Status: CONFIRMED / RELEASED WITH HOST LIMITATION.
+
+- Selector/placement/recovery code supports discovered secondary Windows taskbars and has deterministic policy tests.
+- The current Emad-PC-Ultimate validation session exposed one 3440×1440 monitor and one primary `Shell_TrayWnd`.
+- No physical two-monitor attachment proof is claimed.
+
+Prevention rule: separate implementation coverage from environment-dependent physical coverage. Never fabricate a hardware validation result that the current host cannot exercise.
+
+
+### K-R35-06 - Temporary release branches are disposable only after immutable release authority exists
+
+Status: CONFIRMED / PASS.
+
+- `release/v1.4.0-r35` pointed at exact release commit `924b9bd140b531733c08ca6297d3f8beedc8bb18`.
+- Release-branch CI and main CI were both green, the annotated tag and immutable GitHub Release existed, and the release commit was proven an ancestor of main before deletion.
+- After cleanup, the remote branch surface is only `main`.
+
+Prevention rule: temporary release branches are transport/control surfaces, not permanent release authority. Delete them only after tag/release immutability and ancestry are proven.

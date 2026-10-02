@@ -1,8 +1,27 @@
 # PROJECT BRAIN — Taskbar Monitor Enhanced
 
-Brain Version: PB-2026-10-02-R34-V1.3.1-PUBLIC
+Brain Version: PB-2026-10-02-R35-V1.4.0-PUBLIC
 Status: CURRENT_FINAL_PUBLIC_RELEASE_ACCEPTED
-Updated: 2026-10-02T12:35:00+03:30
+Updated: 2026-10-02T14:42:00+03:30
+
+## CURRENT AUTHORITY - 2026-10-02 R35 / v1.4.0 FINAL PUBLIC RELEASE
+
+- FACT / CONFIRMED: Current public Latest release is `v1.4.0 — Windows Integration & Accessibility`.
+- FACT / CONFIRMED: GitHub release id `401760081`; public, non-draft, non-prerelease and immutable.
+- FACT / CONFIRMED: Annotated tag object `41e3ff3b96a72ec4bb03017508be47bd112712d9` peels to exact release commit `924b9bd140b531733c08ca6297d3f8beedc8bb18`.
+- FACT / CONFIRMED: Exact hashes: Main `D73352AD9F6F7D195C99F65EC1266202248B2EF514B2E3A15DDDD5567F155A12`; runtime config `D2E51872D93F0793C02AD07DCBF8C2802F59708C666548372A4FDDDA5C7C5E4F`; Broker `182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833`; Supervisor `0E28911AACDE0C3B1C6997C8BC6FF141C0FAA650B58438A9991CB3AD6C13C785`; Setup `7D528911113C6BE86A42AA6174957D85367D5B8D8F607C66F46D6E42E349FD6A`.
+- FACT / CONFIRMED: Installed runtime on Emad-PC-Ultimate matches the exact Main/config/Broker/Supervisor build hashes and reports v1.4.0+r35.
+- FACT / CONFIRMED: Candidate suite 9/9 PASS; installed post-install suite 10/10 PASS.
+- FACT / CONFIRMED: Settings proof: PerMonitorV2, 67 interactive controls / zero accessibility-name gaps, 143 High Contrast checked controls / zero style gaps.
+- FACT / CONFIRMED: R35 feature contract verifies Windows theme following, High Contrast, deterministic multi-monitor selector, canonical update identity, pre-launch SHA-256 rehash, DLL search hardening and privacy-safe crash snapshots.
+- FACT / CONFIRMED: Current host has one physical monitor/taskbar. Secondary-taskbar selection is deterministic-test covered; no physical two-monitor attachment claim is made.
+- FACT / CONFIRMED: Release-branch CI `36998041954` and main exact-release CI `37000835504` both SUCCESS and reproduce exact 5/5 hashes. Runtime config has dedicated provenance attestation.
+- FACT / CONFIRMED: Public release assets 7/7 digest/size verified.
+- FACT / CONFIRMED: Sensor architecture unchanged: R21 process isolation, Broker protocol `1.1.2+r21`, Supervisor `1.3.0+r33`.
+- FACT / CONFIRMED: Public-trust Authenticode signing remains external/unproven; no trusted-signature claim is made.
+- Product DoD: COMPLETE / FINAL_PUBLIC_RELEASE_ACCEPTED.
+- Open product blockers/gates: none.
+- Deferred validation only: physical secondary-monitor attachment proof requires a host with a second active Windows taskbar and is not required for single-monitor functionality.
 
 ## CURRENT AUTHORITY - 2026-10-02 R34 / v1.3.1 FINAL PUBLIC RELEASE
 
@@ -884,3 +903,21 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Exact hashes: Main `8009574BD5FBB44FC699476149F8F5315BA99D2045F3884F629D550B1FA3BBCF`; Setup `67CC88D429FFA9E8D17609ECF8814CF6ABF2C70979B10BB1840071A1AC5FDF26`.
 - Sensor binaries unchanged from v1.3.0.
 - Signing remains UNSIGNED_PENDING_EXTERNAL_PROVIDER.
+
+## R35 / v1.4.0 WINDOWS INTEGRATION & ACCESSIBILITY — 2026-10-02
+
+- Search/audit-driven scope focused on Windows integration, accessibility, update security and diagnostics rather than adding unrelated feature volume.
+- PerMonitorV2 DPI is supplied through deployed `TaskbarMonitorEnhanced.exe.config`; dedicated CI provenance attests that runtime configuration.
+- Taskbar target policy supports primary/discovered secondary taskbars, shares one selector across placement/recovery/shell paths and falls back safely to primary when a configured target disappears.
+- Current host inventory: one 3440×1440 monitor at 96 DPI and one `Shell_TrayWnd`; physical two-monitor proof is unavailable and explicitly not claimed.
+- Follow-Windows light/dark maps Windows app appearance to user-selected built-in themes and reacts to user-preference notifications.
+- High Contrast uses Windows system colors. Settings proof checks 143 controls with zero style gaps.
+- Accessibility metadata proof checks 67 interactive controls with zero accessible-name gaps; Ctrl+1…Ctrl+9, Ctrl+S and F5 shortcuts are supported.
+- Automatic update acceptance now requires canonical repository tag/release/setup URLs, blocks draft/prerelease/reparse-point installers and re-hashes the installer immediately before launch.
+- Process DLL search is hardened with `SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)`.
+- Privacy-safe `last_crash.json` redacts user-profile/TBME data paths and is included in user-initiated support bundles when present.
+- Candidate suite 9/9 PASS; post-install suite 10/10 PASS; health/shell/Start/hardware/temperature regression PASS.
+- Exact release commit `924b9bd140b531733c08ca6297d3f8beedc8bb18`; release branch CI `36998041954`; main CI `37000835504`; both SUCCESS.
+- GitHub Release id `401760081`; immutable/latest; seven assets; Setup SHA256 `7d528911113c6be86a42aa6174957d85367d5b8d8f607c66f46d6e42e349fd6a`.
+- Product DoD: COMPLETE / FINAL_PUBLIC_RELEASE_ACCEPTED.
+- Temporary release branch `release/v1.4.0-r35` was deleted after ancestor guard PASS; remote branch surface is now only `main`. This documentation/evidence commit is the final repository mutation for v1.4.0. Its exact-head CI is the final external control verifier; once green, no further v1.4.0 mutation is required.
