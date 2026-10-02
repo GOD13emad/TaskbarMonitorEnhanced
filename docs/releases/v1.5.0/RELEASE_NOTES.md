@@ -23,7 +23,7 @@ No background cloud upload or persistent telemetry database is added. CSV export
 
 ## Validation status
 
-Candidate only until exact-commit build, deterministic verification, runtime regression, CI/provenance and immutable GitHub release verification are complete.
+Release acceptance is defined by exact-commit build and determinism, installed runtime regression, CI/provenance, published asset digests and the versioned public acceptance record. This note does not replace those evidence records.
 
 ## Protected sensor layer
 
