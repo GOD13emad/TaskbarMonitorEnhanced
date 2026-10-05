@@ -32,7 +32,7 @@ namespace TaskbarMonitorEnhanced
                 using(var hash=System.Security.Cryptography.SHA256.Create())
                 {bitmap.Save(bytes,ImageFormat.Png);fingerprints.Add(Convert.ToBase64String(hash.ComputeHash(bytes.ToArray())));}
             }
-            if(fingerprints.Count!=20)throw new InvalidOperationException("Studio geometries are not all distinct at identical colors/font/metrics.");
+            if(fingerprints.Count!=StudioThemes.Create().Length)throw new InvalidOperationException("Studio geometries are not all distinct at identical colors/font/metrics.");
             return fingerprints.Count;
         }
         internal MetricsSnapshot WorkspaceSnapshotForProof(){return snapshot;}
@@ -87,7 +87,7 @@ namespace TaskbarMonitorEnhanced
         private void AddWorkspaceMenu(ContextMenuStrip m)
         {
             var dashboard=new ToolStripMenuItem("Performance workspace...");dashboard.Click+=delegate{OpenWorkspace("Overview");};m.Items.Add(dashboard);
-            var studio=new ToolStripMenuItem("Theme Studio - 48 designs...");studio.Click+=delegate{OpenWorkspace("Themes");};m.Items.Add(studio);
+            var studio=new ToolStripMenuItem("Theme Studio - 49 designs...");studio.Click+=delegate{OpenWorkspace("Themes");};m.Items.Add(studio);
             var snooze=new ToolStripMenuItem("Snooze all notifications for 30 minutes");snooze.Click+=delegate{notificationsSnoozedUntil=DateTime.UtcNow.AddMinutes(30);};m.Items.Add(snooze);
         }
         private void CloseWorkspace()
@@ -164,7 +164,7 @@ namespace TaskbarMonitorEnhanced
         private readonly System.Windows.Forms.Timer timer=new System.Windows.Forms.Timer();
         private readonly WorkspaceTabs tabs=new WorkspaceTabs{Dock=DockStyle.Fill};
         private readonly Label status=new Label{Dock=DockStyle.Bottom,Height=32,Padding=new Padding(10,7,0,0)};
-        private HistoryChart chart;private ComboBox metric,window,processSort,themeFilter,adapterChoice;
+        private HistoryChart chart;private ComboBox metric,window,processSort,themeFilter,adapterChoice,wallpaperChoice;
         private Label stats,trafficSummary,themeInfo,hardwareSummary;
         private TextBox processSearch,themeSearch,hardwareSearch;
         private CheckBox freezeChart,freezeProcesses,persistTraffic,bits,usageEnabled,quietEnabled;
@@ -172,7 +172,7 @@ namespace TaskbarMonitorEnhanced
         private DataGridView processes,network,trafficDays,storage,events,hardware;
         private List<HardwareRow> hardwareRows=new List<HardwareRow>();
         private ListBox themes,order;
-        private ThemePreviewControl preview;
+        private ThemePreviewControl preview;private WallpaperPreviewControl wallpaperPreview;
         private readonly ProcessSampler processSampler=new ProcessSampler();private int processBusy;
         private List<ProcessRow> processRows=new List<ProcessRow>();
         private readonly List<string> adapterIds=new List<string>();
@@ -283,13 +283,21 @@ namespace TaskbarMonitorEnhanced
         }
         private void BuildThemes()
         {
-            var p=Page("Themes");var bar=Bar();themeSearch=new TextBox{Width=240,AccessibleName="Search themes",Margin=new Padding(4,7,4,4)};themeFilter=Combo(new[]{"All 48 themes","20 Studio themes","Favorites","Light themes","Dark themes"},"Theme filter",200);bar.Controls.AddRange(new Control[]{new Label{Text="Search",AutoSize=true,Padding=new Padding(0,9,0,0)},themeSearch,themeFilter});
-            var body=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=2,RowCount=1};body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,255));body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));themes=new ListBox{Dock=DockStyle.Fill,IntegralHeight=false,AccessibleName="Theme catalog",DrawMode=DrawMode.OwnerDrawFixed,ItemHeight=26};var right=new Panel{Dock=DockStyle.Fill,Padding=new Padding(15,0,0,0)};
-            preview=new ThemePreviewControl(render){Dock=DockStyle.Top,AccessibleName="Production renderer theme preview"};themeInfo=new Label{Dock=DockStyle.Top,Height=100,Padding=new Padding(4,14,0,0)};var buttons=Bar();buttons.Dock=DockStyle.Bottom;
+            var p=Page("Themes");var bar=Bar();themeSearch=new TextBox{Width=240,AccessibleName="Search themes",Margin=new Padding(4,7,4,4)};themeFilter=Combo(new[]{"All "+ThemeCatalog.Names.Length+" themes",StudioThemes.Create().Length+" Studio themes","Favorites","Light themes","Dark themes"},"Theme filter",200);bar.Controls.AddRange(new Control[]{new Label{Text="Search",AutoSize=true,Padding=new Padding(0,9,0,0)},themeSearch,themeFilter});
+            var body=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=2,RowCount=1};body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,255));body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));themes=new ListBox{Dock=DockStyle.Fill,IntegralHeight=false,AccessibleName="Theme catalog",DrawMode=DrawMode.OwnerDrawFixed,ItemHeight=26};
+            var right=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(15,0,0,0),ColumnCount=1,RowCount=5};right.RowStyles.Add(new RowStyle(SizeType.Absolute,132));right.RowStyles.Add(new RowStyle(SizeType.Absolute,78));right.RowStyles.Add(new RowStyle(SizeType.Percent,100));right.RowStyles.Add(new RowStyle(SizeType.AutoSize));right.RowStyles.Add(new RowStyle(SizeType.Absolute,62));
+            preview=new ThemePreviewControl(render){Dock=DockStyle.Fill,AccessibleName="Production renderer theme preview"};themeInfo=new Label{Dock=DockStyle.Fill,Padding=new Padding(4,9,0,0)};
+            wallpaperPreview=new WallpaperPreviewControl{Dock=DockStyle.Fill,AccessibleName="Wallpaper preview"};
+            var buttons=Bar();buttons.Dock=DockStyle.Fill;
             buttons.Controls.Add(Button("Apply selected theme",()=>{if(themes.SelectedItem==null)return;Save(()=>{config.Theme=Convert.ToString(themes.SelectedItem);config.FollowWindowsTheme=false;});UpdateThemeInfo();}));
             buttons.Controls.Add(Button("Toggle favorite",()=>{if(themes.SelectedItem==null)return;string name=Convert.ToString(themes.SelectedItem);Save(()=>{var f=SelectionUtil.Parse(config.FavoriteThemes);if(!f.Add(name))f.Remove(name);config.FavoriteThemes=SelectionUtil.Join(f);});RefreshThemeList(name);}));
-            right.Controls.Add(themeInfo);right.Controls.Add(preview);right.Controls.Add(buttons);right.Controls.Add(Note("This preview uses the real taskbar renderer and observed metrics. Apply selects manual theme mode; it never alters sensor configuration. Every Studio design uses its own frame geometry, not just a recolored palette.",62));body.Controls.Add(themes,0,0);body.Controls.Add(right,1,0);p.Controls.Add(body);p.Controls.Add(bar);
-            themeSearch.TextChanged+=delegate{RefreshThemeList();};themeFilter.SelectedIndexChanged+=delegate{RefreshThemeList();};themes.DrawItem+=DrawThemeListItem;themes.SelectedIndexChanged+=delegate{UpdateThemeInfo();};RefreshThemeList(config.Theme);
+            wallpaperChoice=Combo(WallpaperStudio.VariantLabels,"Wallpaper variant",155);buttons.Controls.Add(wallpaperChoice);
+            buttons.Controls.Add(Button("Save wallpaper PNG",()=>{string name=Convert.ToString(themes.SelectedItem);if(String.IsNullOrWhiteSpace(name)||!StudioThemes.IsStudio(ThemeCatalog.Get(name).Mode))return;int v=Math.Max(0,wallpaperChoice.SelectedIndex);Export("Save wallpaper PNG","PNG image|*.png",WallpaperStudio.SuggestedFileName(name,v),path=>{using(var b=WallpaperStudio.Render(name,v,3840,2160))b.Save(path,ImageFormat.Png);});}));
+            buttons.Controls.Add(Button("Export all 10",()=>{string name=Convert.ToString(themes.SelectedItem);if(String.IsNullOrWhiteSpace(name)||!StudioThemes.IsStudio(ThemeCatalog.Get(name).Mode))return;using(var d=new FolderBrowserDialog{Description="Export all 10 wallpapers for "+name})if(d.ShowDialog(this)==DialogResult.OK){for(int v=0;v<WallpaperStudio.VariantsPerTheme;v++)using(var b=WallpaperStudio.Render(name,v,3840,2160))b.Save(Path.Combine(d.SelectedPath,WallpaperStudio.SuggestedFileName(name,v)),ImageFormat.Png);status.Text="Exported 10 wallpapers for "+name+".";}}));
+            buttons.Controls.Add(Button("Apply desktop wallpaper",()=>{string name=Convert.ToString(themes.SelectedItem);if(String.IsNullOrWhiteSpace(name)||!StudioThemes.IsStudio(ThemeCatalog.Get(name).Mode))return;int v=Math.Max(0,wallpaperChoice.SelectedIndex);string path=WallpaperStudio.ApplyDesktop(name,v);status.Text="Wallpaper applied; prior wallpaper path was backed up. "+Path.GetFileName(path);}));
+            right.Controls.Add(preview,0,0);right.Controls.Add(themeInfo,0,1);right.Controls.Add(wallpaperPreview,0,2);right.Controls.Add(buttons,0,3);right.Controls.Add(Note("Each Studio theme has 10 deterministic 16:9 wallpapers. Preview/export is local-only. Desktop apply preserves the prior wallpaper path before the reversible Windows change. Sekiro uses original ink/shinobi geometry; no copied game artwork is bundled.",62),0,4);
+            body.Controls.Add(themes,0,0);body.Controls.Add(right,1,0);p.Controls.Add(body);p.Controls.Add(bar);
+            themeSearch.TextChanged+=delegate{RefreshThemeList();};themeFilter.SelectedIndexChanged+=delegate{RefreshThemeList();};themes.DrawItem+=DrawThemeListItem;themes.SelectedIndexChanged+=delegate{UpdateThemeInfo();};wallpaperChoice.SelectedIndexChanged+=delegate{UpdateWallpaperPreview();};RefreshThemeList(config.Theme);
         }
         private void RefreshThemeList(string select=null)
         {
@@ -297,7 +305,14 @@ namespace TaskbarMonitorEnhanced
             foreach(string n in ThemeCatalog.Names){var t=ThemeCatalog.Get(n);if(n.IndexOf(themeSearch.Text.Trim(),StringComparison.OrdinalIgnoreCase)<0)continue;if(themeFilter.SelectedIndex==1&&!StudioThemes.IsStudio(t.Mode)||themeFilter.SelectedIndex==2&&!favorites.Contains(n)||themeFilter.SelectedIndex==3&&!t.Light||themeFilter.SelectedIndex==4&&t.Light)continue;themes.Items.Add(n);}
             if(themes.Items.Contains(current))themes.SelectedItem=current;else if(themes.Items.Count>0)themes.SelectedIndex=0;themes.EndUpdate();UpdateThemeInfo();
         }
-        private void UpdateThemeInfo(){if(themes.SelectedItem==null){themeInfo.Text="No themes match the filter.";return;}string name=Convert.ToString(themes.SelectedItem);var t=ThemeCatalog.Get(name);preview.ThemeName=name;themeInfo.Text=name+"\n"+(t.Light?"Light":"Dark")+"  /  "+t.Mode+"  /  "+t.FontName+"\n"+(SelectionUtil.Parse(config.FavoriteThemes).Contains(name)?"Favorite":"Not in favorites")+"  |  Current manual choice: "+config.Theme;}
+        private void UpdateThemeInfo()
+        {
+            if(themes.SelectedItem==null){themeInfo.Text="No themes match the filter.";if(wallpaperPreview!=null)wallpaperPreview.Visible=false;return;}
+            string name=Convert.ToString(themes.SelectedItem);var t=ThemeCatalog.Get(name);preview.ThemeName=name;bool studio=StudioThemes.IsStudio(t.Mode);
+            themeInfo.Text=name+"\n"+(t.Light?"Light":"Dark")+"  /  "+t.Mode+"  /  "+t.FontName+"\n"+(SelectionUtil.Parse(config.FavoriteThemes).Contains(name)?"Favorite":"Not in favorites")+"  |  Current manual choice: "+config.Theme+(studio?"  |  Wallpapers: 10":"");
+            if(wallpaperChoice!=null)wallpaperChoice.Enabled=studio;if(wallpaperPreview!=null){wallpaperPreview.Visible=studio;if(studio){wallpaperPreview.ThemeName=name;wallpaperPreview.Variant=Math.Max(0,wallpaperChoice.SelectedIndex);}}
+        }
+        private void UpdateWallpaperPreview(){if(wallpaperPreview==null||themes==null||themes.SelectedItem==null)return;string name=Convert.ToString(themes.SelectedItem);if(!StudioThemes.IsStudio(ThemeCatalog.Get(name).Mode)){wallpaperPreview.Visible=false;return;}wallpaperPreview.Visible=true;wallpaperPreview.ThemeName=name;wallpaperPreview.Variant=Math.Max(0,wallpaperChoice.SelectedIndex);}
         private void BuildProfiles()
         {
             var p=Page("Profiles");var bar=Bar();bar.Controls.Add(Button("Export presentation",()=>Export("Export presentation profile","JSON files|*.json","tbme-presentation.json",path=>File.WriteAllText(path,WorkspaceExport.Profile(config),new UTF8Encoding(false)))));
@@ -371,8 +386,8 @@ namespace TaskbarMonitorEnhanced
             var passed=new List<string>();Action<bool,string> verify=(condition,name)=>{if(!condition)throw new InvalidOperationException("UI action failed: "+name);passed.Add(name);};
             try
             {
-                SelectPage("Themes");themeFilter.SelectedIndex=0;themeSearch.Text="";verify(themes.Items.Count==48,"all 48 themes reachable");
-                themeFilter.SelectedIndex=1;verify(themes.Items.Count==20,"20 Studio filter");
+                SelectPage("Themes");themeFilter.SelectedIndex=0;themeSearch.Text="";verify(themes.Items.Count==49,"all 49 themes reachable");
+                themeFilter.SelectedIndex=1;verify(themes.Items.Count==21,"21 Studio filter");themes.SelectedItem="Sekiro";verify(wallpaperChoice.Items.Count==10&&wallpaperPreview.Visible,"Sekiro with 10 wallpaper choices");
                 themeFilter.SelectedIndex=0;themeSearch.Text="swiss";verify(themes.Items.Count==1&&Convert.ToString(themes.Items[0])=="Swiss Grid","case-insensitive theme search");
                 themes.SelectedIndex=0;ProofClick("Themes","Apply selected theme");verify(config.Theme=="Swiss Grid"&&!config.FollowWindowsTheme,"theme apply and manual mode");
                 ProofClick("Themes","Toggle favorite");verify(SelectionUtil.Parse(config.FavoriteThemes).Contains("Swiss Grid"),"favorite persisted in configuration");

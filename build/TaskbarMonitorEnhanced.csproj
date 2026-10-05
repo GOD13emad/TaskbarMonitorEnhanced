@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup><Compile Include="..\src\TaskbarMonitorEnhanced.cs" />
     <Compile Include="..\src\StudioThemes.cs" />
+    <Compile Include="..\src\WallpaperStudio.cs" />
     <Compile Include="..\src\WorkspaceModels.cs" />
     <Compile Include="..\src\MonitorWorkspace.cs" />
     <Compile Include="..\src\WorkspaceSelfTest.cs" /><Reference Include="System.Management" /><Reference Include="System.Web.Extensions" /><Reference Include="System.IO.Compression" /><Reference Include="System.IO.Compression.FileSystem" /><Reference Include="UIAutomationClient" /><Reference Include="UIAutomationTypes" /><Reference Include="WindowsBase" /></ItemGroup>

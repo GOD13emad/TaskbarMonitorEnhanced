@@ -34,7 +34,8 @@ namespace TaskbarMonitorEnhanced
                 T("Origami Snow", "origami", 0xE6EDF4,0xFAFDFF,0x26334E,0x556782,0x98ACC7,true,0x37649F,0x8E478F,0x237A6E,0x906623,0xAD4B4D,0x525DA5),
                 T("Kintsugi Ink", "kintsugi", 0x171619,0x29252A,0xF5EDDF,0xC0B5A4,0x8C7B5B,false,0xEDC271,0xDDA5AA,0x9DC4CA,0xB7CF9E,0xC0AEEE,0xEAAF89),
                 T("Brutalist Concrete", "brutal", 0xDAD9D4,0xF5F4ED,0x171918,0x4F5450,0x282D2A,true,0x9F2A1D,0x254AA0,0x21704C,0x845600,0x733A80,0x006C77),
-                T("Stained Glass", "stained", 0x191629,0x2C2944,0xFFF4EF,0xC7B9D4,0x8E77A4,false,0xF5A597,0x9CC8F5,0x9DDBB1,0xF3D28D,0xD8ABEC,0x8FDFDC)
+                T("Stained Glass", "stained", 0x191629,0x2C2944,0xFFF4EF,0xC7B9D4,0x8E77A4,false,0xF5A597,0x9CC8F5,0x9DDBB1,0xF3D28D,0xD8ABEC,0x8FDFDC),
+                T("Sekiro", "shinobi", 0x0C0B0A,0x1C1712,0xF0E2CC,0xA9957B,0x6A4A31,false,0xC44B2F,0xD28B42,0x8B1E1E,0xBDA36B,0x6C7A52,0xC9B08B)
             };
         }
         internal static bool IsStudio(string mode) { return mode != null && mode.StartsWith("studio-", StringComparison.Ordinal); }
@@ -57,9 +58,7 @@ namespace TaskbarMonitorEnhanced
                     for(int x=-60;x<r.Width;x+=92) for(int k=0;k<3;k++) g.DrawEllipse(p,x-k*8,10-k*9,65+k*16,40+k*18);
                 } else if(mode=="circuit") {
                     for(int x=0;x<r.Width;x+=64) { g.DrawLines(p,new[]{new Point(x,5),new Point(x+18,5),new Point(x+28,15),new Point(x+55,15)}); g.DrawEllipse(p,x+54,12,5,5); }
-                } else if(mode=="stained" || mode=="prism") {
-                    for(int x=0;x<r.Width;x+=56) g.DrawPolygon(p,new[]{new Point(x,0),new Point(x+28,r.Height),new Point(x+56,0)});
-                }
+                } else if(mode=="stained" || mode=="prism") { for(int x=0;x<r.Width;x+=56) g.DrawPolygon(p,new[]{new Point(x,0),new Point(x+28,r.Height),new Point(x+56,0)}); } else if(mode=="shinobi") { for(int x=0;x<r.Width;x+=72) { g.DrawLine(p,x,r.Height,x+36,0); g.DrawArc(p,x+18,4,34,34,18,300); } }
             }
         }
         private void PaintStudioMetric(Graphics g, ThemeDefinition t, MetricView m, RectangleF r, Font labelFont, Font valueFont)
@@ -122,6 +121,8 @@ namespace TaskbarMonitorEnhanced
                             g.FillRectangle(fill,x,y,w,h);g.DrawLines(line,new[]{new PointF(x+w-4,y),new PointF(x+w-8,y+9),new PointF(x+w-3,y+18),new PointF(x+w-7,y+h)});break;
                         case "brutal":
                             g.FillRectangle(mark,x+3,y+3,w-3,h-3);g.FillRectangle(fill,x,y,w-3,h-3);using(var bold=new Pen(t.Foreground,2))g.DrawRectangle(bold,x+1,y+1,w-5,h-5);break;
+                        case "shinobi":
+                            g.FillRectangle(fill,x,y,w,h);g.FillRectangle(faint,x+w-22,y,22,h);g.DrawLine(line,x+w-28,y+h,x+w-8,y);g.DrawArc(line,x+3,y+3,12,12,25,285);break;
                         case "stained":
                             g.FillRectangle(fill,x,y,w,h);g.FillPolygon(faint,new[]{new PointF(x+w-26,y),new PointF(x+w,y+12),new PointF(x+w-4,y+h)});
                             g.DrawLines(edge,new[]{new PointF(x+w-26,y),new PointF(x+w-4,y+h),new PointF(x+w,y+h/2)});g.DrawRectangle(edge,x,y,w,h);break;
