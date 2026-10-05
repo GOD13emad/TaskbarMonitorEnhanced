@@ -1042,3 +1042,21 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Current control: `docs/project-control/CURRENT_PROJECT.json`.
 - Candidate acceptance: `docs/acceptance/v1.7.0/R39_SOURCE_CANDIDATE_ACCEPTANCE.json`.
 - Exact next action: ONE change-set for v1.7.0 packaging/installer integration, including WallpaperStudio source/payload; then build and deterministic package verification without installation. Promotion remains prohibited until those gates pass.
+
+
+## R40 / v1.7.0 DETERMINISTIC PACKAGE — ACCEPTED CANDIDATE — 2026-10-05
+
+- Previous authority remains immutable v1.6.0/R38; it was not installed over, retagged or republished.
+- R39 product source: `ed46152eb9d9ff326687ba5038aa0990e03102d0`.
+- R40 packaging authority: `2cb0baadb127c4b9e8090670d51905ffd2e29627`.
+- Package integration is complete for v1.7.0: WallpaperStudio canonical source is embedded/extracted, Setup identity/resources/release docs are v1.7, Setup verification contract is 25 resources, and new source EOL is deterministic.
+- Full exact-head build PASS 0 warnings/0 errors; Setup `/verify` PASS; embedded WallpaperStudio bytes match canonical package text.
+- Setup candidate SHA-256: `58E844297A0B33E52F05D5023408DB159275BAECDB5C1627DBAEA990CF1237AF`.
+- Exact-head clean-clone determinism PASS.
+- Visual candidate acceptance PASS 8/8, including workspace proof and 210/210 unique wallpaper proof.
+- No install or live wallpaper apply occurred in R40; installed v1.6 remains the runtime authority.
+- R40 patch-generation quoting failure was fail-safe before mutation and is superseded by guarded literal patch R40B; do not replay R40 failed patch scripts as authority.
+- Current status: `CURRENT_R40_PACKAGE_CANDIDATE / ACCEPTED_NOT_INSTALLED_NOT_RELEASED`.
+- Current control: `docs/project-control/CURRENT_PROJECT.json`.
+- Acceptance: `docs/acceptance/v1.7.0/R40_PACKAGE_CANDIDATE_ACCEPTANCE.json`.
+- Exact next action: R41 single controlled live canary only — capture exact wallpaper/style/tile + AnyDesk/GUI pre-state, apply one Sekiro wallpaper from the exact candidate, verify, restore exact pre-state, then regression-check host stability. No install until R41 PASS.

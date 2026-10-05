@@ -1,0 +1,77 @@
+{
+  "Schema": 1,
+  "Project": "Taskbar Monitor Enhanced",
+  "ControlRevision": "R40",
+  "TargetVersion": "1.7.0",
+  "Status": "PACKAGE_CANDIDATE_ACCEPTED_NOT_INSTALLED_NOT_RELEASED",
+  "GeneratedUtc": "2026-10-05T17:03:48.6381459Z",
+  "PreviousAcceptedAuthority": {
+    "Version": "1.6.0",
+    "Revision": "R38",
+    "SourceSHA": "1652989b80c5c6d301c6f05818c48c5207fd9b7a",
+    "Immutable": true,
+    "InstalledMainSHA256": "05F9E069C4598FDAD327A41BF1CA34A1498D022119DB81E09F4B3B091C9BA377"
+  },
+  "ProductSource": {
+    "R39SourceCommit": "ed46152eb9d9ff326687ba5038aa0990e03102d0",
+    "PackagingCommit": "2cb0baadb127c4b9e8090670d51905ffd2e29627",
+    "Branch": "feature/v1.7.0-wallpaper-studio"
+  },
+  "Package": {
+    "Setup": "build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.0.exe",
+    "SetupSHA256": "58E844297A0B33E52F05D5023408DB159275BAECDB5C1627DBAEA990CF1237AF",
+    "SetupBytes": 11487744,
+    "CandidateMainSHA256": "4A28D46539E67E4EEA5BD2062AD0839AB99B9FC3BB93C6E0BC2CF91A36FFE41F",
+    "EmbeddedResourceCount": 25,
+    "WallpaperStudioEmbeddedCanonicalMatch": true
+  },
+  "Verification": {
+    "ExactCommitBuild": "PASS",
+    "BuildWarnings": 0,
+    "BuildErrors": 0,
+    "SensorWindowlessPE": "PASS",
+    "CanonicalTextPayload": "PASS",
+    "SetupVerify": {"Status":"PASS","Resources":25,"Version":"1.7.0"},
+    "BasicWorkspaceSuite": {"Status":"PASS","Tests":3},
+    "CleanCloneDeterminism": {
+      "Status":"PASS",
+      "ExactHead":"2cb0baadb127c4b9e8090670d51905ffd2e29627",
+      "Evidence":"artifacts/DETERMINISM.json",
+      "SHA256":"E283B9B397BB7F78894B692FA03243535539A45764A21AEB24A3C9D90E0C77E8"
+    },
+    "VisualSuite": {
+      "Status":"PASS",
+      "Tests":8,
+      "Evidence":".local/r40/visual_exact_2cb0baa/SUMMARY.json",
+      "SHA256":"829C39598740D4EA913BAFC817763AF14C9CFD4074C06AD96790888D18FB9AC6"
+    },
+    "WorkspaceProof": {
+      "Status":"PASS",
+      "Evidence":".local/r40/visual_exact_2cb0baa/workspace-proof/WORKSPACE_PROOF_MANIFEST.json",
+      "SHA256":"789A096A550A85D8939D5985A398F8CD75719F770BF627570FB27678B77CAC85"
+    },
+    "WallpaperProof": {
+      "Status":"PASS",
+      "Themes":21,
+      "VariantsPerTheme":10,
+      "Wallpapers":210,
+      "UniquePixelFiles":210,
+      "Evidence":".local/r40/visual_exact_2cb0baa/wallpaperproof/WALLPAPER_PROOF_MANIFEST.json",
+      "SHA256":"7B75AE6ED3D27270217DE1FEA4036C0306332D9A08E7363C4000B7EF0D3EAD87"
+    }
+  },
+  "Safety": {
+    "InstalledVersionStill":"1.6.0",
+    "InstallerExecutedForInstall":false,
+    "LiveWallpaperApplied":false,
+    "AnyDeskPreserved":true,
+    "RapidThemeMutationLoop":false,
+    "Restart":false
+  },
+  "OpenGates": [
+    "single reversible live wallpaper apply/verify/restore canary",
+    "v1.7 installed-runtime acceptance with protected sensor reuse",
+    "exact-head CI/provenance and release publication gates"
+  ],
+  "ExactNextAction": "R41 only: perform one controlled Sekiro wallpaper canary using the exact 2cb0baa candidate, verify the live state changed, restore the exact pre-state, and confirm AnyDesk/keyboard/installed v1.6 stability before any installation."
+}

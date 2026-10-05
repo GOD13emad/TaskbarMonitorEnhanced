@@ -802,3 +802,24 @@ Exact user action: right-click the monitor, open **Theme Studio - 48 designs...*
 - Open critical path: v1.7 packaging/installer is still hard-coded to v1.6.0; then exact package/determinism acceptance, one reversible live apply/rollback canary, installed v1.7 regression, and release/CI gates.
 - Evidence: `docs/acceptance/v1.7.0/R39_SOURCE_CANDIDATE_ACCEPTANCE.json`; local pixel evidence under `.local/r39/wallpaperproof*`.
 - Reuse targets: release notes, future installer acceptance, UI documentation, safety design record, engineering handoff.
+
+
+## 2026-10-05 — R40 v1.7.0 deterministic package candidate accepted
+
+- Context: R39 source candidate remains commit `ed46152eb9d9ff326687ba5038aa0990e03102d0`; v1.6.0/R38 remains the installed/public accepted authority.
+- R40 packaging commit: `2cb0baadb127c4b9e8090670d51905ffd2e29627` on `feature/v1.7.0-wallpaper-studio`.
+- Packaging delta / Confirmed: Build and Setup identity advanced to v1.7.0; `WallpaperStudio.cs` is included in source preflight, canonical text payload, embedded Setup resources, and installed Source extraction path; v1.7 installer readme/release notes are canonical payload inputs; setup resource contract is 25.
+- Determinism control: `.gitattributes` now pins `src/WallpaperStudio.cs` to LF, matching the deterministic source policy used by other canonical modules.
+- Package build / Confirmed: all four projects build with 0 warnings / 0 errors; sensor windowless PE gate PASS; canonical text payload PASS; Setup `/verify` PASS with version 1.7.0 and 25 resources.
+- Embedded-resource audit / Confirmed: Setup resource count=25; embedded `Payload.WallpaperStudio.cs` SHA-256 `8465B73125FB48C47BE9B3BAD0451A878F3027632AF18E866AF8333E3E0FB157` exactly equals canonical `build/_package_text/WallpaperStudio.cs`. Candidate Main embedded hash is `4A28D46539E67E4EEA5BD2062AD0839AB99B9FC3BB93C6E0BC2CF91A36FFE41F`.
+- Setup candidate: `TaskbarMonitorEnhanced_Setup_1.7.0.exe`, SHA-256 `58E844297A0B33E52F05D5023408DB159275BAECDB5C1627DBAEA990CF1237AF`, 11,487,744 bytes.
+- Exact-commit clean-clone determinism / Confirmed: PASS at `2cb0baadb127c4b9e8090670d51905ffd2e29627`; evidence `artifacts/DETERMINISM.json`, SHA-256 `E283B9B397BB7F78894B692FA03243535539A45764A21AEB24A3C9D90E0C77E8`.
+- Visual package suite / Confirmed: 8/8 PASS — selftest, feature-contract-selftest, workspace-selftest, workspace-proof, themeproof, compactproof, settingsproof, wallpaperproof. Summary SHA-256 `829C39598740D4EA913BAFC817763AF14C9CFD4074C06AD96790888D18FB9AC6`.
+- Workspace proof / Confirmed: 8 pages, 49 themes, 21 Studio themes, 210 wallpapers and production UI actions accepted; manifest SHA-256 `789A096A550A85D8939D5985A398F8CD75719F770BF627570FB27678B77CAC85`.
+- Wallpaper package proof / Confirmed: 21×10=210 PNG, 210 unique pixel-file hashes; manifest SHA-256 `7B75AE6ED3D27270217DE1FEA4036C0306332D9A08E7363C4000B7EF0D3EAD87`.
+- Safety: no installer installation, no live wallpaper mutation, no reboot and no promotion occurred in R40.
+- Failure R40-F01: first packaging patch runner stopped before its first mutation because a literal PowerShell `$source` token was incorrectly escaped in the generated patch script. Root cause was orchestration quoting, not product source. Prevention: the failed runner was not replayed; current diff was verified unchanged and a literal here-string guarded patch was used. A later orchestration parser error also occurred before any tool call/mutation and therefore is not product evidence.
+- Status: `PACKAGE_CANDIDATE_ACCEPTED_NOT_INSTALLED_NOT_RELEASED`.
+- Open critical path: one reversible live Sekiro wallpaper apply/verify/restore canary -> installed v1.7 acceptance -> exact-head CI/provenance and release publication gates.
+- Evidence record: `docs/acceptance/v1.7.0/R40_PACKAGE_CANDIDATE_ACCEPTANCE.json`.
+- Reuse targets: release engineering, deterministic build audit, installer validation, future handoff.
