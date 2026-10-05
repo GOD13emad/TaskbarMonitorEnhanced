@@ -1,0 +1,72 @@
+{
+  "Schema": 1,
+  "Project": "Taskbar Monitor Enhanced",
+  "ControlRevision": "R39",
+  "TargetVersion": "1.7.0",
+  "Status": "SOURCE_CANDIDATE_PASS_NOT_RELEASED",
+  "GeneratedUtc": "2026-10-05T16:49:27.6842799Z",
+  "PreviousAcceptedAuthority": {
+    "Version": "1.6.0",
+    "ControlRevision": "R38",
+    "SourceSHA": "1652989b80c5c6d301c6f05818c48c5207fd9b7a",
+    "Immutable": true,
+    "InstalledMainSHA256": "05F9E069C4598FDAD327A41BF1CA34A1498D022119DB81E09F4B3B091C9BA377"
+  },
+  "Candidate": {
+    "Branch": "feature/v1.7.0-wallpaper-studio",
+    "SourceCommit": "ed46152eb9d9ff326687ba5038aa0990e03102d0",
+    "CandidateMainSHA256": "4A28D46539E67E4EEA5BD2062AD0839AB99B9FC3BB93C6E0BC2CF91A36FFE41F",
+    "Installed": false,
+    "Released": false
+  },
+  "Objective": {
+    "StudioThemes": 21,
+    "WallpapersPerStudioTheme": 10,
+    "TotalStudioWallpapers": 210,
+    "AddedTheme": "Sekiro",
+    "AssetPolicy": "Original deterministic procedural artwork; no copied game artwork or external wallpaper dependency"
+  },
+  "Implementation": {
+    "WallpaperGeneration": "Deterministic System.Drawing/GDI+ renderer",
+    "WallpaperDimensionsProof": "1280x720",
+    "UserExport": "Single PNG or all 10 at 3840x2160",
+    "DesktopApply": "Reversible SystemParametersInfo path with pre-state JSON for WallPaper/WallpaperStyle/TileWallpaper and rollback attempt on failure",
+    "LiveDesktopMutationDuringValidation": false
+  },
+  "Verification": {
+    "AppBuild": {"Status":"PASS","Warnings":0,"Errors":0},
+    "MainSelfTest": {"Status":"PASS","Themes":49,"StudioThemes":21,"Wallpapers":210},
+    "WorkspaceSelfTest": {"Status":"PASS","Themes":49,"StudioThemes":21,"Wallpapers":210},
+    "ThemeProof": {"Status":"PASS","Themes":49},
+    "WallpaperProofInitial": {
+      "Status":"PASS","Themes":21,"VariantsPerTheme":10,"Wallpapers":210,"UniquePixelFiles":210,
+      "Manifest":"C:\\Users\\Aa.Emad\\source\\repos\\TaskbarMonitorEnhanced\\.local\\r39\\wallpaperproof\\WALLPAPER_PROOF_MANIFEST.json",
+      "SHA256":"ADD7399D47B5B1C1AD52A973572228D33277F76FAADEC8FD6DB233E4D6C8A972"
+    },
+    "WallpaperProofPostQuality": {
+      "Status":"PASS","Themes":21,"VariantsPerTheme":10,"Wallpapers":210,"UniquePixelFiles":210,
+      "Manifest":"C:\\Users\\Aa.Emad\\source\\repos\\TaskbarMonitorEnhanced\\.local\\r39\\wallpaperproof_postquality\\WALLPAPER_PROOF_MANIFEST.json",
+      "SHA256":"1D36FED74044C202AA209536F5301BD34F2C4860689927CE1BD0113999C114EC"
+    },
+    "RepresentativePixelReview": {
+      "Status":"PASS",
+      "Samples":["Sekiro_01.png","Sekiro_05.png","Sekiro_10.png","Art_Deco_Gold_04.png"]
+    },
+    "DiffCheck": "PASS"
+  },
+  "HostSafety": {
+    "AnyDeskActive": true,
+    "GuiKeyboardAvailable": true,
+    "InstalledV1_6MainUnchanged": true,
+    "InstalledWallpaperDirectoryCreated": false,
+    "RapidThemeMutationLoops": false,
+    "WindowsRestart": false
+  },
+  "OpenGates": [
+    "v1.7.0 packaging/installer identity and payload integration; current packaging files still target v1.6.0",
+    "exact candidate package/determinism and package acceptance",
+    "one reversible live wallpaper-apply canary plus rollback verification",
+    "installed v1.7 runtime regression and release/CI gates"
+  ],
+  "ExactNextAction": "Start one new change-set limited to v1.7.0 packaging/installer integration from source candidate ed46152eb9d9ff326687ba5038aa0990e03102d0; do not install or publish until package and determinism gates pass."
+}

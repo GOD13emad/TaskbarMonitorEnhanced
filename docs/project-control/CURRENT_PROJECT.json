@@ -1,0 +1,65 @@
+{
+  "Schema": 1,
+  "Project": "TaskbarMonitorEnhanced",
+  "CanonicalRoot": "C:\\Users\\Aa.Emad\\source\\repos\\TaskbarMonitorEnhanced",
+  "InstalledRoot": "C:\\Users\\Aa.Emad\\AppData\\Local\\TaskbarMonitorEnhanced",
+  "CurrentEngineeringRevision": "R39",
+  "Status": "CURRENT_CANDIDATE_PASS_NOT_RELEASED",
+  "UpdatedUtc": "2026-10-05T16:49:27.6842799Z",
+  "FinalObjective": "Deliver v1.7.0 Wallpaper Studio with 21 Studio themes including Sekiro and exactly 10 wallpapers per Studio theme, while preserving v1.6.0 accepted runtime until promotion gates pass.",
+  "DefinitionOfDone": [
+    "21 Studio themes including Sekiro",
+    "10 validated wallpapers per Studio theme (210 total)",
+    "preview/export/apply UX",
+    "reversible desktop apply pre-state/rollback",
+    "candidate build and pixel/runtime tests PASS",
+    "v1.7 installer/package identity and payload integrated",
+    "determinism/package acceptance PASS",
+    "single reversible live canary PASS",
+    "installed regression PASS",
+    "release/CI promotion PASS if publication is authorized"
+  ],
+  "PreviousAcceptedState": {
+    "Version": "1.6.0",
+    "Revision": "R38",
+    "Status": "RELEASED_ACCEPTED_IMMUTABLE",
+    "SourceSHA": "1652989b80c5c6d301c6f05818c48c5207fd9b7a",
+    "InstalledMainSHA256": "05F9E069C4598FDAD327A41BF1CA34A1498D022119DB81E09F4B3B091C9BA377"
+  },
+  "CurrentCandidate": {
+    "Branch": "feature/v1.7.0-wallpaper-studio",
+    "SourceCommit": "ed46152eb9d9ff326687ba5038aa0990e03102d0",
+    "SourceAcceptance": "docs/acceptance/v1.7.0/R39_SOURCE_CANDIDATE_ACCEPTANCE.json",
+    "ThemesTotal": 49,
+    "StudioThemes": 21,
+    "WallpapersPerStudioTheme": 10,
+    "StudioWallpapers": 210,
+    "Installed": false,
+    "Released": false
+  },
+  "Completed": [
+    "read-only R38 authority audit and baseline preservation",
+    "R39 source implementation",
+    "Sekiro original shinobi theme",
+    "10 deterministic wallpapers per Studio theme",
+    "wallpaper preview/export/apply code with pre-state rollback guard",
+    "build 0 warnings / 0 errors",
+    "main selftest PASS",
+    "workspace selftest PASS",
+    "49-theme themeproof PASS",
+    "210/210 unique pixel wallpaperproof PASS before and after quality patch",
+    "representative pixel review PASS",
+    "host safety regression PASS"
+  ],
+  "Open": [
+    "v1.7 packaging/installer integration",
+    "package determinism/acceptance",
+    "single live apply/rollback canary",
+    "installed v1.7 runtime acceptance",
+    "release/CI gates"
+  ],
+  "CriticalPath": "v1.7 packaging -> deterministic candidate package -> one reversible live canary -> installed acceptance -> release/CI",
+  "MainBlocker": "Packaging is still hard-coded to v1.6.0; source candidate must not be installed/published as v1.7 until packaging is integrated and verified.",
+  "BrainStatus": "CURRENT_R39_CANDIDATE",
+  "ExactNextAction": "One change-set: update v1.7.0 installer/build packaging and include WallpaperStudio source/payload, then build and verify package/determinism without installing."
+}

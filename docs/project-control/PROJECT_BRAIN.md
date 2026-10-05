@@ -1023,3 +1023,22 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Current Project Brain Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
 - Open blocker for v1.5.0 product finalization: NONE. External optional future gate only: publicly trusted Authenticode provider.
 - Exact next action for future development: branch from immutable v1.5.0/main baseline; do not mutate v1.5.0 tag/assets.
+
+
+## R39 / v1.7.0 WALLPAPER STUDIO + SEKIRO — SOURCE CANDIDATE PASS — 2026-10-05
+
+- Previous accepted state is preserved: immutable v1.6.0/R38, product source `1652989b80c5c6d301c6f05818c48c5207fd9b7a`, installed Main SHA-256 `05F9E069C4598FDAD327A41BF1CA34A1498D022119DB81E09F4B3B091C9BA377`.
+- R39 source authority: branch `feature/v1.7.0-wallpaper-studio`, commit `ed46152eb9d9ff326687ba5038aa0990e03102d0`.
+- Current objective delta: 21 Studio themes including Sekiro; exactly 10 wallpapers per Studio theme; 210 wallpapers total. Total theme catalog is 49.
+- Implementation: deterministic procedural PNG generation tied to theme palette/geometry; wallpaper preview; single/export-all; guarded desktop apply with saved wallpaper/style/tile pre-state and rollback attempt. No copied Sekiro/game artwork is bundled.
+- Verification: build 0 warnings/0 errors PASS; main selftest PASS 49/21/210; workspace selftest PASS 49/21/210; themeproof PASS 49; wallpaperproof PASS 210/210 unique before and after the final safety/resource patch.
+- Post-quality wallpaper proof authority: `.local/r39/wallpaperproof_postquality/WALLPAPER_PROOF_MANIFEST.json`, SHA-256 `1D36FED74044C202AA209536F5301BD34F2C4860689927CE1BD0113999C114EC`.
+- Representative pixel review PASS: Sekiro variants 01/05/10 plus Art Deco Gold variant 04.
+- System safety: no live wallpaper apply, no rapid theme loop, no install, no reboot. AnyDesk and installed TBME/sensor processes remain active; keyboard/GUI input is available; installed v1.6 Main hash unchanged; R39 did not create the live Wallpapers directory.
+- Failure controls: brittle patch quoting/line-ending failure, nested-shell variable expansion, WinExe `$LASTEXITCODE` false-negative, and stale 1.6 version assertion were root-caused and converted to guarded file-based patching, Process.ExitCode verification, and version-contract regression. Superseded failed runners must not be replayed as authority.
+- Current status: `CURRENT_R39_CANDIDATE / SOURCE_CANDIDATE_PASS_NOT_RELEASED`.
+- Completed this revision: authority audit -> pre-state backups -> isolated branch -> source implementation -> build -> functional regression -> pixel proof -> quality patch -> post-quality proof -> host safety regression -> source candidate commit.
+- Open blocker / critical path: packaging/installer/build scripts still identify/package v1.6.0. R39 source must not be installed or published as v1.7 until that single packaging change-set passes package/determinism gates.
+- Current control: `docs/project-control/CURRENT_PROJECT.json`.
+- Candidate acceptance: `docs/acceptance/v1.7.0/R39_SOURCE_CANDIDATE_ACCEPTANCE.json`.
+- Exact next action: ONE change-set for v1.7.0 packaging/installer integration, including WallpaperStudio source/payload; then build and deterministic package verification without installation. Promotion remains prohibited until those gates pass.
