@@ -18,12 +18,12 @@ $head=(& git -C (Join-Path $PSScriptRoot '..') rev-parse HEAD).Trim()
 if($LASTEXITCODE -ne 0){throw 'Git revision read failed'}
 $results=@()
 $tests=@('selftest','feature-contract-selftest','workspace-selftest')
-if($Visual){$tests+=@('workspace-proof','themeproof','compactproof','settingsproof')}
+if($Visual){$tests+=@('workspace-proof','themeproof','compactproof','settingsproof','wallpaperproof')}
 foreach($test in $tests){
     $stdout=Join-Path $OutputDirectory ($test+'.stdout.txt')
     $stderr=Join-Path $OutputDirectory ($test+'.stderr.txt')
     $arguments=@('--'+$test)
-    if($test -in @('workspace-proof','themeproof','compactproof','settingsproof')){
+    if($test -in @('workspace-proof','themeproof','compactproof','settingsproof','wallpaperproof')){
         $destination=Join-Path $OutputDirectory $test
         $arguments+=('"'+$destination+'"')
     }
@@ -59,7 +59,9 @@ foreach($test in $tests){
 if((Get-FileHash -LiteralPath $Executable).Hash -ne $binaryHash){throw 'Binary changed during verification'}
 if($Visual){
     $proof=Get-Content -LiteralPath (Join-Path $OutputDirectory 'workspace-proof\WORKSPACE_PROOF_MANIFEST.json') -Raw|ConvertFrom-Json
-    if(!$proof.NoSyntheticMetricData -or $proof.Pages.Count -ne 8 -or $proof.ThemeCount -ne 48 -or $proof.GeometryUniqueSamePalette -ne 20 -or $proof.UIActions.Status -ne 'PASS' -or $proof.UIActions.AccessibilityNameGaps -ne 0){throw 'Workspace semantic acceptance contract failed'}
+    if(!$proof.NoSyntheticMetricData -or $proof.Pages.Count -ne 8 -or $proof.ThemeCount -ne 49 -or $proof.GeometryUniqueSamePalette -ne 21 -or $proof.WallpaperCount -ne 210 -or $proof.UIActions.Status -ne 'PASS' -or $proof.UIActions.AccessibilityNameGaps -ne 0){throw 'Workspace semantic acceptance contract failed'}
+    $wallpaper=Get-Content -LiteralPath (Join-Path $OutputDirectory 'wallpaperproof\WALLPAPER_PROOF_MANIFEST.json') -Raw|ConvertFrom-Json
+    if([string]$wallpaper.Status -ne 'PASS' -or [int]$wallpaper.ThemeCount -ne 21 -or [int]$wallpaper.VariantsPerTheme -ne 10 -or [int]$wallpaper.WallpaperCount -ne 210 -or [int]$wallpaper.UniquePixelFiles -ne 210){throw 'Wallpaper semantic acceptance contract failed'}
 }
 $summary.Status='PASS'
 $summary|ConvertTo-Json -Depth 8|Set-Content -LiteralPath (Join-Path $OutputDirectory 'SUMMARY.json') -Encoding UTF8

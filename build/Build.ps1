@@ -65,7 +65,7 @@ Remove-Item -LiteralPath $Out,$Package,$TextPackage -Recurse -Force -ErrorAction
 New-Item -ItemType Directory -Force -Path $Out,$Package,$TextPackage|Out-Null
 
 # Reject truncated/missing source before compiling or packaging a candidate.
-foreach($source in @('TaskbarMonitorEnhanced.cs','StudioThemes.cs','WorkspaceModels.cs','MonitorWorkspace.cs','WorkspaceSelfTest.cs')){
+foreach($source in @('TaskbarMonitorEnhanced.cs','StudioThemes.cs','WallpaperStudio.cs','WorkspaceModels.cs','MonitorWorkspace.cs','WorkspaceSelfTest.cs')){
     $sourcePath=Join-Path $Root ('src\'+$source)
     if(!(Test-Path -LiteralPath $sourcePath) -or (Get-Item -LiteralPath $sourcePath).Length -lt 1000){throw "Missing/truncated source: $sourcePath"}
 }
@@ -83,6 +83,7 @@ Copy-Item (Join-Path $Out 'Supervisor\TaskbarMonitorSensorSupervisor.exe') $Pack
 $CanonicalTextResources=[ordered]@{
     'TaskbarMonitorEnhanced.cs'=(Join-Path $Root 'src\TaskbarMonitorEnhanced.cs')
     'StudioThemes.cs'=(Join-Path $Root 'src\StudioThemes.cs')
+    'WallpaperStudio.cs'=(Join-Path $Root 'src\WallpaperStudio.cs')
     'WorkspaceModels.cs'=(Join-Path $Root 'src\WorkspaceModels.cs')
     'MonitorWorkspace.cs'=(Join-Path $Root 'src\MonitorWorkspace.cs')
     'WorkspaceSelfTest.cs'=(Join-Path $Root 'src\WorkspaceSelfTest.cs')
@@ -90,12 +91,12 @@ $CanonicalTextResources=[ordered]@{
     'TaskbarMonitorSensorSupervisor.cs'=(Join-Path $Root 'src\sensors\TaskbarMonitorSensorSupervisor.cs')
     'TBME_Setup_Elevated_Helper.ps1'=(Join-Path $Root 'installer\TBME_Setup_Elevated_Helper.ps1')
     'LICENSE'=(Join-Path $Root 'LICENSE')
-    'README.md'=(Join-Path $Root 'docs\releases\v1.6.0\INSTALLER_README.txt')
+    'README.md'=(Join-Path $Root 'docs\releases\v1.7.0\INSTALLER_README.txt')
     'AUTHORS.md'=(Join-Path $Root 'AUTHORS.md')
     'COPYRIGHT_AND_ATTRIBUTION.md'=(Join-Path $Root 'COPYRIGHT_AND_ATTRIBUTION.md')
     'AI_ASSISTED_DEVELOPMENT.md'=(Join-Path $Root 'AI_ASSISTED_DEVELOPMENT.md')
     'THIRD_PARTY_NOTICES.md'=(Join-Path $Root 'THIRD_PARTY_NOTICES.md')
-    'RELEASE_NOTES_v1.6.0.md'=(Join-Path $Root 'docs\releases\v1.6.0\RELEASE_NOTES.md')
+    'RELEASE_NOTES_v1.7.0.md'=(Join-Path $Root 'docs\releases\v1.7.0\RELEASE_NOTES.md')
     'UPSTREAM_REFERENCE_GPL_NOTICE.md'=(Join-Path $Root 'UPSTREAM_REFERENCE_GPL_NOTICE.md')
     'TaskbarMonitorEnhanced_Setup.cs'=(Join-Path $Root 'installer\TaskbarMonitorEnhanced_Setup.cs')
 }
@@ -105,7 +106,7 @@ foreach($entry in $CanonicalTextResources.GetEnumerator()){
 Write-Host 'TBME_CANONICAL_TEXT_PAYLOAD=PASS'
 
 Build (Join-Path $PSScriptRoot 'TaskbarMonitorEnhanced_Setup.csproj')
-$Setup=Join-Path $Out 'Setup\TaskbarMonitorEnhanced_Setup_1.6.0.exe'
+$Setup=Join-Path $Out 'Setup\TaskbarMonitorEnhanced_Setup_1.7.0.exe'
 if(!(Test-Path -LiteralPath $Setup)){throw 'Setup output missing.'}
 
 $Verify=Join-Path $Out 'setup_verify.json'
@@ -114,14 +115,14 @@ $vp=Start-Process -FilePath $Setup -ArgumentList @('/verify',("/verifyfile="+$Ve
 if($vp.ExitCode -ne 0){throw "Setup /verify failed with exit $($vp.ExitCode)"}
 if(!(Test-Path -LiteralPath $Verify)){throw 'Setup /verify did not create its verification file.'}
 $v=Get-Content -LiteralPath $Verify -Raw|ConvertFrom-Json
-if([string]$v.Status -ne 'PASS' -or [int]$v.Resources -ne 24){throw 'Setup resource verification failed.'}
+if([string]$v.Status -ne 'PASS' -or [int]$v.Resources -ne 25){throw 'Setup resource verification failed.'}
 
 & (Join-Path $PSScriptRoot 'Test-Workspace.ps1') -Executable (Join-Path $Package 'TaskbarMonitorEnhanced.exe') -OutputDirectory (Join-Path $Out 'contracts')
 if($LASTEXITCODE -ne 0){throw 'Application contract suite failed.'}
 
 $manifest=[ordered]@{
-    Version='1.6.0'
-    Build='V1_6_0_R37_WORKSPACE_THEME_STUDIO'
+    Version='1.7.0'
+    Build='V1_7_0_R39_WALLPAPER_STUDIO'
     GeneratedUtc=[datetime]::UtcNow.ToString('o')
     Dependencies=[ordered]@{
         LibreHardwareMonitor=[ordered]@{Version=[string]$Lock.dependencies.LibreHardwareMonitor.version;Url=$LhmUrl;SHA256=$LhmSha}
