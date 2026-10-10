@@ -6,6 +6,7 @@ param(
     [string]$LivePreviewReceipt='',
     [string]$TopGlassLiveReceipt='',
     [string]$TopGlassTransitionReceipt='',
+    [string]$StartFloatLiveReceipt='',
     [string]$PositiveWallpaperReceipt='',
     [string]$InstalledRuntimeReceipt='',
     [string]$OutputPath='',
@@ -125,6 +126,42 @@ if($nativePass){
     }
 }
 Add-Gate 'G11_ACTUAL_OVERLAYFORM_TASKBAR_0_30_97_100_0_VISIBILITY' $nativePass $TopGlassLiveReceipt 'Candidate'
+$startFloat=Resolve-Evidence $StartFloatLiveReceipt
+$startFloatPass=$null -ne $startFloat -and
+    $startFloat.Status -eq 'PASS' -and
+    $startFloat.ActualProductionOverlayForm -eq $true -and
+    $startFloat.MainExecutableSHA256 -eq $mainDigest -and
+    [int]$startFloat.NativeStartSamples -eq 24 -and
+    [int]$startFloat.ShellSamples -ge 18 -and
+    [int]$startFloat.LiftedSamples -eq 24 -and
+    [int]$startFloat.SafeLiftedBoundsSamples -eq 24 -and
+    [int]$startFloat.VisibleInkSamples -eq 24 -and
+    [int]$startFloat.StartLiftCount -ge 1 -and
+    [int]$startFloat.StartReturnCount -ge 1 -and
+    [int]$startFloat.BeforeStartGlyphs -ge 100 -and
+    [int]$startFloat.BeforeStartCharts -ge 100 -and
+    [int]$startFloat.AfterStartReturnGlyphs -ge 100 -and
+    [int]$startFloat.AfterStartReturnCharts -ge 100 -and
+    $startFloat.ReturnedExactNativeRect -eq $true -and
+    [int]$startFloat.OriginalResidentPid -gt 0 -and
+    $startFloat.NoUserConfigSave -eq $true -and
+    $startFloat.NoWindowsSlideshowChange -eq $true -and
+    $startFloat.NoInstalledExeReplacement -eq $true -and
+    $startFloat.NoProtectionChange -eq $true
+if($startFloatPass){
+    if(@($startFloat.Frames).Count -ne 24){$startFloatPass=$false}
+    else{
+        foreach($frame in $startFloat.Frames){
+            if($frame.Visible -ne $true -or $frame.StartFloating -ne $true -or
+               $frame.SafeRectangle -ne $true -or $frame.HwndVisible -ne $true -or
+               [int]$frame.Cloaked -ne 0 -or
+               [int]$frame.VisibleText -lt 100 -or [int]$frame.VisibleGraph -lt 100){
+                $startFloatPass=$false;break
+            }
+        }
+    }
+}
+Add-Gate 'G12_START_SEARCH_24_REAL_NATIVE_INK_AND_EXACT_RETURN' $startFloatPass $StartFloatLiveReceipt 'Candidate'
 $wallpaper=Resolve-Evidence $PositiveWallpaperReceipt
 $wallpaperPass=$null -ne $wallpaper -and $wallpaper.Status -eq 'PASS' -and
     $wallpaper.SourceSHA -eq $sha -and $wallpaper.BackgroundType -eq 0 -and
@@ -132,22 +169,22 @@ $wallpaperPass=$null -ne $wallpaper -and $wallpaper.Status -eq 'PASS' -and
     $wallpaper.PreImageSHA256 -eq $wallpaper.RestoredImageSHA256 -and
     $wallpaper.PreImageSHA256 -ne $wallpaper.AppliedImageSHA256 -and
     $wallpaper.RegistryPathAndStyleIdentical -eq $true
-Add-Gate 'G12_TRUSTED_STATIC_WALLPAPER_APPLY_RESTORE' $wallpaperPass $PositiveWallpaperReceipt 'Stable'
+Add-Gate 'G13_TRUSTED_STATIC_WALLPAPER_APPLY_RESTORE' $wallpaperPass $PositiveWallpaperReceipt 'Stable'
 $installed=Resolve-Evidence $InstalledRuntimeReceipt
 $installedPass=$null -ne $installed -and $installed.Status -eq 'PASS' -and
     $installed.SourceSHA -eq $sha -and $installed.InstalledMainSHA256 -eq
         (@($outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced.exe'|Select-Object -First 1 -ExpandProperty SHA256)[0]) -and
     $installed.ActualTaskbarAnchoredReadableCharts -eq $true -and $installed.WindowModeMatchesOpacity -eq $true -and $installed.ExplorerRecoveryPassed -eq $true -and
     $installed.ConfigBackupAndRollbackVerified -eq $true -and $installed.ProtectedSensorsHealthy -eq $true -and $installed.InteractiveHostEightRuntimeProbesPassed -eq $true
-Add-Gate 'G13_INSTALLED_TASKBAR_EXPLORER_SENSORS_ROLLBACK' $installedPass $InstalledRuntimeReceipt 'Stable'
+Add-Gate 'G14_INSTALLED_TASKBAR_EXPLORER_SENSORS_ROLLBACK' $installedPass $InstalledRuntimeReceipt 'Stable'
 $setupExe=Join-Path $root 'build\_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.0.exe'
 $mainExe=Join-Path $root 'build\_out\App\TaskbarMonitorEnhanced.exe'
 $signPass=(Test-Path $setupExe) -and (Test-Path $mainExe) -and
     (Get-AuthenticodeSignature -LiteralPath $setupExe).Status -eq 'Valid' -and
     (Get-AuthenticodeSignature -LiteralPath $mainExe).Status -eq 'Valid'
-Add-Gate 'G14_AUTHENTICODE_VALID_ON_SETUP_AND_APP' $signPass 'Get-AuthenticodeSignature (actual local artifacts)' 'Stable'
+Add-Gate 'G15_AUTHENTICODE_VALID_ON_SETUP_AND_APP' $signPass 'Get-AuthenticodeSignature (actual local artifacts)' 'Stable'
 $mainSHA=(& git -C $root rev-parse main).Trim()
-Add-Gate 'G15_MAIN_IS_EXACT_APPROVED_COMMIT' ($mainSHA -eq $sha) ('local main HEAD '+$mainSHA) 'Stable'
+Add-Gate 'G16_MAIN_IS_EXACT_APPROVED_COMMIT' ($mainSHA -eq $sha) ('local main HEAD '+$mainSHA) 'Stable'
 $required=@($gates|Where-Object {$_.Class -eq 'Candidate'})
 $blocked=@($gates|Where-Object {$_.Status -ne 'PASS'})
 $ready=$blocked.Count -eq 0

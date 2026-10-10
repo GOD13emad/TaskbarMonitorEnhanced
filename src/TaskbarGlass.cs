@@ -243,6 +243,35 @@ namespace TaskbarMonitorEnhanced
         internal bool RequiresGlassTopLevel
         {get{return config!=null && (!proofMode||glassNativeVisualProofMode) &&
                      TaskbarGlassHostMode.RequiresTopLevel(config.Opacity,SystemInformation.HighContrast);}}
+        internal void StartGlassGuardTickForProof()
+        {
+            if(!proofMode||!glassNativeVisualProofMode)
+                throw new InvalidOperationException("Start glass proof requires an isolated form.");
+            StartGuardTick(taskbar);
+        }
+
+        internal bool StartGlassFloatingForProof
+        {get{return startGlassTemporarilyFloating;}}
+        internal Rectangle StartGlassLiftedBoundsForProof
+        {get{return startGlassTemporaryBounds;}}
+        internal int StartGlassReturnTransitionsForProof
+        {get{return startGlassReturnTransitions;}}
+        internal int StartGlassLiftTransitionsForProof
+        {get{return startGlassLiftTransitions;}}
+
+        internal bool RecreateNativeGlassHandleForProof()
+        {
+            if(!proofMode||!glassNativeVisualProofMode||!IsHandleCreated)
+                throw new InvalidOperationException("Only an active isolated glass proof can recreate its HWND.");
+            IntPtr previous=Handle;
+            RecreateHandle();
+            Application.DoEvents();
+            AttachIntegrated();
+            return previous!=Handle && !glassLegacyFallback &&
+                   Native.IsWindowVisible(Handle) &&
+                   (Native.GetWindowLongPtr(Handle,Native.GWL_STYLE).ToInt64()&Native.WS_CHILD)==0;
+        }
+
         internal void EnableNativeGlassVisualProof()
         {
             if(!proofMode||IsHandleCreated)throw new InvalidOperationException("Glass visual proof requires a fresh proof-only instance.");
@@ -943,6 +972,562 @@ namespace TaskbarMonitorEnhanced
                 Console.Error.WriteLine("TBME_TOPGLASS_LIVE_PROOF=FAIL "+e);
                 return 46;
             }
+        }
+    }
+}
+
+
+namespace TaskbarMonitorEnhanced
+{
+    // Isolated R53 diagnostic — never launched in the resident app.
+    // Tests whether reasserting HWND_TOPMOST (no focus) during Windows 11
+    // Start/Search can defeat the higher-shell compositor band. Records
+    // actual pixels in a small taskbar-only rectangle, no user config writes.
+    internal static class TaskbarStartZOrderProof
+    {
+        private static Bitmap Capture(Rectangle rectangle)
+        {
+            Bitmap b=new Bitmap(rectangle.Width,rectangle.Height,PixelFormat.Format24bppRgb);
+            using(Graphics drawing=Graphics.FromImage(b))
+                drawing.CopyFromScreen(rectangle.Location,Point.Empty,rectangle.Size,CopyPixelOperation.SourceCopy);
+            return b;
+        }
+
+        private sealed class InkResult { public int Glyph;public int Chart;public int RawSignal;public int ExpectedMaskPixels;public bool VisibleInk; }
+        private static InkResult Ink(Bitmap underlay,Bitmap visible,Bitmap expected)
+        {
+            int glyph=0,chart=0,rawLight=0,maskPixels=0;
+            for(int y=2;y<visible.Height-2;y++)
+            for(int x=3;x<visible.Width-3;x++)
+            {
+                Color shown=visible.GetPixel(x,y);
+                int high=Math.Max(shown.R,Math.Max(shown.G,shown.B));
+                int low=Math.Min(shown.R,Math.Min(shown.G,shown.B));
+                if(high>=140||(high-low>=25&&high>=70))rawLight++;
+                if(expected.GetPixel(x,y).A<210)continue;
+                maskPixels++;
+                Color previous=underlay.GetPixel(x,y);
+                int diff=Math.Max(Math.Abs((int)shown.R-(int)previous.R),
+                    Math.Max(Math.Abs((int)shown.G-(int)previous.G),
+                             Math.Abs((int)shown.B-(int)previous.B)));
+                if(diff>=45)
+                {
+                    if(y<20)glyph++;
+                    else chart++;
+                }
+            }
+            return new InkResult{Glyph= glyph,Chart=chart,RawSignal=rawLight,ExpectedMaskPixels=maskPixels,
+                        VisibleInk=(glyph>=100&&chart>=100)};
+        }
+
+        private static void Require(bool truth,string why)
+        {if(!truth)throw new InvalidOperationException("R53_START_COMPOSITOR "+why);}
+
+        private static string SHA()
+        {
+            using(var sha=System.Security.Cryptography.SHA256.Create())
+            using(var file=File.OpenRead(Application.ExecutablePath))
+                return BitConverter.ToString(sha.ComputeHash(file)).Replace("-","");
+        }
+
+        internal static int Run(string folder)
+        {
+            bool sentWin=false;
+            try
+            {
+                if(Directory.Exists(folder))
+                    throw new InvalidOperationException("Output already exists; no overwrite.");
+                Directory.CreateDirectory(folder);
+                Native.EnableDpi();
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                IntPtr taskbar=Native.FindWindow("Shell_TrayWnd",null);
+                Native.RECT raw=new Native.RECT();
+                Require(taskbar!=IntPtr.Zero&&Native.IsWindowVisible(taskbar)&&
+                    Native.GetWindowRect(taskbar,out raw),"Taskbar unavailable");
+                Rectangle taskbarArea=raw.ToRectangle();
+                AppConfig c=new AppConfig();
+                c.Theme="Dark Minimal Pro";
+                c.Position="Right"; // Do not cover resident v1.6 Left-side app.
+                c.SafePlacement=true;
+                c.MinWidthLogicalPx=900;
+                c.Opacity=0;
+                c.ShowSparklines=true;
+                c.Normalize();
+                Rectangle location=TaskbarLayout.GetSafeRectangle(taskbar,c,c.MinWidthLogicalPx);
+                Require(location.Width>=700&&location.Height>=35&&location.Width<=1500&&
+                    taskbarArea.Contains(location),"Safe gap unavailable");
+                uint resident=0;
+                foreach(System.Diagnostics.Process app in System.Diagnostics.Process.GetProcessesByName("TaskbarMonitorEnhanced"))
+                {
+                    try{if(app.Id!=System.Diagnostics.Process.GetCurrentProcess().Id)
+                        resident=(uint)app.Id;}
+                    finally{app.Dispose();}
+                }
+                Require(resident!=0,"Installed original v1.6 not running");
+                bool collision=false;
+                Native.EnumChildWindows(taskbar,delegate(IntPtr h,IntPtr p)
+                {
+                    if(Native.GetParent(h)!=taskbar)return true;
+                    uint pid=0;Native.GetWindowThreadProcessId(h,out pid);
+                    if(pid!=resident)return true;
+                    Native.RECT bounds=new Native.RECT();
+                    if(Native.GetWindowRect(h,out bounds)&&
+                        bounds.ToRectangle().IntersectsWith(location))collision=true;
+                    return true;
+                },IntPtr.Zero);
+                Require(!collision,"Proof overlaps installed original app");
+                bool colorOk=false;
+                Color backdrop=TaskbarGlassColor.Sample(taskbarArea,location,out colorOk);
+                // Experimental alternate location is the desktop strip just ABOVE
+                // taskbar, not the resident user's original taskbar gap.
+                Rectangle upper=new Rectangle(taskbarArea.Left,location.Y-60,location.Width,location.Height);
+                Require(SystemInformation.VirtualScreen.Contains(upper),"Upper proof strip off screen");
+                using(Bitmap untouched=Capture(location))
+                using(Bitmap upperUnderlay=Capture(upper))
+                using(var f=new OverlayForm(c,true))
+                {
+                    f.EnableNativeGlassVisualProof();
+                    f.PrimeSettingsThemePreviewFromLiveMetrics(22,80);
+                    f.Location=new Point(-30000,-30000);
+                    f.Show();Application.DoEvents();
+                    Require(f.AttachNativeGlassVisualProof()==location,"Production proof mode not native popup");
+                    f.PrimeSettingsThemePreviewFromLiveMetrics(3,60);
+                    Require(f.GlassDirectMetricRefreshCountForProof>=3,"No live native redraw");
+                    using(Bitmap mask=f.RenderGlassPixelsForProof(c.Theme,location.Width,location.Height,0,backdrop))
+                    {
+                        using(Bitmap baseline=Capture(location))
+                        {
+                            var preInk=Ink(untouched,baseline,mask);
+                            baseline.Save(Path.Combine(folder,"BASELINE_VISIBLE_TASKBAR_R53.png"),ImageFormat.Png);
+                            Require(preInk.VisibleInk,
+                                "Real alpha-zero glyph and graph not visible before Start");
+                        }
+                        // Start/Search keyboard event matches production strict StartProbe.
+                        Native.KeybdTap(0x1B);
+                        System.Threading.Thread.Sleep(120);
+                        Native.KeybdTap(0x5B);
+                        sentWin=true;
+                        string shellName="",shellClass="";
+                        IntPtr shellHwnd=IntPtr.Zero;
+                        bool opened=ShellUi.WaitForStartShell(2100,out shellName,out shellClass,out shellHwnd);
+                        if(!opened)
+                        {
+                            Native.CtrlEsc();
+                            opened=ShellUi.WaitForStartShell(2100,out shellName,out shellClass,out shellHwnd);
+                        }
+                        Require(opened,"Windows Start/Search shell not observed");
+                        List<object> samples=new List<object>();
+                        int[] signalByPhase=new int[4],visualByPhase=new int[4];
+                        string[] phases=new string[]{"UNMODIFIED","REASSERT_TOPMOST",
+                            "DEMOTE_THEN_REASSERT_NOACTIVATE","TEMPORARY_ABOVE_LEFT_TASKBAR_DIAGNOSTIC"};
+                        for(int i=0;i<24;i++)
+                        {
+                            int phase=i/6;
+                            bool raiseOk=true,uploaded=true;
+                            if(phase==1)
+                                raiseOk=Native.SetWindowPos(f.Handle,Native.HWND_TOPMOST,0,0,0,0,
+                                  Native.SWP_NOSIZE|Native.SWP_NOMOVE|Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW);
+                            else if(phase>=2)
+                            {
+                                bool down=Native.SetWindowPos(f.Handle,new IntPtr(-2),0,0,0,0,
+                                    Native.SWP_NOSIZE|Native.SWP_NOMOVE|Native.SWP_NOACTIVATE);
+                                bool up=Native.SetWindowPos(f.Handle,Native.HWND_TOPMOST,0,0,0,0,
+                                    Native.SWP_NOSIZE|Native.SWP_NOMOVE|Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW);
+                                raiseOk=down&&up;
+                            }
+                            if(phase==3)
+                            {
+                                // Temporary 60-pixel vertical move, within screen
+                                // work area, while SearchHost shell is active.
+                                raiseOk=Native.SetWindowPos(f.Handle,Native.HWND_TOPMOST,
+                                    upper.X,upper.Y,upper.Width,upper.Height,
+                                    Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW);
+                                uploaded=f.PaintGlassForNativeProof();
+                            }
+                            Application.DoEvents();
+                            System.Threading.Thread.Sleep(180);
+                            bool shellForeground;
+                            string fgProcess="",fgClass="";IntPtr fg=IntPtr.Zero;
+                            shellForeground=ShellUi.IsStartShellForeground(out fgProcess,out fgClass,out fg);
+                            Rectangle locationToCapture=phase==3?upper:location;
+                            using(Bitmap on=Capture(locationToCapture))
+                            {
+                                InkResult ink=Ink(phase==3?upperUnderlay:untouched,on,mask);
+                                int rawSignal=(int)ink.RawSignal;
+                                bool visible=(bool)ink.VisibleInk;
+                                if(rawSignal>=300)signalByPhase[phase]++;
+                                if(visible)visualByPhase[phase]++;
+                                if(i==0||i==5||i==11||i==17||i==23)
+                                   on.Save(Path.Combine(folder,"START_PHASE_"+phases[phase]+"_"+i+".png"),ImageFormat.Png);
+                                Native.RECT rect=new Native.RECT();
+                                Native.GetWindowRect(f.Handle,out rect);
+                                long st=Native.GetWindowLongPtr(f.Handle,Native.GWL_STYLE).ToInt64();
+                                long ex=Native.GetWindowLongPtr(f.Handle,Native.GWL_EXSTYLE).ToInt64();
+                                samples.Add(new {Index=i+1,Phase=phases[phase],Ink=ink,
+                                   ShellForeground=shellForeground,ForegroundProcess=fgProcess,
+                                   RaiseOk=raiseOk,UploadOk=uploaded,WinVisible=Native.IsWindowVisible(f.Handle),
+                                   Cloaked=Native.GetCloaked(f.Handle),NoChild=(st&Native.WS_CHILD)==0,
+                                   NativeLayered=(ex&Native.WS_EX_LAYERED)!=0,
+                                   NativeTopMost=(ex&Native.WS_EX_TOPMOST)!=0,
+                                   Position=new int[]{rect.Left,rect.Top,rect.Right-rect.Left,rect.Bottom-rect.Top}});
+                            }
+                        }
+                        Native.KeybdTap(0x1B);
+                        sentWin=false;
+                        Native.SetWindowPos(f.Handle,Native.HWND_TOPMOST,
+                            location.X,location.Y,location.Width,location.Height,
+                            Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW);
+                        f.PaintGlassForNativeProof();
+                        System.Threading.Thread.Sleep(500);
+                        Application.DoEvents();
+                        bool stillShell=false;
+                        string postProcess="",postClass="";IntPtr postHwnd=IntPtr.Zero;
+                        stillShell=ShellUi.IsStartShellForeground(out postProcess,out postClass,out postHwnd);
+                        if(stillShell)
+                        {
+                            Native.KeybdTap(0x1B); // second Escape if Start/Search stole focus
+                            System.Threading.Thread.Sleep(650);
+                        }
+                        f.PaintGlassForNativeProof();
+                        using(Bitmap closed=Capture(location))
+                        {
+                            closed.Save(Path.Combine(folder,"AFTER_START_CLOSED_R53.png"),ImageFormat.Png);
+                        }
+                        System.Threading.Thread.Sleep(1700);
+                        Application.DoEvents();
+                        f.PaintGlassForNativeProof();
+                        int recoveredText=0,recoveredChart=0;
+                        using(Bitmap later=Capture(location))
+                        {
+                            later.Save(Path.Combine(folder,"AFTER_START_CLOSED_DELAYED_R53.png"),ImageFormat.Png);
+                            InkResult regained=Ink(untouched,later,mask);
+                            recoveredText=regained.Glyph;recoveredChart=regained.Chart;
+                        }
+                        // A true new HWND can enter a different DWM z-band
+                        // after SearchHost relinquishes foreground. Test that
+                        // independently from merely calling SetWindowPos/ULW.
+                        int hideShowGlyph=0,hideShowChart=0;
+                        int recreatedSameFormGlyph=0,recreatedSameFormChart=0;
+                        bool recreatedSameFormHwnd=false;
+                        int newHwndGlyph=0,newHwndChart=0;
+                        // Compare simple WinForms Hide/Show against actual
+                        // RecreateHandle, before allocating a wholly new form.
+                        f.Hide();Application.DoEvents();
+                        f.Show();Application.DoEvents();
+                        f.PaintGlassForNativeProof();
+                        System.Threading.Thread.Sleep(340);
+                        using(Bitmap toggled=Capture(location))
+                        {
+                            InkResult toggle=Ink(untouched,toggled,mask);
+                            hideShowGlyph=toggle.Glyph;hideShowChart=toggle.Chart;
+                            toggled.Save(Path.Combine(folder,"AFTER_START_HIDE_SHOW_SAME_HWND_R53.png"),ImageFormat.Png);
+                        }
+                        recreatedSameFormHwnd=f.RecreateNativeGlassHandleForProof();
+                        System.Threading.Thread.Sleep(340);
+                        using(Bitmap rebuilt=Capture(location))
+                        {
+                            InkResult same=Ink(untouched,rebuilt,mask);
+                            recreatedSameFormGlyph=same.Glyph;
+                            recreatedSameFormChart=same.Chart;
+                            rebuilt.Save(Path.Combine(folder,"AFTER_START_RECREATE_SAME_FORM_R53.png"),ImageFormat.Png);
+                        }
+                        f.Hide();Application.DoEvents();
+                        using(var recreated=new OverlayForm(c,true))
+                        {
+                            recreated.EnableNativeGlassVisualProof();
+                            recreated.PrimeSettingsThemePreviewFromLiveMetrics(22,80);
+                            recreated.Location=new Point(-30000,-30000);
+                            recreated.Show();Application.DoEvents();
+                            Require(recreated.AttachNativeGlassVisualProof()==location,
+                                "New HWND did not reattach to same safe taskbar gap");
+                            recreated.PrimeSettingsThemePreviewFromLiveMetrics(2,50);
+                            System.Threading.Thread.Sleep(420);
+                            Application.DoEvents();
+                            using(Bitmap actualNew=Capture(location))
+                            using(Bitmap maskNew=recreated.RenderGlassPixelsForProof(
+                                c.Theme,location.Width,location.Height,0,backdrop))
+                            {
+                                InkResult fresh=Ink(untouched,actualNew,maskNew);
+                                newHwndGlyph=fresh.Glyph;newHwndChart=fresh.Chart;
+                                actualNew.Save(Path.Combine(folder,"AFTER_START_NEW_HWND_R53.png"),ImageFormat.Png);
+                            }
+                            recreated.Hide();Application.DoEvents();
+                        }
+                        var receipt=new {
+                            Status="DIAGNOSTIC_COMPLETED_NOT_PRODUCTION_ACCEPTANCE",
+                            MainSHA256=SHA(),ActualProductionOverlayForm=true,
+                            NativeSamples=24,OriginalInstalledVersion="1.6.0",
+                            OtherAppTerminated=false,UserConfigChanged=false,
+                            SlideshowChanged=false,ProtectedSensorsChanged=false,
+                            Origin=new int[]{location.X,location.Y,location.Width,location.Height},
+                            StartShellProcess=shellName,StartShellClass=shellClass,
+                            Phase4UpperPosition=new int[]{upper.X,upper.Y,upper.Width,upper.Height},
+                            ShellStillForegroundAfterOneEscape=stillShell,
+                            NativeGlyphRecoveredAfterStart=recoveredText,
+                            NativeChartRecoveredAfterStart=recoveredChart,
+                            HideShowGlyphAfterStart=hideShowGlyph,
+                            HideShowChartAfterStart=hideShowChart,
+                            RecreateSameFormHwndSucceeded=recreatedSameFormHwnd,
+                            RecreateSameFormGlyphAfterStart=recreatedSameFormGlyph,
+                            RecreateSameFormChartAfterStart=recreatedSameFormChart,
+                            BrandNewHwndGlyphAfterStart=newHwndGlyph,
+                            BrandNewHwndChartAfterStart=newHwndChart,
+                            PhaseNames=phases,
+                            VisibleInkSamples=visualByPhase,
+                            RawSignalSamples=signalByPhase,
+                            WindowsStartObserved=opened,FullSampleEvidence=samples,
+                            Interpretation="Actual taskbar bitmap vs unmodified pixels; PNG strips only",
+                            CaptureUtc=DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture)};
+                        File.WriteAllText(Path.Combine(folder,"START_ZORDER_PROOF_R53.json"),
+                            new JavaScriptSerializer().Serialize(receipt),new UTF8Encoding(false));
+                        Console.WriteLine("TBME_START_ZORDER_DIAGNOSTIC=COMPLETE SAMPLES=24 "+
+                            "RAW="+String.Join(",",rawSignalArray(signalByPhase))+
+                            " VISIBLE="+String.Join(",",rawSignalArray(visualByPhase)));
+                    }
+                    f.Hide();Application.DoEvents();
+                }
+                return 0;
+            }
+            catch(Exception e)
+            {
+                try{
+                    Directory.CreateDirectory(folder);
+                    File.WriteAllText(Path.Combine(folder,"START_ZORDER_FAILURE_R53.txt"),e.ToString(),
+                        new UTF8Encoding(false));}catch{}
+                Console.Error.WriteLine("TBME_START_ZORDER_DIAGNOSTIC=FAIL "+e);
+                return 53;
+            }
+            finally
+            {
+                if(sentWin)try{Native.KeybdTap(0x1B);}catch{}
+            }
+        }
+
+        private static string[] rawSignalArray(int[] items)
+        {return Array.ConvertAll(items,n=>n.ToString(CultureInfo.InvariantCulture));}
+    }
+}
+
+
+namespace TaskbarMonitorEnhanced
+{
+    // Actual production StartGuardTick policy with a disposable native OverlayForm.
+    // No installation, telemetry upload, screen capture beyond the 900x48 gap,
+    // sensor reconfiguration, wallpaper action or persistent foreground focus.
+    internal static class TaskbarProductionStartFloatProof
+    {
+        private static void Require(bool ok,string detail)
+        {if(!ok)throw new InvalidOperationException("R54_START_FLOAT "+detail);}
+
+        private static Bitmap Capture(Rectangle r)
+        {
+            Bitmap b=new Bitmap(r.Width,r.Height,PixelFormat.Format24bppRgb);
+            using(Graphics g=Graphics.FromImage(b))
+                g.CopyFromScreen(r.Location,Point.Empty,r.Size,CopyPixelOperation.SourceCopy);
+            return b;
+        }
+
+        private static int[] RealInk(Bitmap before,Bitmap current,Bitmap mask)
+        {
+            int text=0,chart=0,opaque=0;
+            for(int y=2;y<current.Height-3;y++)
+            for(int x=3;x<current.Width-3;x++)
+            {
+                if(mask.GetPixel(x,y).A<210)continue;
+                opaque++;
+                Color old=before.GetPixel(x,y),now=current.GetPixel(x,y);
+                int delta=Math.Max(Math.Abs((int)old.R-now.R),
+                    Math.Max(Math.Abs((int)old.G-now.G),Math.Abs((int)old.B-now.B)));
+                if(delta<45)continue;
+                if(y<20)text++;
+                else chart++;
+            }
+            return new int[]{text,chart,opaque};
+        }
+
+        private static string CurrentMainSHA()
+        {
+            using(var sha=System.Security.Cryptography.SHA256.Create())
+            using(var f=File.OpenRead(Application.ExecutablePath))
+                return BitConverter.ToString(sha.ComputeHash(f)).Replace("-","");
+        }
+
+        internal static int Run(string path)
+        {
+            bool sentWin=false;
+            try
+            {
+                if(Directory.Exists(path))
+                    throw new InvalidOperationException("Native proof directory exists; never overwrite");
+                Directory.CreateDirectory(path);
+                Native.EnableDpi();
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                IntPtr bar=Native.FindWindow("Shell_TrayWnd",null);
+                Native.RECT tb=new Native.RECT();
+                Require(bar!=IntPtr.Zero&&Native.GetWindowRect(bar,out tb)&&Native.IsWindowVisible(bar),
+                    "Real primary taskbar unavailable");
+                Rectangle taskbar=tb.ToRectangle();
+                AppConfig c=new AppConfig();
+                c.Theme="Dark Minimal Pro";c.Position="Right";
+                c.SafePlacement=true;c.Opacity=0;c.ShowSparklines=true;
+                c.MinWidthLogicalPx=900;c.Normalize();
+                Rectangle gap=TaskbarLayout.GetSafeRectangle(bar,c,c.MinWidthLogicalPx);
+                Rectangle upper=new Rectangle(gap.X,gap.Y-gap.Height-12,gap.Width,gap.Height);
+                Require(gap.Width>=700&&gap.Height>=30&&gap.Width<=1500&&
+                    taskbar.Contains(gap)&&SystemInformation.VirtualScreen.Contains(upper),
+                    "Safe nonintrusive taskbar gap not available");
+                uint resident=0;
+                foreach(System.Diagnostics.Process p in System.Diagnostics.Process.GetProcessesByName("TaskbarMonitorEnhanced"))
+                {
+                    try{if(p.Id!=System.Diagnostics.Process.GetCurrentProcess().Id)resident=(uint)p.Id;}
+                    finally{p.Dispose();}
+                }
+                Require(resident>0,"Accepted installed v1.6 must be resident");
+                bool collide=false;
+                Native.EnumChildWindows(bar,delegate(IntPtr h,IntPtr ignore)
+                {
+                    if(Native.GetParent(h)!=bar)return true;
+                    uint pid=0;Native.GetWindowThreadProcessId(h,out pid);
+                    if(pid!=resident)return true;
+                    Native.RECT native=new Native.RECT();
+                    if(Native.GetWindowRect(h,out native)&&native.ToRectangle().IntersectsWith(gap))
+                        collide=true;
+                    return true;
+                },IntPtr.Zero);
+                Require(!collide,"Proof would cover installed v1.6");
+                bool sampled=false;
+                Color bgcolor=TaskbarGlassColor.Sample(taskbar,gap,out sampled);
+                using(Bitmap uncovered=Capture(gap))
+                using(Bitmap uncoveredUpper=Capture(upper))
+                using(var f=new OverlayForm(c,true))
+                {
+                    f.EnableNativeGlassVisualProof();
+                    f.PrimeSettingsThemePreviewFromLiveMetrics(24,80);
+                    f.Location=new Point(-30000,-30000);
+                    f.Show();Application.DoEvents();
+                    Require(f.AttachNativeGlassVisualProof()==gap,
+                        "Actual production OverlayForm failed initial true-alpha attach");
+                    f.PrimeSettingsThemePreviewFromLiveMetrics(2,40);
+                    int[] baseline;
+                    using(Bitmap bm=Capture(gap))
+                    using(Bitmap inkMask=f.RenderGlassPixelsForProof(c.Theme,gap.Width,gap.Height,0,bgcolor))
+                    {
+                        bm.Save(Path.Combine(path,"R54_BASELINE_TASKBAR.png"),ImageFormat.Png);
+                        baseline=RealInk(uncovered,bm,inkMask);
+                        Require(baseline[0]>=100&&baseline[1]>=100,
+                            "Actual text/graph not visible before Start");
+                    }
+                    Native.KeybdTap(0x1B);
+                    System.Threading.Thread.Sleep(120);
+                    Native.KeybdTap(0x5B);sentWin=true;
+                    string shellProcess="",shellClass="";IntPtr shellHwnd=IntPtr.Zero;
+                    bool observed=ShellUi.WaitForStartShell(2000,out shellProcess,out shellClass,out shellHwnd);
+                    if(!observed)
+                    {
+                        Native.CtrlEsc();
+                        observed=ShellUi.WaitForStartShell(1800,out shellProcess,out shellClass,out shellHwnd);
+                    }
+                    Require(observed,"Start/Search OS shell not observed");
+                    List<object> frames=new List<object>();
+                    int floatingCount=0,visibleCount=0,shellCount=0,safeCount=0;
+                    for(int i=0;i<24;i++)
+                    {
+                        f.StartGlassGuardTickForProof();
+                        Application.DoEvents();
+                        System.Threading.Thread.Sleep(220);
+                        bool raised=f.StartGlassFloatingForProof;
+                        Rectangle actual=raised?f.StartGlassLiftedBoundsForProof:gap;
+                        Native.RECT current=new Native.RECT();
+                        Native.GetWindowRect(f.Handle,out current);
+                        bool safe=(raised&&actual==upper&&current.ToRectangle()==upper);
+                        if(safe)safeCount++;
+                        if(raised)floatingCount++;
+                        string proc="",klass="";IntPtr fg=IntPtr.Zero;
+                        bool shellActive=ShellUi.IsStartShellForeground(out proc,out klass,out fg);
+                        if(shellActive)shellCount++;
+                        using(Bitmap frame=Capture(actual))
+                        using(Bitmap mask=f.RenderGlassPixelsForProof(c.Theme,actual.Width,actual.Height,0,bgcolor))
+                        {
+                            int[] inks=RealInk(raised?uncoveredUpper:uncovered,frame,mask);
+                            bool visible=inks[0]>=100&&inks[1]>=100;
+                            if(visible)visibleCount++;
+                            if(i==0||i==3||i==19||i==23)
+                                frame.Save(Path.Combine(path,"R54_START_SAMPLE_"+i+".png"),ImageFormat.Png);
+                            frames.Add(new {
+                                Sample=i+1,ShellForeground=shellActive,ShellProcess=proc,
+                                StartFloating=raised,SafeRectangle=safe,
+                                VisibleText=inks[0],VisibleGraph=inks[1],Visible=visible,
+                                NativeUploadCount=f.GlassDirectMetricRefreshCountForProof,
+                                Hwnd=f.Handle.ToInt64(),HwndVisible=Native.IsWindowVisible(f.Handle),
+                                Cloaked=Native.GetCloaked(f.Handle),
+                                ActualRect=new int[]{current.Left,current.Top,current.Right-current.Left,current.Bottom-current.Top}
+                            });
+                        }
+                    }
+                    Native.KeybdTap(0x1B);sentWin=false;
+                    System.Threading.Thread.Sleep(320);
+                    Application.DoEvents();
+                    for(int attempt=0;attempt<8&&f.StartGlassFloatingForProof;attempt++)
+                    {
+                        f.StartGlassGuardTickForProof();
+                        System.Threading.Thread.Sleep(220);
+                        Application.DoEvents();
+                    }
+                    bool returned=!f.StartGlassFloatingForProof &&
+                        f.StartGlassReturnTransitionsForProof>=1;
+                    Native.RECT after=new Native.RECT();
+                    Native.GetWindowRect(f.Handle,out after);
+                    returned=returned&&after.ToRectangle()==gap;
+                    System.Threading.Thread.Sleep(280);
+                    int[] inkAfter;
+                    using(Bitmap now=Capture(gap))
+                    using(Bitmap mask=f.RenderGlassPixelsForProof(c.Theme,gap.Width,gap.Height,0,bgcolor))
+                    {
+                        inkAfter=RealInk(uncovered,now,mask);
+                        now.Save(Path.Combine(path,"R54_RETURN_TO_TASKBAR.png"),ImageFormat.Png);
+                    }
+                    bool pass=observed&&shellCount>=18&&floatingCount==24&&
+                        safeCount==24&&visibleCount==24&&returned&&
+                        inkAfter[0]>=100&&inkAfter[1]>=100;
+                    var receipt=new {
+                        Status=pass?"PASS":"FAIL",
+                        ActualProductionOverlayForm=true,
+                        MainExecutableSHA256=CurrentMainSHA(),
+                        NativeStartSamples=24,ShellSamples=shellCount,
+                        LiftedSamples=floatingCount,SafeLiftedBoundsSamples=safeCount,
+                        VisibleInkSamples=visibleCount,RequiredVisibleInkSamples=24,
+                        StartLiftCount=f.StartGlassLiftTransitionsForProof,
+                        StartReturnCount=f.StartGlassReturnTransitionsForProof,
+                        OriginalTaskbarLocation=new int[]{gap.X,gap.Y,gap.Width,gap.Height},
+                        TemporaryAboveLocation=new int[]{upper.X,upper.Y,upper.Width,upper.Height},
+                        BeforeStartGlyphs=baseline[0],BeforeStartCharts=baseline[1],
+                        AfterStartReturnGlyphs=inkAfter[0],AfterStartReturnCharts=inkAfter[1],
+                        ReturnedExactNativeRect=returned,OriginalResidentPid=resident,
+                        NoUserConfigSave=true,NoWindowsSlideshowChange=true,
+                        NoInstalledExeReplacement=true,
+                        NoProtectionChange=true,Frames=frames,
+                        Utc=DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture)
+                    };
+                    File.WriteAllText(Path.Combine(path,"R54_PRODUCTION_START_FLOAT_PROOF.json"),
+                        new JavaScriptSerializer().Serialize(receipt),new UTF8Encoding(false));
+                    f.Hide();Application.DoEvents();
+                    Console.WriteLine("TBME_R54_PRODUCTION_START_FLOAT="+(pass?"PASS":"FAIL")+
+                        " FLOAT_VISIBLE="+visibleCount+"/24 RETURN_TEXT="+inkAfter[0]+
+                        " RETURN_GRAPH="+inkAfter[1]);
+                    return pass?0:54;
+                }
+            }
+            catch(Exception ex)
+            {
+                try{Directory.CreateDirectory(path);
+                    File.WriteAllText(Path.Combine(path,"R54_START_FLOAT_ERROR.txt"),
+                        ex.ToString(),new UTF8Encoding(false));}catch{}
+                Console.Error.WriteLine("TBME_R54_PRODUCTION_START_FLOAT=FAIL "+ex);
+                return 54;
+            }
+            finally{if(sentWin)try{Native.KeybdTap(0x1B);}catch{}}
         }
     }
 }

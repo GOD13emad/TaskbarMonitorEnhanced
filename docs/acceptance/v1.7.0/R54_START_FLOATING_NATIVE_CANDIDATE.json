@@ -1,0 +1,49 @@
+{
+  "Schema": 1,
+  "Revision": "R54",
+  "Project": "TaskbarMonitorEnhanced",
+  "ParentCommit": "0a706f700e4623c24c6cd4e622ac071dcf5f6073",
+  "Branch": "feature/v1.7.0-r53-start-compositor-visibility",
+  "Status": "REAL_NATIVE_PRODUCTION_FORM_24_OF_24_START_FLOAT_AND_EXACT_RETURN_PASS_EXACT_CI_PENDING",
+  "DeveloperMainSHA256": "15CB0E5A5F5FB72C1D5D23D7055D550CB8231EDB0B538F2F94F196838A551360",
+  "NativeProof": {
+    "Status": "PASS",
+    "ShellSamples": 24,
+    "NativeStartSamples": 24,
+    "LiftedSamples": 24,
+    "SafeLiftedBoundsSamples": 24,
+    "VisibleInkSamples": 24,
+    "StartLiftCount": 1,
+    "StartReturnCount": 1,
+    "ReturnedExactNativeRect": true,
+    "BeforeStartGlyphs": 2291,
+    "BeforeStartCharts": 1907,
+    "AfterStartReturnGlyphs": 2291,
+    "AfterStartReturnCharts": 1907,
+    "OriginalTaskbarLocation": [
+      2242,
+      1392,
+      900,
+      48
+    ],
+    "TemporaryAboveLocation": [
+      2242,
+      1332,
+      900,
+      48
+    ]
+  },
+  "SourceCandidateGateCount": 12,
+  "ExternalStableGateCount": 4,
+  "NoInstalledV17Acceptance": true,
+  "ExternalBlockers": [
+    "G13 authorized static WallpaperStudio positive ApplyDesktop+RestoreDesktopPreState",
+    "G14 full installed Setup v1.7 8/8 Start/native/Explorer/sensor/rollback",
+    "G15 public valid Authenticode Main+Setup",
+    "G16 approved main exact CI & immutable seven asset v1.7 public release"
+  ],
+  "TemporaryFloatUXApproved": false,
+  "PublicVersion": "v1.6.0 immutable",
+  "Evidence": "ignored .local/r54/START_FLOAT_SETTLED_GUARD_PROOF/R54_PRODUCTION_START_FLOAT_PROOF.json",
+  "UTC": "2026-10-10T16:44:00.955445+00:00"
+}
