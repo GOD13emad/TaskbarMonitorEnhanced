@@ -110,6 +110,36 @@ Build (Join-Path $PSScriptRoot 'TaskbarMonitorEnhanced_Setup.csproj')
 $Setup=Join-Path $Out 'Setup\TaskbarMonitorEnhanced_Setup_1.7.0.exe'
 if(!(Test-Path -LiteralPath $Setup)){throw 'Setup output missing.'}
 
+# SignPath Foundation requires uniform signed-artifact project and ProductVersion metadata.
+# Fail before packaging a Setup whose Authenticode metadata cannot match Main.
+$SigningMain=(Join-Path $Out 'App\TaskbarMonitorEnhanced.exe')
+$SigningMainInfo=(Get-Item -LiteralPath $SigningMain).VersionInfo
+$SigningSetupInfo=(Get-Item -LiteralPath $Setup).VersionInfo
+$SigningProject='Taskbar Monitor Enhanced'
+if($SigningMainInfo.ProductName -cne $SigningProject -or
+   $SigningSetupInfo.ProductName -cne $SigningProject -or
+   [string]::IsNullOrWhiteSpace($SigningMainInfo.ProductVersion) -or
+   $SigningMainInfo.ProductVersion -cne $SigningSetupInfo.ProductVersion -or
+   $SigningMainInfo.FileVersion -cne $SigningSetupInfo.FileVersion){
+    throw ('SIGNING_METADATA_MISMATCH: Main ProductName='+$SigningMainInfo.ProductName+
+      ' ProductVersion='+$SigningMainInfo.ProductVersion+' FileVersion='+$SigningMainInfo.FileVersion+
+      '; Setup ProductName='+$SigningSetupInfo.ProductName+' ProductVersion='+$SigningSetupInfo.ProductVersion+
+      ' FileVersion='+$SigningSetupInfo.FileVersion)
+}
+Write-Host ('TBME_SIGNING_METADATA_MAIN_SETUP=PASS ProductVersion='+$SigningMainInfo.ProductVersion)
+$SigningMetadata=[ordered]@{
+    Schema=1;Status='PASS';Project=$SigningProject;
+    MainProductVersion=$SigningMainInfo.ProductVersion;
+    SetupProductVersion=$SigningSetupInfo.ProductVersion;
+    MainFileVersion=$SigningMainInfo.FileVersion;
+    SetupFileVersion=$SigningSetupInfo.FileVersion;
+    MainSHA256=(Get-FileHash -LiteralPath $SigningMain -Algorithm SHA256).Hash;
+    SetupSHA256=(Get-FileHash -LiteralPath $Setup -Algorithm SHA256).Hash;
+    UntrustedBinarySigningStatus='METADATA_READY_NOT_PUBLIC_SIGNED'
+}
+$SigningMetadata | ConvertTo-Json -Depth 4 |
+    Set-Content -LiteralPath (Join-Path $Out 'signing_metadata.json') -Encoding UTF8
+
 $Verify=Join-Path $Out 'setup_verify.json'
 Remove-Item -LiteralPath $Verify -Force -ErrorAction SilentlyContinue
 $vp=Start-Process -FilePath $Setup -ArgumentList @('/verify',("/verifyfile="+$Verify)) -Wait -PassThru
