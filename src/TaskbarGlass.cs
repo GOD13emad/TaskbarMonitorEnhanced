@@ -269,6 +269,21 @@ namespace TaskbarMonitorEnhanced
             taskbarGlassColor=TaskbarGlassColor.Sample(frame,content,out taskbarGlassSampled);
             return taskbarGlassColor;
         }
+        // R44 chart proof seeds ONLY a purpose-built proof-mode renderer.
+        // Real taskbar metrics/history are never synthesized or persisted.
+        internal void SeedChartHistoryForProof()
+        {
+            if(!proofMode)throw new InvalidOperationException("Synthetic chart fixture limited to proof mode.");
+            for(int i=0;i<48;i++)
+            {
+                history.Add("CPU",16f+((i*13)%71));
+                history.Add("RAM",26f+((i*7)%49));
+                history.Add("DISK",1f+((i*11)%45));
+                history.Add("GPU",14f+((i*19)%79));
+                history.Add("VRAM",24f+((i*17)%65));
+                history.Add("NET",1f+((i*23)%61));
+            }
+        }
         internal Bitmap RenderGlassPixelsForProof(string theme,int width,int height,int percent,Color taskbar)
         {return RenderGlassBitmap(ThemeCatalog.Get(theme),width,height,percent,taskbar);}
         private Bitmap RenderGlassBitmap(ThemeDefinition theme,int width,int height,int percent,Color taskbar)
@@ -282,12 +297,14 @@ namespace TaskbarMonitorEnhanced
                     ink=new Bitmap(width,height,PixelFormat.Format32bppPArgb);
                     glassInkCanvas=Graphics.FromImage(ink);
                     glassInkCanvas.TextRenderingHint=System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+                    glassInkCanvas.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                     glassInkCanvas.Clear(Color.Transparent);
                     if(percent<=30)
                     {
                         halo=new Bitmap(width,height,PixelFormat.Format32bppPArgb);
                         glassHaloCanvas=Graphics.FromImage(halo);
                         glassHaloCanvas.TextRenderingHint=System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+                        glassHaloCanvas.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                         glassHaloCanvas.Clear(Color.Transparent);
                     }
                 }
@@ -423,6 +440,121 @@ namespace TaskbarMonitorEnhanced
             }
         }
     }
+    // Independent proof: charts must remain foreground at zero opacity.
+    // Only the proof-mode instance receives synthetic history; production never does.
+    internal static class TaskbarChartGlassProof
+    {
+        private static void Check(bool pass,string message)
+        {if(!pass)throw new InvalidOperationException("R44 CHART "+message);}
+        private static object Compare(string theme,Color taskbar,int opacity,
+            Bitmap before,Bitmap after)
+        {
+            byte[] oldPixels=TaskbarGlassPixels.ReadPixels(before,PixelFormat.Format32bppPArgb);
+            byte[] newPixels=TaskbarGlassPixels.ReadPixels(after,PixelFormat.Format32bppPArgb);
+            int chartPixels=0,solidChart=0,clearPixels=0,inkContrast=0;
+            Color expected=TaskbarGlassColor.ReadableText(
+                TaskbarGlassColor.EffectiveBackground(taskbar,ThemeCatalog.Get(theme).Background,opacity/100d));
+            for(int y=20;y<after.Height-2;y++)
+            for(int x=3;x<after.Width-3;x++)
+            {
+                int i=(y*after.Width+x)*4;
+                int oa=oldPixels[i+3],na=newPixels[i+3];
+                if(na==0)clearPixels++;
+                if(na>=190 && na-oa>=66)
+                {
+                    chartPixels++;
+                    if(na>=245)
+                    {
+                        solidChart++;
+                        int db=Math.Abs(newPixels[i]-expected.B);
+                        int dg=Math.Abs(newPixels[i+1]-expected.G);
+                        int dr=Math.Abs(newPixels[i+2]-expected.R);
+                        if(db<=12&&dg<=12&&dr<=12)inkContrast++;
+                    }
+                }
+            }
+            Check(chartPixels>=16,"missing separate chart pixels for "+theme+" alpha="+opacity+" chart="+chartPixels);
+            Check(solidChart>=7,"chart ink too faint for "+theme+" alpha="+opacity+" strong="+solidChart);
+            if(opacity<=30)
+            {
+                Check(inkContrast>=6,"adapted chart ink wrong for "+theme+" alpha="+opacity+" count="+inkContrast);
+                Check(TaskbarGlassColor.Contrast(expected,
+                    TaskbarGlassColor.EffectiveBackground(taskbar,ThemeCatalog.Get(theme).Background,opacity/100d))>=4.5,
+                    "chart color WCAG threshold");
+            }
+            if(opacity==0)Check(clearPixels>after.Width*4,"chart proof lost clear pixels "+theme);
+            return new {theme,opacity,taskbar=taskbar.ToArgb(),chartPixels,solidChart,clearPixels,inkContrast};
+        }
+        internal static int Run(string outputDirectory)
+        {
+            try
+            {
+                if(Directory.Exists(outputDirectory))
+                    throw new InvalidOperationException("Chart proof output already exists; do not overwrite.");
+                Directory.CreateDirectory(outputDirectory);
+                var seen=new List<object>();
+                int pairCount=0;
+                var palette=new[]{Color.FromArgb(18,21,23),Color.FromArgb(238,239,242)};
+                using(var config=new ChartProofConfigScope())
+                using(var renderer=new OverlayForm(config.Config,true))
+                {
+                    renderer.SeedChartHistoryForProof();
+                    foreach(string name in ThemeCatalog.Names)
+                    foreach(Color bg in palette)
+                    foreach(int pct in new[]{0,29})
+                    {
+                        config.Config.ShowSparklines=false;
+                        using(Bitmap without=renderer.RenderGlassPixelsForProof(name,1100,48,pct,bg))
+                        {
+                            config.Config.ShowSparklines=true;
+                            using(Bitmap with=renderer.RenderGlassPixelsForProof(name,1100,48,pct,bg))
+                                seen.Add(Compare(name,bg,pct,without,with));
+                        }
+                        pairCount++;
+                    }
+                    // Boundary proof: alpha and manual toggle remain correct
+                    foreach(int pct in new[]{1,15,30,31,50,99,100})
+                    {
+                        config.Config.ShowSparklines=false;
+                        using(Bitmap without=renderer.RenderGlassPixelsForProof("Dark Minimal Pro",1100,48,pct,palette[0]))
+                        {
+                            config.Config.ShowSparklines=true;
+                            using(Bitmap with=renderer.RenderGlassPixelsForProof("Dark Minimal Pro",1100,48,pct,palette[0]))
+                            {
+                                Check(with.Width==1100&&with.Height==48,"chart boundary geometry");
+                                if(pct<=31)seen.Add(Compare("Dark Minimal Pro",palette[0],pct,without,with));
+                            }
+                        }
+                    }
+                }
+                Check(pairCount==ThemeCatalog.Names.Length*4,"49-theme dark/light opacity matrix");
+                var json=new JavaScriptSerializer().Serialize(new{
+                    Status="PASS",Source="R44 chart foreground proof",Themes=ThemeCatalog.Names.Length,
+                    Pairs=pairCount,Observed=seen.Count,
+                    TestedAlphas=new[]{0,1,15,29,30,31,50,99,100},
+                    ChartTypes="line,bars,quantized-lcd,dots",
+                    NoRealSystemDesktopChange=true,ThemeBackgroundTransparentAtZero=true,
+                    ForegroundChartIndependent=true,ContrastMinimum=4.5,Observations=seen
+                });
+                File.WriteAllText(Path.Combine(outputDirectory,"CHART_GLASS_PROOF.json"),json,new UTF8Encoding(false));
+                Console.WriteLine("TBME_CHART_GLASS_PROOF=PASS THEMES="+ThemeCatalog.Names.Length+
+                    " PAIRS="+pairCount+" BACKGROUND_ZERO_CHART_VISIBLE=TRUE");
+                return 0;
+            }
+            catch(Exception ex)
+            {
+                Console.Error.WriteLine("TBME_CHART_GLASS_PROOF=FAIL "+ex);
+                return 44;
+            }
+        }
+        // Keep proof settings lifetime separate to avoid affecting global live configuration.
+        private sealed class ChartProofConfigScope : IDisposable
+        {
+            internal readonly AppConfig Config=new AppConfig();
+            public void Dispose(){}
+        }
+    }
+
     internal sealed class GlassChildWindow : Form
     {
         protected override CreateParams CreateParams

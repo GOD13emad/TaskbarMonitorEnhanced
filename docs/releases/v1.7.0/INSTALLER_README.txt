@@ -19,3 +19,4 @@ Project: https://github.com/GOD13emad/TaskbarMonitorEnhanced
 License: GNU GPL v3.0
 - Per-theme taskbar background transparency from 0% to 100%; below 30% adaptive text contrast sampled from the taskbar, High Contrast forced opaque.
 - Wallpaper Apply refuses Slideshow/Spotlight/solid-color/unknown Windows background modes before mutation; static Picture uses hashed previous-image backup and checked rollback.
+- R44: charts (line, bar, LCD/dots) remain separately visible when background opacity is 0%; no synthetic production metric history. Unreleased candidate; do not install before positive wallpaper and transactional installed acceptance.

@@ -60,3 +60,7 @@ Wallpaper Studio is a presentation feature. It does not change sensor polling, p
 
 ## Wallpaper Studio transactional safety
 If Windows is running Slideshow, Spotlight, a solid-color background or an unknown background mode, the Apply command safely refuses without changing user personalization. Only a confirmed static Picture background is eligible. Before Apply, the current image is copied with SHA-256 into a unique local prestate backup along with its path and registry style/tile. On SPI failure, the app attempts to restore and verify original bytes, path and style; an unverified restoration is explicitly reported rather than silently accepted. This safeguard is separate from the per-pixel taskbar glass feature.
+
+## R44: microcharts stay visible when background opacity is 0%
+
+All 49 themes preserve the microchart foreground at zero-background opacity, including line, terminal/mission bars, Studio LCD/dots. Text and charts use taskbar-aware adaptive black or white plus a halo at opacity 30% or less. Manual Show sparklines OFF still hides graphs. All regular chart history remains observed data; proof fixture samples are proof-mode only. This remains an UNRELEASED candidate until positive wallpaper and installed acceptance.

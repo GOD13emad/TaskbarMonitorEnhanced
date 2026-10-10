@@ -138,13 +138,65 @@ namespace TaskbarMonitorEnhanced
                 bool stacked=HeadlineIsStacked(headline);
                 RectangleF graph=new RectangleF(x+9,y+(stacked?30:24),Math.Max(4,w-18),Math.Max(4,h-(stacked?34:28)));
                 if(!config.ShowSparklines)return;
-                if(mode=="lcd" || mode=="dots") {
-                    if(m.History==null||m.History.Count==0)return;
-                    int count=Math.Min(24,m.History.Count);float max=Math.Max(1,m.History.Skip(m.History.Count-count).Max());float dx=graph.Width/count;
-                    using(var b=new SolidBrush(accent))for(int i=0;i<count;i++){float v=m.History[m.History.Count-count+i]/max;int levels=Math.Max(1,(int)Math.Round(v*3));for(int k=0;k<levels;k++) {if(mode=="dots")g.FillEllipse(b,graph.X+i*dx,graph.Bottom-2-k*3,Math.Max(1,Math.Min(2,dx-1)),2);else g.FillRectangle(b,graph.X+i*dx,graph.Bottom-2-k*3,Math.Max(1,dx-1),2);}}
+                if(mode=="lcd" || mode=="dots")
+                {
+                    DrawStudioQuantizedChart(g,m.History,graph,accent,mode=="dots");
                 } else if(mode=="bauhaus" || mode=="metro" || mode=="brutal")DrawMissionBars(g,m.History,graph,accent);
                 else DrawSparkline(g,m.History,graph,accent,mode=="scope"?1.6f:1.25f,mode=="scope" || mode=="prism");
             } finally {g.Restore(saved);}
         }
+
+        // Discrete LCD / dot-chart geometry participates in the same glass
+        // foreground contract as line and bar charts; decorative tile art does not.
+        private void DrawStudioQuantizedChart(Graphics g,IList<float> values,
+            RectangleF graph,Color accent,bool dots)
+        {
+            PaintQuantizedChartCore(g,values,graph,accent,dots,false);
+            if(glassInkCanvas!=null)
+            {
+                GraphicsState st=glassInkCanvas.Save();
+                try
+                {
+                    glassInkCanvas.SetClip(graph,CombineMode.Intersect);
+                    PaintQuantizedChartCore(glassInkCanvas,values,graph,
+                        Color.FromArgb(255,accent),dots,false);
+                }
+                finally{glassInkCanvas.Restore(st);}
+                if(glassHaloCanvas!=null)
+                {
+                    GraphicsState halo=glassHaloCanvas.Save();
+                    try
+                    {
+                        glassHaloCanvas.SetClip(graph,CombineMode.Intersect);
+                        PaintQuantizedChartCore(glassHaloCanvas,values,graph,Color.White,dots,true);
+                    }
+                    finally{glassHaloCanvas.Restore(halo);}
+                }
+            }
+        }
+        private static void PaintQuantizedChartCore(Graphics g,IList<float> values,
+            RectangleF graph,Color accent,bool dots,bool ring)
+        {
+            if(values==null||values.Count==0||graph.Width<4||graph.Height<4)return;
+            int count=Math.Min(24,values.Count);
+            float max=Math.Max(1,values.Skip(values.Count-count).Max());
+            float dx=graph.Width/count;
+            using(var b=new SolidBrush(accent))
+            for(int i=0;i<count;i++)
+            {
+                float v=values[values.Count-count+i]/max;
+                int levels=Math.Max(1,(int)Math.Round(v*3));
+                for(int k=0;k<levels;k++)
+                {
+                    float xx=graph.X+i*dx-(ring?0.6f:0f);
+                    float yy=graph.Bottom-2-k*3-(ring?0.6f:0f);
+                    float ww=Math.Max(1,dots?Math.Min(2,dx-1):dx-1)+(ring?1.2f:0f);
+                    float hh=2+(ring?1.2f:0f);
+                    if(dots)g.FillEllipse(b,xx,yy,ww,hh);
+                    else g.FillRectangle(b,xx,yy,ww,hh);
+                }
+            }
+        }
+
     }
 }

@@ -6371,27 +6371,121 @@ namespace TaskbarMonitorEnhanced
                 else DrawSparkline(g,m.History,graph,m.Accent,t.Mode=="synth"?1.55f:1.25f,t.Mode=="synth");
             }
         }
-        private static void DrawMissionBars(Graphics g,IList<float> values,RectangleF r,Color c)
+        // R44: chart primitives are separate visible foreground, just like glyphs.
+        // Normal 100% theme painting continues through the original GDI+ routines.
+        private void DrawMissionBars(Graphics g,IList<float> values,RectangleF r,Color c)
         {
-            if(values==null||values.Count==0||r.Width<8||r.Height<4)return;
-            int count=Math.Min(values.Count,14);float max=values.Skip(values.Count-count).Max();if(max<1)max=1;float w=r.Width/count;
-            using(SolidBrush b=new SolidBrush(Color.FromArgb(205,c)))
+            PaintChartBarsCore(g,values,r,c,14,205,1.5f,false);
+            if(glassInkCanvas!=null)
             {
-                for(int i=0;i<count;i++){float v=values[values.Count-count+i]/max;float h=Math.Max(1,r.Height*v);g.FillRectangle(b,r.X+i*w,r.Bottom-h,Math.Max(1,w-1.5f),h);}
+                GraphicsState saved=glassInkCanvas.Save();
+                try
+                {
+                    glassInkCanvas.SetClip(r,CombineMode.Intersect);
+                    PaintChartBarsCore(glassInkCanvas,values,r,Color.FromArgb(255,c),14,255,1.0f,false);
+                }
+                finally{glassInkCanvas.Restore(saved);}
+                if(glassHaloCanvas!=null)
+                {
+                    GraphicsState h=glassHaloCanvas.Save();
+                    try
+                    {
+                        glassHaloCanvas.SetClip(r,CombineMode.Intersect);
+                        PaintChartBarsCore(glassHaloCanvas,values,r,Color.White,14,255,0.5f,true);
+                    }
+                    finally{glassHaloCanvas.Restore(h);}
+                }
+            }
+        }
+        private static void PaintChartBarsCore(Graphics g,IList<float> values,RectangleF r,
+            Color color,int maxBars,int opacity,float space,bool expanded)
+        {
+            if(values==null||values.Count==0||r.Width<4||r.Height<4)return;
+            int count=Math.Min(values.Count,maxBars);
+            float max=values.Skip(values.Count-count).Max();if(max<1)max=1;
+            float w=r.Width/count;
+            using(SolidBrush b=new SolidBrush(Color.FromArgb(opacity,color)))
+            {
+                for(int i=0;i<count;i++)
+                {
+                    float v=Math.Max(0,values[values.Count-count+i])/max;
+                    float h=Math.Max(1,r.Height*v);
+                    float padding=expanded?0.8f:0f;
+                    g.FillRectangle(b,r.X+i*w-padding,r.Bottom-h-padding,
+                        Math.Max(1,w-space+padding*2f),h+padding*2f);
+                }
             }
         }
 
-        private static void DrawSparkline(Graphics g,IList<float> values,RectangleF r,Color color,float width,bool glow)
+        private void DrawSparkline(Graphics g,IList<float> values,RectangleF r,Color color,float width,bool glow)
         {
-            if(values==null||values.Count<2||r.Width<4||r.Height<4)return;float max=values.Max();float min=values.Min();if(max-min<0.01f){max=min+1;}
-            PointF[] p=new PointF[values.Count];for(int i=0;i<values.Count;i++){float x=r.X+r.Width*i/(values.Count-1f);float y=r.Bottom-(values[i]-min)/(max-min)*r.Height;p[i]=new PointF(x,y);}
-            if(glow)using(Pen gp=new Pen(Color.FromArgb(55,color),4f)){gp.LineJoin=LineJoin.Round;g.DrawLines(gp,p);}using(Pen pen=new Pen(color,width)){pen.LineJoin=LineJoin.Round;g.DrawLines(pen,p);}
+            PaintSparklineCore(g,values,r,color,width,glow);
+            if(glassInkCanvas==null||values==null||values.Count<2)return;
+            GraphicsState saved=glassInkCanvas.Save();
+            try
+            {
+                glassInkCanvas.SetClip(r,CombineMode.Intersect);
+                PaintSparklineCore(glassInkCanvas,values,r,Color.FromArgb(255,color),
+                    Math.Max(2.25f,width),false);
+            }
+            finally{glassInkCanvas.Restore(saved);}
+            if(glassHaloCanvas!=null)
+            {
+                GraphicsState h=glassHaloCanvas.Save();
+                try
+                {
+                    glassHaloCanvas.SetClip(r,CombineMode.Intersect);
+                    PaintSparklineCore(glassHaloCanvas,values,r,Color.White,
+                        Math.Max(4.2f,width+2.0f),false);
+                }
+                finally{glassHaloCanvas.Restore(h);}
+            }
         }
-        private static void DrawTerminalBars(Graphics g,IList<float> values,RectangleF r,Color c)
+        private static void PaintSparklineCore(Graphics g,IList<float> values,RectangleF r,
+            Color color,float width,bool glow)
         {
-            if(values==null||values.Count==0)return;int count=Math.Min(values.Count,18);float max=values.Skip(values.Count-count).Max();if(max<1)max=1;float w=r.Width/count;
-            using(SolidBrush b=new SolidBrush(Color.FromArgb(210,c)))for(int i=0;i<count;i++){float v=values[values.Count-count+i]/max;float h=Math.Max(1,r.Height*v);g.FillRectangle(b,r.X+i*w,r.Bottom-h,Math.Max(1,w-1),h);}
+            if(values==null||values.Count<2||r.Width<4||r.Height<4)return;
+            float max=values.Max();float min=values.Min();if(max-min<0.01f){max=min+1;}
+            PointF[] p=new PointF[values.Count];
+            for(int i=0;i<values.Count;i++)
+            {
+                float x=r.X+r.Width*i/(values.Count-1f);
+                float y=r.Bottom-(values[i]-min)/(max-min)*r.Height;
+                p[i]=new PointF(x,y);
+            }
+            if(glow)
+            using(Pen gp=new Pen(Color.FromArgb(55,color),4f))
+            {gp.LineJoin=LineJoin.Round;g.DrawLines(gp,p);}
+            using(Pen pen=new Pen(color,width))
+            {pen.LineJoin=LineJoin.Round;g.DrawLines(pen,p);}
         }
+        private void DrawTerminalBars(Graphics g,IList<float> values,RectangleF r,Color c)
+        {
+            // Keep original low-profile bars on full theme, while ink remains opaque.
+            if(values==null||values.Count==0)return;
+            PaintChartBarsCore(g,values,r,c,18,210,1.0f,false);
+            if(glassInkCanvas!=null)
+            {
+                GraphicsState state=glassInkCanvas.Save();
+                try
+                {
+                    glassInkCanvas.SetClip(r,CombineMode.Intersect);
+                    PaintChartBarsCore(glassInkCanvas,values,r,Color.FromArgb(255,c),18,255,0.55f,false);
+                }
+                finally{glassInkCanvas.Restore(state);}
+                if(glassHaloCanvas!=null)
+                {
+                    GraphicsState state2=glassHaloCanvas.Save();
+                    try
+                    {
+                        glassHaloCanvas.SetClip(r,CombineMode.Intersect);
+                        PaintChartBarsCore(glassHaloCanvas,values,r,Color.White,18,255,0.4f,true);
+                    }
+                    finally{glassHaloCanvas.Restore(state2);}
+                }
+            }
+        }
+
     }
 
     internal sealed class ThemePreviewControl : Control
@@ -8861,6 +8955,7 @@ namespace TaskbarMonitorEnhanced
         {
             Native.EnableDllSearchHardening();
             if(args!=null && args.Length>1 && args[0]=="--glassproof")return TaskbarGlassProof.Run(args[1]);
+            if(args!=null && args.Length>1 && args[0]=="--chartglassproof")return TaskbarChartGlassProof.Run(args[1]);
             if(args!=null && args.Length>1 && args[0]=="--glassliveproof")return TaskbarGlassLiveProof.Run(args[1]);
             if(args!=null && args.Length>0 && args[0]=="--glassnativeproof")return TaskbarGlassNativeProof.Run();
             if(args!=null && args.Length>0 && args[0]=="--workspace-selftest")return WorkspaceSelfTest.Run();
