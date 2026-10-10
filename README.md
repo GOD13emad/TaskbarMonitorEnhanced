@@ -48,7 +48,7 @@ Use the installer from the [official Releases page](https://github.com/GOD13emad
 
 Automatic checks query the official GitHub Releases endpoint. Installer download/launch requires a user action and confirmation; the update path verifies canonical release identity, immutability and the exact SHA-256 immediately before launch.
 
-**Public-trust Authenticode signing is not yet established.** SHA-256/provenance verification is not a substitute for a trusted publisher certificate. See [Code signing](CODE_SIGNING.md).
+**Public-trust Authenticode signing is not yet established.** SHA-256/provenance verification is not a substitute for a trusted publisher certificate. See the [Code signing policy](CODE_SIGNING.md).
 
 ## Build and verification
 
