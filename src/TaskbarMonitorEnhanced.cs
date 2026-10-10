@@ -8180,10 +8180,54 @@ namespace TaskbarMonitorEnhanced
             return true;
         }
 
+        // R51: The 0..99% layered Windows 11 glass mode is a taskbar-anchored
+        // TOPLEVEL popup; GetParent may return a hidden OWNER, not a child HWND.
+        // Explicitly require the owning app PID, layered native style, and safe
+        // in-taskbar geometry. The 100%/High Contrast direct child remains strict.
+        private static bool FindTaskbarAnchoredPopup(uint pid,IntPtr taskbar,
+            out IntPtr hwnd,out Rectangle rect)
+        {
+            hwnd=IntPtr.Zero;
+            rect=Rectangle.Empty;
+            Native.RECT tr;
+            if(taskbar==IntPtr.Zero||!Native.GetWindowRect(taskbar,out tr))return false;
+            Rectangle bounds=tr.ToRectangle();
+            IntPtr found=IntPtr.Zero;
+            Rectangle foundRect=Rectangle.Empty;
+            Native.EnumWindows(delegate(IntPtr h,IntPtr ignored)
+            {
+                uint owner=0;
+                Native.GetWindowThreadProcessId(h,out owner);
+                if(owner!=pid||!Native.IsWindowVisible(h))return true;
+                long style=Native.GetWindowLongPtr(h,Native.GWL_STYLE).ToInt64();
+                long ex=Native.GetWindowLongPtr(h,Native.GWL_EXSTYLE).ToInt64();
+                if((style&Native.WS_POPUP)==0||(style&Native.WS_CHILD)!=0||
+                    (ex&Native.WS_EX_LAYERED)==0||(ex&Native.WS_EX_NOACTIVATE)==0||
+                    (ex&Native.WS_EX_COMPOSITED)!=0)return true;
+                Native.RECT wr;
+                if(!Native.GetWindowRect(h,out wr))return true;
+                Rectangle r=wr.ToRectangle();
+                if(r.Width<900||r.Height<30||r.Height>70||!bounds.Contains(r))return true;
+                found=h;foundRect=r;
+                return false;
+            },IntPtr.Zero);
+            if(found==IntPtr.Zero)return false;
+            hwnd=found;rect=foundRect;
+            return true;
+        }
+
+        private static bool FindExpectedMonitorWindow(uint pid,IntPtr taskbar,
+            bool topLevel,out IntPtr hwnd,out Rectangle rect)
+        {
+            if(topLevel)return FindTaskbarAnchoredPopup(pid,taskbar,out hwnd,out rect);
+            return FindDirectTaskbarChild(pid,taskbar,out hwnd,out rect);
+        }
+
         private static bool ReadCachedWindowState(
             IntPtr hwnd,
             IntPtr taskbar,
             Rectangle baselineRect,
+            bool expectPopup,
             out Rectangle rect,
             out bool visible,
             out bool parentOk,
@@ -8204,7 +8248,13 @@ namespace TaskbarMonitorEnhanced
 
             rect=wr.ToRectangle();
             visible=Native.IsWindowVisible(hwnd);
-            parentOk=Native.GetParent(hwnd)==taskbar;
+            long style=Native.GetWindowLongPtr(hwnd,Native.GWL_STYLE).ToInt64();
+            long ex=Native.GetWindowLongPtr(hwnd,Native.GWL_EXSTYLE).ToInt64();
+            parentOk=expectPopup?
+                (style&Native.WS_POPUP)!=0&&(style&Native.WS_CHILD)==0&&
+                (ex&Native.WS_EX_LAYERED)!=0&&(ex&Native.WS_EX_NOACTIVATE)!=0&&
+                (ex&Native.WS_EX_COMPOSITED)==0:
+                Native.GetParent(hwnd)==taskbar&&(style&Native.WS_CHILD)!=0;
             cloaked=Native.GetCloaked(hwnd);
 
             fixedRect=
@@ -8257,11 +8307,16 @@ namespace TaskbarMonitorEnhanced
                 if(taskbar==IntPtr.Zero)
                     throw new InvalidOperationException("START_PROBE_TASKBAR_GATE");
 
+                bool topLevelGlass=TaskbarGlassHostMode.RequiresTopLevel(
+                    probeConfig.Opacity,SystemInformation.HighContrast);
                 IntPtr cachedChild;
                 Rectangle baselineRect;
 
-                if(!FindDirectTaskbarChild(mainPid,taskbar,out cachedChild,out baselineRect))
-                    throw new InvalidOperationException("START_PROBE_BASELINE_DIRECT_CHILD_GATE");
+                if(!FindExpectedMonitorWindow(mainPid,taskbar,topLevelGlass,
+                    out cachedChild,out baselineRect))
+                    throw new InvalidOperationException(
+                        topLevelGlass?"START_PROBE_BASELINE_TOPLEVEL_GLASS_GATE":
+                        "START_PROBE_BASELINE_DIRECT_CHILD_GATE");
 
                 if(baselineRect.Width!=1100 || baselineRect.Height!=48)
                     throw new InvalidOperationException("START_PROBE_BASELINE_GEOMETRY_GATE rect="+baselineRect);
@@ -8322,8 +8377,8 @@ namespace TaskbarMonitorEnhanced
                     // cached HWND remains valid, parented and visually composed.
                     IntPtr rediscovered=IntPtr.Zero;
                     Rectangle rediscoveredRect=Rectangle.Empty;
-                    bool enumerationFound=FindDirectTaskbarChild(
-                        mainPid,currentTaskbar,out rediscovered,out rediscoveredRect
+                    bool enumerationFound=FindExpectedMonitorWindow(
+                        mainPid,currentTaskbar,topLevelGlass,out rediscovered,out rediscoveredRect
                     );
                     if(!enumerationFound)enumerationMisses++;
 
@@ -8337,6 +8392,7 @@ namespace TaskbarMonitorEnhanced
                         cachedChild,
                         currentTaskbar,
                         baselineRect,
+                        topLevelGlass,
                         out monitorRect,
                         out visible,
                         out parentOk,
@@ -8435,6 +8491,8 @@ namespace TaskbarMonitorEnhanced
                 manifest["Version"]=BuildInfo.Version;
                 manifest["Status"]=pass?"PASS":"FAIL";
                 manifest["VisualAuthority"]="CACHED_HWND_SCREEN_PIXELS";
+                manifest["RequiredWindowMode"]=topLevelGlass?
+                    "TASKBAR_ANCHORED_TOPLEVEL_LAYERED":"DIRECT_SHELL_CHILD_OPAQUE";
                 manifest["HierarchyEnumerationAuthority"]=false;
                 manifest["MainPid"]=mainPid;
                 manifest["CachedHwnd"]=cachedChild.ToInt64();
@@ -8472,7 +8530,8 @@ namespace TaskbarMonitorEnhanced
 
                 Console.WriteLine(
                     "TBME_START_PROBE="+(pass?"PASS":"FAIL")+
-                    " ENGINE=UPSTREAM_CHILD_CACHED_HWND"+
+                    " ENGINE="+(topLevelGlass?
+                        "TOPLEVEL_LAYERED_CACHED_HWND":"UPSTREAM_CHILD_CACHED_HWND")+
                     " SHELL="+shellSamples+
                     " CACHED_FAIL="+cachedHwndFailures+
                     " INVISIBLE="+invisibleSamples+
