@@ -58,7 +58,8 @@ jobs:
         shell: pwsh
         run: |
           ./build/Test-Runtime.ps1 -Executable ./build/_out/App/TaskbarMonitorEnhanced.exe -OutputDirectory ./artifacts/ci-runtime -CiContract
-          if ($LASTEXITCODE -ne 0) { throw 'Runtime contract suite failed.' }
+          # Test-Runtime.ps1 uses Diagnostics.Process and validates child exit codes itself.
+          # Its summary and thrown exceptions are authoritative, not a nullable LASTEXITCODE.
           $r = Get-Content ./artifacts/ci-runtime/SUMMARY.json -Raw | ConvertFrom-Json
           if ($r.Status -ne 'PASS' -or $r.Mode -ne 'CI_PORTABLE_5' -or @($r.Results).Count -ne 5 -or @($r.Results | Where-Object Status -ne 'PASS').Count -ne 0) { throw 'Five portable CI runtime probes did not PASS. Installed health and Start/Shell probes remain separate stable gates.' }
 

@@ -4,7 +4,7 @@
   "Revision": "R45",
   "Branch": "feature/v1.7.0-r44-chart-foreground",
   "PreviousSourceSHA": "3926bfa7b9dddb735e7b79ede1c17632848b44d8",
-  "Status": "CI_PORTABLE_RUNTIME_SCOPE_CORRECTED_RETEST_PENDING_STABLE_BLOCKED",
+  "Status": "CI_10_VISUAL_5_PORTABLE_VERIFIER_RETEST_REQUIRED_STABLE_BLOCKED",
   "GeneratedUTC": "2026-10-10T11:44:56.132075+00:00",
   "CIContract": {
     "VisualSuites": 10,
@@ -49,6 +49,13 @@
       "GitHubCI": "38049549463 FAILED health DEGRADED exit12",
       "EmadHost": "R45 Start probe 10/24 shell samples FAIL",
       "Correction": "Five portable CI proofs versus eight independent installed-host proofs; thresholds retained"
+    },
+    {
+      "Id": "R45-F4",
+      "Class": "CI_WRAPPER_FALSE_FAILURE",
+      "GitHubCI": "38050088052 FAILED despite five runtime children exit0 PASS",
+      "Cause": "PowerShell nullable LASTEXITCODE comparison",
+      "Fix": "Drop invalid wrapper condition, keep semantic JSON and exception fail-close"
     }
   ]
 }

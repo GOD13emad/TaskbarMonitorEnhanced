@@ -840,3 +840,6 @@ CI previously ran only three basic workspace tests. R45 explicitly adds 10 visua
 
 ## R45-F3 - 2026-10-10T11:53:16.898134+00:00
 The first full CI 38049549463 failed at health due absent installed protected supervisor (expected from ephemeral Windows CI); full local R45 interactive Start test registered only 10/24 required foreground shell samples but cached HWND and screen pixels were healthy. Neither failure was erased. Enforced distinction: five portable CI runtime checks vs eight actual installed host probes. All live interactive thresholds preserved for Stable. Source/CI exact rerun pending.
+
+## R45-F4 2026-10-10T11:59:58.298333+00:00
+GitHub CI 38050088052 ran five portable runtime child processes with 0 exit and PASS output each, but the wrapper failed due nullable LASTEXITCODE check on a managed Diagnostics.Process-based script. Script itself did not leave LASTEXITCODE defined. Removed invalid check; retained strict manifest checks and throws. Requires fresh exact CI before source acceptance. Evidence raw GitHub CI log and .local/r45 local 5/5 JSON.

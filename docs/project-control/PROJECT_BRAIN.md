@@ -1,3 +1,8 @@
+# R45-F4 RELEASE GATE CORRECTION - NOT PUBLIC FINAL
+CI run 38050088052 recorded all five portable child proofs PASS but the GitHub workflow failed due invalid PowerShell comparison of null LASTEXITCODE with zero. Source correction removed only the false wrapper guard and preserves thrown errors and exact 5/5 summary. Exact source CI retest pending. All stable blockers remain: positive wallpaper canary, installed 8/8 runtime, public signing, main release. v1.6 and user slideshow unchanged. See R45_RELEASE_GATE_ENFORCEMENT.md.
+
+---
+
 # R45 CURRENT-CORRECTION - FULL CI FAILED THEN SCOPE FIXED
 GitHub CI run 38049549463 FAILED at health without installed sensor Supervisor (host environment mismatch). On real Emad PC full interactive Start probe FAILED 10/24 shell observations although cached child/screen pixels remained good (minimum 7381). The source has been corrected to require 5/5 portable CI runtime tests while leaving full 8/8 installed-host acceptance a strict Stable prerequisite, plus 10/10 visual. Nothing has been installed or publicly released; local v1.6 and slideshow preserved. See R45_RELEASE_GATE_ENFORCEMENT.md. Next action exact commit/build/CI and honest release-preflight, not production promotion.
 
