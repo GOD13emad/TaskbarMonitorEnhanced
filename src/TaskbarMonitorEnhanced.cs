@@ -5132,10 +5132,21 @@ namespace TaskbarMonitorEnhanced
             if(m.Msg==Native.WM_TBME_VISUAL_BEACON)
             {
                 diagnosticBeacon=m.WParam!=IntPtr.Zero;
-                Invalidate();
-                Update();
-                m.Result=new IntPtr(1);
-                Log.Write("INFO","VISUAL_BEACON state="+diagnosticBeacon);
+                bool beaconOk=true;
+                if(RequiresGlassTopLevel)
+                {
+                    // Layered UpdateLayeredWindow surfaces do NOT reliably
+                    // repaint from WM_PAINT or Invalidate. The ShellState test
+                    // must see the actual active diagnostic beacon on screen.
+                    // Direct native upload is synchronous and also clears it.
+                    beaconOk=PaintPerPixelLayer();
+                }
+                else {Invalidate();Update();}
+                m.Result=beaconOk?new IntPtr(1):IntPtr.Zero;
+                Log.Write(beaconOk?"INFO":"ERROR",
+                    "VISUAL_BEACON state="+diagnosticBeacon+
+                    " mode="+(RequiresGlassTopLevel?"PARG_B_TOPLEVEL":"SHELL_CHILD")+
+                    " nativeUpload="+beaconOk);
                 return;
             }
 
@@ -8839,6 +8850,39 @@ namespace TaskbarMonitorEnhanced
             return true;
         }
 
+        // R56: The real 0..99% alpha native window is a top-level
+        // taskbar-anchored layered popup, NOT a Shell_TrayWnd child. Discover
+        // by exact runtime PID + flags + real taskbar-contained 1100x48 rect.
+        private static bool FindNativeTopLevelGlass(uint pid,IntPtr taskbar,
+            out IntPtr hwnd,out Rectangle rect)
+        {
+            hwnd=IntPtr.Zero;rect=Rectangle.Empty;
+            Native.RECT tb=new Native.RECT();
+            if(taskbar==IntPtr.Zero||!Native.GetWindowRect(taskbar,out tb))return false;
+            Rectangle taskbarRect=tb.ToRectangle();
+            IntPtr found=IntPtr.Zero;
+            Rectangle location=Rectangle.Empty;
+            Native.EnumWindows(delegate(IntPtr candidate,IntPtr ignored)
+            {
+                uint ownerPid=0;
+                Native.GetWindowThreadProcessId(candidate,out ownerPid);
+                if(ownerPid!=pid||!Native.IsWindowVisible(candidate))return true;
+                long style=Native.GetWindowLongPtr(candidate,Native.GWL_STYLE).ToInt64();
+                long ex=Native.GetWindowLongPtr(candidate,Native.GWL_EXSTYLE).ToInt64();
+                if((style&Native.WS_POPUP)==0||(style&Native.WS_CHILD)!=0||
+                   (ex&Native.WS_EX_LAYERED)==0||(ex&Native.WS_EX_NOACTIVATE)==0||
+                   (ex&Native.WS_EX_COMPOSITED)!=0)return true;
+                Native.RECT bounds=new Native.RECT();
+                if(!Native.GetWindowRect(candidate,out bounds))return true;
+                Rectangle target=bounds.ToRectangle();
+                if(target.Width!=1100||target.Height!=48||
+                   !taskbarRect.Contains(target))return true;
+                found=candidate;location=target;return false;
+            },IntPtr.Zero);
+            if(found==IntPtr.Zero)return false;
+            hwnd=found;rect=location;return true;
+        }
+
         private static int SignalPixels(Bitmap bmp)
         {
             int signal=0;
@@ -8894,12 +8938,30 @@ namespace TaskbarMonitorEnhanced
                 uint taskbarPid=0;
                 Native.GetWindowThreadProcessId(taskbar,out taskbarPid);
 
+                bool nativeGlass=TaskbarGlassHostMode.RequiresTopLevel(
+                    probeConfig.Opacity,SystemInformation.HighContrast);
                 IntPtr overlay;
                 Rectangle rect;
-                if(!FindDirectTaskbarChild(mainPid,taskbar,out overlay,out rect))
-                    throw new InvalidOperationException("DIRECT_CHILD_NOT_FOUND");
+                bool found=nativeGlass?
+                    FindNativeTopLevelGlass(mainPid,taskbar,out overlay,out rect):
+                    FindDirectTaskbarChild(mainPid,taskbar,out overlay,out rect);
+                if(!found)
+                    throw new InvalidOperationException(nativeGlass?
+                        "NATIVE_TASKBAR_POPUP_NOT_FOUND":"DIRECT_CHILD_NOT_FOUND");
 
-                bool parentOk=Native.GetParent(overlay)==taskbar;
+                long activeStyle=Native.GetWindowLongPtr(overlay,Native.GWL_STYLE).ToInt64();
+                long activeEx=Native.GetWindowLongPtr(overlay,Native.GWL_EXSTYLE).ToInt64();
+                Native.RECT actualTaskbar=new Native.RECT();
+                bool nativeBounds=Native.GetWindowRect(taskbar,out actualTaskbar);
+                bool parentOk=nativeGlass?
+                    (activeStyle&Native.WS_CHILD)==0&&
+                    (activeStyle&Native.WS_POPUP)!=0&&
+                    (activeEx&Native.WS_EX_LAYERED)!=0&&
+                    (activeEx&Native.WS_EX_NOACTIVATE)!=0&&
+                    (activeEx&Native.WS_EX_COMPOSITED)==0&&nativeBounds&&
+                    actualTaskbar.ToRectangle().Contains(rect):
+                    Native.GetParent(overlay)==taskbar &&
+                    (activeStyle&Native.WS_CHILD)!=0;
                 bool visible=Native.IsWindowVisible(overlay);
                 bool valid=Native.IsWindow(overlay);
                 int cloaked=Native.GetCloaked(overlay);
@@ -8907,6 +8969,8 @@ namespace TaskbarMonitorEnhanced
                 int signal=0;
                 int beaconMagenta=0;
                 int beaconGreen=0;
+                int beaconMagentaAfter=0;
+                int beaconGreenAfter=0;
                 bool beaconCommand=false;
 
                 string beaconPng=Path.Combine(
@@ -8955,13 +9019,17 @@ namespace TaskbarMonitorEnhanced
                 {
                     g.CopyFromScreen(rect.Left,rect.Top,0,0,rect.Size);
                     signal=SignalPixels(bmp);
+                    beaconMagentaAfter=CountNearColor(bmp,Color.FromArgb(255,17,241),18);
+                    beaconGreenAfter=CountNearColor(bmp,Color.FromArgb(0,255,106),18);
                     bmp.Save(png,ImageFormat.Png);
                 }
 
                 bool beaconPass=
                     beaconCommand &&
                     beaconMagenta>=100 &&
-                    beaconGreen>=100;
+                    beaconGreen>=100 &&
+                    beaconMagentaAfter<100 &&
+                    beaconGreenAfter<100;
 
                 bool pass=
                     valid &&
@@ -8970,12 +9038,17 @@ namespace TaskbarMonitorEnhanced
                     cloaked==0 &&
                     rect.Width==1100 &&
                     rect.Height==48 &&
+                    signal>=300 &&
                     beaconPass;
 
                 m["Version"]=BuildInfo.Version;
                 m["Status"]=pass?"PASS":"FAIL";
                 m["MainPid"]=mainPid;
                 m["TaskbarPid"]=taskbarPid;
+                m["ExpectedWindowMode"]=nativeGlass?
+                    "TASKBAR_ANCHORED_TOPLEVEL_LAYERED":"DIRECT_TASKBAR_CHILD";
+                m["NativeWindowStyle"]="0x"+activeStyle.ToString("X8",CultureInfo.InvariantCulture);
+                m["NativeExStyle"]="0x"+activeEx.ToString("X8",CultureInfo.InvariantCulture);
                 m["TaskbarHwnd"]=taskbar.ToInt64();
                 m["OverlayHwnd"]=overlay.ToInt64();
                 m["ParentHwnd"]=Native.GetParent(overlay).ToInt64();
@@ -8988,7 +9061,10 @@ namespace TaskbarMonitorEnhanced
                 m["BeaconCommandAck"]=beaconCommand;
                 m["BeaconMagentaPixels"]=beaconMagenta;
                 m["BeaconGreenPixels"]=beaconGreen;
+                m["BeaconMagentaPixelsAfterReset"]=beaconMagentaAfter;
+                m["BeaconGreenPixelsAfterReset"]=beaconGreenAfter;
                 m["BeaconRequiredPerColor"]=100;
+                m["BeaconRequiredAfterResetLessThan"]=100;
                 m["BeaconPass"]=beaconPass;
                 m["VisualAuthority"]="TBME_ACTIVE_BEACON_ON_REAL_SCREEN";
                 m["BeaconPng"]=Path.GetFileName(beaconPng);
