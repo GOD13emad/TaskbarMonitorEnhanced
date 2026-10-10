@@ -10,6 +10,16 @@ https://github.com/GOD13emad/TaskbarMonitorEnhanced
 
 The project is prepared for the SignPath Foundation open-source signing program. **External acceptance and a production public-trust signature are not yet proven.** The self-signed development certificate documented under `docs/security/` validates the signing pipeline only and is not public publisher trust.
 
+### SignPath Foundation program attribution (conditional; no endorsement or certificate yet)
+
+The following exact wording is required by the SignPath Foundation code-signing policy for projects that are approved to use its certificate:
+
+> Free code signing provided by SignPath.io, certificate by SignPath Foundation
+
+**Current status: application and provider approval pending; no published Taskbar Monitor Enhanced binary is claimed to be signed by SignPath Foundation.** This required attribution is included for application readiness, not as a statement that the service, certificate or production signing is available.
+
+The open-source maintainer, reviewers and signing approver are identified in the **Team roles** section below; project privacy and user-controlled network activity are documented in [PRIVACY.md](PRIVACY.md). See the [SignPath Foundation code of conduct](https://signpath.org/terms.html). Public-trust signing additionally requires identical project/product-version metadata for artifacts submitted together, verified GitHub-hosted source-build origin, and explicit approval for each production signing request. Untrusted self-signed development certificates must never be used as public-publisher proof.
+
 The v1.6.0 release line is treated as unsigned unless its exact artifact carries an independently verifiable Authenticode signature from a publicly trusted provider. Release evidence records `PublicTrust=UNSIGNED_PENDING_EXTERNAL_PROVIDER`; Windows may show **Unknown publisher**. Repository-side readiness is not provider acceptance or a trusted signature.
 
 ## Official release artifacts
