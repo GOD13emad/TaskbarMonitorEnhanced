@@ -19,7 +19,7 @@ using Microsoft.Win32;
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
 [assembly: AssemblyVersion("1.7.0.0")]
 [assembly: AssemblyFileVersion("1.7.0.0")]
-[assembly: AssemblyInformationalVersion("1.7.0+r40")]
+[assembly: AssemblyInformationalVersion("1.7.0+r39")]
 
 internal static class SetupProgram
 {
