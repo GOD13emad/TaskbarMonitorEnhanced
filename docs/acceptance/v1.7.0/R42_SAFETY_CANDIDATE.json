@@ -1,0 +1,32 @@
+{
+  "Project": "TaskbarMonitorEnhanced",
+  "Revision": "R42",
+  "Scope": "Wallpaper Studio static-only safe transaction",
+  "ParentSourceSHA": "d14768fb1d1d2110aec5cb7ddb48427d76d85166",
+  "PublicBaseline": "v1.6.0 immutable",
+  "Status": "NEGATIVE_CANARY_PASS_POSITIVE_OPEN_NOT_INSTALLED_NOT_RELEASED",
+  "UTC": "2026-10-10T09:35:22.430426+00:00",
+  "RED": {
+    "Status": "PASS_EXPECTED_FAILURE",
+    "Evidence": ".local/r42/RED_BUILD.txt",
+    "RootCause": "Missing safety policy before R42"
+  },
+  "GREEN": {
+    "Status": "PASS",
+    "Evidence": ".local/r42/GREEN.out"
+  },
+  "HostNegative": {
+    "Status": "PASS",
+    "Evidence": ".local/r42/LIVE_NEGATIVE_ACCEPTANCE.json",
+    "OriginalSlideshow": "UNCHANGED"
+  },
+  "CriticalPath": [
+    "Positive isolated Windows canary",
+    "exact-head clean-clone",
+    "GitHub CI/provenance",
+    "installed runtime",
+    "main CI",
+    "public release"
+  ],
+  "BrainStatus": "STALE_UNTIL_R42_CUMULATIVE_ZIP"
+}

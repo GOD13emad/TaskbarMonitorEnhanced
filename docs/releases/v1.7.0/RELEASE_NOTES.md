@@ -57,3 +57,6 @@ Wallpaper Studio is a presentation feature. It does not change sensor polling, p
 - Completely transparent pixels can pass mouse interactions through to the taskbar; the tray menu still provides Settings access.
 - Windows child-layered-window rendering uses per-pixel alpha rather than whole-window WinForms Opacity. If native compositing fails, the overlay falls back to a fully opaque usable display instead of hiding the metrics.
 - Native on-taskbar proof validated 0/10/29/30/100% opacity; representative color #132A27 yielded 15.1:1 contrast for selected text. Evidence remains under .local/r41 and must be revalidated after changing source/installer.
+
+## Wallpaper Studio transactional safety
+If Windows is running Slideshow, Spotlight, a solid-color background or an unknown background mode, the Apply command safely refuses without changing user personalization. Only a confirmed static Picture background is eligible. Before Apply, the current image is copied with SHA-256 into a unique local prestate backup along with its path and registry style/tile. On SPI failure, the app attempts to restore and verify original bytes, path and style; an unverified restoration is explicitly reported rather than silently accepted. This safeguard is separate from the per-pixel taskbar glass feature.

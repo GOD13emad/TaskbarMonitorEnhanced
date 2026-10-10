@@ -139,6 +139,11 @@ namespace TaskbarMonitorEnhanced
                 Check(!WorkspaceMetric.Value(SessionTelemetryHistory.Snapshot()[0],6).HasValue,"disk unavailable chart gap");
                 var copied=SessionTelemetryHistory.Snapshot();copied[0].CpuPercent=999;
                 Check(SessionTelemetryHistory.Snapshot()[0].CpuPercent!=999,"history snapshot isolated");SessionTelemetryHistory.ClearForTest();
+                Check(WallpaperStudio.IsSafePictureBackgroundType(0),"static picture allowed");
+                Check(!WallpaperStudio.IsSafePictureBackgroundType(2),"slideshow blocked");
+                Check(!WallpaperStudio.IsSafePictureBackgroundType(3),"spotlight blocked");
+                Check(!WallpaperStudio.IsSafePictureBackgroundType(1),"solid color blocked");
+                Check(!WallpaperStudio.IsSafePictureBackgroundType(-1),"unknown mode blocked");
                 Check(ThemeCatalog.Names.Length==49,"theme count");
                 Check(ThemeCatalog.Names.Select(ThemeCatalog.Get).Count(t=>StudioThemes.IsStudio(t.Mode))==21,"studio theme count");
                 Check(StudioThemes.Create().Select(t=>t.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count()==21,"studio names distinct");Check(WallpaperStudio.TotalWallpaperCount==210&&WallpaperStudio.VariantLabels.Length==10,"21x10 wallpaper catalog");using(var wp=WallpaperStudio.Render("Sekiro",9,320,180))Check(wp.Width==320&&wp.Height==180,"Sekiro wallpaper render");

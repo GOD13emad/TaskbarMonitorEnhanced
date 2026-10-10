@@ -267,65 +267,124 @@ namespace TaskbarMonitorEnhanced
             return path;
         }
 
-        private static void RestoreDesktopPreState(string previousPath,string previousStyle,string previousTile)
+        internal static bool IsSafePictureBackgroundType(int type)
         {
-            try
-            {
-                using(RegistryKey k=Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop",true))
-                {
-                    if(k!=null)
-                    {
-                        k.SetValue("WallpaperStyle",previousStyle??"",RegistryValueKind.String);
-                        k.SetValue("TileWallpaper",previousTile??"",RegistryValueKind.String);
-                    }
-                }
-                if(!String.IsNullOrWhiteSpace(previousPath))
-                    SystemParametersInfo(SpiSetDesktopWallpaper,0,previousPath,SpifUpdateIniFile|SpifSendWinIniChange);
-            }
-            catch{}
+            // 2=Slideshow, 3=Spotlight. Both have state not preserved by SPI_SETDESKWALLPAPER.
+            return type==0;
         }
-
+        private static void RequireStaticPictureBackground()
+        {
+            using(RegistryKey k=Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers",false))
+            {
+                object value=k==null?null:k.GetValue("BackgroundType");
+                if(!(value is int))
+                    throw new NotSupportedException("Windows background mode cannot be verified; no desktop change.");
+                int mode=(int)value;
+                if(!IsSafePictureBackgroundType(mode))
+                    throw new NotSupportedException(
+                        "Wallpaper Studio will not replace Slideshow, Spotlight, solid-color, or unknown desktop modes. "+
+                        "Switch Windows Settings to static Picture before applying. Desktop unchanged. BackgroundType="+mode);
+            }
+        }
+        private static string WallpaperHash(string path)
+        {
+            using(var sha=SHA256.Create())
+            using(var stream=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete))
+                return BitConverter.ToString(sha.ComputeHash(stream)).Replace("-","");
+        }
+        private static void RestoreDesktopPreState(
+            string prior,string style,string tile,string backup,string expectedHash)
+        {
+            if(String.IsNullOrWhiteSpace(prior)||String.IsNullOrWhiteSpace(backup)||
+                !File.Exists(backup)||!String.Equals(WallpaperHash(backup),expectedHash,StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Original wallpaper backup missing or altered; rollback UNPROVEN.");
+            if(!File.Exists(prior)||!String.Equals(WallpaperHash(prior),expectedHash,StringComparison.OrdinalIgnoreCase))
+                File.Copy(backup,prior,true);
+            using(RegistryKey k=Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop",true))
+            {
+                if(k==null)throw new InvalidOperationException("Desktop registry missing during rollback.");
+                k.SetValue("WallpaperStyle",style??"",RegistryValueKind.String);
+                k.SetValue("TileWallpaper",tile??"",RegistryValueKind.String);
+            }
+            if(!SystemParametersInfo(SpiSetDesktopWallpaper,0,prior,SpifUpdateIniFile|SpifSendWinIniChange))
+                throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(),"Wallpaper rollback SPI failed.");
+            // Windows may reencode the TranscodedWallpaper cache while restoring.
+            if(!File.Exists(prior)||!String.Equals(WallpaperHash(prior),expectedHash,StringComparison.OrdinalIgnoreCase))
+                File.Copy(backup,prior,true);
+            using(RegistryKey k=Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop",false))
+            {
+                if(k==null||
+                   !String.Equals(Convert.ToString(k.GetValue("WallPaper",""),CultureInfo.InvariantCulture),prior,StringComparison.OrdinalIgnoreCase)||
+                   !String.Equals(Convert.ToString(k.GetValue("WallpaperStyle",""),CultureInfo.InvariantCulture),style,StringComparison.Ordinal)||
+                   !String.Equals(Convert.ToString(k.GetValue("TileWallpaper",""),CultureInfo.InvariantCulture),tile,StringComparison.Ordinal)||
+                   !String.Equals(WallpaperHash(prior),expectedHash,StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Original wallpaper bytes/path/style could not be verified after rollback.");
+            }
+        }
         internal static string ApplyDesktop(string themeName,int variant)
         {
+            RequireStaticPictureBackground(); // BEFORE creating a wallpaper or mutating desktop
             Rectangle bounds=Screen.PrimaryScreen==null?new Rectangle(0,0,1920,1080):Screen.PrimaryScreen.Bounds;
             int width=Math.Max(1920,bounds.Width),height=Math.Max(1080,bounds.Height);
             string path=Materialize(themeName,variant,width,height);
             string dir=Path.GetDirectoryName(path);
-            string previousPath="",previousStyle="",previousTile="";
-            string backupPath=Path.Combine(dir,"previous-wallpaper-"+DateTime.Now.ToString("yyyyMMdd_HHmmss_fff",CultureInfo.InvariantCulture)+".json");
+            string prior="",style="",tile="",originalBackup="",originalHash="";
+            string id=DateTime.UtcNow.ToString("yyyyMMdd_HHmmss_fff",CultureInfo.InvariantCulture)+"_"+Guid.NewGuid().ToString("N");
+            string backupPath=Path.Combine(dir,"previous-wallpaper-"+id+".json");
             try
             {
                 using(RegistryKey k=Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop",false))
                 {
-                    if(k==null)throw new InvalidOperationException("Desktop registry key unavailable.");
-                    previousPath=Convert.ToString(k.GetValue("WallPaper",""),CultureInfo.InvariantCulture)??"";
-                    previousStyle=Convert.ToString(k.GetValue("WallpaperStyle",""),CultureInfo.InvariantCulture)??"";
-                    previousTile=Convert.ToString(k.GetValue("TileWallpaper",""),CultureInfo.InvariantCulture)??"";
+                    if(k==null)throw new InvalidOperationException("Desktop registry unavailable.");
+                    prior=Convert.ToString(k.GetValue("WallPaper",""),CultureInfo.InvariantCulture)??"";
+                    style=Convert.ToString(k.GetValue("WallpaperStyle",""),CultureInfo.InvariantCulture)??"";
+                    tile=Convert.ToString(k.GetValue("TileWallpaper",""),CultureInfo.InvariantCulture)??"";
                 }
+                if(String.IsNullOrWhiteSpace(prior)||!File.Exists(prior))
+                    throw new InvalidOperationException("Existing static wallpaper file missing.");
+                originalHash=WallpaperHash(prior);
+                originalBackup=Path.Combine(dir,"previous-wallpaper-image-"+id+".bin");
+                File.Copy(prior,originalBackup,false);
+                if(!String.Equals(WallpaperHash(originalBackup),originalHash,StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Original image backup did not hash-match.");
                 var prestate=new Dictionary<string,object>{
                     {"CapturedUtc",DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture)},
-                    {"WallPaper",previousPath},{"WallpaperStyle",previousStyle},{"TileWallpaper",previousTile}
-                };
+                    {"WallPaper",prior},{"WallpaperStyle",style},{"TileWallpaper",tile},{"BackgroundType",0},
+                    {"OriginalImageBackup",originalBackup},{"OriginalImageSHA256",originalHash}};
                 File.WriteAllText(backupPath,new JavaScriptSerializer().Serialize(prestate),new UTF8Encoding(false));
+                RequireStaticPictureBackground(); // Reject mode switch while snapshotting
+                using(RegistryKey k=Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop",false))
+                    if(k==null||!String.Equals(Convert.ToString(k.GetValue("WallPaper",""),CultureInfo.InvariantCulture),prior,StringComparison.OrdinalIgnoreCase)||
+                       !String.Equals(WallpaperHash(prior),originalHash,StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException("Wallpaper prestate changed while backing up.");
             }
-            catch(Exception ex){throw new InvalidOperationException("Could not preserve wallpaper pre-state; no desktop change was attempted.",ex);}
-
+            catch(Exception ex)
+            {
+                throw new InvalidOperationException("Wallpaper preflight failed BEFORE desktop mutation. Prestate: "+backupPath,ex);
+            }
             try
             {
                 using(RegistryKey k=Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop",true))
                 {
-                    if(k==null)throw new InvalidOperationException("Desktop registry key unavailable for update.");
+                    if(k==null)throw new InvalidOperationException("Desktop registry unavailable for update.");
                     k.SetValue("WallpaperStyle","10",RegistryValueKind.String);
                     k.SetValue("TileWallpaper","0",RegistryValueKind.String);
                 }
                 if(!SystemParametersInfo(SpiSetDesktopWallpaper,0,path,SpifUpdateIniFile|SpifSendWinIniChange))
-                    throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(),"Windows rejected desktop wallpaper update.");
+                    throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(),"Windows rejected new wallpaper.");
                 return path;
             }
-            catch(Exception ex)
+            catch(Exception applyError)
             {
-                RestoreDesktopPreState(previousPath,previousStyle,previousTile);
-                throw new InvalidOperationException("Desktop wallpaper update failed; prior wallpaper/style restore was attempted. Pre-state: "+backupPath,ex);
+                try{RestoreDesktopPreState(prior,style,tile,originalBackup,originalHash);}
+                catch(Exception rollbackError)
+                {
+                    throw new AggregateException("Wallpaper application failed and verified rollback also FAILED. "+
+                        "Original image and record preserved: "+backupPath,applyError,rollbackError);
+                }
+                throw new InvalidOperationException("Wallpaper update failed; original image/style/path restored and VERIFIED. "+
+                    "Prestate: "+backupPath,applyError);
             }
         }
     }

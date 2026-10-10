@@ -1,3 +1,9 @@
+# CURRENT R42 — SAFETY HARDENING / NOT RELEASED
+
+Active source worktree: C:\Users\Aa.Emad\source\repos\TaskbarMonitorEnhanced\.local\r41-work. Branch release/v1.7.0-r42-safety from R41 d14768fb1d1d2110aec5cb7ddb48427d76d85166. Public immutable and installed v1.6.0 remain accepted. New finding: live Windows background mode 2 Slideshow actively rotates its picture; running an unguarded Wallpaper Studio canary on host would cause persistent loss of Slideshow state. R42 safely rejects dynamic modes and records verified SHA-backed static Picture rollback. RED/green app test and real negative host guard PASS; isolated positive static Picture canary, exact build/determinism, CI, installed runtime, main and publication still OPEN. Whole project progress UNPROVEN; no final claim. Authoritative R42 safety record: docs/project-control/R42_WALLPAPER_SAFETY.md. SUPERSEDED—DO NOT RUN: pre-R42 wallpaper setup and negative test wrappers. Existing R41 Brain is STALE until new cumulative ZIP transfer verified. Exact next action: sandbox positive canary, then remaining exact-gate V&V. No host wallpaper edit or v1.7 auto promotion.
+
+---
+
 # CURRENT R41 — GLASS LEGIBILITY VERIFIED CANDIDATE (NOT RELEASED)
 
 Source: isolated branch feature/v1.7.0-glass-legibility, parent 3a0663fb9ed55c77d28ca3ee8d3d928adf1d2e42. Public, installed immutable authority remains v1.6.0 at 1652989b80c5c6d301c6f05818c48c5207fd9b7a. All 49 candidate themes support 0%-100% background alpha without fading glyphs. At <=30% glyph ink switches to high-contrast black/white from off-overlay actual taskbar RGB samples, with contrasting outline, 4s refresh/fallback; Windows High Contrast forces opaque. No cloud/screen capture. Native actual taskbar child probe five modes PASS, RGB #132A27, contrast 15.13. Pixel proof 196/196, visual suites 9/9, full build 0 warning/error, setup 26/26. Main/Broker/Supervisor sensor source unchanged.
