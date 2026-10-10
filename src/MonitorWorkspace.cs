@@ -72,7 +72,7 @@ namespace TaskbarMonitorEnhanced
         {alertRecords.Enqueue(new AlertRecord{Utc=DateTime.UtcNow,Metric=metric,Message=message});while(alertRecords.Count>200)alertRecords.Dequeue();}
         private void ApplyWorkspaceConfig()
         {
-            config.Normalize();history.SetLimit(config.SparklineHistoryLength);Opacity=config.Opacity;
+            config.Normalize();history.SetLimit(config.SparklineHistoryLength);Opacity=1.0;
             if(!proofMode){config.Save();TaskbarLayout.ResetCache();ResetPlacementStability("WORKSPACE_APPLY");PositionOverlay(true);RefreshTelemetryTimerInterval();RefreshMenuChecks();}
             Invalidate();
         }

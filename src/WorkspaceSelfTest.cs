@@ -99,6 +99,15 @@ namespace TaskbarMonitorEnhanced
                 double a=Luminance(t.Foreground),b=Luminance(t.Background2);
                 Check((Math.Max(a,b)+.05)/(Math.Min(a,b)+.05)>=4.5,"Studio primary text contrast "+t.Name);
             }
+            foreach(Color taskbar in new[]{Color.Black,Color.White,Color.FromArgb(90,92,96),Color.FromArgb(235,230,226)})
+                foreach(int opacity in new[]{0,1,15,29,30,31,100})
+                {
+                    Color composite=TaskbarGlassColor.EffectiveBackground(taskbar,Color.FromArgb(36,43,58),opacity/100d);
+                    Check(TaskbarGlassColor.Contrast(TaskbarGlassColor.ReadableText(composite),composite)>=4.5,
+                          "glass contrast "+opacity);
+                }
+            var low=new AppConfig{Opacity=0};low.Normalize();Check(low.Opacity==0,"background alpha zero persisted");
+            low.Opacity=0.30;low.Normalize();Check(Math.Abs(low.Opacity-0.30)<.00001,"background alpha thirty persisted");
             Check(HardwareInventory.Read(null).Count==0,"null hardware snapshot");
             var s=new MetricsSnapshot();s.GpuDevices.Add(new GpuDeviceSnapshot{Name="Fixture GPU",UsageAvailable=false,PowerAvailable=true,PowerW=float.NaN});
             var rows=HardwareInventory.Read(s);

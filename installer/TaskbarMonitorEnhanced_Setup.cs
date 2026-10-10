@@ -38,6 +38,7 @@ internal static class SetupProgram
       "Payload.TaskbarMonitorEnhanced.cs",
       "Payload.StudioThemes.cs",
       "Payload.WallpaperStudio.cs",
+      "Payload.TaskbarGlass.cs",
       "Payload.WorkspaceModels.cs",
       "Payload.MonitorWorkspace.cs",
       "Payload.WorkspaceSelfTest.cs",
@@ -451,6 +452,7 @@ internal static class SetupProgram
         Extract("Payload.TaskbarMonitorEnhanced.cs",Path.Combine(AppRoot,"Source","TaskbarMonitorEnhanced.cs"));
         Extract("Payload.StudioThemes.cs",Path.Combine(AppRoot,"Source","StudioThemes.cs"));
         Extract("Payload.WallpaperStudio.cs",Path.Combine(AppRoot,"Source","WallpaperStudio.cs"));
+        Extract("Payload.TaskbarGlass.cs",Path.Combine(AppRoot,"Source","TaskbarGlass.cs"));
         Extract("Payload.WorkspaceModels.cs",Path.Combine(AppRoot,"Source","WorkspaceModels.cs"));
         Extract("Payload.MonitorWorkspace.cs",Path.Combine(AppRoot,"Source","MonitorWorkspace.cs"));
         Extract("Payload.WorkspaceSelfTest.cs",Path.Combine(AppRoot,"Source","WorkspaceSelfTest.cs"));

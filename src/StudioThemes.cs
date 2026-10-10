@@ -134,7 +134,7 @@ namespace TaskbarMonitorEnhanced
                 float readable=7.4f*scale;
                 string headline=BuildMetricHeadline(g,t,m,readable,textWidth);
                 using(Font f=FitHeadlineFont(g,t.FontName,headline,8.7f*scale,readable,textWidth))
-                using(var b=new SolidBrush(t.Foreground))g.DrawString(headline,f,b,new PointF(textX,y+4));
+                using(var b=new SolidBrush(t.Foreground))DrawThemeGlyph(g,headline,f,b,new PointF(textX,y+4));
                 bool stacked=HeadlineIsStacked(headline);
                 RectangleF graph=new RectangleF(x+9,y+(stacked?30:24),Math.Max(4,w-18),Math.Max(4,h-(stacked?34:28)));
                 if(!config.ShowSparklines)return;

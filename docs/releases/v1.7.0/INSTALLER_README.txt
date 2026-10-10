@@ -17,3 +17,4 @@ Key points:
 
 Project: https://github.com/GOD13emad/TaskbarMonitorEnhanced
 License: GNU GPL v3.0
+- Per-theme taskbar background transparency from 0% to 100%; below 30% adaptive text contrast sampled from the taskbar, High Contrast forced opaque.

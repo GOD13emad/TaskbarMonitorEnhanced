@@ -823,3 +823,7 @@ Exact user action: right-click the monitor, open **Theme Studio - 48 designs...*
 - Open critical path: one reversible live Sekiro wallpaper apply/verify/restore canary -> installed v1.7 acceptance -> exact-head CI/provenance and release publication gates.
 - Evidence record: `docs/acceptance/v1.7.0/R40_PACKAGE_CANDIDATE_ACCEPTANCE.json`.
 - Reuse targets: release engineering, deterministic build audit, installer validation, future handoff.
+
+
+## R41 | Adaptive glass taskbar overlay | 2026-10-10T03:02:12.193021+00:00
+FA​CT / CONFIRMED local candidate: Win32 per-pixel alpha native child overlay and 49 theme styles, 0-100% background opacity, independent opaque text and taskbar color contrast below/equal 30%. Evidence: .local/r41/visual-r41/SUMMARY.json (9/9), .local/r41/visual-r41/glassproof/GLASS_PROOF.json (196/196), .local/r41/live3-proof.json (5 actual parent opacity modes), artifacts/BUILD_MANIFEST.json and setup_verify.json (26 resources), docs/project-control/R41_GLASS_VERIFICATION.md. Previous v1.6 installed/public immutable and protected sensor source unchanged. Prior failures F1..F5 are diagnostic harness failures; no product rewrite. Condition-specific actual taskbar observed RGB #132A27; contrast 15.13. INFERENCE—not confirmed: flawless contrast against every animated/translucent Windows taskbar. OPEN: exact source commit, determinism, CI, wallpaper canary, installed runtime, publication. Do not conflate verification with public validation.

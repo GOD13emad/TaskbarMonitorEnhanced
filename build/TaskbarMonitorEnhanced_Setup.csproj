@@ -7,6 +7,7 @@
     <EmbeddedResource Include="_package_text\TaskbarMonitorEnhanced.cs" LogicalName="Payload.TaskbarMonitorEnhanced.cs" />
     <EmbeddedResource Include="_package_text\StudioThemes.cs" LogicalName="Payload.StudioThemes.cs" />
     <EmbeddedResource Include="_package_text\WallpaperStudio.cs" LogicalName="Payload.WallpaperStudio.cs" />
+    <EmbeddedResource Include="_package_text\TaskbarGlass.cs" LogicalName="Payload.TaskbarGlass.cs" />
     <EmbeddedResource Include="_package_text\WorkspaceModels.cs" LogicalName="Payload.WorkspaceModels.cs" />
     <EmbeddedResource Include="_package_text\MonitorWorkspace.cs" LogicalName="Payload.MonitorWorkspace.cs" />
     <EmbeddedResource Include="_package_text\WorkspaceSelfTest.cs" LogicalName="Payload.WorkspaceSelfTest.cs" />

@@ -65,7 +65,7 @@ Remove-Item -LiteralPath $Out,$Package,$TextPackage -Recurse -Force -ErrorAction
 New-Item -ItemType Directory -Force -Path $Out,$Package,$TextPackage|Out-Null
 
 # Reject truncated/missing source before compiling or packaging a candidate.
-foreach($source in @('TaskbarMonitorEnhanced.cs','StudioThemes.cs','WallpaperStudio.cs','WorkspaceModels.cs','MonitorWorkspace.cs','WorkspaceSelfTest.cs')){
+foreach($source in @('TaskbarMonitorEnhanced.cs','StudioThemes.cs','WallpaperStudio.cs','TaskbarGlass.cs','WorkspaceModels.cs','MonitorWorkspace.cs','WorkspaceSelfTest.cs')){
     $sourcePath=Join-Path $Root ('src\'+$source)
     if(!(Test-Path -LiteralPath $sourcePath) -or (Get-Item -LiteralPath $sourcePath).Length -lt 1000){throw "Missing/truncated source: $sourcePath"}
 }
@@ -84,6 +84,7 @@ $CanonicalTextResources=[ordered]@{
     'TaskbarMonitorEnhanced.cs'=(Join-Path $Root 'src\TaskbarMonitorEnhanced.cs')
     'StudioThemes.cs'=(Join-Path $Root 'src\StudioThemes.cs')
     'WallpaperStudio.cs'=(Join-Path $Root 'src\WallpaperStudio.cs')
+    'TaskbarGlass.cs'=(Join-Path $Root 'src\TaskbarGlass.cs')
     'WorkspaceModels.cs'=(Join-Path $Root 'src\WorkspaceModels.cs')
     'MonitorWorkspace.cs'=(Join-Path $Root 'src\MonitorWorkspace.cs')
     'WorkspaceSelfTest.cs'=(Join-Path $Root 'src\WorkspaceSelfTest.cs')
@@ -115,7 +116,7 @@ $vp=Start-Process -FilePath $Setup -ArgumentList @('/verify',("/verifyfile="+$Ve
 if($vp.ExitCode -ne 0){throw "Setup /verify failed with exit $($vp.ExitCode)"}
 if(!(Test-Path -LiteralPath $Verify)){throw 'Setup /verify did not create its verification file.'}
 $v=Get-Content -LiteralPath $Verify -Raw|ConvertFrom-Json
-if([string]$v.Status -ne 'PASS' -or [int]$v.Resources -ne 25){throw 'Setup resource verification failed.'}
+if([string]$v.Status -ne 'PASS' -or [int]$v.Resources -ne 26){throw 'Setup resource verification failed.'}
 
 & (Join-Path $PSScriptRoot 'Test-Workspace.ps1') -Executable (Join-Path $Package 'TaskbarMonitorEnhanced.exe') -OutputDirectory (Join-Path $Out 'contracts')
 if($LASTEXITCODE -ne 0){throw 'Application contract suite failed.'}

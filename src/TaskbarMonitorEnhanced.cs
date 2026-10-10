@@ -459,7 +459,7 @@ namespace TaskbarMonitorEnhanced
             if (String.IsNullOrWhiteSpace(Theme) || String.Equals(Theme, "Auto", StringComparison.OrdinalIgnoreCase)) Theme = "Dark Minimal Pro";
             if (!ThemeCatalog.Names.Contains(Theme)) Theme = "Dark Minimal Pro";
             if (String.IsNullOrWhiteSpace(Position) || (Position != "Left" && Position != "Center" && Position != "Right")) Position = "Left";
-            if (!MetricStatistics.Finite(Opacity) || Opacity < 0.55 || Opacity > 1.0) Opacity = 0.97;
+            if (!MetricStatistics.Finite(Opacity)) Opacity = 0.97; else Opacity = Math.Max(0.0,Math.Min(1.0,Opacity));
             if (UpdateIntervalMs < 1000 || UpdateIntervalMs > 5000) UpdateIntervalMs = 1000;
             if (MinWidthLogicalPx < 900 || MinWidthLogicalPx > 1500) MinWidthLogicalPx = 1100;
             if (MaxWidthLogicalPx < MinWidthLogicalPx) MaxWidthLogicalPx = Math.Max(1400, MinWidthLogicalPx);
@@ -4382,7 +4382,7 @@ namespace TaskbarMonitorEnhanced
                         {
                             config.Normalize();
                             config.Save();
-                            Opacity=config.Opacity;
+                            Opacity=1.0; // Glass renderer controls background alpha per pixel; form-wide alpha must remain 100%.
                             history.SetLimit(config.SparklineHistoryLength);
                             metricTimer.Interval=EffectiveMetricIntervalMs();
                             TaskbarLayout.ResetCache();
@@ -5198,34 +5198,35 @@ namespace TaskbarMonitorEnhanced
                 if(!EnsureIntegratedWindowStyles("ATTACH_INTEGRATED",true))
                     throw new InvalidOperationException("Integrated window style verification failed");
 
-                bool layered=Native.SetLayeredWindowAttributes(
-                    Handle,0,255,Native.LWA_COLORKEY|Native.LWA_ALPHA
-                );
+                // Per-pixel UpdateLayeredWindow must not follow SetLayeredWindowAttributes:
+                // Win32 requires clearing/recreating the layered style after the latter.
+                PositionOverlay(true);
+                bool layered=PaintPerPixelLayer()||glassLegacyFallbackReady;
                 int layeredWin32=Marshal.GetLastWin32Error();
 
                 if(!layered)
                 {
                     Log.Write(
                         "ERROR",
-                        "UPSTREAM_LAYERED_ATTRIBUTES_FAIL win32="+layeredWin32+
+                        "UPSTREAM_LAYERED_SURFACE_FAIL win32="+layeredWin32+
                         " exstyle=0x"+upstreamEx.ToString("X8",CultureInfo.InvariantCulture)+
                         " parent="+parentAfter.ToInt64()
                     );
                     throw new InvalidOperationException(
-                        "SetLayeredWindowAttributes failed win32="+layeredWin32
+                        "Layered compositor could not initialize win32="+layeredWin32
                     );
                 }
 
                 Log.Write(
                     "INFO",
-                    "UPSTREAM_LAYERED_ATTRIBUTES_PASS win32="+layeredWin32+
+                    "UPSTREAM_LAYERED_SURFACE_PASS win32="+layeredWin32+
                     " exstyle=0x"+upstreamEx.ToString("X8",CultureInfo.InvariantCulture)
                 );
 
                 TopMost=false;
                 upstreamAttachCount++;
 
-                PositionOverlay(true);
+                // Position was committed before the first ULW_ALPHA frame.
 
                 Log.Write(
                     "INFO",
@@ -5432,6 +5433,7 @@ namespace TaskbarMonitorEnhanced
 
         protected override void OnPaint(PaintEventArgs e)
         {
+            if(PaintPerPixelLayer())return;
             base.OnPaint(e); e.Graphics.SmoothingMode=SmoothingMode.AntiAlias; e.Graphics.TextRenderingHint=System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             ThemeDefinition theme=WindowsThemePolicy.Resolve(config);
             PaintBackground(e.Graphics,theme,ClientRectangle);
@@ -5974,7 +5976,7 @@ namespace TaskbarMonitorEnhanced
             bool stacked=HeadlineIsStacked(headline);
             using(Font hf=FitHeadlineFont(g,t.FontName,headline,Math.Max(8.7f,8.7f*baseScale),readableMin,r.Width-10))
             using(SolidBrush fg=new SolidBrush(t.Foreground))
-                g.DrawString(headline,hf,fg,r.X+5,r.Y+1);
+                DrawThemeGlyph(g,headline,hf,fg,r.X+5,r.Y+1);
 
             float graphTop=stacked?29f:22f;
             RectangleF graph=new RectangleF(r.X+5,r.Y+graphTop,Math.Max(34,r.Width-10),Math.Max(6,r.Height-(graphTop+4)));
@@ -5989,7 +5991,7 @@ namespace TaskbarMonitorEnhanced
             Font netFont=SafeFont(t.FontName,t.Mode=="terminal"?7.0f:7.6f,FontStyle.Bold);
             try
             {
-                using(SolidBrush muted=new SolidBrush(t.Muted))g.DrawString(m.Label,labelFont,muted,r.X+5,r.Y+1);
+                using(SolidBrush muted=new SolidBrush(t.Muted))DrawThemeGlyph(g,m.Label,labelFont,muted,r.X+5,r.Y+1);
 
                 SizeF v1=g.MeasureString(m.Value,netFont);
                 SizeF v2=g.MeasureString(m.Value2,netFont);
@@ -6002,8 +6004,8 @@ namespace TaskbarMonitorEnhanced
 
                 using(SolidBrush fg=new SolidBrush(t.Foreground))
                 {
-                    g.DrawString(m.Value,netFont,fg,r.X+5,r.Y+13);
-                    g.DrawString(m.Value2,netFont,fg,r.X+5,r.Y+24);
+                    DrawThemeGlyph(g,m.Value,netFont,fg,r.X+5,r.Y+13);
+                    DrawThemeGlyph(g,m.Value2,netFont,fg,r.X+5,r.Y+24);
                 }
 
                 RectangleF graph=new RectangleF(
@@ -6041,7 +6043,7 @@ namespace TaskbarMonitorEnhanced
             using(SolidBrush fb=new SolidBrush(t.Foreground))
             {
                 SizeF hs=g.MeasureString(headline,hf);
-                g.DrawString(headline,hf,fb,hx.X+(hx.Width-hs.Width)/2,hx.Y+(hx.Height-hs.Height)/2-1);
+                DrawThemeGlyph(g,headline,hf,fb,hx.X+(hx.Width-hs.Width)/2,hx.Y+(hx.Height-hs.Height)/2-1);
             }
 
             float graphX=hx.Right+5;
@@ -6056,7 +6058,7 @@ namespace TaskbarMonitorEnhanced
             bool stacked=HeadlineIsStacked(headline);
             using(Font hf=FitHeadlineFont(g,t.FontName,headline,9.0f,readableMin,r.Width-8))
             using(SolidBrush b=new SolidBrush(t.Foreground))
-                g.DrawString(headline,hf,b,r.X+4,r.Y+1);
+                DrawThemeGlyph(g,headline,hf,b,r.X+4,r.Y+1);
 
             if(config.ShowSparklines)
             {
@@ -6194,7 +6196,7 @@ namespace TaskbarMonitorEnhanced
             using(Font hf=FitHeadlineFont(g,t.FontName,headline,8.7f,readableMin,available))
             using(SolidBrush vb=new SolidBrush(valueColor))
             {
-                g.DrawString(headline,hf,vb,x,r.Y+2);
+                DrawThemeGlyph(g,headline,hf,vb,x,r.Y+2);
                 return x+MaxLineWidth(g,headline,hf);
             }
         }
@@ -6789,7 +6791,8 @@ namespace TaskbarMonitorEnhanced
 
             theme=Combo(display,"Theme",ThemeCatalog.Names,c.Theme,22);position=Combo(display,"Position",new string[]{"Left","Center","Right"},c.Position,68);
             taskbarDisplay=Combo(display,"Taskbar monitor",TaskbarTargetPolicy.SettingChoices(c.TaskbarDisplay),c.TaskbarDisplay,114);
-            opacity=Number(display,"Opacity %",(decimal)(c.Opacity*100),55,100,160);width=Number(display,"Locked width px",c.MinWidthLogicalPx,900,1500,206);
+            opacity=Number(display,"Background opacity %",(decimal)(c.Opacity*100),0,100,160);width=Number(display,"Locked width px",c.MinWidthLogicalPx,900,1500,206);
+            Label glassNote=new Label{Text="0% = entirely clear background; all text stays visible. At 30% and below, text follows sampled taskbar brightness with contrast outlines. Windows High Contrast keeps the overlay opaque.",Location=new Point(24,374),Size=new Size(720,57),AutoEllipsis=false};display.Controls.Add(glassNote);
             followWindowsTheme=Check(display,"Follow Windows app light/dark mode",c.FollowWindowsTheme,254);
             windowsLightTheme=Combo(display,"Windows light theme",ThemeCatalog.Names,c.WindowsLightTheme,290);
             windowsDarkTheme=Combo(display,"Windows dark theme",ThemeCatalog.Names,c.WindowsDarkTheme,332);
@@ -8857,6 +8860,9 @@ namespace TaskbarMonitorEnhanced
         private static int Main(string[] args)
         {
             Native.EnableDllSearchHardening();
+            if(args!=null && args.Length>1 && args[0]=="--glassproof")return TaskbarGlassProof.Run(args[1]);
+            if(args!=null && args.Length>1 && args[0]=="--glassliveproof")return TaskbarGlassLiveProof.Run(args[1]);
+            if(args!=null && args.Length>0 && args[0]=="--glassnativeproof")return TaskbarGlassNativeProof.Run();
             if(args!=null && args.Length>0 && args[0]=="--workspace-selftest")return WorkspaceSelfTest.Run();
             if(args!=null && args.Length>1 && args[0]=="--workspace-proof")return WorkspaceProof.Run(args[1]);
             if(args!=null && args.Length>0 && args[0]=="--selftest")return SelfTest.Run();

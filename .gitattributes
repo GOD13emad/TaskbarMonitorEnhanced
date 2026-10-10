@@ -25,3 +25,4 @@ src/WallpaperStudio.cs text eol=lf
 src/MonitorWorkspace.cs text eol=lf
 src/WorkspaceModels.cs text eol=lf
 src/WorkspaceSelfTest.cs text eol=lf
+src/TaskbarGlass.cs text eol=lf

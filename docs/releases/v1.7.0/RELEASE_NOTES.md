@@ -46,3 +46,14 @@ Unchanged from v1.6.0:
 ## Scope
 
 Wallpaper Studio is a presentation feature. It does not change sensor polling, privileged hardware access, startup policy or monitoring data semantics.
+
+
+## Taskbar glass and adaptive legibility (R41)
+- All 49 built-in themes support 0–100% **background** opacity, independent of glyph opacity.
+- At 0%, theme panels and background wash are transparent; metric text remains visible.
+- At or below 30%, text automatically switches between white/black using the observed taskbar RGB outside the overlay. A contrasting 1-pixel glyph edge improves readability on uneven backgrounds.
+- The taskbar color is sampled locally at an interval, with a Windows light/dark fallback; no screenshot is saved or uploaded.
+- Windows High Contrast deliberately overrides the transparency choice and keeps the overlay opaque.
+- Completely transparent pixels can pass mouse interactions through to the taskbar; the tray menu still provides Settings access.
+- Windows child-layered-window rendering uses per-pixel alpha rather than whole-window WinForms Opacity. If native compositing fails, the overlay falls back to a fully opaque usable display instead of hiding the metrics.
+- Native on-taskbar proof validated 0/10/29/30/100% opacity; representative color #132A27 yielded 15.1:1 contrast for selected text. Evidence remains under .local/r41 and must be revalidated after changing source/installer.

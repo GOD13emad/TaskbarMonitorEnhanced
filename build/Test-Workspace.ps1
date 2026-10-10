@@ -18,12 +18,12 @@ $head=(& git -C (Join-Path $PSScriptRoot '..') rev-parse HEAD).Trim()
 if($LASTEXITCODE -ne 0){throw 'Git revision read failed'}
 $results=@()
 $tests=@('selftest','feature-contract-selftest','workspace-selftest')
-if($Visual){$tests+=@('workspace-proof','themeproof','compactproof','settingsproof','wallpaperproof')}
+if($Visual){$tests+=@('workspace-proof','themeproof','compactproof','settingsproof','wallpaperproof','glassproof')}
 foreach($test in $tests){
     $stdout=Join-Path $OutputDirectory ($test+'.stdout.txt')
     $stderr=Join-Path $OutputDirectory ($test+'.stderr.txt')
     $arguments=@('--'+$test)
-    if($test -in @('workspace-proof','themeproof','compactproof','settingsproof','wallpaperproof')){
+    if($test -in @('workspace-proof','themeproof','compactproof','settingsproof','wallpaperproof','glassproof')){
         $destination=Join-Path $OutputDirectory $test
         $arguments+=('"'+$destination+'"')
     }
