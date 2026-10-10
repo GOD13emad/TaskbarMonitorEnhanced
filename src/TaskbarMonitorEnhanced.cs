@@ -4389,7 +4389,7 @@ namespace TaskbarMonitorEnhanced
             if(pauseMenuItem!=null)pauseMenuItem.Text=userTelemetryPaused?"Resume monitoring":"Pause monitoring";
         }
 
-        private void ApplyTheme(string name){config.Theme=name;config.Save();RefreshMenuChecks();Invalidate();Log.Write("INFO","THEME " + name);}
+        private void ApplyTheme(string name){config.Theme=name;config.Save();RefreshMenuChecks();RefreshGlassAfterMetricCommit();Invalidate();Log.Write("INFO","THEME " + name);}
 
         private void OpenSettings(){OpenSettings(null);}
         private void OpenSettings(string initialTab)
@@ -4542,6 +4542,17 @@ namespace TaskbarMonitorEnhanced
             SessionTelemetryHistory.Add(snapshot);
             CommitWorkspaceSample();
             EvaluateTemperatureNotifications();
+            // Windows 11 WS_EX_LAYERED UpdateLayeredWindow does not reliably raise
+            // WM_PAINT following Invalidate. Commit the real native pixels on each
+            // observed metric snapshot; otherwise glyphs remain at cold-start zero
+            // and sparklines never gain on-screen history although the worker reads.
+            RefreshGlassAfterMetricCommit();
+            if(!proofMode && (metricSnapshotGeneration<=2 || metricSnapshotGeneration%120==0))
+                Log.Write("INFO","GLASS_METRIC_COMMIT generation="+metricSnapshotGeneration+
+                    " CPU="+snapshot.Cpu.ToString("0.0",CultureInfo.InvariantCulture)+
+                    " RAM_BYTES="+snapshot.RamTotalBytes+
+                    " GPU="+snapshot.Gpu.ToString("0.0",CultureInfo.InvariantCulture)+
+                    " nativeRefreshCount="+glassDirectMetricRefreshCount);
         }
 
         private void EvaluateTemperatureNotifications()

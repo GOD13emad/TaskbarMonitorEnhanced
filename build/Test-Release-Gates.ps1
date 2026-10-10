@@ -100,7 +100,7 @@ $mainDigest=if(Test-Path -LiteralPath $mainActual){(Get-FileHash -LiteralPath $m
 $nativePass=$null -ne $nativeGlass -and $null -ne $nativeTransitions -and
     $nativeGlass.Status -eq 'PASS' -and
     $nativeGlass.MainExecutableSHA256 -eq $mainDigest -and
-    $nativeGlass.ActualProductionOverlayForm -eq $true -and
+    $nativeGlass.ActualProductionOverlayForm -eq $true -and [int]$nativeGlass.MetricNativeRefreshUploads -ge 2 -and
     $nativeGlass.NoResidentAppTerminated -eq $true -and
     $nativeGlass.BackgroundOpacityPercent -eq 0 -and
     $nativeGlass.NativeLayeredWindow -eq $true -and

@@ -277,6 +277,17 @@ namespace TaskbarMonitorEnhanced
             return expectedRect;
         }
 
+        private int glassDirectMetricRefreshCount;
+        internal int GlassDirectMetricRefreshCountForProof {get{return glassDirectMetricRefreshCount;}}
+        private void RefreshGlassAfterMetricCommit()
+        {
+            if(!IsHandleCreated||!RequiresGlassTopLevel||glassLegacyFallback)return;
+            if(proofMode&&!glassNativeVisualProofMode)return;
+            if(PaintPerPixelLayer())glassDirectMetricRefreshCount++;
+            // On failure PaintPerPixelLayer already records native error and applies
+            // the opaque last-resort fallback; never misreport successful refresh.
+        }
+
         private Graphics glassInkCanvas,glassHaloCanvas;
         private bool glassLegacyFallback;
         private bool glassLegacyFallbackReady;
@@ -811,6 +822,13 @@ namespace TaskbarMonitorEnhanced
                     f.Show();Application.DoEvents();
                     Rectangle actual=f.AttachNativeGlassVisualProof();
                     Check(actual==place,"production position differed from safe placement "+actual+" vs "+place);
+                    int preNativeMetricUpdates=f.GlassDirectMetricRefreshCountForProof;
+                    // Read real metrics while the layered popup is ALREADY visible.
+                    // The telemetry commit itself must cause a native upload; relying
+                    // on Invalidate/WM_PAINT would leave a static cold-start frame.
+                    f.PrimeSettingsThemePreviewFromLiveMetrics(2,50);
+                    int nativeMetricUpdates=f.GlassDirectMetricRefreshCountForProof-preNativeMetricUpdates;
+                    Check(nativeMetricUpdates>=2,"metric snapshot failed to upload real layered pixels "+nativeMetricUpdates);
                     f.Invalidate();f.Update();Application.DoEvents();
                     System.Threading.Thread.Sleep(400);
                     using(Bitmap on=Capture(actual))
@@ -845,6 +863,7 @@ namespace TaskbarMonitorEnhanced
                             Status=pass?"PASS":"FAIL",
                             ParentWindow=Native.GetParent(f.Handle).ToInt64(),
                             NativeLayeredWindow=true,ActualProductionOverlayForm=true,
+                            MetricNativeRefreshUploads=nativeMetricUpdates,
                             MainExecutableSHA256=MainExecutableHash(),
                             BackgroundOpacityPercent=0,Theme=cfg.Theme,
                             ScreenshotArea=actual.ToString(),ExpectedForegroundPixels=foregroundPixels,
