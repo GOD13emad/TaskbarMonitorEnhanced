@@ -28,7 +28,7 @@ Get-FileHash -Algorithm SHA256 -LiteralPath "$env:USERPROFILE\Downloads\TaskbarM
 
 Compare the entire SHA-256 value above before starting the installer. Use the exact filename; do not select a guessed newest/wildcard installer. Normal installation runs the main app without elevation. The optional protected sensor layer may require administrator approval; the tested upgrade reused the exact healthy existing R33/R21 layer without changes.
 
-**Public-trust Authenticode signing is pending.** Windows may display Unknown publisher. GitHub/Sigstore provenance and SHA-256 verification do not claim a trusted publisher certificate. See [Code signing](CODE_SIGNING.md).
+**Public-trust Authenticode signing is pending.** Windows may display Unknown publisher. GitHub/Sigstore provenance and SHA-256 verification do not claim a trusted publisher certificate. See the [Code signing policy](CODE_SIGNING.md).
 
 ## Acceptance evidence
 
