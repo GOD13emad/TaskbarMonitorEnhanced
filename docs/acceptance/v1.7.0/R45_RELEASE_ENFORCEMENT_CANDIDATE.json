@@ -1,0 +1,42 @@
+{
+  "Schema": 1,
+  "Project": "TaskbarMonitorEnhanced",
+  "Revision": "R45",
+  "Branch": "feature/v1.7.0-r44-chart-foreground",
+  "PreviousSourceSHA": "3926bfa7b9dddb735e7b79ede1c17632848b44d8",
+  "Status": "FULL_CI_GATE_SOURCE_READY_STABLE_BLOCKED",
+  "GeneratedUTC": "2026-10-10T11:44:56.132075+00:00",
+  "CIContract": {
+    "VisualSuites": 10,
+    "RuntimeSuites": 8,
+    "ChartForegoundPairs": 196,
+    "TextAlphaPairs": 196,
+    "IndependentArtifacts": [
+      "ci-visual/SUMMARY.json",
+      "ci-visual/chartglassproof/CHART_GLASS_PROOF.json",
+      "ci-visual/glassproof/GLASS_PROOF.json",
+      "ci-runtime/SUMMARY.json"
+    ]
+  },
+  "ReleaseEvaluator": {
+    "Path": "build/Test-Release-Gates.ps1",
+    "Checks": 14,
+    "SourceProofChecks": 10,
+    "StableExternalChecks": 4,
+    "FailClosedStableExitCode": 45,
+    "FailCandidateExitCode": 46,
+    "ChangesInstalledFiles": false,
+    "ChangesWallpaper": false,
+    "SignsOrPublishes": false
+  },
+  "NoLongerOpen": "Require explicit full CI visual+runtime checks; isolated R44 local proofs already PASS",
+  "OpenCriticalGates": [
+    "R45 exact-head CI full suite",
+    "trusted positive actual static-Picture Wallpaper apply/restore",
+    "installed v1.7 transactional validation",
+    "trusted code signing",
+    "approved main and immutable release"
+  ],
+  "CurrentPublicAndInstalled": "v1.6.0 immutable",
+  "BrainStatus": "R45_POSTCOMMIT_CUMULATIVE_TRANSFER_PENDING"
+}
