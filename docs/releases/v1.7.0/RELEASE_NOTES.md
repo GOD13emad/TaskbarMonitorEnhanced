@@ -64,3 +64,7 @@ If Windows is running Slideshow, Spotlight, a solid-color background or an unkno
 ## R44: microcharts stay visible when background opacity is 0%
 
 All 49 themes preserve the microchart foreground at zero-background opacity, including line, terminal/mission bars, Studio LCD/dots. Text and charts use taskbar-aware adaptive black or white plus a halo at opacity 30% or less. Manual Show sparklines OFF still hides graphs. All regular chart history remains observed data; proof fixture samples are proof-mode only. This remains an UNRELEASED candidate until positive wallpaper and installed acceptance.
+
+## R46 Windows 11 true-alpha rendering visibility
+
+Windows 11's taskbar compositor can hide a transparent layered child window even when native UpdateLayeredWindow succeeds. For background opacity below 100%, v1.7's candidate uses a taskbar-anchored nonactivating top-level layered window placed in the existing safe taskbar gap, preserving opaque text and line/bar/LCD/dot charts. At 100% and Windows High Contrast the established opaque taskbar-child mode is used. Switching back from opaque to transparent re-arms the layered style, and Settings/Workspace reattach to the correct mode. A disposable production OverlayForm live proof on Emad verified foreground visibility and mode changes using real screen pixels. This is an **unreleased candidate**; official installed behavior, authorized wallpaper restore, public Authenticode and public stable are not yet accepted.

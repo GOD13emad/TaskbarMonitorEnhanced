@@ -4,6 +4,8 @@ param(
     [string]$RuntimeSummary='',
     [string]$CIReceipt='',
     [string]$LivePreviewReceipt='',
+    [string]$TopGlassLiveReceipt='',
+    [string]$TopGlassTransitionReceipt='',
     [string]$PositiveWallpaperReceipt='',
     [string]$InstalledRuntimeReceipt='',
     [string]$OutputPath='',
@@ -91,6 +93,38 @@ $previewPass=$null -ne $preview -and $preview.Status -eq 'EXPIRED_CLEAN' -and
     [int]$preview.BackgroundOpacityPercent -eq 0 -and $preview.InstalledMainSHA256Still -eq '05F9E069C4598FDAD327A41BF1CA34A1498D022119DB81E09F4B3B091C9BA377' -and
     [int]$preview.VisibleChartInkPixels -ge 100 -and [int]$preview.HistorySamples -ge 12
 Add-Gate 'G10_EMAD_VISUAL_ONLY_ZERO_ALPHA_REAL_METRICS' $previewPass $LivePreviewReceipt 'Candidate'
+$nativeGlass=Resolve-Evidence $TopGlassLiveReceipt
+$nativeTransitions=Resolve-Evidence $TopGlassTransitionReceipt
+$mainActual=(Join-Path $root 'build\_out\App\TaskbarMonitorEnhanced.exe')
+$mainDigest=if(Test-Path -LiteralPath $mainActual){(Get-FileHash -LiteralPath $mainActual).Hash}else{''}
+$nativePass=$null -ne $nativeGlass -and $null -ne $nativeTransitions -and
+    $nativeGlass.Status -eq 'PASS' -and
+    $nativeGlass.MainExecutableSHA256 -eq $mainDigest -and
+    $nativeGlass.ActualProductionOverlayForm -eq $true -and
+    $nativeGlass.NoResidentAppTerminated -eq $true -and
+    $nativeGlass.BackgroundOpacityPercent -eq 0 -and
+    $nativeGlass.NativeLayeredWindow -eq $true -and
+    [int]$nativeGlass.RealTextChangedPixels -ge 100 -and
+    [int]$nativeGlass.RealChartChangedPixels -ge 100 -and
+    [int]$nativeGlass.ActualTransparentBackgroundPixels -gt 10000 -and
+    [int]$nativeGlass.ClearAreaChangedPixels -lt 100 -and
+    $nativeTransitions.Status -eq 'PASS' -and
+    $nativeTransitions.MainExecutableSHA256 -eq $mainDigest -and
+    $nativeTransitions.ActualProductionOverlayForm -eq $true -and
+    $nativeTransitions.NoInstalledMutation -eq $true -and
+    [int]$nativeTransitions.TotalTransitions -eq 4 -and
+    [int]$nativeTransitions.RestoredZeroAlphaGlyphPixels -ge 100 -and
+    [int]$nativeTransitions.RestoredZeroAlphaChartPixels -ge 100
+if($nativePass){
+    $expectedPct=@(30,97,100,0)
+    for($i=0;$i -lt 4;$i++){
+        if($nativeTransitions.Stages[$i].OpacityPercent -ne $expectedPct[$i] -or
+           $nativeTransitions.Stages[$i].Pass -ne $true){
+            $nativePass=$false;break
+        }
+    }
+}
+Add-Gate 'G11_ACTUAL_OVERLAYFORM_TASKBAR_0_30_97_100_0_VISIBILITY' $nativePass $TopGlassLiveReceipt 'Candidate'
 $wallpaper=Resolve-Evidence $PositiveWallpaperReceipt
 $wallpaperPass=$null -ne $wallpaper -and $wallpaper.Status -eq 'PASS' -and
     $wallpaper.SourceSHA -eq $sha -and $wallpaper.BackgroundType -eq 0 -and
@@ -98,22 +132,22 @@ $wallpaperPass=$null -ne $wallpaper -and $wallpaper.Status -eq 'PASS' -and
     $wallpaper.PreImageSHA256 -eq $wallpaper.RestoredImageSHA256 -and
     $wallpaper.PreImageSHA256 -ne $wallpaper.AppliedImageSHA256 -and
     $wallpaper.RegistryPathAndStyleIdentical -eq $true
-Add-Gate 'G11_TRUSTED_STATIC_WALLPAPER_APPLY_RESTORE' $wallpaperPass $PositiveWallpaperReceipt 'Stable'
+Add-Gate 'G12_TRUSTED_STATIC_WALLPAPER_APPLY_RESTORE' $wallpaperPass $PositiveWallpaperReceipt 'Stable'
 $installed=Resolve-Evidence $InstalledRuntimeReceipt
 $installedPass=$null -ne $installed -and $installed.Status -eq 'PASS' -and
     $installed.SourceSHA -eq $sha -and $installed.InstalledMainSHA256 -eq
         (@($outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced.exe'|Select-Object -First 1 -ExpandProperty SHA256)[0]) -and
-    $installed.ActualTaskbarChildReadableCharts -eq $true -and $installed.ExplorerRecoveryPassed -eq $true -and
+    $installed.ActualTaskbarAnchoredReadableCharts -eq $true -and $installed.WindowModeMatchesOpacity -eq $true -and $installed.ExplorerRecoveryPassed -eq $true -and
     $installed.ConfigBackupAndRollbackVerified -eq $true -and $installed.ProtectedSensorsHealthy -eq $true -and $installed.InteractiveHostEightRuntimeProbesPassed -eq $true
-Add-Gate 'G12_INSTALLED_TASKBAR_EXPLORER_SENSORS_ROLLBACK' $installedPass $InstalledRuntimeReceipt 'Stable'
+Add-Gate 'G13_INSTALLED_TASKBAR_EXPLORER_SENSORS_ROLLBACK' $installedPass $InstalledRuntimeReceipt 'Stable'
 $setupExe=Join-Path $root 'build\_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.0.exe'
 $mainExe=Join-Path $root 'build\_out\App\TaskbarMonitorEnhanced.exe'
 $signPass=(Test-Path $setupExe) -and (Test-Path $mainExe) -and
     (Get-AuthenticodeSignature -LiteralPath $setupExe).Status -eq 'Valid' -and
     (Get-AuthenticodeSignature -LiteralPath $mainExe).Status -eq 'Valid'
-Add-Gate 'G13_AUTHENTICODE_VALID_ON_SETUP_AND_APP' $signPass 'Get-AuthenticodeSignature (actual local artifacts)' 'Stable'
+Add-Gate 'G14_AUTHENTICODE_VALID_ON_SETUP_AND_APP' $signPass 'Get-AuthenticodeSignature (actual local artifacts)' 'Stable'
 $mainSHA=(& git -C $root rev-parse main).Trim()
-Add-Gate 'G14_MAIN_IS_EXACT_APPROVED_COMMIT' ($mainSHA -eq $sha) ('local main HEAD '+$mainSHA) 'Stable'
+Add-Gate 'G15_MAIN_IS_EXACT_APPROVED_COMMIT' ($mainSHA -eq $sha) ('local main HEAD '+$mainSHA) 'Stable'
 $required=@($gates|Where-Object {$_.Class -eq 'Candidate'})
 $blocked=@($gates|Where-Object {$_.Status -ne 'PASS'})
 $ready=$blocked.Count -eq 0

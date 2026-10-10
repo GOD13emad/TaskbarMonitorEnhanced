@@ -92,6 +92,19 @@ namespace TaskbarMonitorEnhanced
         }
     }
 
+    // Windows 11 DirectComposition can visually occlude layered Shell_TrayWnd children.
+    // UpdateLayeredWindow's success is insufficient proof of readable foreground.
+    // At sub-100% opacity draw a top-level click-accessible, taskbar-anchored glass
+    // overlay with a verified native per-pixel surface. At 100% preserve the
+    // previously accepted direct-child mode; High Contrast always remains opaque.
+    internal static class TaskbarGlassHostMode
+    {
+        internal static bool RequiresTopLevel(double backgroundOpacity,bool highContrast)
+        {
+            return !highContrast && backgroundOpacity<0.999999;
+        }
+    }
+
     internal static class TaskbarGlassPixels
     {
         internal static byte[] ReadPixels(Bitmap b,PixelFormat format)
@@ -226,6 +239,44 @@ namespace TaskbarMonitorEnhanced
 
     internal sealed partial class OverlayForm
     {
+        private bool glassNativeVisualProofMode;
+        internal bool RequiresGlassTopLevel
+        {get{return config!=null && (!proofMode||glassNativeVisualProofMode) &&
+                     TaskbarGlassHostMode.RequiresTopLevel(config.Opacity,SystemInformation.HighContrast);}}
+        internal void EnableNativeGlassVisualProof()
+        {
+            if(!proofMode||IsHandleCreated)throw new InvalidOperationException("Glass visual proof requires a fresh proof-only instance.");
+            glassNativeVisualProofMode=true;
+        }
+        internal bool SwitchNativeGlassForProof(double nextOpacity)
+        {
+            if(!proofMode||!glassNativeVisualProofMode)
+                throw new InvalidOperationException("Mode transition allowed only in isolated proof instance.");
+            config.Opacity=Math.Max(0,Math.Min(1,nextOpacity));
+            config.Normalize();
+            AttachIntegrated();
+            if(!IsHandleCreated||!Native.IsWindowVisible(Handle))return false;
+            long style=Native.GetWindowLongPtr(Handle,Native.GWL_STYLE).ToInt64();
+            if(RequiresGlassTopLevel)
+                return (style&Native.WS_CHILD)==0 && !glassLegacyFallback;
+            return (style&Native.WS_CHILD)!=0 && Native.GetParent(Handle)==taskbar;
+        }
+
+        internal Rectangle AttachNativeGlassVisualProof()
+        {
+            if(!proofMode||!glassNativeVisualProofMode)throw new InvalidOperationException("Not a native-proof form.");
+            AttachIntegrated();
+            if(!RequiresGlassTopLevel||glassLegacyFallback||expectedRect.Width<500||
+               !IsHandleCreated||!Native.IsWindowVisible(Handle)||
+               (Native.GetWindowLongPtr(Handle,Native.GWL_STYLE).ToInt64()&Native.WS_CHILD)!=0)
+                throw new InvalidOperationException("Production top-level glass compositor did not attach natively.");
+            long ex=Native.GetWindowLongPtr(Handle,Native.GWL_EXSTYLE).ToInt64();
+            if((ex&Native.WS_EX_LAYERED)==0||(ex&Native.WS_EX_COMPOSITED)!=0||
+               (ex&Native.WS_EX_TRANSPARENT)!=0)
+                throw new InvalidOperationException("Native proof top-level layered style incorrect.");
+            return expectedRect;
+        }
+
         private Graphics glassInkCanvas,glassHaloCanvas;
         private bool glassLegacyFallback;
         private bool glassLegacyFallbackReady;
@@ -255,7 +306,7 @@ namespace TaskbarMonitorEnhanced
 
         private Color GlassTaskbarSample()
         {
-            if(proofMode)return TaskbarGlassColor.Fallback();
+            if(proofMode&&!glassNativeVisualProofMode)return TaskbarGlassColor.Fallback();
             DateTime now=DateTime.UtcNow;
             if((now-taskbarGlassSampleAt).TotalSeconds<4)return taskbarGlassColor;
             taskbarGlassSampleAt=now;
@@ -325,7 +376,7 @@ namespace TaskbarMonitorEnhanced
         }
         private bool PaintPerPixelLayer()
         {
-            if(proofMode||glassLegacyFallback||!IsHandleCreated||taskbar==IntPtr.Zero)return false;
+            if((proofMode&&!glassNativeVisualProofMode)||glassLegacyFallback||!IsHandleCreated||taskbar==IntPtr.Zero)return false;
             Rectangle r=ClientRectangle;
             if(r.Width<80||r.Height<16)return false;
             int alpha=SystemInformation.HighContrast?100:Math.Max(0,Math.Min(100,(int)Math.Round(config.Opacity*100)));
@@ -421,6 +472,11 @@ namespace TaskbarMonitorEnhanced
                     using(Bitmap b=proof.RenderGlassPixelsForProof("Bauhaus Blocks",620,48,pct,Color.FromArgb(127,125,128)))
                         observations.Add(Analyze("boundary",pct,Color.FromArgb(127,125,128),b));
                 }
+                Require(TaskbarGlassHostMode.RequiresTopLevel(0,false),"zero alpha top-level required");
+                Require(TaskbarGlassHostMode.RequiresTopLevel(0.29,false),"29% alpha top-level required");
+                Require(TaskbarGlassHostMode.RequiresTopLevel(.97,false),"97% alpha top-level required");
+                Require(!TaskbarGlassHostMode.RequiresTopLevel(1.0,false),"100% previous child preserved");
+                Require(!TaskbarGlassHostMode.RequiresTopLevel(.15,true),"High Contrast forced opaque child");
                 foreach(Color bg in new[]{Color.Black,Color.White,Color.FromArgb(127,127,127),Color.FromArgb(220,190,20)})
                     Require(TaskbarGlassColor.Contrast(TaskbarGlassColor.ReadableText(bg),bg)>=4.5,"contrast target");
                 var json=new JavaScriptSerializer().Serialize(new{
@@ -665,6 +721,208 @@ namespace TaskbarMonitorEnhanced
             {
                 Console.Error.WriteLine("TBME_GLASS_LIVE_PROOF=FAIL "+e);
                 return 43;
+            }
+        }
+    }
+}
+
+
+namespace TaskbarMonitorEnhanced
+{
+    // Real screen-pixel proof using the actual OverlayForm's production top-level
+    // attach, safe taskbar placement and per-pixel paint path. Runs strictly in
+    // proof mode with no config writes, no tray and no process replacement.
+    internal static class TaskbarTopGlassVisualProof
+    {
+        private static void Check(bool ok,string reason)
+        {if(!ok)throw new InvalidOperationException("R46 TOPGLASS "+reason);}
+
+        private static string MainExecutableHash()
+        {
+            using(var sha=System.Security.Cryptography.SHA256.Create())
+            using(var stream=File.OpenRead(Application.ExecutablePath))
+                return BitConverter.ToString(sha.ComputeHash(stream)).Replace("-","");
+        }
+
+        private static Bitmap Capture(Rectangle r)
+        {
+            Bitmap b=new Bitmap(r.Width,r.Height,PixelFormat.Format24bppRgb);
+            using(Graphics g=Graphics.FromImage(b))
+                g.CopyFromScreen(r.Location,Point.Empty,r.Size,CopyPixelOperation.SourceCopy);
+            return b;
+        }
+
+        internal static int Run(string dir)
+        {
+            try
+            {
+                if(Directory.Exists(dir))throw new InvalidOperationException("Native proof output already exists; do not overwrite.");
+                Directory.CreateDirectory(dir);
+                Native.EnableDpi();
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                IntPtr bar=Native.FindWindow("Shell_TrayWnd",null);
+                Native.RECT taskbarBounds=new Native.RECT();
+                Check(bar!=IntPtr.Zero && Native.IsWindowVisible(bar) && Native.GetWindowRect(bar,out taskbarBounds),
+                    "primary taskbar must exist");
+                AppConfig cfg=new AppConfig();
+                cfg.Theme="Dark Minimal Pro";
+                cfg.Position="Right";
+                cfg.SafePlacement=true;
+                cfg.Opacity=0;
+                cfg.MinWidthLogicalPx=900;
+                cfg.ShowSparklines=true;
+                cfg.Normalize();
+                Rectangle place=TaskbarLayout.GetSafeRectangle(bar,cfg,cfg.MinWidthLogicalPx);
+                Check(place.Width>=700 && place.Height>=35 && place.Width<=1500,
+                    "insufficient unused taskbar area "+place);
+                Rectangle screen=SystemInformation.VirtualScreen;
+                Check(screen.Contains(place),"test area must be on screen");
+                // Fail rather than cover the existing user's v1.6 process.
+                uint resident=0;
+                foreach(System.Diagnostics.Process p in System.Diagnostics.Process.GetProcessesByName("TaskbarMonitorEnhanced"))
+                {
+                    try{if(p.Id!=System.Diagnostics.Process.GetCurrentProcess().Id)resident=(uint)p.Id;}
+                    finally{p.Dispose();}
+                }
+                Check(resident!=0,"accepted v1.6 must remain resident");
+                bool collides=false;
+                Native.EnumChildWindows(bar,delegate(IntPtr h,IntPtr ignored)
+                {
+                    if(Native.GetParent(h)!=bar)return true;
+                    uint pid=0;
+                    Native.GetWindowThreadProcessId(h,out pid);
+                    if(pid!=resident)return true;
+                    Native.RECT rr;
+                    if(Native.GetWindowRect(h,out rr) && rr.ToRectangle().IntersectsWith(place))
+                        collides=true;
+                    return true;
+                },IntPtr.Zero);
+                Check(!collides,"test must not cover resident v1.6 window");
+
+                bool sampled=false;
+                Color underlayColor=TaskbarGlassColor.Sample(taskbarBounds.ToRectangle(),place,out sampled);
+                using(Bitmap before=Capture(place))
+                using(var f=new OverlayForm(cfg,true))
+                {
+                    f.EnableNativeGlassVisualProof();
+                    f.PrimeSettingsThemePreviewFromLiveMetrics(24,80);
+                    f.Location=new Point(-30000,-30000);
+                    f.Show();Application.DoEvents();
+                    Rectangle actual=f.AttachNativeGlassVisualProof();
+                    Check(actual==place,"production position differed from safe placement "+actual+" vs "+place);
+                    f.Invalidate();f.Update();Application.DoEvents();
+                    System.Threading.Thread.Sleep(400);
+                    using(Bitmap on=Capture(actual))
+                    using(Bitmap expected=f.RenderGlassPixelsForProof(cfg.Theme,actual.Width,actual.Height,0,underlayColor))
+                    {
+                        before.Save(Path.Combine(dir,"UNDERLAY_BEFORE_R46.png"),ImageFormat.Png);
+                        on.Save(Path.Combine(dir,"PRODUCTION_FORM_TOPGLASS_R46.png"),ImageFormat.Png);
+                        int realInk=0,realGraphs=0,foregroundPixels=0,backgroundChanged=0,clearPixels=0;
+                        for(int y=2;y<actual.Height-3;y++)
+                        for(int x=3;x<actual.Width-3;x++)
+                        {
+                            int alpha=expected.GetPixel(x,y).A;
+                            if(alpha==0)clearPixels++;
+                            Color off=before.GetPixel(x,y),now=on.GetPixel(x,y);
+                            int contrast=Math.Max(Math.Abs(off.R-now.R),
+                                Math.Max(Math.Abs(off.G-now.G),Math.Abs(off.B-now.B)));
+                            if(alpha>=210)
+                            {
+                                foregroundPixels++;
+                                if(contrast>=45)
+                                {
+                                    if(y<20)realInk++;
+                                    else realGraphs++;
+                                }
+                            }
+                            else if(alpha==0 && contrast>65)backgroundChanged++;
+                        }
+                        bool pass=realInk>=100 && realGraphs>=100 &&
+                            clearPixels>actual.Width*5 &&
+                            backgroundChanged<Math.Max(200,clearPixels/5);
+                        var receipt=new {
+                            Status=pass?"PASS":"FAIL",
+                            ParentWindow=Native.GetParent(f.Handle).ToInt64(),
+                            NativeLayeredWindow=true,ActualProductionOverlayForm=true,
+                            MainExecutableSHA256=MainExecutableHash(),
+                            BackgroundOpacityPercent=0,Theme=cfg.Theme,
+                            ScreenshotArea=actual.ToString(),ExpectedForegroundPixels=foregroundPixels,
+                            RealTextChangedPixels=realInk,RealChartChangedPixels=realGraphs,
+                            ActualTransparentBackgroundPixels=clearPixels,
+                            ClearAreaChangedPixels=backgroundChanged,
+                            ContrastSampledFromTaskbar=sampled,
+                            ResidentInstalledV16ProcessId=resident,
+                            NoResidentAppTerminated=true,NoSettingsSaved=true,
+                            NoSlideshowTouched=true,TemporaryVisualOnly=true,
+                            GitSourceCandidate="R46",ActualScreenshotSaved=true,
+                            TimeUtc=DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture)
+                        };
+                        File.WriteAllText(Path.Combine(dir,"TOPGLASS_REAL_VISUAL_PROOF.json"),
+                            new JavaScriptSerializer().Serialize(receipt),new UTF8Encoding(false));
+                        Check(pass,"real taskbar screen delta insufficient glyph="+realInk+
+                            " graph="+realGraphs+" background="+backgroundChanged);
+                    }
+                    // Exercise actual GDI+ window transitions (0 -> 30 -> 97 -> 100 -> 0)
+                    // using the very same proof-mode OverlayForm; user config is never saved.
+                    var transitions=new List<object>();
+                    foreach(double percent in new[]{.30,.97,1.0,0.0})
+                    {
+                        bool switchOk=f.SwitchNativeGlassForProof(percent);
+                        transitions.Add(new {OpacityPercent=(int)Math.Round(percent*100),WindowMode=
+                            percent<1?"TOPLEVEL_PARG_B":"TASKBAR_CHILD_OPAQUE",Pass=switchOk});
+                        Check(switchOk,"form mode transition failed alpha="+percent);
+                        Application.DoEvents();
+                        System.Threading.Thread.Sleep(120);
+                    }
+                    Check(f.AttachNativeGlassVisualProof()==place,"post-transition native geometry drift");
+                    Application.DoEvents();
+                    System.Threading.Thread.Sleep(270);
+                    using(Bitmap post=Capture(place))
+                    using(Bitmap expectedPost=f.RenderGlassPixelsForProof(cfg.Theme,place.Width,place.Height,0,underlayColor))
+                    {
+                        post.Save(Path.Combine(dir,"TOPGLASS_AFTER_100_TO_ZERO_R46.png"),ImageFormat.Png);
+                        int postGlyph=0,postChart=0;
+                        for(int yy=2;yy<post.Height-3;yy++)
+                        for(int xx=3;xx<post.Width-3;xx++)
+                        {
+                            if(expectedPost.GetPixel(xx,yy).A<210)continue;
+                            Color old=before.GetPixel(xx,yy),cur=post.GetPixel(xx,yy);
+                            int delta=Math.Max(Math.Abs(old.R-cur.R),
+                                Math.Max(Math.Abs(old.G-cur.G),Math.Abs(old.B-cur.B)));
+                            if(delta>=45)
+                            {
+                                if(yy<20)postGlyph++;
+                                else postChart++;
+                            }
+                        }
+                        bool good=postGlyph>=100 && postChart>=100;
+                        var receipt=new{
+                            Status=good?"PASS":"FAIL",TotalTransitions=transitions.Count,
+                            Stages=transitions,RestoredZeroAlphaGlyphPixels=postGlyph,
+                            RestoredZeroAlphaChartPixels=postChart,
+                            ActualProductionOverlayForm=true,NoInstalledMutation=true,
+                            MainExecutableSHA256=MainExecutableHash(),
+                            RealScreenCompositorVerified=true};
+                        File.WriteAllText(Path.Combine(dir,"TOPGLASS_MODE_TRANSITIONS.json"),
+                            new JavaScriptSerializer().Serialize(receipt),new UTF8Encoding(false));
+                        Check(good,"0-30-97-100-0 real taskbar mode transitions lost glyph or graph");
+                    }
+                    f.Hide();Application.DoEvents();
+                }
+                Console.WriteLine("TBME_TOPGLASS_LIVE_PROOF=PASS REAL_PRODUCTION_FORM=TRUE CHAR_AND_GRAPH=VISIBLE");
+                return 0;
+            }
+            catch(Exception e)
+            {
+                try
+                {
+                    Directory.CreateDirectory(dir);
+                    File.WriteAllText(Path.Combine(dir,"TOPGLASS_FAILURE.txt"),e.ToString(),new UTF8Encoding(false));
+                }
+                catch {}
+                Console.Error.WriteLine("TBME_TOPGLASS_LIVE_PROOF=FAIL "+e);
+                return 46;
             }
         }
     }

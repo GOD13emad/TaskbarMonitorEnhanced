@@ -4081,18 +4081,69 @@ namespace TaskbarMonitorEnhanced
             get
             {
                 CreateParams cp=base.CreateParams;
-                if(!proofMode)
+                if(!proofMode||glassNativeVisualProofMode)
                 {
-                    cp.ExStyle |= Native.WS_EX_CONTROLPARENT | Native.WS_EX_LAYERED | Native.WS_EX_COMPOSITED | Native.WS_EX_TOOLWINDOW | Native.WS_EX_NOACTIVATE;
+                    cp.ExStyle |= Native.WS_EX_CONTROLPARENT | Native.WS_EX_LAYERED | Native.WS_EX_TOOLWINDOW | Native.WS_EX_NOACTIVATE;
+                    // COMPOSITED+LAYERED child causes native ULW error 87 here and the
+                    // Windows 11 shell occludes child ink even when ULW succeeds.
+                    if(RequiresGlassTopLevel)cp.ExStyle &= ~Native.WS_EX_COMPOSITED;
+                    else cp.ExStyle |= Native.WS_EX_COMPOSITED;
                     cp.ExStyle &= ~Native.WS_EX_TRANSPARENT;
                 }
                 return cp;
             }
         }
 
+        private bool EnsureTopLevelGlassStyles(string reason,bool repair)
+        {
+            if(!IsHandleCreated)return false;
+            try
+            {
+                IntPtr hwnd=Handle;
+                long style=Native.GetWindowLongPtr(hwnd,Native.GWL_STYLE).ToInt64();
+                long ex=Native.GetWindowLongPtr(hwnd,Native.GWL_EXSTYLE).ToInt64();
+                const long extra=(long)(Native.WS_EX_LAYERED|Native.WS_EX_TOOLWINDOW|Native.WS_EX_NOACTIVATE);
+                // GetParent returns the hidden WinForms OWNER of a popup when
+                // ShowInTaskbar=false. It is not a child parent; check WS_CHILD.
+                bool healthy=(style&Native.WS_CHILD)==0 && (style&Native.WS_POPUP)!=0 &&
+                    (ex&extra)==extra && (ex&Native.WS_EX_COMPOSITED)==0 &&
+                    (ex&Native.WS_EX_TRANSPARENT)==0;
+                if(healthy)return true;
+                if(!repair)
+                {
+                    Log.Write("WARN","TOPLEVEL_GLASS_STYLE_DRIFT reason="+reason+
+                        " parent="+Native.GetParent(hwnd).ToInt64()+" style=0x"+style.ToString("X8")+
+                        " exstyle=0x"+ex.ToString("X8"));
+                    return false;
+                }
+
+                long popup=(style&~Native.WS_CHILD)|Native.WS_POPUP;
+                if(popup!=style)Native.SetWindowLongPtr(hwnd,Native.GWL_STYLE,new IntPtr(popup));
+                if((style&Native.WS_CHILD)!=0)
+                    Native.SetParent(hwnd,IntPtr.Zero);
+                long wantEx=(ex|extra)&~(long)(Native.WS_EX_COMPOSITED|Native.WS_EX_TRANSPARENT);
+                if(wantEx!=ex)Native.SetWindowLongPtr(hwnd,Native.GWL_EXSTYLE,new IntPtr(wantEx));
+                Native.SetWindowPos(hwnd,Native.HWND_TOPMOST,0,0,0,0,
+                    Native.SWP_NOMOVE|Native.SWP_NOSIZE|Native.SWP_NOACTIVATE|
+                    Native.SWP_FRAMECHANGED|Native.SWP_NOOWNERZORDER);
+                long after=Native.GetWindowLongPtr(hwnd,Native.GWL_STYLE).ToInt64();
+                long afterEx=Native.GetWindowLongPtr(hwnd,Native.GWL_EXSTYLE).ToInt64();
+                bool pass=(after&Native.WS_CHILD)==0 && (after&Native.WS_POPUP)!=0 &&
+                    (afterEx&extra)==extra && (afterEx&Native.WS_EX_COMPOSITED)==0;
+                Log.Write(pass?"INFO":"ERROR","TOPLEVEL_GLASS_STYLE_REPAIR reason="+reason+" pass="+pass+" hwnd="+hwnd.ToInt64()+" parent="+Native.GetParent(hwnd).ToInt64()+" styleBefore=0x"+style.ToString("X8")+" styleAfter=0x"+after.ToString("X8")+" exBefore=0x"+ex.ToString("X8")+" exAfter=0x"+afterEx.ToString("X8")+" required=0x"+extra.ToString("X8"));
+                return pass;
+            }
+            catch(Exception ex)
+            {
+                Log.Write("ERROR","TOPLEVEL_GLASS_STYLE_FAIL reason="+reason+" "+ex.Message);
+                return false;
+            }
+        }
+
         private bool EnsureIntegratedWindowStyles(string reason,bool repairParent)
         {
             if(proofMode || !IsHandleCreated)return true;
+            if(RequiresGlassTopLevel)return EnsureTopLevelGlassStyles(reason,repairParent);
             try
             {
                 long style=Native.GetWindowLongPtr(Handle,Native.GWL_STYLE).ToInt64();
@@ -4388,7 +4439,7 @@ namespace TaskbarMonitorEnhanced
                             TaskbarLayout.ResetCache();
                             ResetPlacementStability("SETTINGS_APPLY");
                             StartupManager.SetEnabled(config.StartWithWindows);
-                            PositionOverlay(true);
+                            AttachIntegrated();
                             RefreshMenuChecks();
                             Invalidate();
                             Log.Write("INFO","SETTINGS_SINGLE_INSTANCE_APPLY");
@@ -5033,14 +5084,16 @@ namespace TaskbarMonitorEnhanced
 
                 AttachIntegrated();
 
-                bool parentOk=Native.GetParent(Handle)==taskbar;
+                bool parentOk=RequiresGlassTopLevel?
+                    (Native.GetWindowLongPtr(Handle,Native.GWL_STYLE).ToInt64()&Native.WS_CHILD)==0:
+                    Native.GetParent(Handle)==taskbar;
                 bool visible=Native.IsWindowVisible(Handle);
 
                 Log.Write(
                     "INFO",
                     "RECOVERY_PASS reason="+reason+
                     " attempt="+recoveryAttempt+
-                    " mode=StableLowPressureTaskbarChild"+
+                    " mode="+(RequiresGlassTopLevel?"TaskbarAnchoredTopLevelGlass":"StableLowPressureTaskbarChild")+
                     " taskbar="+taskbar.ToInt64()+
                     " parentOk="+parentOk+
                     " visible="+visible+
@@ -5163,8 +5216,67 @@ namespace TaskbarMonitorEnhanced
             return new Rectangle(x,r.Y,w,r.Height);
         }
 
+        private void AttachGlassTopLevel()
+        {
+            string resolvedTarget;
+            taskbar=TaskbarTargetPolicy.Resolve(config,out resolvedTarget);
+            if(taskbar==IntPtr.Zero)
+            {
+                ScheduleRecovery("GLASS_TASKBAR_NOT_FOUND",500);
+                return;
+            }
+            trayNotify=Native.FindDescendantByClass(taskbar,"TrayNotifyWnd");
+            ResetPlacementStability("TOPLEVEL_GLASS_ATTACH");
+            try
+            {
+                bool transitionFromChild=
+                    (Native.GetWindowLongPtr(Handle,Native.GWL_STYLE).ToInt64()&Native.WS_CHILD)!=0;
+                bool priorLegacyAttributes=glassLegacyFallback||glassLegacyFallbackReady;
+                if(!EnsureTopLevelGlassStyles("TOPLEVEL_GLASS_ATTACH",true))
+                    throw new InvalidOperationException("Cannot create top-level per-pixel glass window.");
+                // UpdateLayeredWindow cannot follow SetLayeredWindowAttributes until
+                // WS_EX_LAYERED is cleared and recreated. A 100% child compositor
+                // may have used the legacy opaque fallback, so re-arm PArgb mode.
+                if(transitionFromChild||priorLegacyAttributes)
+                {
+                    long ex=Native.GetWindowLongPtr(Handle,Native.GWL_EXSTYLE).ToInt64();
+                    if((ex&Native.WS_EX_LAYERED)==0)
+                        throw new InvalidOperationException("Per-pixel layered style unavailable after host transition.");
+                    Native.SetWindowLongPtr(Handle,Native.GWL_EXSTYLE,
+                        new IntPtr(ex&~(long)Native.WS_EX_LAYERED));
+                    Native.SetWindowLongPtr(Handle,Native.GWL_EXSTYLE,
+                        new IntPtr(ex));
+                    Native.SetWindowPos(Handle,Native.HWND_TOPMOST,0,0,0,0,
+                        Native.SWP_NOMOVE|Native.SWP_NOSIZE|Native.SWP_NOACTIVATE|
+                        Native.SWP_FRAMECHANGED|Native.SWP_NOOWNERZORDER);
+                    Log.Write("INFO","TOPLEVEL_GLASS_REARM_LAYERED childBefore="+transitionFromChild+
+                        " previousLegacy="+priorLegacyAttributes);
+                }
+                TopMost=true;
+                PositionOverlay(true); // Taskbar-safe geometry, screen-relative (not child-relative).
+                if(expectedRect.Width<80)
+                    throw new InvalidOperationException("No taskbar-safe placement for transparent overlay.");
+                glassLegacyFallback=false;
+                glassLegacyFallbackReady=false;
+                bool native=PaintPerPixelLayer();
+                if(!native)
+                    throw new InvalidOperationException("Per-pixel glass top-level native upload rejected; no visual acceptance.");
+                Log.Write("INFO","TOPLEVEL_GLASS_ATTACH_PASS taskbar="+taskbar.ToInt64()+
+                    " parent="+Native.GetParent(Handle).ToInt64()+
+                    " rect="+expectedRect.X+","+expectedRect.Y+","+
+                    expectedRect.Width+","+expectedRect.Height+" opacity="+
+                    config.Opacity.ToString("0.00",CultureInfo.InvariantCulture));
+            }
+            catch(Exception ex)
+            {
+                Log.Write("ERROR","TOPLEVEL_GLASS_ATTACH_FAIL "+ex);
+                ScheduleRecovery("TOPLEVEL_GLASS_FAIL",750);
+            }
+        }
+
         private void AttachIntegrated()
         {
+            if(RequiresGlassTopLevel){AttachGlassTopLevel();return;}
             string resolvedTarget;taskbar=TaskbarTargetPolicy.Resolve(config,out resolvedTarget);
             if(taskbar==IntPtr.Zero)
             {
@@ -5285,9 +5397,9 @@ namespace TaskbarMonitorEnhanced
                     {
                         Native.SetWindowPos(
                             Handle,
-                            Native.HWND_TOP,
-                            expectedRect.X-taskbarRect.Left,
-                            expectedRect.Y-taskbarRect.Top,
+                            RequiresGlassTopLevel?Native.HWND_TOPMOST:Native.HWND_TOP,
+                            RequiresGlassTopLevel?expectedRect.X:expectedRect.X-taskbarRect.Left,
+                            RequiresGlassTopLevel?expectedRect.Y:expectedRect.Y-taskbarRect.Top,
                             expectedRect.Width,
                             expectedRect.Height,
                             Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW
@@ -5315,9 +5427,9 @@ namespace TaskbarMonitorEnhanced
 
             Native.SetWindowPos(
                 Handle,
-                Native.HWND_TOP,
-                r.X-taskbarRect.Left,
-                r.Y-taskbarRect.Top,
+                RequiresGlassTopLevel?Native.HWND_TOPMOST:Native.HWND_TOP,
+                RequiresGlassTopLevel?r.X:r.X-taskbarRect.Left,
+                RequiresGlassTopLevel?r.Y:r.Y-taskbarRect.Top,
                 r.Width,
                 r.Height,
                 Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW
@@ -5396,7 +5508,9 @@ namespace TaskbarMonitorEnhanced
                     return;
                 }
 
-                bool parentOk=Native.GetParent(Handle)==taskbar;
+                bool parentOk=RequiresGlassTopLevel?
+                    (Native.GetWindowLongPtr(Handle,Native.GWL_STYLE).ToInt64()&Native.WS_CHILD)==0:
+                    Native.GetParent(Handle)==taskbar;
                 if(!parentOk)
                 {
                     if(!recoveryPending)ScheduleRecovery("UPSTREAM_PARENT_LOST",750);
@@ -8898,7 +9012,10 @@ namespace TaskbarMonitorEnhanced
                     {
                         try
                         {
-                            if(changed || Native.GetParent(overlay.Handle)!=current)
+                            bool parentDrift=overlay.RequiresGlassTopLevel?
+                                (Native.GetWindowLongPtr(overlay.Handle,Native.GWL_STYLE).ToInt64()&Native.WS_CHILD)!=0:
+                                Native.GetParent(overlay.Handle)!=current;
+                            if(changed || parentDrift)
                             {
                                 Log.Write(
                                     "INFO",
@@ -8957,6 +9074,7 @@ namespace TaskbarMonitorEnhanced
             if(args!=null && args.Length>1 && args[0]=="--glassproof")return TaskbarGlassProof.Run(args[1]);
             if(args!=null && args.Length>1 && args[0]=="--chartglassproof")return TaskbarChartGlassProof.Run(args[1]);
             if(args!=null && args.Length>1 && args[0]=="--glassliveproof")return TaskbarGlassLiveProof.Run(args[1]);
+            if(args!=null && args.Length>1 && args[0]=="--topglassliveproof")return TaskbarTopGlassVisualProof.Run(args[1]);
             if(args!=null && args.Length>0 && args[0]=="--glassnativeproof")return TaskbarGlassNativeProof.Run();
             if(args!=null && args.Length>0 && args[0]=="--workspace-selftest")return WorkspaceSelfTest.Run();
             if(args!=null && args.Length>1 && args[0]=="--workspace-proof")return WorkspaceProof.Run(args[1]);

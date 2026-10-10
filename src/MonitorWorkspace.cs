@@ -73,7 +73,7 @@ namespace TaskbarMonitorEnhanced
         private void ApplyWorkspaceConfig()
         {
             config.Normalize();history.SetLimit(config.SparklineHistoryLength);Opacity=1.0;
-            if(!proofMode){config.Save();TaskbarLayout.ResetCache();ResetPlacementStability("WORKSPACE_APPLY");PositionOverlay(true);RefreshTelemetryTimerInterval();RefreshMenuChecks();}
+            if(!proofMode){config.Save();TaskbarLayout.ResetCache();ResetPlacementStability("WORKSPACE_APPLY");AttachIntegrated();RefreshTelemetryTimerInterval();RefreshMenuChecks();}
             Invalidate();
         }
         private void OpenWorkspace(string page)

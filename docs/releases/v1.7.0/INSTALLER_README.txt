@@ -20,3 +20,4 @@ License: GNU GPL v3.0
 - Per-theme taskbar background transparency from 0% to 100%; below 30% adaptive text contrast sampled from the taskbar, High Contrast forced opaque.
 - Wallpaper Apply refuses Slideshow/Spotlight/solid-color/unknown Windows background modes before mutation; static Picture uses hashed previous-image backup and checked rollback.
 - R44: charts (line, bar, LCD/dots) remain separately visible when background opacity is 0%; no synthetic production metric history. Unreleased candidate; do not install before positive wallpaper and transactional installed acceptance.
+- R46: Windows 11 native true-alpha uses a taskbar-anchored top-level no-activate PArgb window below 100%, returning to the opaque taskbar child at 100% and High Contrast; real taskbar screenshot/mode switching acceptance has been run in a proof-only OverlayForm. This does not authorize installation or public release until external gates pass.
