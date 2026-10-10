@@ -837,3 +837,6 @@ R41 glass moved text into ink but not charts; background alpha 0 removed the cha
 
 ## R45 CI and release safety — 2026-10-10T11:44:56.132075+00:00
 CI previously ran only three basic workspace tests. R45 explicitly adds 10 visual/graph/alpha suites and 8 runtime CLI probes, with exact counts and manifests in GitHub artifacts. A new 14-gate release-preflight checker verifies actual source/build/proof hashes and distinguishes source candidate from production Stable. Initial YAML-patch CRLF anchor issue and local absolute-path evidence error were harness failures fixed without product mutation; their evidence is in .local/r45. Positive wallpaper, installed v1.7, trusted Authenticode and main acceptance remain BLOCKED. See R45_RELEASE_GATE_ENFORCEMENT.md.
+
+## R45-F3 - 2026-10-10T11:53:16.898134+00:00
+The first full CI 38049549463 failed at health due absent installed protected supervisor (expected from ephemeral Windows CI); full local R45 interactive Start test registered only 10/24 required foreground shell samples but cached HWND and screen pixels were healthy. Neither failure was erased. Enforced distinction: five portable CI runtime checks vs eight actual installed host probes. All live interactive thresholds preserved for Stable. Source/CI exact rerun pending.

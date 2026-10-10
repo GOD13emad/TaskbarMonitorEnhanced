@@ -1,3 +1,8 @@
+# R45 CURRENT-CORRECTION - FULL CI FAILED THEN SCOPE FIXED
+GitHub CI run 38049549463 FAILED at health without installed sensor Supervisor (host environment mismatch). On real Emad PC full interactive Start probe FAILED 10/24 shell observations although cached child/screen pixels remained good (minimum 7381). The source has been corrected to require 5/5 portable CI runtime tests while leaving full 8/8 installed-host acceptance a strict Stable prerequisite, plus 10/10 visual. Nothing has been installed or publicly released; local v1.6 and slideshow preserved. See R45_RELEASE_GATE_ENFORCEMENT.md. Next action exact commit/build/CI and honest release-preflight, not production promotion.
+
+---
+
 # CURRENT R45 - FULL CI VERIFICATION HARDENING (PUBLIC FINAL BLOCKED)
 
 Product TaskbarMonitorEnhanced; branch feature/v1.7.0-r44-chart-foreground, parent R44 commit 3926bfa7b9dddb735e7b79ede1c17632848b44d8. R44 chart foreground alpha0 and real on-Emad noninstalled preview PASS, 49 themes, 10 visual, 8 runtime, 196 graph ink dark/light alpha cases; exact R44 CI and determinism PASS. R45 adds mandatory 10-visual and 8-runtime suite checks in GitHub workflow and a fail-closed 14-gate read-only release evaluator. R45 exact SHA CI has not yet been run at this record. Existing installed/public immutable v1.6.0 Main hash 05F9E069C4598FDAD327A41BF1CA34A1498D022119DB81E09F4B3B091C9BA377; user Slideshow BackgroundType 2 unchanged.

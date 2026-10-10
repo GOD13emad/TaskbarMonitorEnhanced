@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([Parameter(Mandatory=$true)][string]$Executable,[Parameter(Mandatory=$true)][string]$OutputDirectory)
+param([Parameter(Mandatory=$true)][string]$Executable,[Parameter(Mandatory=$true)][string]$OutputDirectory,[switch]$CiContract)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Executable=(Resolve-Path -LiteralPath $Executable).Path
@@ -17,6 +17,12 @@ $cases=@(
     @{Name='start';Switch='--startprobe';Target='start'},
     @{Name='shell';Switch='--shellstate';Target='shell.json'}
 )
+# GitHub-hosted runners have no installed supervisor, resident taskbar overlay or
+# interactive Start session. The separate eight-case installed-host gate is unchanged.
+if($CiContract){
+    $cases=@($cases|Where-Object { $_.Name -in @('startup','hover','hardware','temperature','support') })
+    if(@($cases).Count -ne 5){throw 'Expected exactly five portable CI contracts'}
+}
 $results=@()
 foreach($case in $cases){
     $p=[Diagnostics.Process]::new()
@@ -47,5 +53,7 @@ foreach($case in $cases){
     if(!$ok){Write-Output $text;Write-Output $errorText;throw ('Runtime test failed: '+$case.Name)}
 }
 if((Get-FileHash -LiteralPath $Executable).Hash -ne $hash){throw 'Runtime binary changed during verification'}
-$summary.Status='PASS';$summary|ConvertTo-Json -Depth 8|Set-Content -LiteralPath (Join-Path $OutputDirectory 'SUMMARY.json') -Encoding UTF8
+$summary.Status='PASS'
+$summary|Add-Member -NotePropertyName Mode -NotePropertyValue $(if($CiContract){'CI_PORTABLE_5'}else{'INSTALLED_HOST_INTERACTIVE_8'}) -Force
+$summary|ConvertTo-Json -Depth 8|Set-Content -LiteralPath (Join-Path $OutputDirectory 'SUMMARY.json') -Encoding UTF8
 Write-Output ('TBME_RUNTIME_SUITE=PASS TESTS='+$results.Count)

@@ -78,9 +78,9 @@ $glassPass=$null -ne $glass -and $glass.Status -eq 'PASS' -and [int]$glass.Tests
 Add-Gate 'G06_FOREGROUND_CHARTS_49_THEMES_196_PAIRS' $chartPass 'paired chart/glass foreground proof' 'Candidate'
 Add-Gate 'G07_TEXT_ALPHA_196_PAIRS' $glassPass 'paired glyph/high-contrast proof' 'Candidate'
 $runtime=Resolve-Evidence $RuntimeSummary
-$runtimePass=$null -ne $runtime -and $runtime.Status -eq 'PASS' -and @($runtime.Results).Count -eq 8 -and
+$runtimePass=$null -ne $runtime -and $runtime.Status -eq 'PASS' -and $runtime.Mode -eq 'CI_PORTABLE_5' -and @($runtime.Results).Count -eq 5 -and
     @($runtime.Results | Where-Object Status -ne 'PASS').Count -eq 0
-Add-Gate 'G08_EIGHT_RUNTIME_PROBES' $runtimePass $RuntimeSummary 'Candidate'
+Add-Gate 'G08_PORTABLE_FIVE_RUNTIME_PROBES' $runtimePass $RuntimeSummary 'Candidate'
 $ci=Resolve-Evidence $CIReceipt
 $ciPass=$null -ne $ci -and $ci.Status -eq 'PASS' -and $ci.Commit -eq $sha -and
     $ci.Conclusion -eq 'success' -and [int]$ci.LocalToCIOutputsMatched -eq 5 -and
@@ -104,7 +104,7 @@ $installedPass=$null -ne $installed -and $installed.Status -eq 'PASS' -and
     $installed.SourceSHA -eq $sha -and $installed.InstalledMainSHA256 -eq
         (@($outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced.exe'|Select-Object -First 1 -ExpandProperty SHA256)[0]) -and
     $installed.ActualTaskbarChildReadableCharts -eq $true -and $installed.ExplorerRecoveryPassed -eq $true -and
-    $installed.ConfigBackupAndRollbackVerified -eq $true -and $installed.ProtectedSensorsHealthy -eq $true
+    $installed.ConfigBackupAndRollbackVerified -eq $true -and $installed.ProtectedSensorsHealthy -eq $true -and $installed.InteractiveHostEightRuntimeProbesPassed -eq $true
 Add-Gate 'G12_INSTALLED_TASKBAR_EXPLORER_SENSORS_ROLLBACK' $installedPass $InstalledRuntimeReceipt 'Stable'
 $setupExe=Join-Path $root 'build\_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.0.exe'
 $mainExe=Join-Path $root 'build\_out\App\TaskbarMonitorEnhanced.exe'

@@ -4,11 +4,11 @@
   "Revision": "R45",
   "Branch": "feature/v1.7.0-r44-chart-foreground",
   "PreviousSourceSHA": "3926bfa7b9dddb735e7b79ede1c17632848b44d8",
-  "Status": "FULL_CI_GATE_SOURCE_READY_STABLE_BLOCKED",
+  "Status": "CI_PORTABLE_RUNTIME_SCOPE_CORRECTED_RETEST_PENDING_STABLE_BLOCKED",
   "GeneratedUTC": "2026-10-10T11:44:56.132075+00:00",
   "CIContract": {
     "VisualSuites": 10,
-    "RuntimeSuites": 8,
+    "RuntimeSuites": 5,
     "ChartForegoundPairs": 196,
     "TextAlphaPairs": 196,
     "IndependentArtifacts": [
@@ -16,7 +16,10 @@
       "ci-visual/chartglassproof/CHART_GLASS_PROOF.json",
       "ci-visual/glassproof/GLASS_PROOF.json",
       "ci-runtime/SUMMARY.json"
-    ]
+    ],
+    "RuntimeMode": "CI_PORTABLE_5",
+    "InstalledHostRuntimeSuiteCount": 8,
+    "InstalledHostRuntimeGate": "OPEN_INDEPENDENT"
   },
   "ReleaseEvaluator": {
     "Path": "build/Test-Release-Gates.ps1",
@@ -38,5 +41,14 @@
     "approved main and immutable release"
   ],
   "CurrentPublicAndInstalled": "v1.6.0 immutable",
-  "BrainStatus": "R45_POSTCOMMIT_CUMULATIVE_TRANSFER_PENDING"
+  "BrainStatus": "R45_POSTCOMMIT_CUMULATIVE_TRANSFER_PENDING",
+  "FailureLedger": [
+    {
+      "Id": "R45-F3",
+      "Class": "CI_HOST_NOT_INSTALLED",
+      "GitHubCI": "38049549463 FAILED health DEGRADED exit12",
+      "EmadHost": "R45 Start probe 10/24 shell samples FAIL",
+      "Correction": "Five portable CI proofs versus eight independent installed-host proofs; thresholds retained"
+    }
+  ]
 }
