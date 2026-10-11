@@ -211,10 +211,60 @@ try{
   $R91Harness=Join-Path $PSScriptRoot 'Test-WallpaperStaticDisposable-R91.ps1'
   if(!(Test-Path -LiteralPath $R91Harness -PathType Leaf) -or
      (Test-Path -LiteralPath $R91CanaryDir)){throw 'R91 G13 HARNESS NOT IN EXACT SOURCE OR RERUN'}
-  $R91Child=Execute-Bounded 'powershell.exe' @(
-    '-NoProfile','-NonInteractive','-STA','-File',$R91Harness,
-    '-MainExe',$main,'-EvidenceDir',$R91CanaryDir
-  ) 210000
+  # R91-F01 stronger diagnostic guard: capture exact child stdout/stderr and
+  # process exit/timeout BEFORE any attempted remediation of positive G13.
+  $R91StdoutPath=Join-Path $Output 'R91_G13_CHILD_STDOUT.txt'
+  $R91StderrPath=Join-Path $Output 'R91_G13_CHILD_STDERR.txt'
+  $R91DiagPath=Join-Path $Output 'R91_G13_CHILD_PROCESS.json'
+  foreach($owned in @($R91StdoutPath,$R91StderrPath,$R91DiagPath)){
+     if(Test-Path -LiteralPath $owned){throw 'R91 NONOVERWRITE CHILD DIAGNOSTIC PREEXISTS'}
+  }
+  $R91ChildArgs=@('-NoProfile','-NonInteractive','-STA','-File',$R91Harness,
+      '-MainExe',$main,'-EvidenceDir',$R91CanaryDir)
+  $R91Info=[Diagnostics.ProcessStartInfo]::new()
+  $R91Info.FileName='powershell.exe'
+  $R91Info.UseShellExecute=$false
+  $R91Info.CreateNoWindow=$true
+  $R91Info.RedirectStandardOutput=$true
+  $R91Info.RedirectStandardError=$true
+  foreach($item in $R91ChildArgs){[void]$R91Info.ArgumentList.Add([string]$item)}
+  if($R91Info.ArgumentList.Count -ne $R91ChildArgs.Count){throw 'R91 G13 CHILD ARGUMENTS NOT FORWARDED'}
+  $R91Process=$null;$R91Exit=-998;$R91ProcessError=''
+  $R91Stdout='';$R91Stderr=''
+  try{
+    $R91Process=[Diagnostics.Process]::Start($R91Info)
+    if($null -eq $R91Process){throw 'R91 WINDOWS POWERHELL5 CHILD DID NOT START'}
+    $R91OutTask=$R91Process.StandardOutput.ReadToEndAsync()
+    $R91ErrTask=$R91Process.StandardError.ReadToEndAsync()
+    if(!$R91Process.WaitForExit(210000)){
+      try{$R91Process.Kill();$R91Process.WaitForExit()}catch{}
+      throw 'R91 BOUNDED WINDOWS POWERSHELL5 CHILD TIMEOUT'
+    }
+    $R91Exit=[int]$R91Process.ExitCode
+    $R91Stdout=$R91OutTask.GetAwaiter().GetResult()
+    $R91Stderr=$R91ErrTask.GetAwaiter().GetResult()
+  }catch{
+    $R91ProcessError=$_.Exception.ToString()
+    if($null -ne $R91Process){
+       try{$R91Stdout=$R91OutTask.GetAwaiter().GetResult()}catch{}
+       try{$R91Stderr=$R91ErrTask.GetAwaiter().GetResult()}catch{}
+    }
+  }finally{
+    if($R91Process){$R91Process.Dispose()}
+    [IO.File]::WriteAllText($R91StdoutPath,[string]$R91Stdout,[Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($R91StderrPath,[string]$R91Stderr,[Text.UTF8Encoding]::new($false))
+    $diag=[ordered]@{
+       Schema=1;Revision='R91-F01';SourceSHA=$Source;EventCommit=$env:GITHUB_SHA
+       Phase='G13_REFLECTIVE_CHILD_DIAGNOSTIC';ExitCode=$R91Exit
+       ChildArgumentCount=$R91ChildArgs.Count;ChildExecutable='powershell.exe'
+       StdoutSHA256=(Get-FileHash $R91StdoutPath).Hash
+       StderrSHA256=(Get-FileHash $R91StderrPath).Hash
+       Exception=$R91ProcessError;MaintainerPersonalDesktopTouched=$false
+    }
+    $diag|ConvertTo-Json -Depth 5|Set-Content -LiteralPath $R91DiagPath -Encoding utf8
+  }
+  $R91Child=$R91Exit
+  if($R91ProcessError){throw ('R91 G13 CHILD RUNNER EXCEPTION '+$R91ProcessError)}
   $R91ProofPath=Join-Path $R91CanaryDir 'R91_G13_CANARY_RECEIPT.json'
   if($R91Child -ne 0 -or !(Test-Path -LiteralPath $R91ProofPath -PathType Leaf)){
      throw ('R91 REAL PRODUCT POSITIVE WALLPAPER CANARY FAILED EXIT='+$R91Child)

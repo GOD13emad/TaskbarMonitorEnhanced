@@ -70,3 +70,6 @@ jobs:
             ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CANARY/R91_G13_RAW_MANIFEST.json
             ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CANARY/raw/wallpaper/*.bin
             ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CANARY/raw/wallpaper/product-events.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CHILD_STDOUT.txt
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CHILD_STDERR.txt
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CHILD_PROCESS.json
