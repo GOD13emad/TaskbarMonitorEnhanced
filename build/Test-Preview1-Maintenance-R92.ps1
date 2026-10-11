@@ -43,7 +43,7 @@ $Status='NOT_RUN';$Phase='START';$ErrorMessage=''
 $SyntheticUserConfigSeeded=$false
 $FaultRollback='NOT_RUN';$MaintUpgrade='NOT_RUN';$Idempotence='NOT_RUN'
 $ConfigSHA='';$BackupSHA='';$StateSHA='';$BackendSHA='';$UserSHA='';$RunBefore='';$RunAfter=''
-$NewSetupSHA='';$NewInstalledSetupSHA=''
+$NewSetupSHA='';$NewInstalledSetupSHA='';$MaintenanceUpdateExit=-999;$MaintenanceFailurePart='NOT_EVALUATED';$MaintPostMainSHA='';$MaintPostUninstallerSHA='';$MaintPostStateVersion='';$MaintStagePresent=$false
 function FileSha([string]$Path){if(!(Test-Path -LiteralPath $Path -PathType Leaf)){throw ('R92 MISSING HASH INPUT '+$Path)};return (Get-FileHash -LiteralPath $Path).Hash}
 function SafeRun([string]$File,[string[]]$ChildArguments,[int]$Timeout){
  if($null -eq $ChildArguments -or $ChildArguments.Count -eq 0){throw 'R92 ARGUMENT COLLISION'}
@@ -126,9 +126,22 @@ try{
 
  $Phase='REAL_PREVIEW1_MAINTENANCE_UPDATE'
  $rc=SafeRun $Setup @('/update','/quiet') 90000
- if($rc -ne 0 -or (FileSha $Main) -cne $PublicMainSha -or
-   ((Get-Content $State -Raw|ConvertFrom-Json).Version) -cne '1.7.0' -or
-   (FileSha (Join-Path $Product 'Uninstall.exe')) -cne $NewSetupSHA){throw 'R92 SAME_VERSION SETUP MAINTENANCE UPGRADE NOT APPLIED'}
+ $MaintenanceUpdateExit=$rc
+ $MaintPostMainSHA=if(Test-Path -LiteralPath $Main -PathType Leaf){FileSha $Main}else{'MISSING'}
+ $maintUninstall=Join-Path $Product 'Uninstall.exe'
+ $MaintPostUninstallerSHA=if(Test-Path -LiteralPath $maintUninstall -PathType Leaf){FileSha $maintUninstall}else{'MISSING'}
+ $MaintPostStateVersion=if(Test-Path -LiteralPath $State -PathType Leaf){
+   [string](Get-Content $State -Raw|ConvertFrom-Json).Version
+ }else{'MISSING'}
+ $MaintStagePresent=Test-Path -LiteralPath $Stage
+ if($rc -ne 0){$MaintenanceFailurePart='UPDATER_RETURNED_'+$rc;throw ('R92 SAME VERSION UPDATER RETURNED '+$rc)}
+ if($MaintPostMainSHA -cne $PublicMainSha){$MaintenanceFailurePart='INSTALLED_MAIN_SHA';throw 'R92 MAIN HASH DIFFERED AFTER MAINTENANCE'}
+ if($MaintPostStateVersion -cne '1.7.0'){$MaintenanceFailurePart='INSTALLED_STATE_VERSION';throw 'R92 STATE VERSION WRONG AFTER MAINTENANCE'}
+ if($MaintPostUninstallerSHA -cne $NewSetupSHA){
+   $MaintenanceFailurePart='UNINSTALLER_SHA'
+   throw ('R92 MAINTENANCE UNINSTALLER NOT SAME CANDIDATE SHA, actual='+$MaintPostUninstallerSHA)
+ }
+ $MaintenanceFailurePart='NONE'
  if(Test-Path $OldRootSource -PathType Leaf){throw 'R92 DUPLICATE ROOT SOURCE NOT REMOVED'}
  if(Test-Path $Stage){throw 'R92 BACKUP STAGING DID NOT CLEAN'}
  if(!(Test-Path $CurrentDoc -PathType Leaf)){throw 'R92 CURRENT SOURCE DOCUMENTS LOST'}
@@ -162,6 +175,12 @@ try{
  SensorBackendSHA256=$BackendSHA;UserFileSHA256=$UserSHA
    SyntheticUserConfigSeededOnlyOnHostedVM=$SyntheticUserConfigSeeded
  FaultRollback=$FaultRollback;RealSameVersionUpgrade=$MaintUpgrade;Idempotence=$Idempotence
+ MaintenanceUpdateExitCode=$MaintenanceUpdateExit
+ MaintenanceFailurePart=$MaintenanceFailurePart
+ MainSHAAfterAttempt=$MaintPostMainSHA
+ UninstallSHAAfterAttempt=$MaintPostUninstallerSHA
+ StateVersionAfterAttempt=$MaintPostStateVersion
+ UpgradeJournalPresentAfterAttempt=$MaintStagePresent
  InstalledNewMaintenanceSHA256=$NewInstalledSetupSHA;OldStartup=$RunBefore;NewStartup=$RunAfter
  UninstalledOldVersionFirst=$false;DuplicateProgramRootCreated=$false
  PersonalPCModified=$false;StableReleaseReady=$false
