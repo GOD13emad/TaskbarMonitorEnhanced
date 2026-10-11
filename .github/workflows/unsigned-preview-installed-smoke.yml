@@ -5,6 +5,7 @@ on:
     branches:
       - audit/unsigned-preview-installer-smoke-r88
       - audit/unsigned-preview-installed-native-five-r90
+      - audit/unsigned-preview-positive-wallpaper-r91
   workflow_dispatch:
 
 permissions:
@@ -46,6 +47,12 @@ jobs:
           $gui = Join-Path $root 'R90_GUI_SESSION_READINESS.json'
           ./build/Verify-InstalledNative5-R90.ps1 -ReceiptPath $receipt -SummaryPath $summary -GuiCapabilityPath $gui -ExpectedTestCommit $env:GITHUB_SHA -SelfTest
           if ($LASTEXITCODE -ne 0) { throw 'R90 independently tested installed native five case proof did not PASS' }
+      - name: R91 independently verify positive static Picture apply-restore and host cleanup
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'TBME_R88_UnsignedPreview_Smoke/R91_G13_CANARY'
+          ./build/Verify-WallpaperCanary-R91.ps1 -CanaryDirectory $root -ExpectedTestCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R91 actual WallpaperStudio product canary raw bytes or rollback failed.' }
       - name: Preserve actual host results even if install fails
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -59,3 +66,7 @@ jobs:
             ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R90_INSTALLED_NATIVE_5/SUMMARY.json
             ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R90_INSTALLED_NATIVE_5/*.out
             ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R90_INSTALLED_NATIVE_5/*.err
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CANARY/R91_G13_CANARY_RECEIPT.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CANARY/R91_G13_RAW_MANIFEST.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CANARY/raw/wallpaper/*.bin
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CANARY/raw/wallpaper/product-events.json

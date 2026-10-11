@@ -73,6 +73,8 @@ $InstallStatus='NOT_RUN';$UninstallStatus='NOT_RUN'
 $InstalledSHA='';$InstalledConfigSHA='';$SensorStatus='UNVERIFIED';$SensorMode='UNVERIFIED'
 $ActualSource='';$Failure='';$InstallExit=-999;$UninstallExit=-999
 $NativeFiveStatus='NOT_RUN';$NativeFiveCases=0;$NativeFiveSHA=''
+$R91CanaryStatus='NOT_RUN';$R91CanarySHA='';$R91HostRestoration='NOT_RUN'
+$R91CanaryDir=Join-Path $Output 'R91_G13_CANARY'
 $NativeFolder=Join-Path $Output 'R90_INSTALLED_NATIVE_5'
 $GuiSessionPath=Join-Path $Output 'R90_GUI_SESSION_READINESS.json'
 function Execute-Bounded([string]$File,[string[]]$ChildArguments,[int]$TimeoutMs){
@@ -203,6 +205,43 @@ try{
   }
   $r90GuiReadiness|ConvertTo-Json -Depth 5|Set-Content -LiteralPath $GuiSessionPath -Encoding utf8
   if((Get-FileHash -LiteralPath $main).Hash -cne $MainSHA){throw 'R90 INSTALLED MAIN MUTATED DURING PORTABLE RUNTIME SUITE'}
+  # R91: actual WallpaperStudio product ApplyDesktop/RestoreDesktopPreState on this
+  # disposable interactive GitHub-hosted VM, with synthetic static Picture only.
+  # Evidence is not a trusted lab signature and does not close formal G13 by itself.
+  $R91Harness=Join-Path $PSScriptRoot 'Test-WallpaperStaticDisposable-R91.ps1'
+  if(!(Test-Path -LiteralPath $R91Harness -PathType Leaf) -or
+     (Test-Path -LiteralPath $R91CanaryDir)){throw 'R91 G13 HARNESS NOT IN EXACT SOURCE OR RERUN'}
+  $R91Child=Execute-Bounded 'powershell.exe' @(
+    '-NoProfile','-NonInteractive','-STA','-File',$R91Harness,
+    '-MainExe',$main,'-EvidenceDir',$R91CanaryDir
+  ) 210000
+  $R91ProofPath=Join-Path $R91CanaryDir 'R91_G13_CANARY_RECEIPT.json'
+  if($R91Child -ne 0 -or !(Test-Path -LiteralPath $R91ProofPath -PathType Leaf)){
+     throw ('R91 REAL PRODUCT POSITIVE WALLPAPER CANARY FAILED EXIT='+$R91Child)
+  }
+  $R91Proof=Get-Content -LiteralPath $R91ProofPath -Raw|ConvertFrom-Json
+  $R91Before=Join-Path $R91CanaryDir 'raw\wallpaper\before.bin'
+  $R91Applied=Join-Path $R91CanaryDir 'raw\wallpaper\applied.bin'
+  $R91Restored=Join-Path $R91CanaryDir 'raw\wallpaper\restored.bin'
+  foreach($file in @($R91Before,$R91Applied,$R91Restored)){
+     if(!(Test-Path -LiteralPath $file -PathType Leaf)){throw ('R91 G13 ACTUAL RAW FILE MISSING '+$file)}
+  }
+  $shaB=(Get-FileHash -LiteralPath $R91Before).Hash
+  $shaA=(Get-FileHash -LiteralPath $R91Applied).Hash
+  $shaR=(Get-FileHash -LiteralPath $R91Restored).Hash
+  if($R91Proof.Status -cne 'PASS_ACTUAL_WALLPAPER_APPLY_RESTORE_DISPOSABLE_INTERACTIVE' -or
+     $R91Proof.SourceSHA -cne $Source -or $R91Proof.InstalledMainSHA256 -cne $MainSHA -or
+     $R91Proof.ProductRestoreStatus -cne 'PASS_EXACT_PRODUCT_APPLY_THEN_RESTORE' -or
+     $R91Proof.OriginalHostRestorationStatus -cne 'PASS_ORIGINAL_HOST_REGISTRY_AND_ORIGINAL_FILE_SHA' -or
+     $R91Proof.NegativeDynamicModeStatus -cne 'PASS_REAL_PRODUCT_REJECTED_DYNAMIC_SLIDESHOW' -or
+     $R91Proof.FormalG13Accepted -ne $false -or
+     $shaB -cne $shaR -or $shaB -ceq $shaA -or
+     $shaB -cne $R91Proof.BeforeImageSHA256 -or
+     $shaA -cne $R91Proof.AppliedImageSHA256 -or
+     $shaR -cne $R91Proof.RestoredImageSHA256){throw 'R91 ACTUAL PRODUCT CANARY SHA/ROLLBACK/FORMAL-WITNESS CONTRACT'}
+  $R91CanaryStatus='PASS_REAL_PRODUCT_WALLPAPER_APPLY_RESTORE_SYNTHETIC_STATIC'
+  $R91CanarySHA=(Get-FileHash -LiteralPath $R91ProofPath).Hash
+  $R91HostRestoration='PASS_ORIGINAL_DISPOSABLE_RUNNER_STATE'
   # Prepare clean unload of launched main before invoking public Setup uninstaller.
   Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue | ForEach-Object {
     try{$_.Kill()}catch{}
@@ -239,6 +278,10 @@ try{
     UninstallExitCode=$UninstallExit;UninstallStatus=$UninstallStatus
     SensorStatus=$SensorStatus;SensorLayerMode=$SensorMode;MainLaunchMode=$LaunchMode
     InstalledNativeFiveStatus=$NativeFiveStatus
+    PositiveWallpaperCanaryStatus=$R91CanaryStatus
+    PositiveWallpaperCanarySHA256=$R91CanarySHA
+    OriginalDisposableWallpaperRestoration=$R91HostRestoration
+    FormalG13IndependentWitnessAccepted=$false
     InstalledNativeFiveCases=$NativeFiveCases
     InstalledNativeFiveSummarySHA256=$NativeFiveSHA
     GuiSessionCapabilityReport=if(Test-Path -LiteralPath $GuiSessionPath){'R90_GUI_SESSION_READINESS.json'}else{''}
