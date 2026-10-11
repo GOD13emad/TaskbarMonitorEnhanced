@@ -442,6 +442,51 @@ internal static partial class SetupProgram
         catch{return false;}
     }
 
+    // R95: never create a duplicate product or overwrite orphaned user data.
+    // A fresh per-user installation must have no competing product or owned profile.
+    static void CheckFreshInstallNoCollision()
+    {
+        if(Directory.Exists(AppRoot) || File.Exists(AppRoot))
+            throw new InvalidOperationException("Existing app data directory has no verified installation. Never overwrite unknown user-owned files.");
+        if(ExistingRegistered())
+            throw new InvalidOperationException("Existing per-user app registration requires safe in-place Update, not another install.");
+        foreach(Process p in Process.GetProcessesByName("TaskbarMonitorEnhanced")){
+            try{
+                if(!p.HasExited)
+                    throw new InvalidOperationException("Existing product process found. Refuse new installation without terminating the user's work.");
+            }finally{p.Dispose();}
+        }
+        string[] roots=new string[]{
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),AppFolder),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),AppFolder)
+        };
+        foreach(string root in roots){
+            if(String.IsNullOrWhiteSpace(root))continue;
+            if(File.Exists(root) || (Directory.Exists(root) && Directory.GetFileSystemEntries(root).Length>0))
+                throw new InvalidOperationException("Existing Program Files application or unknown data requires review, not a duplicate installation.");
+        }
+        foreach(RegistryView view in new RegistryView[]{RegistryView.Registry64,RegistryView.Registry32}){
+            using(RegistryKey machine=RegistryKey.OpenBaseKey(RegistryHive.LocalMachine,view))
+            using(RegistryKey key=machine.OpenSubKey(UninstallKey,false)){
+                if(key!=null)
+                    throw new InvalidOperationException("Existing machine-wide application registration: do not create a per-user duplicate.");
+            }
+        }
+        using(RegistryKey run=Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run",false)){
+            if(run!=null && run.GetValue("TaskbarMonitorEnhanced")!=null)
+                throw new InvalidOperationException("Existing app Start-with-Windows entry requires migration or review; preserve it.");
+        }
+        foreach(string dir in new string[]{
+            Environment.GetFolderPath(Environment.SpecialFolder.Programs),
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)
+        }){
+            if(String.IsNullOrWhiteSpace(dir))continue;
+            if(File.Exists(Path.Combine(dir,Product+".lnk")) ||
+               File.Exists(Path.Combine(dir,Product+" - Repair Hardware Sensors.lnk")))
+                throw new InvalidOperationException("Existing product shortcut must be reviewed; never install a second copy.");
+        }
+    }
+
     static SensorOutcome Install(bool desktop,bool startup)
     {
         if(!Environment.Is64BitOperatingSystem)
@@ -450,7 +495,7 @@ internal static partial class SetupProgram
         // Do not uninstall old product: route existing canonical installations to
         // fail-closed transactional same-root upgrade; user data remains immutable.
         if(File.Exists(AppExe) || ExistingRegistered())return UpgradeExisting();
-        StopProcess("TaskbarMonitorEnhanced");
+        CheckFreshInstallNoCollision(); // no forced-kill, duplicate, or orphan overwrite
 
         Directory.CreateDirectory(AppRoot);
         Directory.CreateDirectory(Path.Combine(AppRoot,"Source"));

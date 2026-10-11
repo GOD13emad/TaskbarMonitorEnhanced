@@ -6,8 +6,8 @@ No executable code launched, no install/uninstall, no deletion or mutation of us
 """
 from __future__ import annotations
 import argparse,datetime,hashlib,json,pathlib,re,sys
-EXACT_SETUP_SHA="2DC02CDBAE39C5CF0F4677EF8035060FE00B78B883AA703FA9F83F50B9FCD05F"
-EXACT_SOURCE_SHA="D5B672AFA7B053156D2AA8565707512581ACE6982CD68F95B39B68E796C279C1"
+EXACT_SETUP_SHA="63B811A5343C4FD066F39927F428C1F49CF2581A9348FF281B3260E0C860A5ED"
+EXACT_SOURCE_SHA="38C89A12D85DAC49BB640A2C6B2F78E4C405879D83330725F49CF30C486B8F14"
 FORBIDDEN=("FailFast","TBME_TEST_","WriteHostedUpgradeFailure",
            "R92_TEST_ONLY_FAULT_INJECTION","R93_EPHEMERAL_PROCESS_DEATH","R92_CI_ONLY_UPGRADE_FAILURE")
 REQUIRED=("UpgradeExisting","RecoverUpgradeStageIfAny","CheckSingleCanonicalRoot",
@@ -51,7 +51,7 @@ def main():
         if not inspect(source,altered_assembly):reject("BINARY_NEGATIVE_TEST_FALSELY_PASSED_"+token)
         adversarial.extend(["SOURCE_"+token,"BINARY_"+token])
     control={
-      "Schema":1,"Revision":"R94","UTC":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+      "Schema":1,"Revision":"R95","UTC":datetime.datetime.now(datetime.timezone.utc).isoformat(),
       "Status":"PASS_EXACT_RELEASE_SANITIZED_BINARY_AND_SOURCE_NO_TEST_HOOKS",
       "SourceSHA256":sha(source),"SetupSHA256":sha(setup),"SourcePath":str(args.source),
       "SetupPath":str(args.setup),"UnsignedExpected":True,
