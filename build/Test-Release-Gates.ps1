@@ -162,21 +162,53 @@ if($startFloatPass){
     }
 }
 Add-Gate 'G12_START_SEARCH_24_REAL_NATIVE_INK_AND_EXACT_RETURN' $startFloatPass $StartFloatLiveReceipt 'Candidate'
-$wallpaper=Resolve-Evidence $PositiveWallpaperReceipt
-$wallpaperPass=$null -ne $wallpaper -and $wallpaper.Status -eq 'PASS' -and
-    $wallpaper.SourceSHA -eq $sha -and $wallpaper.BackgroundType -eq 0 -and
-    $wallpaper.ProductApplyDesktopExecuted -eq $true -and $wallpaper.ProductRestoreExecuted -eq $true -and
-    $wallpaper.PreImageSHA256 -eq $wallpaper.RestoredImageSHA256 -and
-    $wallpaper.PreImageSHA256 -ne $wallpaper.AppliedImageSHA256 -and
-    $wallpaper.RegistryPathAndStyleIdentical -eq $true
-Add-Gate 'G13_TRUSTED_STATIC_WALLPAPER_APPLY_RESTORE' $wallpaperPass $PositiveWallpaperReceipt 'Stable'
-$installed=Resolve-Evidence $InstalledRuntimeReceipt
-$installedPass=$null -ne $installed -and $installed.Status -eq 'PASS' -and
-    $installed.SourceSHA -eq $sha -and $installed.InstalledMainSHA256 -eq
-        (@($outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced.exe'|Select-Object -First 1 -ExpandProperty SHA256)[0]) -and
-    $installed.ActualTaskbarAnchoredReadableCharts -eq $true -and $installed.WindowModeMatchesOpacity -eq $true -and $installed.ExplorerRecoveryPassed -eq $true -and
-    $installed.ConfigBackupAndRollbackVerified -eq $true -and $installed.ProtectedSensorsHealthy -eq $true -and $installed.InteractiveHostEightRuntimeProbesPassed -eq $true
-Add-Gate 'G14_INSTALLED_TASKBAR_EXPLORER_SENSORS_ROLLBACK' $installedPass $InstalledRuntimeReceipt 'Stable'
+# R74: raw PASS/true flags in an arbitrary JSON are not live host acceptance.
+# Require a verified detached Ed25519 witness signature from an independently enrolled lab.
+# The trusted-key registry intentionally has ZERO production keys until separately approved.
+$hostProofTool=Join-Path $root 'build\verify_host_acceptance.py'
+$trustedHostRegistry=Join-Path $root 'build\host_acceptance_trust.json'
+$hostTrustEnrolled=$false
+if((Test-Path -LiteralPath $trustedHostRegistry -PathType Leaf)){
+    try {
+        $hostTrust=(Get-Content -LiteralPath $trustedHostRegistry -Raw)|ConvertFrom-Json
+        $hostTrustEnrolled=($hostTrust.Schema -eq 1) -and (@($hostTrust.TrustedWitnesses).Count -gt 0)
+    } catch { $hostTrustEnrolled=$false }
+}
+$wallpaperPass=$false
+$wallpaperEvidence='BLOCKED: G13 requires genuine signed, independently witnessed disposable static-picture Apply+Restore proof'
+$installedPass=$false
+$installedEvidence='BLOCKED: G14 requires genuine signed, independently witnessed installed eight-probe/Explorer/sensor/rollback proof'
+if($hostTrustEnrolled -and (Test-Path -LiteralPath $hostProofTool -PathType Leaf)){
+    foreach($gateInfo in @(@('G13',$PositiveWallpaperReceipt),@('G14',$InstalledRuntimeReceipt))){
+        $gateName=[string]$gateInfo[0]
+        $evidenceFile=[string]$gateInfo[1]
+        if([string]::IsNullOrWhiteSpace($evidenceFile)){continue}
+        $evidenceFull=if([IO.Path]::IsPathRooted($evidenceFile)){[IO.Path]::GetFullPath($evidenceFile)}
+                      else{[IO.Path]::GetFullPath((Join-Path $root $evidenceFile))}
+        if(!(Test-Path -LiteralPath $evidenceFull -PathType Leaf)){continue}
+        $args=@('--gate',$gateName,'--receipt',$evidenceFull,'--source',$sha,'--expected-main',$mainDigest)
+        try {
+            $rawProof=@(& python -B $hostProofTool @args)
+            $proofExit=$LASTEXITCODE
+            if($proofExit -eq 0 -and $rawProof.Count -eq 1){
+                $proof=$rawProof[0]|ConvertFrom-Json
+                $pass=($proof.Status -ceq 'PASS_INDEPENDENT_SIGNED_HOST_EVIDENCE') -and
+                      ($proof.Gate -ceq $gateName) -and
+                      ($proof.SourceSHA -ceq $sha) -and
+                      ($proof.ExternalHostOnly -eq $true) -and
+                      ($proof.NoLocalUserMutation -eq $true) -and
+                      ![string]::IsNullOrWhiteSpace([string]$proof.WitnessKeyId)
+                if($gateName -ceq 'G13'){$wallpaperPass=$pass;$wallpaperEvidence='Signed external witnessed G13 proof: '+[string]$pass}
+                if($gateName -ceq 'G14'){$installedPass=$pass;$installedEvidence='Signed external witnessed G14 proof: '+[string]$pass}
+            }
+        } catch {
+            if($gateName -ceq 'G13'){$wallpaperPass=$false}
+            if($gateName -ceq 'G14'){$installedPass=$false}
+        }
+    }
+}
+Add-Gate 'G13_TRUSTED_STATIC_WALLPAPER_APPLY_RESTORE' $wallpaperPass $wallpaperEvidence 'Stable'
+Add-Gate 'G14_INSTALLED_TASKBAR_EXPLORER_SENSORS_ROLLBACK' $installedPass $installedEvidence 'Stable'
 $setupExe=Join-Path $root 'build\_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.0.exe'
 $mainExe=Join-Path $root 'build\_out\App\TaskbarMonitorEnhanced.exe'
 # R73: G15 must prove actual SignPath Foundation publisher, valid timestamps, matched

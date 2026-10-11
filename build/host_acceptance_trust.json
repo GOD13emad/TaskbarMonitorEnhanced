@@ -1,0 +1,8 @@
+{
+  "Schema": 1,
+  "Project": "TaskbarMonitorEnhanced",
+  "Purpose": "G13/G14 witness-based validation only; unsigned/unsupported host receipts forbidden",
+  "TrustedWitnesses": [],
+  "Status": "NO_ENROLLED_INDEPENDENT_LAB_KEYS__G13_G14_MUST_BLOCK",
+  "Enrollment": "Requires separately reviewed key provenance and owner-authorized independent test lab; never enroll private keys or unreviewed local development certificate."
+}

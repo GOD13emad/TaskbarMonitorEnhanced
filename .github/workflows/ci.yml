@@ -34,6 +34,17 @@ jobs:
         shell: pwsh
         run: git diff --check HEAD^
 
+      - name: G13 G14 independent host witness contracts (22 adversarial scenarios)
+        shell: pwsh
+        run: |
+          $env:PYTHONDONTWRITEBYTECODE = '1'
+          python -B ./build/verify_host_acceptance.py --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Host proof parser failed.' }
+          python -B ./build/test_host_acceptance.py
+          if ($LASTEXITCODE -ne 0) { throw 'G13/G14 signed witness contract regressions failed.' }
+          $registry = Get-Content ./build/host_acceptance_trust.json -Raw | ConvertFrom-Json
+          if ($registry.Schema -ne 1 -or @($registry.TrustedWitnesses).Count -ne 0) { throw 'Unreviewed production lab key detected.' }
+
       - name: G15 SignPath request origin/signed payload contract (negative regression)
         shell: pwsh
         run: |
