@@ -23,6 +23,12 @@ if($StaticOnly){
   if($names -contains 'Args' -or $names -notcontains 'ChildArguments'){
      throw 'R88 AUTOMATIC_ARGS_VARIABLE_COLLISION R88-F03'
   }
+  # R88-F04: detect collisions with the release Tag string before CI touches a VM.
+  $badTagAssignments=@($ast.FindAll({param($x)
+     $x -is [Management.Automation.Language.AssignmentStatementAst] -and
+     $x.Left.Extent.Text -ceq '$tag'
+  },$true))
+  if($badTagAssignments.Count -ne 0){throw 'R88 F04 AUTOMATIC-CASE-SHADOWED_TAG_VARIABLE'}
   # ArgumentList contract, no child process created; PowerShell 7.6.6/hosted runner safety.
   $probe=[Diagnostics.ProcessStartInfo]::new()
   foreach($argName in @('/verify','/verifyfile=C:\safe-test\receipt.json')){[void]$probe.ArgumentList.Add($argName)}
@@ -99,9 +105,12 @@ try{
   if($LASTEXITCODE -ne 0 -or $r.id -ne $ReleaseId -or $r.tag_name -cne $Tag -or
      $r.target_commitish -cne $Source -or $r.draft -ne $false -or
      $r.prerelease -ne $true -or $r.immutable -ne $true){throw 'R88 IMMUTABLE RELEASE CONTRACT'}
-  $tag=( & gh api ('repos/'+$Repo+'/git/ref/tags/'+$Tag) | Out-String | ConvertFrom-Json)
-  if($LASTEXITCODE -ne 0 -or $tag.object.sha -cne $Source -or $tag.object.type -cne 'commit'){throw 'R88 TAG SHA DRIFT'}
-  $actualSource=$tag.object.sha
+  # R88-F04: PowerShell variable names are case-insensitive; '$tag' overwrote '$Tag'
+  # (string) with a JSON object, corrupting PublicTag in an otherwise accepted receipt.
+  $tagReference=( & gh api ('repos/'+$Repo+'/git/ref/tags/'+$Tag) | Out-String | ConvertFrom-Json)
+  if($LASTEXITCODE -ne 0 -or $tagReference.object.sha -cne $Source -or $tagReference.object.type -cne 'commit'){throw 'R88 TAG SHA DRIFT'}
+  $actualSource=$tagReference.object.sha
+  if($Tag -isnot [string] -or $Tag -cne 'v1.7.0-unsigned-preview.1'){throw 'R88 F04 TAG VARIABLE TYPE OR VALUE CORRUPTED'}
   $assetRows=@($r.assets|Where-Object {$_.name -ceq $Asset})
   if($assetRows.Count -ne 1 -or $assetRows[0].digest -cne ('sha256:'+$SetupSHA.ToLowerInvariant()) -or
      $assetRows[0].state -cne 'uploaded'){throw 'R88 RELEASE ASSET NOT EXACT'}
