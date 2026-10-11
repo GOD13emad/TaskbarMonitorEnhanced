@@ -43,7 +43,7 @@ $Status='NOT_RUN';$Phase='START';$ErrorMessage=''
 $SyntheticUserConfigSeeded=$false
 $FaultRollback='NOT_RUN';$MaintUpgrade='NOT_RUN';$Idempotence='NOT_RUN'
 $ConfigSHA='';$BackupSHA='';$StateSHA='';$BackendSHA='';$UserSHA='';$RunBefore='';$RunAfter=''
-$NewSetupSHA='';$NewInstalledSetupSHA='';$MaintenanceUpdateExit=-999;$MaintenanceFailurePart='NOT_EVALUATED';$MaintPostMainSHA='';$MaintPostUninstallerSHA='';$MaintPostStateVersion='';$MaintStagePresent=$false
+$NewSetupSHA='';$NewInstalledSetupSHA='';$MaintenanceUpdateExit=-999;$MaintenanceFailurePart='NOT_EVALUATED';$MaintPostMainSHA='';$MaintPostUninstallerSHA='';$MaintPostStateVersion='';$MaintStagePresent=$false;$MaintenanceDiagnosticSHA='';$MaintenanceDiagnosticText=''
 function FileSha([string]$Path){if(!(Test-Path -LiteralPath $Path -PathType Leaf)){throw ('R92 MISSING HASH INPUT '+$Path)};return (Get-FileHash -LiteralPath $Path).Hash}
 function SafeRun([string]$File,[string[]]$ChildArguments,[int]$Timeout){
  if($null -eq $ChildArguments -or $ChildArguments.Count -eq 0){throw 'R92 ARGUMENT COLLISION'}
@@ -125,7 +125,17 @@ try{
  $FaultRollback='PASS_RESTORED_ORIGINAL_PREVIEW1_EXECUTABLE_UNINSTALLER_STATE_AND_USER_DATA'
 
  $Phase='REAL_PREVIEW1_MAINTENANCE_UPDATE'
- $rc=SafeRun $Setup @('/update','/quiet') 90000
+ # CI-only guarded diagnostic, exact owner RUNNER_TEMP, never any user's AppRoot.
+ $diagPath=Join-Path $Root 'R92_UPGRADE_ERROR.txt'
+ if(Test-Path -LiteralPath $diagPath){throw 'R92 NO BLIND OVERWRITE OF DIAGNOSTIC'}
+ $env:TBME_TEST_UPGRADE_ERROR_PATH=$diagPath
+ try{$rc=SafeRun $Setup @('/update','/quiet') 90000}
+ finally{Remove-Item Env:\TBME_TEST_UPGRADE_ERROR_PATH -ErrorAction SilentlyContinue}
+ if(Test-Path -LiteralPath $diagPath -PathType Leaf){
+    $MaintenanceDiagnosticSHA=FileSha $diagPath
+    $MaintenanceDiagnosticText=Get-Content -LiteralPath $diagPath -Raw
+    if(!$MaintenanceDiagnosticText.StartsWith('R92_CI_ONLY_UPGRADE_FAILURE')){throw 'R92 CI DIAGNOSTIC ORIGIN INVALID'}
+ }
  $MaintenanceUpdateExit=$rc
  $MaintPostMainSHA=if(Test-Path -LiteralPath $Main -PathType Leaf){FileSha $Main}else{'MISSING'}
  $maintUninstall=Join-Path $Product 'Uninstall.exe'
@@ -134,7 +144,11 @@ try{
    [string](Get-Content $State -Raw|ConvertFrom-Json).Version
  }else{'MISSING'}
  $MaintStagePresent=Test-Path -LiteralPath $Stage
- if($rc -ne 0){$MaintenanceFailurePart='UPDATER_RETURNED_'+$rc;throw ('R92 SAME VERSION UPDATER RETURNED '+$rc)}
+ if($rc -ne 0){
+   $MaintenanceFailurePart='UPDATER_RETURNED_'+$rc
+   $detail=if($MaintenanceDiagnosticText.Length -gt 1900){$MaintenanceDiagnosticText.Substring(0,1900)}else{$MaintenanceDiagnosticText}
+   throw ('R92 SAME VERSION UPDATER RETURNED '+$rc+' HOSTED_EXCEPTION: '+$detail)
+ }
  if($MaintPostMainSHA -cne $PublicMainSha){$MaintenanceFailurePart='INSTALLED_MAIN_SHA';throw 'R92 MAIN HASH DIFFERED AFTER MAINTENANCE'}
  if($MaintPostStateVersion -cne '1.7.0'){$MaintenanceFailurePart='INSTALLED_STATE_VERSION';throw 'R92 STATE VERSION WRONG AFTER MAINTENANCE'}
  if($MaintPostUninstallerSHA -cne $NewSetupSHA){
@@ -176,6 +190,8 @@ try{
    SyntheticUserConfigSeededOnlyOnHostedVM=$SyntheticUserConfigSeeded
  FaultRollback=$FaultRollback;RealSameVersionUpgrade=$MaintUpgrade;Idempotence=$Idempotence
  MaintenanceUpdateExitCode=$MaintenanceUpdateExit
+ MaintenanceDiagnosticSHA256=$MaintenanceDiagnosticSHA
+ MaintenanceDiagnosticText=$MaintenanceDiagnosticText
  MaintenanceFailurePart=$MaintenanceFailurePart
  MainSHAAfterAttempt=$MaintPostMainSHA
  UninstallSHAAfterAttempt=$MaintPostUninstallerSHA

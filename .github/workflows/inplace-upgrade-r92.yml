@@ -28,7 +28,7 @@ jobs:
           ./build/Build.ps1
           if ($LASTEXITCODE -ne 0) { throw 'R92 upgraded installer build failed.' }
           $p='./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.0.exe'
-          if ((Get-FileHash $p).Hash -cne 'D081846CBB5183DCD0D24D04DD03DDE652278D8F0C5B6083880A20C0FF84958F') {
+          if ((Get-FileHash $p).Hash -cne 'A065CCF4C1F5F91AEF15ECCDD1ABB41FFAD4ABC57CD44F44B39A65740AD682B2') {
             throw 'R92 build bytes changed; never upload candidate as authorized input.'
           }
       - name: Upload exact SHA-bound candidate only
@@ -72,7 +72,7 @@ jobs:
         run: |
           $p='./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.0.exe'
           if (!(Test-Path $p -PathType Leaf) -or
-              (Get-FileHash $p).Hash -cne 'D081846CBB5183DCD0D24D04DD03DDE652278D8F0C5B6083880A20C0FF84958F') {
+              (Get-FileHash $p).Hash -cne 'A065CCF4C1F5F91AEF15ECCDD1ABB41FFAD4ABC57CD44F44B39A65740AD682B2') {
             throw 'R92 downloaded artifact did not match trusted build candidate.'
           }
       - name: Real official v1.6 in-place update, data preservation and injected rollback
@@ -122,7 +122,7 @@ jobs:
         run: |
           $p='./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.0.exe'
           if (!(Test-Path $p -PathType Leaf) -or
-              (Get-FileHash $p).Hash -cne 'D081846CBB5183DCD0D24D04DD03DDE652278D8F0C5B6083880A20C0FF84958F') {
+              (Get-FileHash $p).Hash -cne 'A065CCF4C1F5F91AEF15ECCDD1ABB41FFAD4ABC57CD44F44B39A65740AD682B2') {
             throw 'R92 candidate not identical to trusted separately built artifact.'
           }
       - name: Real existing public unsigned Preview1 same-version in-place upgrade and rollback
@@ -137,4 +137,6 @@ jobs:
           name: R92-preview1-maintenance-receipt
           retention-days: 21
           if-no-files-found: warn
-          path: ${{ runner.temp }}/TBME_R92_Preview1Maintenance/R92_PREVIEW1_MAINTENANCE_RECEIPT.json
+          path: |
+            ${{ runner.temp }}/TBME_R92_Preview1Maintenance/R92_PREVIEW1_MAINTENANCE_RECEIPT.json
+            ${{ runner.temp }}/TBME_R92_Preview1Maintenance/R92_UPGRADE_ERROR.txt

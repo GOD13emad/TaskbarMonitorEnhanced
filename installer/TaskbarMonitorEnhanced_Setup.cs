@@ -731,6 +731,28 @@ internal static partial class SetupProgram
         }
     }
 
+    // R92-F04: diagnostic data is written ONLY on an explicitly ephemeral GitHub
+    // Windows runner, to a caller-owned existing temp directory. Never into real
+    // user installation/config, never in release build unless the CI guard holds.
+    static void WriteHostedUpgradeFailure(Exception exception)
+    {
+        try{
+            if(Environment.GetEnvironmentVariable("GITHUB_ACTIONS")!="true" ||
+               Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT")!="github-hosted" ||
+               Environment.GetEnvironmentVariable("RUNNER_OS")!="Windows" ||
+               String.Equals(Environment.MachineName,"EMAD-PC-ULTIMAT",StringComparison.OrdinalIgnoreCase))return;
+            string runnerTemp=Environment.GetEnvironmentVariable("RUNNER_TEMP");
+            string requested=Environment.GetEnvironmentVariable("TBME_TEST_UPGRADE_ERROR_PATH");
+            if(String.IsNullOrWhiteSpace(runnerTemp)||String.IsNullOrWhiteSpace(requested))return;
+            string tempRoot=Path.GetFullPath(runnerTemp).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
+            string full=Path.GetFullPath(requested);
+            if(!full.StartsWith(tempRoot,StringComparison.OrdinalIgnoreCase) ||
+               Path.GetFileName(full)!="R92_UPGRADE_ERROR.txt" ||
+               !Directory.Exists(Path.GetDirectoryName(full)) || File.Exists(full))return;
+            File.WriteAllText(full,"R92_CI_ONLY_UPGRADE_FAILURE\r\n"+exception.ToString(),Encoding.UTF8);
+        }catch{} // diagnostics must never change the updater's original failure
+    }
+
     static int RunMain(string[] args)
     {
         if(Has(args,"/verify"))
@@ -744,6 +766,7 @@ internal static partial class SetupProgram
                 UpgradeExisting();
                 return 0;
             }catch(Exception ex){
+                WriteHostedUpgradeFailure(ex);
                 if(!quiet)MessageBox.Show(ex.Message,"In-place update declined",MessageBoxButtons.OK,MessageBoxIcon.Error);
                 return 34;
             }
