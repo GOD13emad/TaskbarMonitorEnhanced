@@ -34,6 +34,15 @@ jobs:
         shell: pwsh
         run: git diff --check HEAD^
 
+      - name: G15 SignPath request origin/signed payload contract (negative regression)
+        shell: pwsh
+        run: |
+          python -B ./build/verify_signpath_g15.py --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'G15 Python static parser failed.' }
+          python -B ./build/test_signpath_g15.py
+          if ($LASTEXITCODE -ne 0) { throw 'G15 provider origin/signed artifact regression failed.' }
+          # This never signs or invokes the real provider; real G15 acceptance stays external.
+
       - name: G16 public release asset contract (32 hostile regressions)
         shell: pwsh
         run: |

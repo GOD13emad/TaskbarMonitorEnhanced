@@ -179,10 +179,82 @@ $installedPass=$null -ne $installed -and $installed.Status -eq 'PASS' -and
 Add-Gate 'G14_INSTALLED_TASKBAR_EXPLORER_SENSORS_ROLLBACK' $installedPass $InstalledRuntimeReceipt 'Stable'
 $setupExe=Join-Path $root 'build\_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.0.exe'
 $mainExe=Join-Path $root 'build\_out\App\TaskbarMonitorEnhanced.exe'
-$signPass=(Test-Path $setupExe) -and (Test-Path $mainExe) -and
-    (Get-AuthenticodeSignature -LiteralPath $setupExe).Status -eq 'Valid' -and
-    (Get-AuthenticodeSignature -LiteralPath $mainExe).Status -eq 'Valid'
-Add-Gate 'G15_AUTHENTICODE_VALID_ON_SETUP_AND_APP' $signPass 'Get-AuthenticodeSignature (actual local artifacts)' 'Stable'
+# R73: G15 must prove actual SignPath Foundation publisher, valid timestamps, matched
+# exact file/product versions AND live provider-origin/payload evidence. Never trust
+# self-declared "approved" JSON, a test certificate or token-less synthetic output.
+$signPass=$false
+$g15Evidence='BLOCKED: actual signed Main/Setup not present'
+if((Test-Path -LiteralPath $setupExe -PathType Leaf) -and (Test-Path -LiteralPath $mainExe -PathType Leaf)){
+    $mainPreHash=(Get-FileHash -LiteralPath $mainExe -Algorithm SHA256).Hash
+    $setupPreHash=(Get-FileHash -LiteralPath $setupExe -Algorithm SHA256).Hash
+    $setupSig=Get-AuthenticodeSignature -LiteralPath $setupExe
+    $mainSig=Get-AuthenticodeSignature -LiteralPath $mainExe
+    $setupCert=$setupSig.SignerCertificate
+    $mainCert=$mainSig.SignerCertificate
+    $setupName=if($setupCert){$setupCert.GetNameInfo([Security.Cryptography.X509Certificates.X509NameType]::SimpleName,$false)}else{''}
+    $mainName=if($mainCert){$mainCert.GetNameInfo([Security.Cryptography.X509Certificates.X509NameType]::SimpleName,$false)}else{''}
+    $setupInfo=(Get-Item -LiteralPath $setupExe).VersionInfo
+    $mainInfo=(Get-Item -LiteralPath $mainExe).VersionInfo
+    $sameCert=$null -ne $setupCert -and $null -ne $mainCert -and $setupCert.Thumbprint -ceq $mainCert.Thumbprint
+    $exactMetadata=$setupInfo.ProductName -ceq 'Taskbar Monitor Enhanced' -and
+        $mainInfo.ProductName -ceq 'Taskbar Monitor Enhanced' -and
+        $setupInfo.ProductVersion -ceq '1.7.0+r39' -and
+        $mainInfo.ProductVersion -ceq '1.7.0+r39' -and
+        $setupInfo.FileVersion -ceq '1.7.0.0' -and
+        $mainInfo.FileVersion -ceq '1.7.0.0'
+    $cryptoPass=([string]$mainSig.Status -ceq 'Valid') -and
+        ([string]$setupSig.Status -ceq 'Valid') -and
+        $mainName -ceq 'SignPath Foundation' -and
+        $setupName -ceq 'SignPath Foundation' -and
+        $sameCert -and $exactMetadata -and
+        [bool]$mainSig.TimeStamperCertificate -and
+        [bool]$setupSig.TimeStamperCertificate
+    $g15Evidence='G15 local Authenticode Main='+[string]$mainSig.Status+
+        ';Setup='+[string]$setupSig.Status+
+        ';FoundationPublisher='+[string]($mainName -ceq 'SignPath Foundation' -and $setupName -ceq 'SignPath Foundation')+
+        ';TimestampPair='+[string]([bool]$mainSig.TimeStamperCertificate -and [bool]$setupSig.TimeStamperCertificate)+
+        ';SameCertificate='+[string]$sameCert+';ExactMetadata='+[string]$exactMetadata
+    if($cryptoPass){
+        $providerAuditor=Join-Path $root 'build\verify_signpath_g15.py'
+        $keys=@('SIGNPATH_API_TOKEN','SIGNPATH_ORGANIZATION_ID','SIGNPATH_MAIN_REQUEST_ID',
+            'SIGNPATH_SETUP_REQUEST_ID','SIGNPATH_PROJECT_SLUG','SIGNPATH_RELEASE_POLICY_SLUG')
+        $configured=(@($keys|Where-Object {[string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_))}).Count -eq 0)
+        if($configured -and (Test-Path -LiteralPath $providerAuditor -PathType Leaf)){
+            try {
+                # PS native args must be one splatted array; do not split command lines before --flags.
+                $providerArgs=@('--source',$sha,'--main',$mainExe,'--setup',$setupExe,
+                    '--organization-id',[Environment]::GetEnvironmentVariable('SIGNPATH_ORGANIZATION_ID'),
+                    '--main-request-id',[Environment]::GetEnvironmentVariable('SIGNPATH_MAIN_REQUEST_ID'),
+                    '--setup-request-id',[Environment]::GetEnvironmentVariable('SIGNPATH_SETUP_REQUEST_ID'),
+                    '--project-slug',[Environment]::GetEnvironmentVariable('SIGNPATH_PROJECT_SLUG'),
+                    '--policy-slug',[Environment]::GetEnvironmentVariable('SIGNPATH_RELEASE_POLICY_SLUG'))
+                $providerResult=@(& python -B $providerAuditor @providerArgs)
+                $providerExit=$LASTEXITCODE
+                if($providerExit -eq 0 -and $providerResult.Count -eq 1){
+                    $proof=$providerResult[0]|ConvertFrom-Json
+                    $providerMatches=($proof.Status -ceq 'PASS_SIGNPATH_PROVIDER_ORIGIN_AND_EXACT_SIGNED_BINARY') -and
+                        ($proof.SourceSHA -ceq $sha) -and
+                        ($proof.Main.SignedBinary.SHA256 -ceq $mainPreHash.ToLowerInvariant()) -and
+                        ($proof.Setup.SignedBinary.SHA256 -ceq $setupPreHash.ToLowerInvariant()) -and
+                        ($proof.Main.Request.Policy -ceq [Environment]::GetEnvironmentVariable('SIGNPATH_RELEASE_POLICY_SLUG')) -and
+                        ($proof.Setup.Request.Policy -ceq [Environment]::GetEnvironmentVariable('SIGNPATH_RELEASE_POLICY_SLUG'))
+                    $unchanged=(Get-FileHash -LiteralPath $mainExe -Algorithm SHA256).Hash -ceq $mainPreHash -and
+                        (Get-FileHash -LiteralPath $setupExe -Algorithm SHA256).Hash -ceq $setupPreHash
+                    $signPass=$providerMatches -and $unchanged
+                }
+                $g15Evidence+=';LiveSignPathProviderAndSignedPayload='+[string]$signPass
+            } catch {
+                $signPass=$false
+                $g15Evidence+=';LiveSignPathProvider=FAILED_CLOSED'
+            }
+        } else {
+            $g15Evidence+=';LiveSignPathRequest=UNAVAILABLE_NO_CREDENTIALS_OR_SIGNING_IDS'
+        }
+    } else {
+        $g15Evidence+=';LiveSignPathRequest=SKIPPED_UNTRUSTED_OR_UNSIGNED'
+    }
+}
+Add-Gate 'G15_AUTHENTICODE_VALID_ON_SETUP_AND_APP' $signPass $g15Evidence 'Stable'
 # R72 G16 postpublication gate: a local main SHA match alone is not release evidence.
 # Only call live GitHub auditing after independent G13/G14/G15 are PASS.
 $mainSHA=(& git -C $root rev-parse main).Trim()
