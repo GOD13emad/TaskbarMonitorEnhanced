@@ -1,0 +1,83 @@
+name: R92 Genuine In-Place Data-Preserving Upgrade
+
+on:
+  push:
+    branches:
+      - audit/inplace-data-preserving-upgrade-r92
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upgrade-from-public-v16:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact isolated source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.400
+      - name: Preflight upgraded installer and test harness
+        shell: pwsh
+        run: |
+          ./build/Test-InPlace-Upgrade-R92.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R92 no-mutation preflight refused.' }
+      - name: Build exact unsigned candidate with original pinned dependency checks
+        shell: pwsh
+        run: |
+          ./build/Build.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R92 upgrade candidate build failed.' }
+      - name: Real official v1.6 to v1.7 in-place upgrade, data and injected rollback
+        shell: pwsh
+        run: |
+          ./build/Test-InPlace-Upgrade-R92.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R92 canonical root/data/rollback/updated Main check failed; inspect raw receipt.' }
+      - name: Always preserve actual Windows upgrade/rollback receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: R92-inplace-upgrade-receipt
+          retention-days: 21
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/TBME_R92_InPlaceUpgrade/R92_INPLACE_UPGRADE_RECEIPT.json
+
+  patch-existing-public-preview1:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout isolated upgrade source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.400
+      - name: Static parser and clean-host guard
+        shell: pwsh
+        run: |
+          ./build/Test-Preview1-Maintenance-R92.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R92 Preview 1 static guard failed' }
+      - name: Build exact in-place maintenance candidate
+        shell: pwsh
+        run: |
+          ./build/Build.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R92 candidate build failed' }
+      - name: Real immutable Preview1 same-version maintenance with injected rollback
+        shell: pwsh
+        run: |
+          ./build/Test-Preview1-Maintenance-R92.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R92 same-version maintenance rejected; inspect raw receipt' }
+      - name: Preserve same-version data and rollback witness
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: R92-preview1-maintenance-receipt
+          if-no-files-found: warn
+          retention-days: 21
+          path: ${{ runner.temp }}/TBME_R92_Preview1Maintenance/R92_PREVIEW1_MAINTENANCE_RECEIPT.json
