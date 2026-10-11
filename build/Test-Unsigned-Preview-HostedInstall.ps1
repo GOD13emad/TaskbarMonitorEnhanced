@@ -72,6 +72,9 @@ $StartUtc=(Get-Date).ToUniversalTime().ToString('o')
 $InstallStatus='NOT_RUN';$UninstallStatus='NOT_RUN'
 $InstalledSHA='';$InstalledConfigSHA='';$SensorStatus='UNVERIFIED';$SensorMode='UNVERIFIED'
 $ActualSource='';$Failure='';$InstallExit=-999;$UninstallExit=-999
+$NativeFiveStatus='NOT_RUN';$NativeFiveCases=0;$NativeFiveSHA=''
+$NativeFolder=Join-Path $Output 'R90_INSTALLED_NATIVE_5'
+$GuiSessionPath=Join-Path $Output 'R90_GUI_SESSION_READINESS.json'
 function Execute-Bounded([string]$File,[string[]]$ChildArguments,[int]$TimeoutMs){
   # R88-F03 root cause: '$Args' is PowerShell's automatic unbound-arguments variable.
   # Never reuse it as the parameter name: the old function launched GUI with zero args.
@@ -150,6 +153,56 @@ try{
   if(Test-Path -LiteralPath $DesktopLink){throw 'R88 DESKTOP=0 NOT HONORED'}
   if($null -ne (Read-ExistingProductRunValue)){throw 'R88 STARTUP=0 NOT HONORED'}
   $InstallStatus='PASS_HEADLESS_INSTALLED_EXACT_SHA_STATE_AND_SHORTCUT'
+  # R90: run native portable cases from the genuine installed Main, not build/_out.
+  # Do not equate these five automated cases with full interactive G14 8/8.
+  $nativeHarness=Join-Path $PSScriptRoot 'Test-Runtime.ps1'
+  if(!(Test-Path -LiteralPath $nativeHarness -PathType Leaf) -or (Test-Path -LiteralPath $NativeFolder)){
+     throw 'R90 NATIVE HARNESS MISSING OR EVIDENCE PATH ALREADY EXISTS'
+  }
+  $nativeExit=Execute-Bounded 'pwsh.exe' @(
+    '-NoProfile','-NonInteractive','-File',$nativeHarness,
+    '-Executable',$main,'-OutputDirectory',$NativeFolder,'-CiContract'
+  ) 300000
+  if($nativeExit -ne 0){throw ('R90 INSTALLED NATIVE FIVE EXIT='+$nativeExit)}
+  $summaryPath=Join-Path $NativeFolder 'SUMMARY.json'
+  if(!(Test-Path -LiteralPath $summaryPath -PathType Leaf)){throw 'R90 NATIVE SUMMARY MISSING'}
+  $native=Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json
+  $expectedNativeNames=@('startup','hover','hardware','temperature','support')
+  $namesNative=@($native.Results|ForEach-Object {[string]$_.Test})
+  if($native.Status -cne 'PASS' -or $native.Mode -cne 'CI_PORTABLE_5' -or
+     $native.ExecutableSHA256 -cne $MainSHA -or
+     @($native.Results).Count -ne 5 -or
+     @($namesNative | Where-Object {$_ -notin $expectedNativeNames}).Count -ne 0 -or
+     @($namesNative|Select-Object -Unique).Count -ne 5){
+     throw 'R90 INSTALLED NATIVE SUITE CONTRACT INVALID'
+  }
+  foreach($case in $native.Results){
+    if($case.Status -cne 'PASS' -or $case.ExitCode -ne 0){throw ('R90 INSTALLED NATIVE CASE FAILED '+$case.Test)}
+    foreach($kind in @('out','err')){
+      $name=Join-Path $NativeFolder ($case.Test+'.'+$kind)
+      if(!(Test-Path -LiteralPath $name -PathType Leaf)){throw ('R90 NATIVE CASE RAW MISSING '+$case.Test+'/'+$kind)}
+      $expectedHash=if($kind -ceq 'out'){$case.StdoutSHA256}else{$case.StderrSHA256}
+      if((Get-FileHash -LiteralPath $name).Hash -cne [string]$expectedHash){throw ('R90 CASE OUTPUT HASH '+$case.Test+'/'+$kind)}
+    }
+  }
+  $NativeFiveCases=5
+  $NativeFiveSHA=(Get-FileHash -LiteralPath $summaryPath).Hash
+  $NativeFiveStatus='PASS_INSTALLED_MAIN_NATIVE_PORTABLE_FIVE'
+  # Read-only desktop capability record. No wallpaper changes, and no false G13 claim.
+  $r90HostSession=(Get-Process -Id $PID).SessionId
+  $r90ShellPeers=@(Get-Process explorer -ErrorAction SilentlyContinue|Where-Object {$_.SessionId -eq $r90HostSession})
+  $r90GuiReadiness=[ordered]@{
+     Schema=1;Revision='R90';HostRole='GITHUB_HOSTED_EPHEMERAL_WINDOWS'
+     EventCommit=$env:GITHUB_SHA;ObservedUtc=(Get-Date).ToUniversalTime().ToString('o')
+     RunnerSessionId=$r90HostSession;UserInteractive=[Environment]::UserInteractive
+     ExplorerInSameSessionCount=$r90ShellPeers.Count
+     WallpaperBackgroundTypeBefore=$InitialType
+     ProductWallpaperApplyInvoked=$false;WallpaperMutation=$false
+     ApprovedForG13Positive=$false
+     G13ReadinessVerdict='READ_ONLY_PROBE_NOT_G13_POSITIVE_ACCEPTANCE'
+  }
+  $r90GuiReadiness|ConvertTo-Json -Depth 5|Set-Content -LiteralPath $GuiSessionPath -Encoding utf8
+  if((Get-FileHash -LiteralPath $main).Hash -cne $MainSHA){throw 'R90 INSTALLED MAIN MUTATED DURING PORTABLE RUNTIME SUITE'}
   # Prepare clean unload of launched main before invoking public Setup uninstaller.
   Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue | ForEach-Object {
     try{$_.Kill()}catch{}
@@ -185,6 +238,10 @@ try{
     InstallExitCode=$InstallExit;InstallStatus=$InstallStatus
     UninstallExitCode=$UninstallExit;UninstallStatus=$UninstallStatus
     SensorStatus=$SensorStatus;SensorLayerMode=$SensorMode;MainLaunchMode=$LaunchMode
+    InstalledNativeFiveStatus=$NativeFiveStatus
+    InstalledNativeFiveCases=$NativeFiveCases
+    InstalledNativeFiveSummarySHA256=$NativeFiveSHA
+    GuiSessionCapabilityReport=if(Test-Path -LiteralPath $GuiSessionPath){'R90_GUI_SESSION_READINESS.json'}else{''}
     WallpaperBefore=$InitialType;RealInteractiveG13='NOT_TESTED'
     RealInteractiveG14EightProbes='NOT_TESTED'
     FullSignedStableAccepted=$false;HeadlessSubsetOnly=$true

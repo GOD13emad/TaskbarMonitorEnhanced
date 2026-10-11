@@ -36,6 +36,15 @@ jobs:
           $p = Join-Path $env:RUNNER_TEMP 'TBME_R88_UnsignedPreview_Smoke/R88_HOSTED_INSTALL_RECEIPT.json'
           ./build/Verify-UnsignedPreview-HostReceipt.ps1 -ReceiptPath $p -ExpectedTestCommit $env:GITHUB_SHA -SelfTest
           if ($LASTEXITCODE -ne 0) { throw 'Hosted installation receipt failed independently verified strict schema.' }
+      - name: R90 independently verify installed native five and read-only GUI capability
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'TBME_R88_UnsignedPreview_Smoke'
+          $receipt = Join-Path $root 'R88_HOSTED_INSTALL_RECEIPT.json'
+          $summary = Join-Path $root 'R90_INSTALLED_NATIVE_5/SUMMARY.json'
+          $gui = Join-Path $root 'R90_GUI_SESSION_READINESS.json'
+          ./build/Verify-InstalledNative5-R90.ps1 -ReceiptPath $receipt -SummaryPath $summary -GuiCapabilityPath $gui -ExpectedTestCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R90 independently tested installed native five case proof did not PASS' }
       - name: Preserve actual host results even if install fails
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -43,4 +52,9 @@ jobs:
           name: unsigned-preview-headless-install-R88
           if-no-files-found: warn
           retention-days: 21
-          path: ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R88_HOSTED_INSTALL_RECEIPT.json
+          path: |
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R88_HOSTED_INSTALL_RECEIPT.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R90_GUI_SESSION_READINESS.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R90_INSTALLED_NATIVE_5/SUMMARY.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R90_INSTALLED_NATIVE_5/*.out
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R90_INSTALLED_NATIVE_5/*.err
