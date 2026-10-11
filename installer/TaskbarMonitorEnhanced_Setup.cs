@@ -731,28 +731,6 @@ internal static partial class SetupProgram
         }
     }
 
-    // R92-F04: diagnostic data is written ONLY on an explicitly ephemeral GitHub
-    // Windows runner, to a caller-owned existing temp directory. Never into real
-    // user installation/config, never in release build unless the CI guard holds.
-    static void WriteHostedUpgradeFailure(Exception exception)
-    {
-        try{
-            if(Environment.GetEnvironmentVariable("GITHUB_ACTIONS")!="true" ||
-               Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT")!="github-hosted" ||
-               Environment.GetEnvironmentVariable("RUNNER_OS")!="Windows" ||
-               String.Equals(Environment.MachineName,"EMAD-PC-ULTIMAT",StringComparison.OrdinalIgnoreCase))return;
-            string runnerTemp=Environment.GetEnvironmentVariable("RUNNER_TEMP");
-            string requested=Environment.GetEnvironmentVariable("TBME_TEST_UPGRADE_ERROR_PATH");
-            if(String.IsNullOrWhiteSpace(runnerTemp)||String.IsNullOrWhiteSpace(requested))return;
-            string tempRoot=Path.GetFullPath(runnerTemp).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
-            string full=Path.GetFullPath(requested);
-            if(!full.StartsWith(tempRoot,StringComparison.OrdinalIgnoreCase) ||
-               Path.GetFileName(full)!="R92_UPGRADE_ERROR.txt" ||
-               !Directory.Exists(Path.GetDirectoryName(full)) || File.Exists(full))return;
-            File.WriteAllText(full,"R92_CI_ONLY_UPGRADE_FAILURE\r\n"+exception.ToString(),Encoding.UTF8);
-        }catch{} // diagnostics must never change the updater's original failure
-    }
-
     static int RunMain(string[] args)
     {
         if(Has(args,"/verify"))
@@ -766,7 +744,6 @@ internal static partial class SetupProgram
                 UpgradeExisting();
                 return 0;
             }catch(Exception ex){
-                WriteHostedUpgradeFailure(ex);
                 if(!quiet)MessageBox.Show(ex.Message,"In-place update declined",MessageBoxButtons.OK,MessageBoxIcon.Error);
                 return 34;
             }
@@ -1315,7 +1292,6 @@ internal static partial class SetupProgram
             StageNewManaged(fresh,official,stateSource,installed);
             entries=ReadStageIndex();
             WritePhase("COMMITTING"); // persisted before first managed mutation
-            int step=0;
             foreach(StageEntry r in entries){
                 string live=UPath(r.Rel);
                 if(r.Next=="-"){
@@ -1330,14 +1306,6 @@ internal static partial class SetupProgram
                     if(UpgradeHash(live)!=r.Next)
                         throw new IOException("Managed component failed post-commit hash "+r.Rel);
                 }
-                step++;
-                // Fault injection is absolutely restricted to disposable hosted CI.
-                string inject=Environment.GetEnvironmentVariable("TBME_TEST_FAIL_AFTER_INDEX");
-                if(Environment.GetEnvironmentVariable("GITHUB_ACTIONS")=="true" &&
-                   Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT")=="github-hosted" &&
-                   !String.Equals(Environment.MachineName,"EMAD-PC-ULTIMAT",StringComparison.OrdinalIgnoreCase) &&
-                   inject==step.ToString(System.Globalization.CultureInfo.InvariantCulture))
-                    throw new IOException("R92_TEST_ONLY_FAULT_INJECTION_AFTER_MANAGED_FILE_"+step);
             }
             using(RegistryKey key=Registry.CurrentUser.OpenSubKey(UninstallKey,true)){
                 if(key==null)throw new IOException("Uninstall registration absent after file swap.");
