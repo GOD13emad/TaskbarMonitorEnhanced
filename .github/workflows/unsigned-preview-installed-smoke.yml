@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - audit/unsigned-preview-installer-smoke-r88
+      - audit/unsigned-preview-installed-native-five-r90
   workflow_dispatch:
 
 permissions:
