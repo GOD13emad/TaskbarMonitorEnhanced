@@ -27,7 +27,8 @@ $Backend=Join-Path $Product 'SensorBackend\LibreHardwareMonitor-0.9.6\LibreHardw
 $Stage=Join-Path $Product '.tbme-upgrade'
 $RunKey='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 $UninstallKey='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
-$Candidate=Join-Path $PSScriptRoot '_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.0.exe'
+$CandidateOriginal=Join-Path $PSScriptRoot '_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.0.exe'
+$Candidate='' # set only after owned RUNNER_TEMP directory has been created
 if($StaticOnly){
  $tokens=$null;$errors=$null
  [void][Management.Automation.Language.Parser]::ParseFile($PSCommandPath,[ref]$tokens,[ref]$errors)
@@ -46,6 +47,18 @@ foreach($root in @('C:\Program Files\TaskbarMonitorEnhanced\TaskbarMonitorEnhanc
 $Temp=Join-Path $env:RUNNER_TEMP ('TBME_R93_ABRUPT_CRASH_'+$Baseline)
 if(Test-Path -LiteralPath $Temp){throw 'R93 NO RERUN'}
 New-Item -ItemType Directory -Path $Temp -ErrorAction Stop|Out-Null
+# R93-F01: the actual production safety guard correctly refused abnormal-exit
+# injection when the EXE was executed from the repository checkout, not RUNNER_TEMP.
+# Only move exact SHA-verified bytes to a unique disposable RUNNER_TEMP-owned file.
+$Candidate=Join-Path $Temp 'R93_CRASH_TEST_SETUP.exe'
+if(Test-Path -LiteralPath $Candidate){throw 'R93 F01 OWNED CANDIDATE ALREADY EXISTS'}
+if((Get-FileHash -LiteralPath $CandidateOriginal).Hash -cne 'DECF49222E5F5D2C1E246DE16BB00ED266A0550FD781CBC61DA6AB4A8645D903'){
+    throw 'R93 F01 ARTIFACT SHA BEFORE OWNED COPY DIFFERENT'
+}
+Copy-Item -LiteralPath $CandidateOriginal -Destination $Candidate -ErrorAction Stop
+if((Get-FileHash -LiteralPath $Candidate).Hash -cne 'DECF49222E5F5D2C1E246DE16BB00ED266A0550FD781CBC61DA6AB4A8645D903'){
+    throw 'R93 F01 OWNED RUNNER_TEMP SETUP SHA DIFFERENT'
+}
 $OldSetup=Join-Path $Temp $OldAsset
 $Sentinel=Join-Path $Product 'UserOwnedR93\crash-recovery-sentinel.txt'
 $ReceiptPath=Join-Path $Temp 'R93_PROCESS_CRASH_RECOVERY_RECEIPT.json'
