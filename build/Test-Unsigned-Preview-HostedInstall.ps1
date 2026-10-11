@@ -15,9 +15,20 @@ $ConfigSHA='D2E51872D93F0793C02AD07DCBF8C2802F59708C666548372A4FDDDA5C7C5E4F'
 $Asset='TaskbarMonitorEnhanced_Setup_1.7.0_UNSIGNED_PREVIEW.exe'
 if($StaticOnly){
   $t=$null;$e=$null
-  [void][Management.Automation.Language.Parser]::ParseFile($PSCommandPath,[ref]$t,[ref]$e)
+  $ast=[Management.Automation.Language.Parser]::ParseFile($PSCommandPath,[ref]$t,[ref]$e)
   if($e.Count -ne 0){throw 'R88 SCRIPT PARSER'}
-  Write-Output 'R88_STATIC_PREFLIGHT_ONLY_NO_INSTALL_PASS'
+  $f=@($ast.FindAll({param($x) $x -is [Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -ceq 'Execute-Bounded'},$true))
+  if($f.Count -ne 1){throw 'R88 BOUNDED PROCESS FUNCTION MISSING'}
+  $names=@($f[0].Parameters | ForEach-Object {$_.Name.VariablePath.UserPath})
+  if($names -contains 'Args' -or $names -notcontains 'ChildArguments'){
+     throw 'R88 AUTOMATIC_ARGS_VARIABLE_COLLISION R88-F03'
+  }
+  # ArgumentList contract, no child process created; PowerShell 7.6.6/hosted runner safety.
+  $probe=[Diagnostics.ProcessStartInfo]::new()
+  foreach($argName in @('/verify','/verifyfile=C:\safe-test\receipt.json')){[void]$probe.ArgumentList.Add($argName)}
+  if($probe.ArgumentList.Count -ne 2 -or $probe.ArgumentList[0] -cne '/verify' -or
+     $probe.ArgumentList[1] -cne '/verifyfile=C:\safe-test\receipt.json'){throw 'R88 ARGUMENTLIST_STATIC_CONTRACT'}
+  Write-Output 'R88_STATIC_PREFLIGHT_ARGUMENT_BINDING_PASS_NO_INSTALL'
   exit 0
 }
 if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
@@ -55,14 +66,18 @@ $StartUtc=(Get-Date).ToUniversalTime().ToString('o')
 $InstallStatus='NOT_RUN';$UninstallStatus='NOT_RUN'
 $InstalledSHA='';$InstalledConfigSHA='';$SensorStatus='UNVERIFIED';$SensorMode='UNVERIFIED'
 $ActualSource='';$Failure='';$InstallExit=-999;$UninstallExit=-999
-function Execute-Bounded([string]$File,[string[]]$Args,[int]$TimeoutMs){
+function Execute-Bounded([string]$File,[string[]]$ChildArguments,[int]$TimeoutMs){
+  # R88-F03 root cause: '$Args' is PowerShell's automatic unbound-arguments variable.
+  # Never reuse it as the parameter name: the old function launched GUI with zero args.
+  if($null -eq $ChildArguments -or $ChildArguments.Count -lt 1){throw 'R88 F03 REFUSE GUI EXECUTION WITH ZERO ARGUMENTS'}
   $p=$null
   try{
     $psi=[Diagnostics.ProcessStartInfo]::new()
     $psi.FileName=$File
     $psi.UseShellExecute=$false
     $psi.CreateNoWindow=$true
-    foreach($argument in $Args){[void]$psi.ArgumentList.Add($argument)}
+    foreach($argument in $ChildArguments){[void]$psi.ArgumentList.Add($argument)}
+    if($psi.ArgumentList.Count -ne $ChildArguments.Count){throw 'R88 F03 CHILD ARGS NOT FORWARDED'}
     $p=[Diagnostics.Process]::Start($psi)
     if($null -eq $p){throw 'CHILD PROCESS DID NOT START'}
     if(!$p.WaitForExit($TimeoutMs)){
