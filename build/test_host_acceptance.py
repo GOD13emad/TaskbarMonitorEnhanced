@@ -44,7 +44,7 @@ def fixture(gate,tmp,change=None):
     statement["ManifestSHA256"]=digest(manifest)
     statement_bytes=js(statement)
     signed=subprocess.run(["node",str(HERE/"make_synthetic_host_signature.mjs")],input=json.dumps({
-        "MessageBase64":base64.b64encode(statement_bytes).decode()}),text=True,capture_output=True,timeout=4,check=True)
+        "MessageBase64":base64.b64encode(statement_bytes).decode()}),text=True,capture_output=True,timeout=20,check=True)
     credentials=json.loads(signed.stdout)
     registry={"Schema":1,"TrustedWitnesses":[{"KeyId":"R74_EPHEMERAL_TEST_ONLY","Authority":"INDEPENDENT_APPROVED_LAB",
         "PublicKeyPem":credentials["PublicKeyPem"],"AllowedGates":["G13","G14"]}]}

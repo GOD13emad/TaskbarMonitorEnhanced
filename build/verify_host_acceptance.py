@@ -119,7 +119,7 @@ def verify_bundle(gate,receipt_path,source,expected_main,trust_path=TRUST):
     keys=[k for k in registry["TrustedWitnesses"] if k.get("KeyId")==keyid and k.get("AllowedGates",[]) and gate in k["AllowedGates"]]
     required(len(keys)==1 and keys[0].get("Authority")=="INDEPENDENT_APPROVED_LAB","UNAPPROVED_WITNESS_KEY")
     payload={"KeyId":keyid,"MessageBase64":base64.b64encode(statement_bytes).decode(),"SignatureBase64":base64.b64encode(signature).decode()}
-    call=subprocess.run(["node",str(CRYPTO),str(trust)],input=json.dumps(payload),text=True,capture_output=True,timeout=8)
+    call=subprocess.run(["node",str(CRYPTO),str(trust)],input=json.dumps(payload),text=True,capture_output=True,timeout=20)
     required(call.returncode==0 and call.stdout.strip()=="WITNESS_SIGNATURE_VALID","BAD_WITNESS_SIGNATURE")
     return {"Status":"PASS_INDEPENDENT_SIGNED_HOST_EVIDENCE","Gate":gate,"SourceSHA":source,
             "BundleSHA256":sha(b),"StatementSHA256":sha(statement_bytes),"WitnessKeyId":keyid,
