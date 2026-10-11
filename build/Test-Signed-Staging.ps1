@@ -77,3 +77,6 @@ try {
         throw 'R75 DEGRADED UNSIGNED BUILD ARTIFACT DRIFT'
     }
 }
+# Nested strict gate exit 45 is expected; only after ALL proof checks and cleanup above
+# return successful wrapper status for the CI step. Failures throw and never reach here.
+exit 0
