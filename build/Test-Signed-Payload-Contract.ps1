@@ -41,7 +41,8 @@ try{
        $proof.MainSHA256 -cne $differentHash -or
        $proof.EmbeddedMainSHA256 -cne $differentHash -or
        [int64]$proof.EmbeddedMainBytes -ne $fixture.Length -or
-       [int]$proof.ResourceCount -ne 26 -or
+       [int]$proof.ResourceCount -ne 25 -or
+       $proof.PawnIOBundled -ne $false -or
        (Get-AuthenticodeSignature -LiteralPath $stageExe).Status -eq 'Valid'){
         throw 'R80 EMBEDDED MAIN PARITY CONTRACT DID NOT PASS'
     }
@@ -62,7 +63,7 @@ try{
         throw 'R80 UNSIGNED REPRODUCIBLE BASELINE CHANGED'
     }
     Write-Output ('R80_PASS SYNTHETIC_ONLY EMBEDDED_MAIN_SHA256='+$proof.EmbeddedMainSHA256+
-        ' EMBEDDED_MAIN_BYTES='+$proof.EmbeddedMainBytes+' RESOURCES='+$proof.ResourceCount+
+        ' EMBEDDED_MAIN_BYTES='+$proof.EmbeddedMainBytes+' RESOURCES='+$proof.ResourceCount+' PAWNIO_BUNDLED='+$proof.PawnIOBundled+
         ' UNSIGNED_BASELINE_PRESERVED=TRUE')
 } finally {
     if($created){

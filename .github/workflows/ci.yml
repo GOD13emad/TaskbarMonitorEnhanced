@@ -82,6 +82,18 @@ jobs:
           ./build/Test-Signed-Payload-Contract.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Setup failed to embed exact staged Main SHA256.' }
 
+      - name: G15 OSS proprietary upstream exclusion negative test
+        shell: pwsh
+        run: |
+          ./build/Test-NoPawnIO-OssRelease.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'A signed Setup may not embed the official PawnIO binary.' }
+
+      - name: R85 absent PawnIO must degrade safely without driver or sensor mutation
+        shell: pwsh
+        run: |
+          ./build/Test-PawnIO-External-Degrade.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Optional driver missing state tried unsafe protected mutation.' }
+
       - name: All-theme glass and chart visual acceptance (10 suites)
         shell: pwsh
         run: |

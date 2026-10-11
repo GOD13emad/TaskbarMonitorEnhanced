@@ -146,7 +146,7 @@ $vp=Start-Process -FilePath $Setup -ArgumentList @('/verify',("/verifyfile="+$Ve
 if($vp.ExitCode -ne 0){throw "Setup /verify failed with exit $($vp.ExitCode)"}
 if(!(Test-Path -LiteralPath $Verify)){throw 'Setup /verify did not create its verification file.'}
 $v=Get-Content -LiteralPath $Verify -Raw|ConvertFrom-Json
-if([string]$v.Status -ne 'PASS' -or [int]$v.Resources -ne 26){throw 'Setup resource verification failed.'}
+if([string]$v.Status -ne 'PASS' -or [int]$v.Resources -ne 25 -or $v.PawnIOBundled -ne $false){throw 'OSS Setup must contain 25 required resources and no proprietary PawnIO installer.'}
 
 & (Join-Path $PSScriptRoot 'Test-Workspace.ps1') -Executable (Join-Path $Package 'TaskbarMonitorEnhanced.exe') -OutputDirectory (Join-Path $Out 'contracts')
 if($LASTEXITCODE -ne 0){throw 'Application contract suite failed.'}

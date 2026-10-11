@@ -1,0 +1,52 @@
+{
+  "Schema": 1,
+  "Revision": "R85",
+  "Project": "TaskbarMonitorEnhanced",
+  "MutationObjective": "Exclude separately licensed official PawnIO installer from signable v1.7 OSS Setup",
+  "Status": "SOURCE_CANDIDATE_BUILD_AND_NEGATIVE_PROOF_PASS_NOT_PROVIDER_ACCEPTED",
+  "SourceParentSHA": "631a7afe6ed4a2ce2ecd22ed406741d4c1c1bc81",
+  "CurrentPublicRelease": "v1.6.0",
+  "CurrentAcceptedSourceSHA": "bfce93b0bb1c65d426be338bd5359b551a2a7aa5",
+  "AuthoritativeSources": {
+    "PawnIOSourceLicense": "https://github.com/namazso/PawnIO/blob/master/README.md",
+    "PawnIOBinaryLicensing": "https://github.com/namazso/PawnIO.Modules/wiki/Using-PawnIO-Modules",
+    "OfficialPawnIOBinary": "https://github.com/namazso/PawnIO.Setup/releases/tag/2.2.0",
+    "SignPathFoundationTerms": "https://signpath.org/terms.html"
+  },
+  "EvidenceClassification": {
+    "PawnIOSourceLicense": "FACT_GPL_2_OR_LATER_PLUS_EXCEPTION",
+    "OfficialBinaryLicense": "OFFICIAL_PROPRIETARY_BINARY_EDITION_REDISTRIBUTION_PERMITTED_BY_UPSTREAM_WIKI",
+    "SignPathFoundationRestriction": "FACT_NO_PROPRIETARY_COMPONENTS_IN_SIGNED_OSS_PACKAGE",
+    "OSS_SetupPawnIOEmbedded": "CONFIRMED_FALSE_AS_BUILT_RESOURCE_CHECK",
+    "LegacyBundledFixture": "CONFIRMED_REJECTED_BY_INDEPENDENT_G15_AUDITOR",
+    "G13": "OPEN",
+    "G14": "OPEN",
+    "G15": "BLOCKED_UNTIL_HUMAN_PROVIDER_AND_CA_TRUST",
+    "G16": "BLOCKED_NO_PUBLIC_V17"
+  },
+  "ReleaseInstallBehavior": {
+    "OfficialPawnIOBinaryBundled": false,
+    "AutomaticDriverDownload": false,
+    "AutomaticPawnIODriverInstall": false,
+    "ExistingInstalledCompatiblePawnIO": "REUSE_WITH_EXISTING_SENSOR_HEALTH_GATES",
+    "AbsentDriver": "DEGRADED_WITHOUT_PROTECTED_SENSOR_MUTATION",
+    "UserManualInstall": "OPTIONAL_OFFICIAL_UPSTREAM_LINK_WITH_EXPLICIT_USER_ACTION",
+    "BundledOSSResources": 25,
+    "LegacyOptInTestResources": 26,
+    "SignedSetupIndependentGuard": "REJECT_IF_PAYLOAD_PAWNIO_setup.exe_PRESENT",
+    "PrivilegedSensorLayerAccepted": "UNPROVEN_REQUIRES_G14_REAL_INSTALLED_TEST"
+  },
+  "OldSupersededForCurrent": {
+    "Packet": "docs/security/SIGNPATH_READINESS_R80.json",
+    "Treatment": "HISTORICAL_NOT_UPDATED_IN_PLACE"
+  },
+  "OpenCriticalPath": [
+    "Independent authorized disposable Windows static-picture G13 positive",
+    "Human SignPath Foundation onboarding/approval and CA-trusted Main and Setup",
+    "G14 full installed sensor/Explorer/rollback acceptance after optional official PawnIO manual host provisioning",
+    "G16 exact approved main successful CI and immutable seven published assets"
+  ],
+  "ReleasePermission": "NONE_NO_AUTO_PROMOTION",
+  "NoInstalledV16Mutation": true,
+  "NoUserWallpaperMutation": true
+}

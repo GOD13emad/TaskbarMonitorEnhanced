@@ -48,7 +48,6 @@ internal static class SetupProgram
       "Payload.TaskbarMonitorSensorSupervisor.cs",
       "Payload.TaskbarMonitorEnhanced.ico",
       "Payload.LibreHardwareMonitor.zip",
-      "Payload.PawnIO_setup.exe",
       "Payload.TBME_Setup_Elevated_Helper.ps1",
       "Payload.LICENSE",
       "Payload.README.md",
@@ -254,7 +253,13 @@ internal static class SetupProgram
         Directory.CreateDirectory(payload);
         Extract("Payload.TaskbarMonitorSensorBroker.exe",Path.Combine(payload,"TaskbarMonitorSensorBroker.exe"));
         Extract("Payload.TaskbarMonitorSensorSupervisor.exe",Path.Combine(payload,"TaskbarMonitorSensorSupervisor.exe"));
-        Extract("Payload.PawnIO_setup.exe",Path.Combine(payload,"PawnIO_setup.exe"));
+        // The official PawnIO binary is separately licensed. Public OSS Setup never embeds it.
+        // A previously installed PawnIO 2.2.0 may be reused; otherwise the sensor helper degrades
+        // safely and offers upstream manual installation, without silent driver downloads.
+        using(Stream pawn=Resource("Payload.PawnIO_setup.exe")){
+            if(pawn!=null && pawn.Length>0)
+                Extract("Payload.PawnIO_setup.exe",Path.Combine(payload,"PawnIO_setup.exe"));
+        }
         Extract("Payload.TBME_Setup_Elevated_Helper.ps1",Path.Combine(payload,"TBME_Setup_Elevated_Helper.ps1"));
         return payload;
     }
@@ -585,7 +590,14 @@ internal static class SetupProgram
                 }
             }
             // R80: the installer must prove it EMBEDS the signed Main bytes.
-            // Presence of a resource (26/26) by itself does not prove signed payload parity.
+            // Required embedded payload proof plus optional proprietary upstream driver audit.
+            bool pawnBundled=false;
+            using(Stream pawn=Resource("Payload.PawnIO_setup.exe")){
+                if(pawn!=null){
+                    if(pawn.Length==0)return 23;
+                    pawnBundled=true;
+                }
+            }
             long embeddedMainBytes=0;
             string embeddedMainSHA256="";
             using(Stream main=Resource("Payload.TaskbarMonitorEnhanced.exe")){
@@ -596,10 +608,10 @@ internal static class SetupProgram
                 }
             }
             if(!String.IsNullOrEmpty(path)){
-                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+
+                string json="{\"Status\":\"PASS\",\"Resources\":"+(RequiredResources.Length+(pawnBundled?1:0))+
                     ",\"Version\":\"1.7.0\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\""+
                     ",\"SensorArchitecture\":\"R21_PROCESS_ISOLATED\",\"SensorUpgradePolicy\":\"EXACT_R33_SUPERVISOR_R21_PROTOCOL\""+
-                    ",\"EmbeddedMainSHA256\":\""+embeddedMainSHA256+"\",\"EmbeddedMainBytes\":"+embeddedMainBytes+"}";
+                    ",\"PawnIOBundled\":"+(pawnBundled?"true":"false")+",\"EmbeddedMainSHA256\":\""+embeddedMainSHA256+"\",\"EmbeddedMainBytes\":"+embeddedMainBytes+"}";
                 File.WriteAllText(path,json,Encoding.UTF8);
             }
             return 0;

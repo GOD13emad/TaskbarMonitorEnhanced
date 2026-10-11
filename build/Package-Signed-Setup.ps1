@@ -69,6 +69,7 @@ try{
     $argList=@('build',$Project,'-c','Release','--nologo',
         '-p:RestoreIgnoreFailedSources=true',
         ('-p:SignedMainPayload='+$main),
+        '-p:IncludePawnIOPayload=false',
         ('-p:OutputPath='+$StageBase+'\'))
     & dotnet @argList | Out-Null
     if($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $Setup -PathType Leaf)){
@@ -81,7 +82,8 @@ try{
     $v=Get-Content -LiteralPath $Verification -Raw|ConvertFrom-Json
     $mainSize=(Get-Item -LiteralPath $main).Length
     if($v.Status -cne 'PASS' -or
-       [int]$v.Resources -ne 26 -or
+       [int]$v.Resources -ne 25 -or
+       $v.PawnIOBundled -ne $false -or
        [string]$v.EmbeddedMainSHA256 -cne $inputDigest -or
        [int64]$v.EmbeddedMainBytes -ne $mainSize){
         throw 'R80 EMBEDDED MAIN IS NOT THE EXACT SIGNED INPUT'
@@ -102,6 +104,8 @@ try{
         EmbeddedMainSHA256=$v.EmbeddedMainSHA256
         EmbeddedMainBytes=$v.EmbeddedMainBytes
         ResourceCount=[int]$v.Resources
+        PawnIOBundled=$false
+        UpstreamDriver='EXTERNAL_MANUAL_OPT_IN_ONLY'
         ProductionTrustAccepted=$false
         SignerAuthenticodeAndPublisherPreflightPass=(!$ContractFixtureOnly)
         ProviderApprovalVerified=$false

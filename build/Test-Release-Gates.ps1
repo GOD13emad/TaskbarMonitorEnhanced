@@ -64,7 +64,7 @@ $detPass=$null -ne $det -and $det.Status -eq 'PASS' -and
     $det.ExactHead -eq $sha -and @($det.Outputs).Count -eq 5
 Add-Gate 'G03_CLEAN_CLONE_DETERMINISM' $detPass 'artifacts/DETERMINISM.json' 'Candidate'
 $setup=Resolve-Evidence $verifyPath
-$setupPass=$null -ne $setup -and $setup.Status -eq 'PASS' -and [int]$setup.Resources -eq 26
+$setupPass=$null -ne $setup -and $setup.Status -eq 'PASS' -and [int]$setup.Resources -eq 25 -and $setup.PawnIOBundled -eq $false
 Add-Gate 'G04_CANONICAL_SETUP_26_RESOURCES' $setupPass 'build/_out/setup_verify.json' 'Candidate'
 $visual=Resolve-Evidence $VisualSummary
 $visualPass=$null -ne $visual -and $visual.Status -eq 'PASS' -and $visual.GitHead -eq $sha -and
@@ -288,7 +288,8 @@ if((Test-Path -LiteralPath $setupExe -PathType Leaf) -and (Test-Path -LiteralPat
                         ($resourceProof.EmbeddedMainSHA256 -ceq $mainPreHash) -and
                         ($resourceProof.SetupSHA256 -ceq $setupPreHash) -and
                         ([int64]$resourceProof.EmbeddedMainBytes -eq (Get-Item -LiteralPath $mainExe).Length) -and
-                        ($resourceProof.ReadOnlyNoInstallerExecution -eq $true)
+                        ($resourceProof.ReadOnlyNoInstallerExecution -eq $true) -and
+                        ($resourceProof.PawnIOBundled -eq $false)
                 }
             }
         } catch { $embeddedSignedMainPass=$false }

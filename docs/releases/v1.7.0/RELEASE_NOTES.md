@@ -39,6 +39,8 @@ v1.7.0 promotion requires:
 
 ## Protected sensor layer
 
+In v1.7.0, the official PawnIO 2.2.0 installer is **not bundled or automatically downloaded** by the OSS-signed application Setup. It has its own upstream binary license. When PawnIO is already installed (version 2.2.0 or newer), the existing protected sensor layer can reuse it. Otherwise the application still runs but protected temperatures may show N/A; a user who wants this optional support can independently download and explicitly install PawnIO from https://github.com/namazso/PawnIO.Setup/releases/tag/2.2.0 . Setup does not modify existing drivers to work around missing approval.
+
 Unchanged from v1.6.0:
 - Broker protocol: 1.1.2+r21
 - Sensor Supervisor: 1.3.0+r33

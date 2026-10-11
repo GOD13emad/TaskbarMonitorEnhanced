@@ -38,6 +38,8 @@ Opening the release page is also a user-requested action.
 
 Normal hardware monitoring and sensor collection are local. The protected sensor broker and supervisor are local processes and are not used to transmit monitoring data to network services.
 
+The v1.7 OSS Setup does not embed or automatically download the official PawnIO driver. If absent, protected hardware sensors degrade safely. The project provides an official upstream release link; opening it and installing the optional driver are independent, explicit user actions and are not background requests by the application.
+
 ## Third-party services and components
 
 GitHub is the update and distribution service used by the application. GitHub processes network connection data under GitHub's own privacy and service terms. Open-source and system-level software components used locally are documented in `THIRD_PARTY_NOTICES.md`.

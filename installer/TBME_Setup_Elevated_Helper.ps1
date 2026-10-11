@@ -165,7 +165,7 @@ $SupervisorState=Join-Path $AppRoot 'sensor_supervisor_state.json'
 
 $requiredOk=$true
 foreach($required in @(
-    $BrokerPayload,$SupervisorPayload,$PawnPayload,
+    $BrokerPayload,$SupervisorPayload,
     (Join-Path $BackendRoot 'LibreHardwareMonitorLib.dll')
 )){
     if(-not(Test-Path -LiteralPath $required)){
@@ -175,6 +175,21 @@ foreach($required in @(
 }
 if(-not$requiredOk){
     Write-Result 'DEGRADED' 'Hardware sensor payload is incomplete. The main application can still run; protected temperature fields will show N/A.' 'NOT_STARTED' $null $false $false $false
+    exit 0
+}
+
+# Public OSS Setup never bundles the separately licensed official PawnIO installer.
+# Reuse an already installed compatible PawnIO; otherwise degrade before any service
+# mutation, UAC driver installation, network request or host rollback snapshot.
+$existingPawn=Get-PawnIOVersion
+$pawnAlreadyCompatible=$false
+if($existingPawn){
+    try{if([version]$existingPawn -ge [version]'2.2.0'){$pawnAlreadyCompatible=$true}}catch{}
+}
+if(-not $pawnAlreadyCompatible -and !(Test-Path -LiteralPath $PawnPayload -PathType Leaf)){
+    $ActiveArchitecture='PAWNIO_EXTERNAL_INSTALL_REQUIRED'
+    Write-Log 'PAWNIO_UPSTREAM_EXTERNAL_INSTALL_REQUIRED no bundled proprietary binary and no silent driver download'
+    Write-Result 'DEGRADED' ('Optional protected hardware sensors require the official PawnIO 2.2.0 driver, installed separately with user consent from https://github.com/namazso/PawnIO.Setup/releases/tag/2.2.0 . The main application works without it and unavailable temperatures show N/A. No driver or protected sensor service was modified.') 'EXTERNAL_INSTALL_REQUIRED' $null $false $false $false
     exit 0
 }
 

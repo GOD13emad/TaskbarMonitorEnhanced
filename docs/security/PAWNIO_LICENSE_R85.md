@@ -1,0 +1,11 @@
+# R85 — SignPath Foundation / PawnIO binary separation
+
+**Status:** R85 OSS installer source candidate. The technical proprietary-binary bundling hazard has been corrected in a separate worktree, but **G13–G16 are still OPEN/BLOCKED** until real evidence. No public v1.7 release or provider approval is implied.
+
+**Primary evidence:** [PawnIO source license](https://github.com/namazso/PawnIO/blob/master/README.md) is GPL 2 or later with a special exception. The upstream [PawnIO modules documentation](https://github.com/namazso/PawnIO.Modules/wiki/Using-PawnIO-Modules) distinguishes separately licensed proprietary official binaries (installer redistribution allowed) from GPL source. [SignPath Foundation terms](https://signpath.org/terms.html) prohibit proprietary components in the OSS signed package.
+
+**Implemented:** v1.7 OSS Setup now defaults to exactly 25 embedded resources, explicitly reports `PawnIOBundled=false`, and its G15 independent reader rejects a 26-resource Setup containing `Payload.PawnIO_setup.exe`, even if Main SHA matches. The separate legacy 26-resource negative fixture must be rejected. Source provenance, pinned SHA and legacy optional rebuild capability remain for reproducible test history; this does not authorize publishing the binary.
+
+**Runtime behavior:** Installed and compatible PawnIO >=2.2.0 is reused. Without it, the installer does not silently download, install or elevate for PawnIO, and the protected sensor helper returns `DEGRADED/EXTERNAL_INSTALL_REQUIRED` before modifying protected services. The main monitor remains usable and missing protected temperatures appear N/A. Optional driver installation is a separate end-user decision through the [upstream release](https://github.com/namazso/PawnIO.Setup/releases/tag/2.2.0). No third-party binary is re-signed by this project.
+
+**Open verification:** Source and negative tests do not prove a real signed-installed G14 or compliance approval from SignPath. The project maintainer must independently complete SignPath Foundation onboarding, manual release approval, trusted-signature verification, static Windows G13 positive witness, installed G14 with optional driver provisioned, and finally G16 publication. No merges, silent driver installation, reboots or user Wallpaper mutation.

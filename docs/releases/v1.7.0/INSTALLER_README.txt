@@ -12,6 +12,9 @@ Key points:
 - Procedural GDI+ generation avoids a large bundled bitmap pack and external wallpaper dependencies.
 - Existing eight-page Performance Workspace, local analytics, alerts, profiles, accessibility and updater protections remain.
 - Protected sensor architecture remains process isolated; broker protocol 1.1.2+r21 and Supervisor 1.3.0+r33 are unchanged.
+- The official PawnIO 2.2.0 installer is not bundled in the OSS signing candidate (it has separate upstream binary license).
+- If PawnIO 2.2.0 or later is already installed, protected sensors can reuse it.
+- Otherwise monitoring remains available but protected sensor temperatures show N/A. Optional driver installation is a separate user decision via https://github.com/namazso/PawnIO.Setup/releases/tag/2.2.0 ; Setup performs no silent driver download.
 - No cloud telemetry or background upload is introduced.
 - No publicly trusted Authenticode signature is claimed unless independently verifiable on the published binary.
 

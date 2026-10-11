@@ -4,11 +4,11 @@ This folder contains the custom Windows installer source used by Taskbar Monitor
 
 ## Current public authority
 
-This source tree targets the immutable v1.5.0 Actionable Alerts & Session Export public release. v1.4.0 is the previous immutable public baseline.
+The current immutable public version is v1.6.0. The v1.7.0 candidate is not released; its OSS signing path excludes the separately licensed official PawnIO binary.
 
 ## Protected sensor baseline
 
-The installer source targets v1.5.0. The protected R21 process-isolated architecture and Broker protocol 1.1.2+r21 are retained, and the accepted Sensor Supervisor remains 1.3.0+r33. v1.5.0 is a Main/UI-only change set adding rate-limited temperature notifications, bounded session CSV export and a Task Manager quick action on top of the v1.4.0 integration/accessibility baseline. Sensor reuse remains gated by exact payload hashes, both sensor identities and live health.
+The v1.7.0 candidate retains the R21 process-isolated architecture, Broker protocol 1.1.2+r21 and Sensor Supervisor 1.3.0+r33. Sensor reuse remains gated by exact payload hashes and live health. A missing optional PawnIO dependency degrades protected temperatures rather than triggering an unexpected driver download or installation.
 
 Installer behavior includes:
 
@@ -20,12 +20,12 @@ Installer behavior includes:
 - MultipleInstances=IgnoreNew
 - fail-closed drain of prior sensor processes before replacement
 - stale split-telemetry cleanup during upgrade
-- pinned LibreHardwareMonitor 0.9.6 and PawnIO 2.2.0 dependency provenance
+- pinned LibreHardwareMonitor 0.9.6 and optional external PawnIO 2.2.0 provenance (the official PawnIO binary is NOT bundled in the OSS Setup)
 - embedded source/license/attribution closure
-- setup /verify resource gate requiring 20 resources, including TaskbarMonitorEnhanced.exe.config
+- setup /verify resource gate requiring 25 OSS resources with PawnIOBundled=false, including TaskbarMonitorEnhanced.exe.config
 
 The authoritative reproducible build path is ../build/Build.ps1.
 
-PawnIO is intentionally retained on uninstall because another hardware-monitoring application may depend on it.
+PawnIO is intentionally retained on uninstall because other hardware-monitoring apps may depend on it. Existing PawnIO >=2.2.0 is reused; otherwise protected sensors safely degrade. Users explicitly install the optional official PawnIO driver from https://github.com/namazso/PawnIO.Setup/releases/tag/2.2.0; Setup does not silently download it.
 
-See ../docs/acceptance/v1.5.0/PUBLIC_RELEASE_ACCEPTANCE.json for the current immutable public authority. v1.4.0 and earlier releases remain immutable historical authorities.
+See ../docs/acceptance/v1.6.0/PUBLIC_RELEASE_ACCEPTANCE.json for the current immutable public authority. v1.5.0 and earlier releases remain immutable historical authorities.

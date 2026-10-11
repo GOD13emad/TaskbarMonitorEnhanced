@@ -20,6 +20,11 @@ try {
     # Reflection reads managed PE manifest resources without calling the installer entrypoint.
     # It must never install, elevate, touch HKCU personalization, spawn sensors or write files.
     $assembly=[Reflection.Assembly]::LoadFile($path)
+    # SignPath Foundation OSS eligibility: the official proprietary PawnIO installer must
+    # not be embedded in the trusted distribution Setup. Reject it even if signatures match.
+    if(@($assembly.GetManifestResourceNames() | Where-Object {$_ -ceq 'Payload.PawnIO_setup.exe'}).Count -ne 0){
+        throw 'R85 REJECT_SIGNED_SETUP_EMBEDS_OFFICIAL_PROPRIETARY_PAWNIO'
+    }
     $resource=$assembly.GetManifestResourceStream('Payload.TaskbarMonitorEnhanced.exe')
     if($null -eq $resource -or $resource.Length -lt 1024){throw 'R80 MISSING EMBEDDED MAIN'}
     $length=$resource.Length
@@ -37,6 +42,8 @@ try {
         EmbeddedMainBytes=$length
         SetupSHA256=$setupHash
         ReadOnlyNoInstallerExecution=$true
+        PawnIOBundled=$false
+        UpstreamDriver='EXTERNAL_OPTIONAL_MANUAL'
         PublicTrustNotInferred=$true
     } | ConvertTo-Json -Compress
     exit 0
