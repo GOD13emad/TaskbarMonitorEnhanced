@@ -17,11 +17,35 @@ $WallpaperModePath='HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Wal
 $DesktopRegPath='HKCU:\Control Panel\Desktop'
 $ModeRegNative='Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers'
 $DesktopRegNative='Control Panel\Desktop'
+# R91-F02 historical recurrence: Windows PowerShell 5.1 hosted child did not expose
+# Get-R91FileHash (R42 had the same failure). Use the .NET Framework 4.x SHA256 stream API;
+# never change module auto-loading, app-control, policy or any user environment.
+function Get-R91FileHash {
+    [CmdletBinding()]
+    param([Parameter(Position=0)][string]$Path,[string]$LiteralPath)
+    $target=if($PSBoundParameters.ContainsKey('LiteralPath')){$LiteralPath}else{$Path}
+    if([string]::IsNullOrWhiteSpace($target) -or ![IO.File]::Exists($target)){
+        throw ('R91 SHA256 FILE DOES NOT EXIST '+$target)
+    }
+    $fileShare=[IO.FileShare]([int][IO.FileShare]::ReadWrite -bor [int][IO.FileShare]::Delete)
+    $stream=[IO.File]::Open($target,[IO.FileMode]::Open,[IO.FileAccess]::Read,$fileShare)
+    $algo=[Security.Cryptography.SHA256]::Create()
+    try{$digest=[BitConverter]::ToString($algo.ComputeHash($stream)).Replace('-','')}
+    finally{$stream.Dispose();$algo.Dispose()}
+    return [pscustomobject]@{Hash=$digest;Path=$target;Algorithm='SHA256'}
+}
 if($StaticOnly){
     $tokens=$null;$parseErrors=$null
     [void][Management.Automation.Language.Parser]::ParseFile($PSCommandPath,[ref]$tokens,[ref]$parseErrors)
     if($parseErrors.Count -ne 0){throw 'R91 G13 SCRIPT PARSER INVALID'}
-    Write-Output 'R91_STATIC_ONLY_NO_WALLPAPER_OR_REGISTRY_MUTATION_PASS'
+    $testAlgo=[Security.Cryptography.SHA256]::Create()
+    try{$vector=[BitConverter]::ToString($testAlgo.ComputeHash([Text.Encoding]::ASCII.GetBytes('abc'))).Replace('-','')}
+    finally{$testAlgo.Dispose()}
+    if($vector -cne 'BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD'){throw 'R91 DOTNET SHA256 TEST VECTOR FAILED'}
+    if(![string]::IsNullOrWhiteSpace($MainExe)){
+       if((Get-R91FileHash -LiteralPath $MainExe).Hash -cne $MainSHA){throw 'R91 WINPS5 STREAMED EXE SHA256 IS NOT EXACT'}
+    }
+    Write-Output 'R91_WINPS5_DOTNET_STREAMED_SHA256_VECTOR_AND_EXACT_FILE_PASS_NO_DESKTOP_MUTATION'
     exit 0
 }
 if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
@@ -36,7 +60,7 @@ if(-not $R91Area.StartsWith($R91RunnerTemp.TrimEnd('\')+'\', [StringComparison]:
    $R91Main -cne [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced\TaskbarMonitorEnhanced.exe'))){
     throw 'R91 INPUTS OUTSIDE OWNED EPHEMERAL HOST'
 }
-if((Get-FileHash -LiteralPath $R91Main).Hash -cne $MainSHA){throw 'R91 PRODUCT IS NOT EXACT IMMUTABLE PUBLIC MAIN'}
+if((Get-R91FileHash -LiteralPath $R91Main).Hash -cne $MainSHA){throw 'R91 PRODUCT IS NOT EXACT IMMUTABLE PUBLIC MAIN'}
 if(Test-Path -LiteralPath $R91Area){throw 'R91 NO UNSAFE CANARY RERUN'}
 $R91Session=(Get-Process -Id $PID).SessionId
 $R91Explorer=@(Get-Process -Name explorer -ErrorAction SilentlyContinue|Where-Object {$_.SessionId -eq $R91Session})
@@ -82,7 +106,7 @@ foreach($name in @('WallPaper','WallpaperStyle','TileWallpaper')){
 }
 $R91OriginalWallpaperFile=$R91OriginalValues['WallPaper'].Value
 $R91OriginalHash=if($R91OriginalWallpaperFile -and (Test-Path -LiteralPath $R91OriginalWallpaperFile -PathType Leaf)){
-    (Get-FileHash -LiteralPath $R91OriginalWallpaperFile).Hash
+    (Get-R91FileHash -LiteralPath $R91OriginalWallpaperFile).Hash
 }else{''}
 if($R91OriginalWallpaperFile -and !$R91OriginalHash){throw 'R91 ORIGINAL HOST WALLPAPER PATH UNREADABLE; NO MUTATION'}
 New-Item -ItemType Directory -Path $R91Dir -Force -ErrorAction Stop|Out-Null
@@ -115,7 +139,7 @@ try{
         finally{$graphics.Dispose()}
         $bitmap.Save($R91SeedPath,[Drawing.Imaging.ImageFormat]::Bmp)
     }finally{$bitmap.Dispose()}
-    $R91SyntheticSHA=(Get-FileHash $R91SeedPath).Hash
+    $R91SyntheticSHA=(Get-R91FileHash $R91SeedPath).Hash
     $modeKey=[Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($ModeRegNative)
     try{$modeKey.SetValue('BackgroundType',0,[Microsoft.Win32.RegistryValueKind]::DWord)}
     finally{$modeKey.Dispose()}
@@ -137,7 +161,7 @@ try{
     $R91BackgroundModeBefore=0
     $R91ProductEvents.BeforeRegistry=$R91Before
     Copy-Item -LiteralPath $R91SeedPath -Destination $R91BeforeCopy -ErrorAction Stop
-    if((Get-FileHash $R91BeforeCopy).Hash -cne $R91SyntheticSHA){throw 'R91 BEFORE SYNTHETIC BASELINE HASH'}
+    if((Get-R91FileHash $R91BeforeCopy).Hash -cne $R91SyntheticSHA){throw 'R91 BEFORE SYNTHETIC BASELINE HASH'}
     # Invoke actual publicly released Main method (reflection) with CLR 4.0 on hosted
     # interactive Windows; no replacement or recompilation of the application class.
     $assembly=[Reflection.Assembly]::LoadFrom($R91Main)
@@ -150,7 +174,7 @@ try{
     $R91AppliedPath=[string]$applyMethod.Invoke($null,@('Art Deco Gold',0))
     $R91AppPositive='PRODUCT_APPLY_RETURNED'
     if(!(Test-Path -LiteralPath $R91AppliedPath -PathType Leaf)){throw 'R91 APPLIED PNG MISSING'}
-    $R91AppliedSHA=(Get-FileHash -LiteralPath $R91AppliedPath).Hash
+    $R91AppliedSHA=(Get-R91FileHash -LiteralPath $R91AppliedPath).Hash
     if($R91AppliedSHA -ceq $R91SyntheticSHA){throw 'R91 REAL APPLIED IMAGE NOT DISTINCT'}
     $R91Current=Read-R91WallpaperState
     if($R91Current.BackgroundType -ne 0 -or
@@ -158,7 +182,7 @@ try{
        $R91Current.WallpaperStyle -cne '10' -or
        $R91Current.TileWallpaper -cne '0'){throw 'R91 WINDOWS WALLPAPER NOT SET TO REAL PRODUCT RESULT'}
     Copy-Item -LiteralPath $R91AppliedPath -Destination $R91AppliedCopy -ErrorAction Stop
-    if((Get-FileHash $R91AppliedCopy).Hash -cne $R91AppliedSHA){throw 'R91 REAL APPLIED RAW IMAGE SHA'}
+    if((Get-R91FileHash $R91AppliedCopy).Hash -cne $R91AppliedSHA){throw 'R91 REAL APPLIED RAW IMAGE SHA'}
     $R91ProductEvents.IndependentAfterStateObserved=$true
     $backupDir=Split-Path -Parent $R91AppliedPath
     $appBackups=@(Get-ChildItem -LiteralPath $backupDir -Filter 'previous-wallpaper-*.json' -File)
@@ -167,7 +191,7 @@ try{
     if($appBackup.OriginalImageSHA256 -cne $R91SyntheticSHA -or
        $appBackup.WallPaper -cne $R91SeedPath -or
        !(Test-Path -LiteralPath ([string]$appBackup.OriginalImageBackup) -PathType Leaf) -or
-       (Get-FileHash -LiteralPath ([string]$appBackup.OriginalImageBackup)).Hash -cne $R91SyntheticSHA){
+       (Get-R91FileHash -LiteralPath ([string]$appBackup.OriginalImageBackup)).Hash -cne $R91SyntheticSHA){
         throw 'R91 PRODUCT PRIOR WALLPAPER BACKUP HASH INVALID'
     }
     $R91ProductEvents.RestoreDesktopPreStateInvoked=$true
@@ -177,9 +201,9 @@ try{
     if($restored.BackgroundType -ne 0 -or $restored.WallPaper -cne $R91SeedPath -or
        $restored.WallpaperStyle -cne $R91Before.WallpaperStyle -or
        $restored.TileWallpaper -cne $R91Before.TileWallpaper -or
-       (Get-FileHash -LiteralPath $R91SeedPath).Hash -cne $R91SyntheticSHA){throw 'R91 PRODUCT RESTORE WAS NOT EXACT'}
+       (Get-R91FileHash -LiteralPath $R91SeedPath).Hash -cne $R91SyntheticSHA){throw 'R91 PRODUCT RESTORE WAS NOT EXACT'}
     Copy-Item -LiteralPath $R91SeedPath -Destination $R91AfterCopy -ErrorAction Stop
-    if((Get-FileHash $R91AfterCopy).Hash -cne $R91SyntheticSHA){throw 'R91 RESTORED IMAGE RAW BYTE MISMATCH'}
+    if((Get-R91FileHash $R91AfterCopy).Hash -cne $R91SyntheticSHA){throw 'R91 RESTORED IMAGE RAW BYTE MISMATCH'}
     $R91ProductEvents.AfterRegistry=$restored
     $R91Rollback='PASS_EXACT_PRODUCT_APPLY_THEN_RESTORE'
     # Real product negative case: transient dynamic mode 2 must be rejected BEFORE
@@ -196,14 +220,14 @@ try{
     try{$modeKey.SetValue('BackgroundType',0,[Microsoft.Win32.RegistryValueKind]::DWord)}
     finally{$modeKey.Dispose()}
     if(!$R91Rejected -or (Read-R91WallpaperState).WallPaper -cne $R91SeedPath -or
-       (Get-FileHash -LiteralPath $R91SeedPath).Hash -cne $R91SyntheticSHA){
+       (Get-R91FileHash -LiteralPath $R91SeedPath).Hash -cne $R91SyntheticSHA){
         throw 'R91 NEGATIVE DYNAMIC-MODE REFUSAL DID NOT FAIL CLOSED'
     }
     $R91Negative='PASS_REAL_PRODUCT_REJECTED_DYNAMIC_SLIDESHOW'
     $R91ProductEvents.NegativeSlideshowRefusalObserved=$true
     $R91ProductEvents.AppliedSHA256=$R91AppliedSHA
     $R91ProductEvents.BeforeSHA256=$R91SyntheticSHA
-    $R91ProductEvents.RestoredSHA256=(Get-FileHash $R91AfterCopy).Hash
+    $R91ProductEvents.RestoredSHA256=(Get-R91FileHash $R91AfterCopy).Hash
     $R91BackgroundModeAfter=0
 }catch{
     $R91Failure=$_.Exception.ToString()
@@ -261,7 +285,7 @@ try{
                 throw ('R91 ORIGINAL HOST REGISTRY NOT RESTORED '+$name)
             }
         }
-        if($R91OriginalHash -and (Get-FileHash -LiteralPath $R91OriginalWallpaperFile).Hash -cne $R91OriginalHash){
+        if($R91OriginalHash -and (Get-R91FileHash -LiteralPath $R91OriginalWallpaperFile).Hash -cne $R91OriginalHash){
             throw 'R91 ORIGINAL EPHEMERAL WALLPAPER FILE SHA NOT RESTORED'
         }
         $R91OuterRestore='PASS_ORIGINAL_HOST_REGISTRY_AND_ORIGINAL_FILE_SHA'
@@ -280,9 +304,9 @@ try{
         ProductApplyStatus=$R91AppPositive;ProductRestoreStatus=$R91Rollback
         NegativeDynamicModeStatus=$R91Negative
         OriginalHostRestorationStatus=$R91OuterRestore
-        AppliedImageSHA256=if(Test-Path $R91AppliedCopy){(Get-FileHash $R91AppliedCopy).Hash}else{''}
-        BeforeImageSHA256=if(Test-Path $R91BeforeCopy){(Get-FileHash $R91BeforeCopy).Hash}else{''}
-        RestoredImageSHA256=if(Test-Path $R91AfterCopy){(Get-FileHash $R91AfterCopy).Hash}else{''}
+        AppliedImageSHA256=if(Test-Path $R91AppliedCopy){(Get-R91FileHash $R91AppliedCopy).Hash}else{''}
+        BeforeImageSHA256=if(Test-Path $R91BeforeCopy){(Get-R91FileHash $R91BeforeCopy).Hash}else{''}
+        RestoredImageSHA256=if(Test-Path $R91AfterCopy){(Get-R91FileHash $R91AfterCopy).Hash}else{''}
         ProductClass='WallpaperStudio';RawProductEvents='raw/wallpaper/product-events.json'
         IndependentLabWitnessSignature='MISSING_NOT_FORMAL_G13_ACCEPTANCE'
         FormalG13Accepted=$false
@@ -296,7 +320,7 @@ try{
                        @('raw/wallpaper/restored.bin',$R91AfterCopy),@('raw/wallpaper/product-events.json',$R91EventPath))){
       if(Test-Path -LiteralPath $case[1] -PathType Leaf){
         $obj=Get-Item -LiteralPath $case[1]
-        $rawRecords += [ordered]@{Path=[string]$case[0];Bytes=[long]$obj.Length;SHA256=(Get-FileHash -LiteralPath $case[1]).Hash}
+        $rawRecords += [ordered]@{Path=[string]$case[0];Bytes=[long]$obj.Length;SHA256=(Get-R91FileHash -LiteralPath $case[1]).Hash}
       }
     }
     $rawManifest=[ordered]@{Schema=1;Revision='R91';EventCommit=$env:GITHUB_SHA
