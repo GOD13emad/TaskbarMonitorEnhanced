@@ -210,7 +210,7 @@ try{
      @(Get-ChildItem -LiteralPath $ProductDir -Directory -ErrorAction SilentlyContinue|Where-Object Name -match '^\.tbme-upgrade').Count -ne 0 -or
      @(Get-ChildItem -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue|Where-Object PSChildName -ceq 'TaskbarMonitorEnhanced').Count -ne 1){throw 'R94 DUPLICATE INSTALL OR OLD STAGING LEFTOVER'}
   $NoDuplicate='PASS_SINGLE_LOCALAPPDATA_ROOT_AND_ONE_UNINSTALL_REGISTRATION'
-  $Status='PASS_REAL_V16_TO_V17_IN_PLACE_WITH_DATA_PRESERVATION_ROLLBACK'
+  $Status='PASS_SANITIZED_REAL_V16_TO_V17_IN_PLACE_NO_INJECTED_ROLLBACK'
   $Step='COMPLETE'
 }catch{
   $Failure=$_.Exception.ToString()
@@ -222,6 +222,8 @@ try{
    TestHost='GITHUB_HOSTED_EPHEMERAL_WINDOWS'
    EventCommit=$env:GITHUB_SHA;CurrentPublic='v1.6.0'
    BaselineMainSHA256=$OldMainSha;NewCandidateMainSHA256=$NewMainSha
+   SanitizedCandidateSetupSHA256=(SHA $Candidate)
+   FaultInjectedOnThisSanitizedBuild=$false
    PublishedPublicV17Source='eeac48c2ff201326c6a59e7ccc21c72c9a676160'
    OldConfigSHA256=$OldConfigHash;OldConfigBackupSHA256=$OldBackupHash
    OldSensorBackendSHA256=$OldBackendSHA
