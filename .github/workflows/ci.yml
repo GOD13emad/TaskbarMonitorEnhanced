@@ -76,6 +76,12 @@ jobs:
           ./build/Test-Signed-Staging.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Signed artifact staging separation gate failed.' }
 
+      - name: G15 embedded signed Main payload contract (read-only installer verification)
+        shell: pwsh
+        run: |
+          ./build/Test-Signed-Payload-Contract.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Setup failed to embed exact staged Main SHA256.' }
+
       - name: All-theme glass and chart visual acceptance (10 suites)
         shell: pwsh
         run: |

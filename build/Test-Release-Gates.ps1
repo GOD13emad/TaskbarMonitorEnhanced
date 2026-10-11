@@ -272,6 +272,29 @@ if((Test-Path -LiteralPath $setupExe -PathType Leaf) -and (Test-Path -LiteralPat
         ';FoundationPublisher='+[string]($mainName -ceq 'SignPath Foundation' -and $setupName -ceq 'SignPath Foundation')+
         ';TimestampPair='+[string]([bool]$mainSig.TimeStamperCertificate -and [bool]$setupSig.TimeStamperCertificate)+
         ';SameCertificate='+[string]$sameCert+';ExactMetadata='+[string]$exactMetadata
+    # R80: a signed Setup that embeds the old UNSIGNED Main must be rejected.
+    # Independently hash the actual manifest resource from the signed Setup PE,
+    # without executing its installer entrypoint or trusting a self-declared JSON.
+    $embeddedSignedMainPass=$false
+    if($cryptoPass){
+        try {
+            $embeddedVerifier=Join-Path $root 'build\Verify-Embedded-Main.ps1'
+            if(Test-Path -LiteralPath $embeddedVerifier -PathType Leaf){
+                $resourceRaw=@(& pwsh -NoProfile -File $embeddedVerifier -SetupExe $setupExe -ExpectedMainSHA256 $mainPreHash)
+                $resourceExit=$LASTEXITCODE
+                if($resourceExit -eq 0 -and $resourceRaw.Count -eq 1){
+                    $resourceProof=$resourceRaw[0]|ConvertFrom-Json
+                    $embeddedSignedMainPass=($resourceProof.Status -ceq 'PASS_EMBEDDED_MAIN_EXACT_SHA256') -and
+                        ($resourceProof.EmbeddedMainSHA256 -ceq $mainPreHash) -and
+                        ($resourceProof.SetupSHA256 -ceq $setupPreHash) -and
+                        ([int64]$resourceProof.EmbeddedMainBytes -eq (Get-Item -LiteralPath $mainExe).Length) -and
+                        ($resourceProof.ReadOnlyNoInstallerExecution -eq $true)
+                }
+            }
+        } catch { $embeddedSignedMainPass=$false }
+    }
+    $g15Evidence+=';SignedSetupEmbedsExactSignedMain='+[string]$embeddedSignedMainPass
+    $cryptoPass=$cryptoPass -and $embeddedSignedMainPass
     if($cryptoPass){
         $providerAuditor=Join-Path $root 'build\verify_signpath_g15.py'
         $keys=@('SIGNPATH_API_TOKEN','SIGNPATH_ORGANIZATION_ID','SIGNPATH_MAIN_REQUEST_ID',

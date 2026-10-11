@@ -584,8 +584,22 @@ internal static class SetupProgram
                     if(s==null || s.Length==0)return 20;
                 }
             }
+            // R80: the installer must prove it EMBEDS the signed Main bytes.
+            // Presence of a resource (26/26) by itself does not prove signed payload parity.
+            long embeddedMainBytes=0;
+            string embeddedMainSHA256="";
+            using(Stream main=Resource("Payload.TaskbarMonitorEnhanced.exe")){
+                if(main==null || main.Length<1024)return 22;
+                embeddedMainBytes=main.Length;
+                using(SHA256 hash=SHA256.Create()){
+                    embeddedMainSHA256=BitConverter.ToString(hash.ComputeHash(main)).Replace("-","");
+                }
+            }
             if(!String.IsNullOrEmpty(path)){
-                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+",\"Version\":\"1.7.0\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\",\"SensorArchitecture\":\"R21_PROCESS_ISOLATED\",\"SensorUpgradePolicy\":\"EXACT_R33_SUPERVISOR_R21_PROTOCOL\"}";
+                string json="{\"Status\":\"PASS\",\"Resources\":"+RequiredResources.Length+
+                    ",\"Version\":\"1.7.0\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\""+
+                    ",\"SensorArchitecture\":\"R21_PROCESS_ISOLATED\",\"SensorUpgradePolicy\":\"EXACT_R33_SUPERVISOR_R21_PROTOCOL\""+
+                    ",\"EmbeddedMainSHA256\":\""+embeddedMainSHA256+"\",\"EmbeddedMainBytes\":"+embeddedMainBytes+"}";
                 File.WriteAllText(path,json,Encoding.UTF8);
             }
             return 0;
