@@ -90,8 +90,14 @@ try{
   $assetRows=@($r.assets|Where-Object {$_.name -ceq $Asset})
   if($assetRows.Count -ne 1 -or $assetRows[0].digest -cne ('sha256:'+$SetupSHA.ToLowerInvariant()) -or
      $assetRows[0].state -cne 'uploaded'){throw 'R88 RELEASE ASSET NOT EXACT'}
-  & gh release download $Tag -R $Repo -p $Asset -D $Output
-  if($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $Setup -PathType Leaf)){throw 'R88 PUBLIC DOWNLOAD FAILED'}
+  # R88-F02: GH CLI tag lookup returned "release not found" on a hosted runner despite
+  # successful GET-by-release-ID and correct digest. Fetch exactly the pinned public
+  # asset browser URL over HTTPS and verify bytes *before* executing any child process.
+  $expectedURL='https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.7.0-unsigned-preview.1/TaskbarMonitorEnhanced_Setup_1.7.0_UNSIGNED_PREVIEW.exe'
+  $downloadURL=[string]$assetRows[0].browser_download_url
+  if($downloadURL -cne $expectedURL){throw 'R88 PUBLIC ASSET URI SOURCE NOT EXACT'}
+  Invoke-WebRequest -Uri $downloadURL -OutFile $Setup -MaximumRedirection 5 -TimeoutSec 120 -ErrorAction Stop
+  if(!(Test-Path -LiteralPath $Setup -PathType Leaf)){throw 'R88 PUBLIC DIRECT HTTPS DOWNLOAD FAILED'}
   if((Get-FileHash $Setup).Hash -cne $SetupSHA -or (Get-AuthenticodeSignature $Setup).Status -ne 'NotSigned'){throw 'R88 DOWNLOADED SETUP NOT EXACT UNSIGNED'}
   $VerifyExit=Execute-Bounded $Setup @('/verify',('/verifyfile='+$SelfCheck)) 30000
   if($VerifyExit -ne 0 -or !(Test-Path $SelfCheck -PathType Leaf)){throw 'R88 PUBLIC SETUP SELFTEST FAILED'}
