@@ -1,0 +1,40 @@
+name: Unsigned Public Preview Headless Install Smoke
+
+on:
+  push:
+    branches:
+      - audit/unsigned-preview-installer-smoke-r88
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ephemeral-windows-installed-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout isolated test-only source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Static parser and user-host protection
+        shell: pwsh
+        run: |
+          ./build/Test-Unsigned-Preview-HostedInstall.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R88 test source parser preflight failed.' }
+      - name: Verify and test exact immutable unsigned release on disposable hosted Windows
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./build/Test-Unsigned-Preview-HostedInstall.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R88 headless installed preview smoke failed; inspect receipt.' }
+      - name: Preserve actual host results even if install fails
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unsigned-preview-headless-install-R88
+          if-no-files-found: warn
+          retention-days: 21
+          path: ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R88_HOSTED_INSTALL_RECEIPT.json
