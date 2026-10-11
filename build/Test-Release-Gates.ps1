@@ -183,8 +183,40 @@ $signPass=(Test-Path $setupExe) -and (Test-Path $mainExe) -and
     (Get-AuthenticodeSignature -LiteralPath $setupExe).Status -eq 'Valid' -and
     (Get-AuthenticodeSignature -LiteralPath $mainExe).Status -eq 'Valid'
 Add-Gate 'G15_AUTHENTICODE_VALID_ON_SETUP_AND_APP' $signPass 'Get-AuthenticodeSignature (actual local artifacts)' 'Stable'
+# R72 G16 postpublication gate: a local main SHA match alone is not release evidence.
+# Only call live GitHub auditing after independent G13/G14/G15 are PASS.
 $mainSHA=(& git -C $root rev-parse main).Trim()
-Add-Gate 'G16_MAIN_IS_EXACT_APPROVED_COMMIT' ($mainSHA -eq $sha) ('local main HEAD '+$mainSHA) 'Stable'
+$g16Pass=$false
+$g16Evidence='BLOCKED: exact main, G13-G15 and independently downloaded immutable seven-asset release required'
+$stablePreconditions=@($gates|Where-Object { $_.Class -eq 'Stable' -and $_.Status -eq 'PASS' })
+if($mainSHA -eq $sha -and $stablePreconditions.Count -eq 3){
+    $publicAuditor=Join-Path $root 'build\verify_public_release_g16.py'
+    if(Test-Path -LiteralPath $publicAuditor -PathType Leaf){
+        try {
+            $g16Raw=@(& python $publicAuditor --tag v1.7.0 --source $sha)
+            $g16Exit=$LASTEXITCODE
+            if($g16Exit -eq 0 -and $g16Raw.Count -eq 1){
+                $g16Result=$g16Raw[0]|ConvertFrom-Json
+                $g16Pass=($g16Result.Status -ceq 'PASS_PUBLICATION_CONTENT_ONLY' -and
+                    $g16Result.Tag -ceq 'v1.7.0' -and
+                    $g16Result.SourceSHA -ceq $sha -and
+                    [int]$g16Result.AssetCount -eq 7 -and
+                    [int]$g16Result.ManifestPayloadEntries -eq 5 -and
+                    [int]$g16Result.ChecksumEntries -eq 6 -and
+                    $g16Result.Immutable -eq $true -and
+                    $g16Result.AssetIntegrity -ceq 'PASS' -and
+                    [int64]$g16Result.GitHubMainCI -gt 0)
+            }
+            $g16Evidence='Live v1.7 public seven assets/manifest/checksums/immutable/exact-main-CI: '+[string]$g16Pass
+        } catch {
+            $g16Pass=$false
+            $g16Evidence='BLOCKED: live public release verification failed closed'
+        }
+    }
+} elseif($mainSHA -ne $sha) {
+    $g16Evidence='BLOCKED: main '+$mainSHA+' differs from candidate '+$sha
+}
+Add-Gate 'G16_MAIN_IS_EXACT_APPROVED_COMMIT' $g16Pass $g16Evidence 'Stable'
 $required=@($gates|Where-Object {$_.Class -eq 'Candidate'})
 $blocked=@($gates|Where-Object {$_.Status -ne 'PASS'})
 $ready=$blocked.Count -eq 0
