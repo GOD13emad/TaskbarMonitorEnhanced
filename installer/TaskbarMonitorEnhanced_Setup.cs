@@ -1331,6 +1331,23 @@ internal static partial class SetupProgram
                         throw new IOException("Managed component failed post-commit hash "+r.Rel);
                 }
                 step++;
+                // R93: one reproducible *abrupt process death* after durable journal
+                // and N managed replacements. No catch/finally or in-process rollback.
+                // Only an authenticated disposable GitHub Windows hosted VM may opt in;
+                // this cannot be enabled on any maintainer/user installation.
+                string crash=Environment.GetEnvironmentVariable("TBME_TEST_HARD_CRASH_AFTER_INDEX");
+                string runner=Environment.GetEnvironmentVariable("RUNNER_TEMP");
+                string selfPath=Path.GetFullPath(System.Windows.Forms.Application.ExecutablePath);
+                if(Environment.GetEnvironmentVariable("GITHUB_ACTIONS")=="true" &&
+                   Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT")=="github-hosted" &&
+                   Environment.GetEnvironmentVariable("RUNNER_OS")=="Windows" &&
+                   !String.IsNullOrEmpty(runner) &&
+                   selfPath.StartsWith(Path.GetFullPath(runner).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar,
+                                       StringComparison.OrdinalIgnoreCase) &&
+                   !String.Equals(Environment.MachineName,"EMAD-PC-ULTIMAT",StringComparison.OrdinalIgnoreCase) &&
+                   crash==step.ToString(System.Globalization.CultureInfo.InvariantCulture)){
+                    Environment.FailFast("R93_EPHEMERAL_PROCESS_DEATH_AFTER_COMMIT_STEP_"+step);
+                }
                 // Fault injection is absolutely restricted to disposable hosted CI.
                 string inject=Environment.GetEnvironmentVariable("TBME_TEST_FAIL_AFTER_INDEX");
                 if(Environment.GetEnvironmentVariable("GITHUB_ACTIONS")=="true" &&

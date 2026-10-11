@@ -1,0 +1,129 @@
+name: R93 Interrupted In-Place Upgrade Recovery - Disposable Windows
+
+on:
+  push:
+    branches:
+      - audit/disposable-crash-recovery-r93
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile-pinned-candidate:
+    runs-on: windows-latest
+    timeout-minutes: 16
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.400
+      - name: Static parse both hosted-only destructive test controls
+        shell: pwsh
+        run: |
+          ./build/Test-CrashRecovery-R93.ps1 -Baseline v16 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R93 v1.6 crash harness static preflight failed' }
+          ./build/Test-CrashRecovery-R93.ps1 -Baseline preview1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R93 Preview1 crash harness static preflight failed' }
+      - name: Build exact fully verified unsigned candidate on isolated Windows
+        shell: pwsh
+        run: |
+          ./build/Build.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R93 candidate build refused' }
+          $file='./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.0.exe'
+          if ((Get-FileHash $file).Hash -cne 'DECF49222E5F5D2C1E246DE16BB00ED266A0550FD781CBC61DA6AB4A8645D903') {
+            throw 'R93 build/setup SHA drift; never export as approved test artifact'
+          }
+      - name: Upload exact candidate to two separate clean Windows machines
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: R93-hosted-process-crash-only-setup
+          retention-days: 7
+          if-no-files-found: error
+          path: build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.0.exe
+
+  hard-crash-recovery-official-v16:
+    needs: compile-pinned-candidate
+    runs-on: windows-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout clean isolated source, no personal files
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Static no-mutation test guard
+        shell: pwsh
+        run: |
+          ./build/Test-CrashRecovery-R93.ps1 -Baseline v16 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R93 v16 parser refused' }
+      - name: Download only SHA-pinned candidate from separately isolated builder
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: R93-hosted-process-crash-only-setup
+          path: build/_out/Setup
+      - name: Verify source exact binary bytes before any install
+        shell: pwsh
+        run: |
+          $file='./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.0.exe'
+          if (!(Test-Path $file -PathType Leaf) -or
+              (Get-FileHash $file).Hash -cne 'DECF49222E5F5D2C1E246DE16BB00ED266A0550FD781CBC61DA6AB4A8645D903'){
+              throw 'R93 downloaded artifact SHA mismatch'
+          }
+      - name: Actual v1.6 abrupt process death, durable recovery, second fault, final upgrade
+        shell: pwsh
+        run: |
+          ./build/Test-CrashRecovery-R93.ps1 -Baseline v16
+          if ($LASTEXITCODE -ne 0) { throw 'R93 real hosted v1.6 process-death recovery not accepted' }
+      - name: Preserve actual failing or successful Windows raw receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: R93-v16-abrupt-death-recovery
+          retention-days: 21
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/TBME_R93_ABRUPT_CRASH_v16/R93_PROCESS_CRASH_RECOVERY_RECEIPT.json
+
+  hard-crash-recovery-preview1:
+    needs: compile-pinned-candidate
+    runs-on: windows-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout different fresh Windows host
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Static no-personal-install and parser guard
+        shell: pwsh
+        run: |
+          ./build/Test-CrashRecovery-R93.ps1 -Baseline preview1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R93 preview1 parser refused' }
+      - name: Download exact candidate from separate SHA-pinned Windows build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: R93-hosted-process-crash-only-setup
+          path: build/_out/Setup
+      - name: Compare immutable CI candidate SHA before installing Preview1
+        shell: pwsh
+        run: |
+          $file='./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.0.exe'
+          if (!(Test-Path $file -PathType Leaf) -or
+              (Get-FileHash $file).Hash -cne 'DECF49222E5F5D2C1E246DE16BB00ED266A0550FD781CBC61DA6AB4A8645D903') {
+             throw 'R93 Preview1 CI candidate SHA wrong'
+          }
+      - name: Actual Preview1 hard process death, journal recovery, second fault and update
+        shell: pwsh
+        run: |
+          ./build/Test-CrashRecovery-R93.ps1 -Baseline preview1
+          if ($LASTEXITCODE -ne 0) { throw 'R93 real hosted Preview1 process-death recovery not accepted' }
+      - name: Upload raw Preview1 crash and recovery witness even on failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: R93-preview1-abrupt-death-recovery
+          retention-days: 21
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/TBME_R93_ABRUPT_CRASH_preview1/R93_PROCESS_CRASH_RECOVERY_RECEIPT.json
