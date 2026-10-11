@@ -40,6 +40,7 @@ $Prev=Join-Path $Root 'TaskbarMonitorEnhanced_Setup_1.7.0_UNSIGNED_PREVIEW.exe'
 $Evidence=Join-Path $Root 'R92_PREVIEW1_MAINTENANCE_RECEIPT.json'
 $Started=(Get-Date).ToUniversalTime().ToString('o')
 $Status='NOT_RUN';$Phase='START';$ErrorMessage=''
+$SyntheticUserConfigSeeded=$false
 $FaultRollback='NOT_RUN';$MaintUpgrade='NOT_RUN';$Idempotence='NOT_RUN'
 $ConfigSHA='';$BackupSHA='';$StateSHA='';$BackendSHA='';$UserSHA='';$RunBefore='';$RunAfter=''
 $NewSetupSHA='';$NewInstalledSetupSHA=''
@@ -94,7 +95,17 @@ try{
   try{[void]$_.CloseMainWindow();if(!$_.WaitForExit(3000)){$_.Kill();$_.WaitForExit(3000)}}finally{$_.Dispose()}
  }
  if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){throw 'R92 PREVIEW1 APP STILL RUNNING'}
- if(!(Test-Path $Config -PathType Leaf)){throw 'R92 PREVIEW1 USER CONFIG MISSING'}
+ if(!(Test-Path $Config -PathType Leaf)){
+   # R92-F02: the signed-off Preview Setup installs binaries but config is created
+   # only on a completed normal GUI first-run. Seed test-owned user preferences.
+   $fixture='{"Theme":"Default","StartWithWindows":true,"ShowCpu":true,"ShowRam":true,"SafePlacement":true,"AutoCheckUpdates":false}'
+   [IO.File]::WriteAllText($Config,$fixture,[Text.UTF8Encoding]::new($false))
+   if(!(Test-Path $Config -PathType Leaf) -or
+      (Get-Content $Config -Raw|ConvertFrom-Json).StartWithWindows -ne $true){
+      throw 'R92 PREVIEW1 TEST-OWNED CONFIG FIXTURE NOT PARSEABLE'
+   }
+   $SyntheticUserConfigSeeded=$true
+ }
  if(!(Test-Path $ConfigBackup -PathType Leaf)){Copy-Item -LiteralPath $Config -Destination $ConfigBackup}
  if(!(Test-Path $Backend -PathType Leaf) -or !(Test-Path $OldRootSource -PathType Leaf) -or
      !(Test-Path $CurrentDoc -PathType Leaf)){throw 'R92 PREVIEW1 MANAGED USER BASELINE INCOMPLETE'}
@@ -149,6 +160,7 @@ try{
  OldPreviewInstallerSHA256=$OldSetupSha;NewCandidateInstallerSHA256=$NewSetupSHA
  MainSHA256=$PublicMainSha;OldConfigSHA256=$ConfigSHA;OldConfigBackupSHA256=$BackupSHA
  SensorBackendSHA256=$BackendSHA;UserFileSHA256=$UserSHA
+   SyntheticUserConfigSeededOnlyOnHostedVM=$SyntheticUserConfigSeeded
  FaultRollback=$FaultRollback;RealSameVersionUpgrade=$MaintUpgrade;Idempotence=$Idempotence
  InstalledNewMaintenanceSHA256=$NewInstalledSetupSHA;OldStartup=$RunBefore;NewStartup=$RunAfter
  UninstalledOldVersionFirst=$false;DuplicateProgramRootCreated=$false

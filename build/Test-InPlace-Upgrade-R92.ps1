@@ -48,6 +48,7 @@ New-Item -ItemType Directory -Path $Work -ErrorAction Stop|Out-Null
 $ReceiptPath=Join-Path $Work 'R92_INPLACE_UPGRADE_RECEIPT.json'
 $OldSetup=Join-Path $Work $OldAsset
 $Status='NOT_TESTED';$Step='BEGIN';$Failure=''
+$SyntheticUserConfigSeeded=$false
 $OldConfigHash='';$OldBackupHash='';$OldMainLive='';$OldStateHash='';$OldBackendSHA=''
 $NewMainInstalled='';$OldStartup=$null;$NewStartup=$null
 $FaultRollback='NOT_RUN';$UserModifiedFileGuard='NOT_RUN';$SuccessfulUpgrade='NOT_RUN'
@@ -122,7 +123,18 @@ try{
     try{[void]$_.CloseMainWindow(); if(!$_.WaitForExit(3000)){$_.Kill();$_.WaitForExit(3000)}}finally{$_.Dispose()}
   }
   if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count -ne 0){throw 'R92 CANNOT QUIESCE EPHEMERAL OLD APP'}
-  if(!(Test-Path $Config -PathType Leaf)){throw 'R92 INSTALLED OLD APP HAS NO USER CONFIG'}
+  if(!(Test-Path $Config -PathType Leaf)){
+    # R92-F02: official Setup does not create user config before first full GUI startup.
+    # Seed an explicit synthetic *user-owned* fixture only inside disposable CI;
+    # its SHA must survive injected failure, success and idempotent update.
+    $fixture='{"Theme":"Default","StartWithWindows":true,"ShowCpu":true,"ShowRam":true,"SafePlacement":true,"AutoCheckUpdates":false}'
+    [IO.File]::WriteAllText($Config,$fixture,[Text.UTF8Encoding]::new($false))
+    if(!(Test-Path $Config -PathType Leaf) -or
+       (Get-Content $Config -Raw|ConvertFrom-Json).StartWithWindows -ne $true){
+       throw 'R92 SYNTHETIC USER CONFIG FIXTURE INVALID'
+    }
+    $SyntheticUserConfigSeeded=$true
+  }
   if(!(Test-Path $ConfigBak -PathType Leaf)){Copy-Item -LiteralPath $Config -Destination $ConfigBak}
   if(!(Test-Path $Backend -PathType Leaf)){throw 'R92 OLD SENSOR BACKEND NOT PRESENT'}
   $OldConfigHash=SHA $Config;$OldBackupHash=SHA $ConfigBak
@@ -206,6 +218,7 @@ try{
    OldConfigSHA256=$OldConfigHash;OldConfigBackupSHA256=$OldBackupHash
    OldSensorBackendSHA256=$OldBackendSHA
    AddedUserCanarySHA256=$OwnedFileSHA
+   SyntheticUserConfigSeededOnlyOnHostedVM=$SyntheticUserConfigSeeded
    ExistingProcessTermination='TEST_RUNNER_ONLY_NOT_UPDATER'
    UserModifiedFileGuard=$UserModifiedFileGuard;InjectedFailureRollback=$FaultRollback
    SuccessfulUpgrade=$SuccessfulUpgrade;IdempotentSameVersion=$Idempotent
