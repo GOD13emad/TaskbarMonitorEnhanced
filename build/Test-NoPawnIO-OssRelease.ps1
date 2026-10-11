@@ -15,10 +15,20 @@ if(Test-Path -LiteralPath $LegacyDir){throw 'R85 UNSAFE RERUN: FORBIDDEN FIXTURE
 foreach($f in @($Project,$OssSetup,$Main,$Reader)){if(!(Test-Path -LiteralPath $f -PathType Leaf)){throw ('R85 MISSING PRESTATE '+$f)}}
 $mainSHA=(Get-FileHash -LiteralPath $Main).Hash
 $ossSHA=(Get-FileHash -LiteralPath $OssSetup).Hash
-$publishedExeSHA=(Get-FileHash -LiteralPath (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced\TaskbarMonitorEnhanced.exe')).Hash
-$personalCfgSHA=(Get-FileHash -LiteralPath (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced\config.json')).Hash
-$wallMode=(Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers').BackgroundType
-if($publishedExeSHA -cne '05F9E069C4598FDAD327A41BF1CA34A1498D022119DB81E09F4B3B091C9BA377' -or $wallMode -ne 2){throw 'R85 PERSONAL BASELINE DIFFERENT'}
+# A clean CI runner intentionally has NO previously installed app. Its absence is a valid
+# prestate, whereas a real installed user's data must remain exactly byte-identical.
+$personalMain=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced\TaskbarMonitorEnhanced.exe'
+$personalConfig=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced\config.json'
+$hadMain=Test-Path -LiteralPath $personalMain -PathType Leaf
+$hadConfig=Test-Path -LiteralPath $personalConfig -PathType Leaf
+if($hadMain -ne $hadConfig){throw 'R85 PARTIAL PERSONAL APP PRESTATE'}
+$publishedExeSHA=if($hadMain){(Get-FileHash -LiteralPath $personalMain).Hash}else{''}
+$personalCfgSHA=if($hadConfig){(Get-FileHash -LiteralPath $personalConfig).Hash}else{''}
+$bgProperties=Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers' -ErrorAction SilentlyContinue
+$wallMode=if($bgProperties -and $bgProperties.PSObject.Properties.Name -contains 'BackgroundType'){$bgProperties.BackgroundType}else{$null}
+if($env:COMPUTERNAME -ceq 'EMAD-PC-ULTIMAT' -and
+   ($publishedExeSHA -cne '05F9E069C4598FDAD327A41BF1CA34A1498D022119DB81E09F4B3B091C9BA377' -or
+    $wallMode -ne 2)){throw 'R85 PROTECTED EMAD-PC BASELINE DIFFERENT'}
 $created=$false
 try {
     $pr=@(& pwsh -NoProfile -File $Reader -SetupExe $OssSetup -ExpectedMainSHA256 $mainSHA)
@@ -56,9 +66,13 @@ try {
         Remove-Item -LiteralPath $LegacyDir -ErrorAction Stop
     }
 }
+$nowBg=Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers' -ErrorAction SilentlyContinue
+$nowBgMode=if($nowBg -and $nowBg.PSObject.Properties.Name -contains 'BackgroundType'){$nowBg.BackgroundType}else{$null}
 if((Get-FileHash -LiteralPath $Main).Hash -cne $mainSHA -or
    (Get-FileHash -LiteralPath $OssSetup).Hash -cne $ossSHA -or
-   (Get-FileHash -LiteralPath (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced\TaskbarMonitorEnhanced.exe')).Hash -cne $publishedExeSHA -or
-   (Get-FileHash -LiteralPath (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced\config.json')).Hash -cne $personalCfgSHA -or
-   (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers').BackgroundType -ne $wallMode){throw 'R85 FINAL PROTECTED BASELINE CHANGED'}
+   (Test-Path -LiteralPath $personalMain -PathType Leaf) -ne $hadMain -or
+   (Test-Path -LiteralPath $personalConfig -PathType Leaf) -ne $hadConfig -or
+   [string]$nowBgMode -cne [string]$wallMode){throw 'R85 FINAL INSTALLATION ABSENCE/PERSONAL STATE CHANGED'}
+if($hadMain -and ((Get-FileHash -LiteralPath $personalMain).Hash -cne $publishedExeSHA -or
+  (Get-FileHash -LiteralPath $personalConfig).Hash -cne $personalCfgSHA)){throw 'R85 PERSONAL INSTALLED BYTES CHANGED'}
 exit 0
