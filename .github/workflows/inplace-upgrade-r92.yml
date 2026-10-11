@@ -28,7 +28,7 @@ jobs:
           ./build/Build.ps1
           if ($LASTEXITCODE -ne 0) { throw 'R92 upgraded installer build failed.' }
           $p='./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.0.exe'
-          if ((Get-FileHash $p).Hash -cne 'A065CCF4C1F5F91AEF15ECCDD1ABB41FFAD4ABC57CD44F44B39A65740AD682B2') {
+          if ((Get-FileHash $p).Hash -cne '87B706BCE639FC75DAA7298E6CDD0B4AC5166E7DF5BFD7D0DA57DE3DCCD48F8A') {
             throw 'R92 build bytes changed; never upload candidate as authorized input.'
           }
       - name: Upload exact SHA-bound candidate only
@@ -72,7 +72,7 @@ jobs:
         run: |
           $p='./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.0.exe'
           if (!(Test-Path $p -PathType Leaf) -or
-              (Get-FileHash $p).Hash -cne 'A065CCF4C1F5F91AEF15ECCDD1ABB41FFAD4ABC57CD44F44B39A65740AD682B2') {
+              (Get-FileHash $p).Hash -cne '87B706BCE639FC75DAA7298E6CDD0B4AC5166E7DF5BFD7D0DA57DE3DCCD48F8A') {
             throw 'R92 downloaded artifact did not match trusted build candidate.'
           }
       - name: Real official v1.6 in-place update, data preservation and injected rollback
@@ -122,7 +122,7 @@ jobs:
         run: |
           $p='./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.0.exe'
           if (!(Test-Path $p -PathType Leaf) -or
-              (Get-FileHash $p).Hash -cne 'A065CCF4C1F5F91AEF15ECCDD1ABB41FFAD4ABC57CD44F44B39A65740AD682B2') {
+              (Get-FileHash $p).Hash -cne '87B706BCE639FC75DAA7298E6CDD0B4AC5166E7DF5BFD7D0DA57DE3DCCD48F8A') {
             throw 'R92 candidate not identical to trusted separately built artifact.'
           }
       - name: Real existing public unsigned Preview1 same-version in-place upgrade and rollback

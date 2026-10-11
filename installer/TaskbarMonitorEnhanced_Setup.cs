@@ -1305,7 +1305,8 @@ internal static partial class SetupProgram
         string oldDisplay;
         using(RegistryKey k=Registry.CurrentUser.OpenSubKey(UninstallKey,false)){
             oldDisplay=Convert.ToString(k.GetValue("DisplayVersion"));
-            if(oldDisplay!=InstalledV16)throw new InvalidOperationException("Installed registration Version differs from v1.6 baseline.");
+            if(!String.Equals(oldDisplay,installed,StringComparison.Ordinal))
+                throw new InvalidOperationException("Installed registry Version does not match the SHA-verified existing product version.");
         }
         Dictionary<string,byte[]> fresh=PrepareNewBytes(stateSource);
         if(Directory.Exists(UpgradeRoot))throw new IOException("Upgrade journal is not clear; no changes made.");
