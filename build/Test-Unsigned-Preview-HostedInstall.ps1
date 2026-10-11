@@ -36,11 +36,14 @@ $LaunchMode='UNKNOWN'
 $InitialBg=Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers' -ErrorAction SilentlyContinue
 $InitialType=if($InitialBg -and $InitialBg.PSObject.Properties.Name -contains 'BackgroundType'){[string]$InitialBg.BackgroundType}else{'ABSENT'}
 $InitialExePaths=@($AppRoot,$StartLink,$RepairLink,$DesktopLink)
-if(@($InitialExePaths | Where-Object {Test-Path -LiteralPath $_}).Count -gt 0 -or
-   (Test-Path $UninstallReg) -or
-   $null -ne (Get-ItemPropertyValue -Path $RunReg -Name $RunName -ErrorAction SilentlyContinue) -or
-   @(Get-Process -Name TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count -gt 0){
-    throw 'R88 REFUSE: EPHEMERAL RUNNER NOT CLEAN BEFORE TEST'
+# R88-F01: strict PowerShell throws for an absent HKCU Run property on clean CI.
+# Examine the existing property bag without requiring the value or creating it.
+function Read-ExistingProductRunValue {
+  $bag=Get-ItemProperty -Path $RunReg -ErrorAction SilentlyContinue
+  if($null -eq $bag){return $null}
+  $prop=$bag.PSObject.Properties[$RunName]
+  if($null -eq $prop){return $null}
+  return [string]$prop.Value
 }
 $Output=Join-Path $env:RUNNER_TEMP 'TBME_R88_UnsignedPreview_Smoke'
 if(Test-Path -LiteralPath $Output){throw 'R88 OUTPUT ALREADY EXISTS/NO RERUN'}
@@ -70,6 +73,13 @@ function Execute-Bounded([string]$File,[string[]]$Args,[int]$TimeoutMs){
   }finally{if($p){$p.Dispose()}}
 }
 try{
+  # Failures in this clean-host guard are recorded in the CI artifact receipt.
+  if(@($InitialExePaths | Where-Object {Test-Path -LiteralPath $_}).Count -gt 0 -or
+     (Test-Path $UninstallReg) -or
+     $null -ne (Read-ExistingProductRunValue) -or
+     @(Get-Process -Name TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count -gt 0){
+     throw 'R88 REFUSE: EPHEMERAL RUNNER NOT CLEAN BEFORE TEST'
+  }
   $r=(& gh api ('repos/'+$Repo+'/releases/'+$ReleaseId) | Out-String | ConvertFrom-Json)
   if($LASTEXITCODE -ne 0 -or $r.id -ne $ReleaseId -or $r.tag_name -cne $Tag -or
      $r.target_commitish -cne $Source -or $r.draft -ne $false -or
@@ -108,7 +118,7 @@ try{
   if([string]::IsNullOrWhiteSpace($SensorStatus)){throw 'R88 SENSOR STATE NOT DECLARED'}
   if(!(Test-Path $UninstallReg) -or !(Test-Path $StartLink)){throw 'R88 INSTALLED UNINSTALL OR START MENU LINK MISSING'}
   if(Test-Path -LiteralPath $DesktopLink){throw 'R88 DESKTOP=0 NOT HONORED'}
-  if($null -ne (Get-ItemPropertyValue -Path $RunReg -Name $RunName -ErrorAction SilentlyContinue)){throw 'R88 STARTUP=0 NOT HONORED'}
+  if($null -ne (Read-ExistingProductRunValue)){throw 'R88 STARTUP=0 NOT HONORED'}
   $InstallStatus='PASS_HEADLESS_INSTALLED_EXACT_SHA_STATE_AND_SHORTCUT'
   # Prepare clean unload of launched main before invoking public Setup uninstaller.
   Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue | ForEach-Object {
@@ -124,7 +134,7 @@ try{
   if((Test-Path $UninstallReg) -or (Test-Path $AppRoot) -or
      (Test-Path -LiteralPath $StartLink) -or (Test-Path -LiteralPath $RepairLink) -or
      (Test-Path -LiteralPath $DesktopLink) -or
-     $null -ne (Get-ItemPropertyValue -Path $RunReg -Name $RunName -ErrorAction SilentlyContinue)){
+     $null -ne (Read-ExistingProductRunValue)){
      throw 'R88 QUIET UNINSTALL LEFT PRODUCT REGISTRATION/FILES'
   }
   $UninstallStatus='PASS_HEADLESS_UNINSTALL_PRODUCT_STATE_REMOVED'
