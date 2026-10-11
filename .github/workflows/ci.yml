@@ -70,6 +70,12 @@ jobs:
         shell: pwsh
         run: ./build/Verify-Determinism.ps1
 
+      - name: Signed-staging separation regression (keep unsigned deterministic build pristine)
+        shell: pwsh
+        run: |
+          ./build/Test-Signed-Staging.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Signed artifact staging separation gate failed.' }
+
       - name: All-theme glass and chart visual acceptance (10 suites)
         shell: pwsh
         run: |

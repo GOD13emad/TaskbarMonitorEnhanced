@@ -165,6 +165,23 @@ Add-Gate 'G12_START_SEARCH_24_REAL_NATIVE_INK_AND_EXACT_RETURN' $startFloatPass 
 # R74: raw PASS/true flags in an arbitrary JSON are not live host acceptance.
 # Require a verified detached Ed25519 witness signature from an independently enrolled lab.
 # The trusted-key registry intentionally has ZERO production keys until separately approved.
+# R75: G02 hashes deterministic UNSIGNED builder outputs. G14 and G15 must use
+# separate SIGNED release staging, since Authenticode modifies executable SHA256.
+$signedMainExe=Join-Path $root 'artifacts\signed\Main\TaskbarMonitorEnhanced.exe'
+$signedSetupExe=Join-Path $root 'artifacts\signed\Setup\TaskbarMonitorEnhanced_Setup_1.7.0.exe'
+$expectedSignedMainDigest=''
+if((Test-Path -LiteralPath $signedMainExe -PathType Leaf) -and
+   (Test-Path -LiteralPath $signedSetupExe -PathType Leaf)){
+    try {
+        if((Get-AuthenticodeSignature -LiteralPath $signedMainExe).Status -eq 'Valid' -and
+           (Get-AuthenticodeSignature -LiteralPath $signedSetupExe).Status -eq 'Valid'){
+            $candidateSignedHash=(Get-FileHash -LiteralPath $signedMainExe -Algorithm SHA256).Hash
+            if($candidateSignedHash -ne $mainDigest){
+                $expectedSignedMainDigest=$candidateSignedHash
+            }
+        }
+    } catch { $expectedSignedMainDigest='' }
+}
 $hostProofTool=Join-Path $root 'build\verify_host_acceptance.py'
 $trustedHostRegistry=Join-Path $root 'build\host_acceptance_trust.json'
 $hostTrustEnrolled=$false
@@ -186,9 +203,13 @@ if($hostTrustEnrolled -and (Test-Path -LiteralPath $hostProofTool -PathType Leaf
         $evidenceFull=if([IO.Path]::IsPathRooted($evidenceFile)){[IO.Path]::GetFullPath($evidenceFile)}
                       else{[IO.Path]::GetFullPath((Join-Path $root $evidenceFile))}
         if(!(Test-Path -LiteralPath $evidenceFull -PathType Leaf)){continue}
-        $args=@('--gate',$gateName,'--receipt',$evidenceFull,'--source',$sha,'--expected-main',$mainDigest)
+        if($gateName -ceq 'G14' -and [string]::IsNullOrWhiteSpace($expectedSignedMainDigest)){
+            $installedEvidence='BLOCKED: signed Main+Setup are required, separate from reproducible unsigned builder files'
+            continue
+        }
+        $hostArgs=@('--gate',$gateName,'--receipt',$evidenceFull,'--source',$sha,'--expected-main',$expectedSignedMainDigest)
         try {
-            $rawProof=@(& python -B $hostProofTool @args)
+            $rawProof=@(& python -B $hostProofTool @hostArgs)
             $proofExit=$LASTEXITCODE
             if($proofExit -eq 0 -and $rawProof.Count -eq 1){
                 $proof=$rawProof[0]|ConvertFrom-Json
@@ -209,8 +230,10 @@ if($hostTrustEnrolled -and (Test-Path -LiteralPath $hostProofTool -PathType Leaf
 }
 Add-Gate 'G13_TRUSTED_STATIC_WALLPAPER_APPLY_RESTORE' $wallpaperPass $wallpaperEvidence 'Stable'
 Add-Gate 'G14_INSTALLED_TASKBAR_EXPLORER_SENSORS_ROLLBACK' $installedPass $installedEvidence 'Stable'
-$setupExe=Join-Path $root 'build\_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.0.exe'
-$mainExe=Join-Path $root 'build\_out\App\TaskbarMonitorEnhanced.exe'
+$setupExe=$signedSetupExe
+$mainExe=$signedMainExe
+# Keep original _out builder outputs immutable so G02 exact source checks remain reproducible.
+$unsignedSetupExe=Join-Path $root 'build\_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.0.exe'
 # R73: G15 must prove actual SignPath Foundation publisher, valid timestamps, matched
 # exact file/product versions AND live provider-origin/payload evidence. Never trust
 # self-declared "approved" JSON, a test certificate or token-less synthetic output.
@@ -239,6 +262,9 @@ if((Test-Path -LiteralPath $setupExe -PathType Leaf) -and (Test-Path -LiteralPat
         $mainName -ceq 'SignPath Foundation' -and
         $setupName -ceq 'SignPath Foundation' -and
         $sameCert -and $exactMetadata -and
+        ($mainPreHash -ne $mainDigest) -and
+        (Test-Path -LiteralPath $unsignedSetupExe -PathType Leaf) -and
+        ($setupPreHash -ne (Get-FileHash -LiteralPath $unsignedSetupExe -Algorithm SHA256).Hash) -and
         [bool]$mainSig.TimeStamperCertificate -and
         [bool]$setupSig.TimeStamperCertificate
     $g15Evidence='G15 local Authenticode Main='+[string]$mainSig.Status+
