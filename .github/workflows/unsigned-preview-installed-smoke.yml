@@ -30,25 +30,12 @@ jobs:
         run: |
           ./build/Test-Unsigned-Preview-HostedInstall.ps1
           if ($LASTEXITCODE -ne 0) { throw 'R88 headless installed preview smoke failed; inspect receipt.' }
-      - name: R88 independent hosted receipt schema acceptance
+      - name: Independent hosted receipt verifier with eight negative regressions
         shell: pwsh
         run: |
           $p = Join-Path $env:RUNNER_TEMP 'TBME_R88_UnsignedPreview_Smoke/R88_HOSTED_INSTALL_RECEIPT.json'
-          if (!(Test-Path -LiteralPath $p -PathType Leaf)) { throw 'No actual installed host receipt.' }
-          $r = Get-Content -LiteralPath $p -Raw | ConvertFrom-Json
-          if ($r.Status -cne 'PASS_EPHEMERAL_HEADLESS_INSTALL_UNINSTALL' -or
-              $r.PublicTag -isnot [string] -or
-              $r.PublicTag -cne 'v1.7.0-unsigned-preview.1' -or
-              $r.ReleasedSource -cne 'eeac48c2ff201326c6a59e7ccc21c72c9a676160' -or
-              $r.InstallExitCode -ne 0 -or $r.UninstallExitCode -ne 0 -or
-              $r.InstalledMainSHA256 -cne '63A724981E949BA4C91F8BD44F2659F223BDFE0350A2E229CEE7B05535D4BA70' -or
-              $r.InstalledConfigSHA256 -cne 'D2E51872D93F0793C02AD07DCBF8C2802F59708C666548372A4FDDDA5C7E4F' -or
-              $r.FullSignedStableAccepted -ne $false -or $r.HeadlessSubsetOnly -ne $true -or
-              $r.RealInteractiveG14EightProbes -cne 'NOT_TESTED' -or
-              ![string]::IsNullOrEmpty([string]$r.Failure)) {
-            throw 'R88 headless acceptance receipt schema or critical values invalid.'
-          }
-
+          ./build/Verify-UnsignedPreview-HostReceipt.ps1 -ReceiptPath $p -ExpectedTestCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'Hosted installation receipt failed independently verified strict schema.' }
       - name: Preserve actual host results even if install fails
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
