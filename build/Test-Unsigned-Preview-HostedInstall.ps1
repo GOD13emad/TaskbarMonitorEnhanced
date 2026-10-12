@@ -74,6 +74,7 @@ $InstalledSHA='';$InstalledConfigSHA='';$SensorStatus='UNVERIFIED';$SensorMode='
 $ActualSource='';$Failure='';$InstallExit=-999;$UninstallExit=-999
 $NativeFiveStatus='NOT_RUN';$NativeFiveCases=0;$NativeFiveSHA=''
 $R91CanaryStatus='NOT_RUN';$R91CanarySHA='';$R91HostRestoration='NOT_RUN'
+$R103G14DiagnosticStatus='NOT_RUN';$R103G14ReceiptSHA='';$R103G14Attempted=0;$R103G14Passed=0
 $R91CanaryDir=Join-Path $Output 'R91_G13_CANARY'
 $NativeFolder=Join-Path $Output 'R90_INSTALLED_NATIVE_5'
 $GuiSessionPath=Join-Path $Output 'R90_GUI_SESSION_READINESS.json'
@@ -292,6 +293,32 @@ try{
   $R91CanaryStatus='PASS_REAL_PRODUCT_WALLPAPER_APPLY_RESTORE_SYNTHETIC_STATIC'
   $R91CanarySHA=(Get-FileHash -LiteralPath $R91ProofPath).Hash
   $R91HostRestoration='PASS_ORIGINAL_DISPOSABLE_RUNNER_STATE'
+  # R103: actual 8-case diagnostic from immutable public Main while truly installed
+  # on this temporary hosted Windows only. Signed independent G14 remains OPEN.
+  $R103Harness=Join-Path $PSScriptRoot 'Test-G14-InstalledEight-R103.ps1'
+  $R103Dir=Join-Path $Output 'R103_INSTALLED_8'
+  if(!(Test-Path -LiteralPath $R103Harness -PathType Leaf) -or
+     (Test-Path -LiteralPath $R103Dir)){throw 'R103 G14 HARNESS MISSING OR UNSAFE RERUN'}
+  $R103ChildExit=Execute-Bounded 'pwsh.exe' @(
+      '-NoProfile','-NonInteractive','-File',$R103Harness,
+      '-MainExe',$main,'-EvidenceDir',$R103Dir
+  ) 480000
+  $R103SummaryFile=Join-Path $R103Dir 'R103_INSTALLED_EIGHT_DIAGNOSTIC.json'
+  if($R103ChildExit -ne 0 -or !(Test-Path -LiteralPath $R103SummaryFile -PathType Leaf)){
+      throw ('R103 G14 EIGHT DIAGNOSTIC DID NOT COMPLETE EXIT='+$R103ChildExit)
+  }
+  $R103Summary=Get-Content -LiteralPath $R103SummaryFile -Raw|ConvertFrom-Json
+  if($R103Summary.Status -cne 'EIGHT_RESULTS_CAPTURED_DIAGNOSTIC_ONLY' -or
+     $R103Summary.CompletedCases -ne 8 -or
+     $R103Summary.FullInteractiveG14SignedAccepted -ne $false -or
+     $R103Summary.ExactInstalledMainSHA256 -cne $MainSHA -or
+     $R103Summary.Cleanup -cne 'PASS_EXACT_STARTED_RESIDENT_EXITED'){
+      throw 'R103 G14 HOSTED RECEIPT OR CLEANUP NOT COMPLETE'
+  }
+  $R103G14Attempted=8
+  $R103G14Passed=[int]$R103Summary.PassedCases
+  $R103G14DiagnosticStatus=[string]$R103Summary.Status
+  $R103G14ReceiptSHA=(Get-FileHash -LiteralPath $R103SummaryFile -Algorithm SHA256).Hash
   # Prepare clean unload of launched main before invoking public Setup uninstaller.
   Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue | ForEach-Object {
     try{$_.Kill()}catch{}
@@ -336,7 +363,10 @@ try{
     InstalledNativeFiveSummarySHA256=$NativeFiveSHA
     GuiSessionCapabilityReport=if(Test-Path -LiteralPath $GuiSessionPath){'R90_GUI_SESSION_READINESS.json'}else{''}
     WallpaperBefore=$InitialType;RealInteractiveG13='NOT_TESTED'
-    RealInteractiveG14EightProbes='NOT_TESTED'
+    RealInteractiveG14EightProbes=if($R103G14Attempted -eq 8){'EIGHT_ATTEMPTED_DIAGNOSTIC_NOT_SIGNED'}else{'NOT_TESTED'}
+    R103G14DiagnosticStatus=$R103G14DiagnosticStatus
+    R103G14Attempted=$R103G14Attempted;R103G14Passed=$R103G14Passed
+    R103G14ReceiptSHA256=$R103G14ReceiptSHA
     FullSignedStableAccepted=$false;HeadlessSubsetOnly=$true
     StartedUTC=$StartUtc;FinishedUTC=(Get-Date).ToUniversalTime().ToString('o')
     Failure=$Failure

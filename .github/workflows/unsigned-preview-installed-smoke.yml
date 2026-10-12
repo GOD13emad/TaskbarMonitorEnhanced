@@ -7,6 +7,7 @@ on:
       - audit/unsigned-preview-installed-native-five-r90
       - audit/unsigned-preview-positive-wallpaper-r91
       - audit/g13-reflection-type-guard-r97
+      - audit/g14-hosted-installed-eight-r103
   workflow_dispatch:
 
 permissions:
@@ -15,7 +16,7 @@ permissions:
 jobs:
   ephemeral-windows-installed-smoke:
     runs-on: windows-latest
-    timeout-minutes: 18
+    timeout-minutes: 27
     steps:
       - name: Checkout isolated test-only source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -28,6 +29,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'R88 test source parser preflight failed.' }
           ./build/Test-DisposableAbsentModeKey-R102.ps1 -StaticOnly
           if ($LASTEXITCODE -ne 0) { throw 'R102 fixture guard parser/static preflight failed.' }
+          ./build/Test-G14-InstalledEight-R103.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R103 G14 installed eight-case static preflight failed.' }
       - name: Verify and test exact immutable unsigned release on disposable hosted Windows
         shell: pwsh
         env:
@@ -64,6 +67,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'R102 exact shared absent-key guard failed on disposable Windows.' }
           ./build/Verify-DisposableAbsentModeKey-R102.ps1 -ReceiptPath (Join-Path $root 'R102_ABSENT_MODE_KEY_RECEIPT.json') -ExpectedCommit $env:GITHUB_SHA -SelfTest
           if ($LASTEXITCODE -ne 0) { throw 'R102 absent-key independent witness receipt contract failed.' }
+      - name: R103 independent eight attempted installed Main diagnostics and adversarial contract
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'TBME_R88_UnsignedPreview_Smoke'
+          ./build/Verify-G14-InstalledEight-R103.ps1 -ReceiptPath (Join-Path $root 'R103_INSTALLED_8/R103_INSTALLED_EIGHT_DIAGNOSTIC.json') -ExpectedCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R103 G14 raw eight attempts/integrity contract rejected.' }
+          # This diagnostic is NOT the independent signed G14 8/8 acceptance.
       - name: Preserve actual host results even if install fails
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -85,3 +95,4 @@ jobs:
             ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CHILD_STDERR.txt
             ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CHILD_PROCESS.json
             ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R102_ABSENT_MODE_KEY_RECEIPT.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R103_INSTALLED_8/**
