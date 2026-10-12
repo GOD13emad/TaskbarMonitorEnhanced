@@ -8639,16 +8639,83 @@ namespace TaskbarMonitorEnhanced
                     // desktop edge within 500ms of the actual Start activation.
                     // Observe for up to 3.2s, then take a fresh full 24-sample
                     // stability window instead of accepting a race at first 250ms.
+                    // R112 diagnostic only: bounded read-only Win32 evidence during
+                    // the original unmodified 3.2s/80ms Start activation observation.
                     DateTime deadline=DateTime.UtcNow.AddMilliseconds(3200);
+                    DateTime traceBegin=DateTime.UtcNow;
                     bool floating=false;
+                    int traceIndex=0;
+                    List<Dictionary<string,object>> activationTrace=
+                        new List<Dictionary<string,object>>();
                     while(DateTime.UtcNow<deadline)
                     {
                         Native.RECT position=new Native.RECT();
-                        if(Native.GetWindowRect(cachedChild,out position)&&
-                           position.ToRectangle()==expectedFloatingRect)
-                        {floating=true;break;}
+                        bool rectKnown=Native.GetWindowRect(cachedChild,out position);
+                        Rectangle actualRect=rectKnown?position.ToRectangle():Rectangle.Empty;
+                        bool atExpected=rectKnown && actualRect==expectedFloatingRect;
+                        if((traceIndex%4)==0 || atExpected)
+                        {
+                            string fgProc="",fgClass="",surfProc="",surfClass="";
+                            IntPtr fg=IntPtr.Zero,surf=IntPtr.Zero;
+                            bool foregroundStart=ShellUi.IsStartShellForeground(
+                                out fgProc,out fgClass,out fg);
+                            Rectangle surfRect=Rectangle.Empty;
+                            bool surfaceStart=ShellUi.IsStartSurfacePresent(
+                                out surfProc,out surfClass,out surfRect,out surf);
+                            IntPtr trayNow=Native.FindWindow("Shell_TrayWnd",null);
+                            Native.RECT trayBounds=new Native.RECT();
+                            bool trayRectKnown=trayNow!=IntPtr.Zero &&
+                                Native.GetWindowRect(trayNow,out trayBounds);
+                            Rectangle trayRect=trayRectKnown?
+                                trayBounds.ToRectangle():Rectangle.Empty;
+                            activationTrace.Add(new Dictionary<string,object>{
+                                {"ElapsedMs",(int)(DateTime.UtcNow-traceBegin).TotalMilliseconds},
+                                {"WindowId",cachedChild.ToInt64()},
+                                {"WindowAlive",Native.IsWindow(cachedChild)},
+                                {"WindowVisible",Native.IsWindowVisible(cachedChild)},
+                                {"WindowRectKnown",rectKnown},
+                                {"WindowRect",new int[]{actualRect.X,actualRect.Y,actualRect.Width,actualRect.Height}},
+                                {"MatchesExpectedFloating",atExpected},
+                                {"ForegroundStart",foregroundStart},
+                                {"ForegroundProcess",fgProc},
+                                {"ForegroundClass",fgClass},
+                                {"ForegroundWindow",fg.ToInt64()},
+                                {"StartSurfacePresent",surfaceStart},
+                                {"StartSurfaceProcess",surfProc},
+                                {"StartSurfaceClass",surfClass},
+                                {"StartSurfaceHwnd",surf.ToInt64()},
+                                {"StartSurfaceRect",new int[]{surfRect.X,surfRect.Y,surfRect.Width,surfRect.Height}},
+                                {"TaskbarHwnd",trayNow.ToInt64()},
+                                {"TaskbarAlive",Native.IsWindow(trayNow)},
+                                {"TaskbarRect",new int[]{trayRect.X,trayRect.Y,trayRect.Width,trayRect.Height}}
+                            });
+                        }
+                        if(atExpected){floating=true;break;}
+                        traceIndex++;
                         Thread.Sleep(80);
                     }
+                    // Save genuine case-scoped evidence before the original
+                    // strict failure; never replace the 8/8 test acceptance.
+                    string tracePath=Path.Combine(outputDirectory,
+                        "R112_START_ACTIVATION_TIMELINE.json");
+                    if(File.Exists(tracePath))
+                        throw new InvalidOperationException("R112_TRACE_OUTPUT_ALREADY_EXISTS");
+                    Dictionary<string,object> traceReport=new Dictionary<string,object>{
+                        {"Revision","R112"},{"Schema",1},
+                        {"EventCommit",Environment.GetEnvironmentVariable("GITHUB_SHA")??""},
+                        {"MainPid",mainPid},{"CachedOverlayHwnd",cachedChild.ToInt64()},
+                        {"OriginalTaskbarHwnd",taskbar.ToInt64()},
+                        {"StimulusMethod",stimulusMethod},
+                        {"ExpectedRect",new int[]{expectedFloatingRect.X,
+                            expectedFloatingRect.Y,expectedFloatingRect.Width,expectedFloatingRect.Height}},
+                        {"BaselineRect",new int[]{baselineRect.X,
+                            baselineRect.Y,baselineRect.Width,baselineRect.Height}},
+                        {"FloatingReached",floating},
+                        {"Samples",activationTrace},
+                        {"FormalG14Accepted",false}
+                    };
+                    File.WriteAllText(tracePath,
+                        new JavaScriptSerializer().Serialize(traceReport),Encoding.UTF8);
                     if(!floating)
                         throw new InvalidOperationException(
                             "START_PROBE_FLOATING_POPUP_NOT_ON_SCREEN_IN_TIME");
