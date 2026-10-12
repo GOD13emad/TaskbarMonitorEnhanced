@@ -7150,6 +7150,11 @@ namespace TaskbarMonitorEnhanced
             Text="Taskbar Monitor Enhanced - Settings";
             Width=1080;Height=760;MinimumSize=new Size(900,650);StartPosition=FormStartPosition.CenterScreen;
             FormBorderStyle=FormBorderStyle.Sizable;MaximizeBox=true;MinimizeBox=false;AutoScaleMode=AutoScaleMode.Dpi;KeyPreview=true;
+            // R117: Settings is a real independent, activatable top-level form.
+            // The alpha-zero overlay is WS_EX_NOACTIVATE and topmost; Settings
+            // must not be covered by its taskbar z-band and must be Alt+Tab-able.
+            ShowInTaskbar=true;
+            TopMost=true;
             BackColor=SettingsWindow;ForeColor=SettingsText;Font=new Font("Segoe UI",9.4f,FontStyle.Regular);DoubleBuffered=true;
 
             TableLayoutPanel root=new TableLayoutPanel();root.Dock=DockStyle.Fill;root.BackColor=SettingsWindow;root.ColumnCount=2;root.RowCount=1;root.Margin=Padding.Empty;root.Padding=Padding.Empty;root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,214f));root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100f));root.RowStyles.Add(new RowStyle(SizeType.Percent,100f));Controls.Add(root);
@@ -8253,6 +8258,14 @@ namespace TaskbarMonitorEnhanced
                     {
                     f.Width=1080;f.Height=760;f.StartPosition=FormStartPosition.Manual;f.Location=new Point(-32000,-32000);
                     f.Show();Application.DoEvents();f.PerformLayout();
+                    // Reject a visually drawn but taskbar-hidden, nonactivatable,
+                    // overlay-owned or no-activate Settings handle.
+                    if(!f.ShowInTaskbar||!f.TopMost||!f.TopLevel||f.Owner!=null||
+                       !f.IsHandleCreated||!f.Visible)
+                        throw new InvalidDataException("R117_SETTINGS_FOREGROUND_FORM_CONTRACT");
+                    long settingsEx=Native.GetWindowLongPtr(f.Handle,Native.GWL_EXSTYLE).ToInt64();
+                    if((settingsEx&(Native.WS_EX_NOACTIVATE|Native.WS_EX_TOOLWINDOW))!=0)
+                        throw new InvalidDataException("R117_SETTINGS_INHERITED_TASKBAR_OVERLAY_STYLES");
                     a11yGaps=f.AccessibilityGapCount(out interactive);if(a11yGaps!=0)throw new InvalidDataException("Settings accessibility metadata gaps="+a11yGaps);
                     highContrastGaps=f.HighContrastCoverageGapCount(out highContrastChecked);if(highContrastGaps!=0)throw new InvalidDataException("Settings high contrast gaps="+highContrastGaps);
                     for(int i=0;i<pages.Length;i++)
