@@ -5647,6 +5647,33 @@ namespace TaskbarMonitorEnhanced
         {
             try
             {
+                // R113: the 500ms Windows Forms watchdog is UI-thread based.
+                // Under real Start foreground, prioritize the existing pinned
+                // native Shell_TrayWnd HWND before sensor self-heal and costly
+                // target enumeration. Retain strict PID/class/rect/native style
+                // checks in StartGuardTick; no arbitrary popup can trigger lift.
+                if(RequiresGlassTopLevel && !startGlassTemporarilyFloating &&
+                   !recoveryPending && taskbar!=IntPtr.Zero &&
+                   IsHandleCreated && Native.IsWindow(taskbar))
+                {
+                    StringBuilder pinnedClass=new StringBuilder(128);
+                    Native.GetClassName(taskbar,pinnedClass,pinnedClass.Capacity);
+                    if(String.Equals(pinnedClass.ToString(),"Shell_TrayWnd",StringComparison.Ordinal))
+                    {
+                        string fgProcess="",fgClass="";
+                        IntPtr fgHwnd=IntPtr.Zero;
+                        if(ShellUi.IsStartShellForeground(out fgProcess,out fgClass,out fgHwnd))
+                        {
+                            Native.RECT pinnedBounds=new Native.RECT();
+                            if(Native.GetWindowRect(taskbar,out pinnedBounds) &&
+                                pinnedBounds.ToRectangle().Contains(expectedRect))
+                            {
+                                StartGuardTick(taskbar);
+                                if(startGlassTemporarilyFloating)return;
+                            }
+                        }
+                    }
+                }
                 SensorSupervisorSelfHealWatchdog();
                 string probeTargetNow;IntPtr currentTaskbar=TaskbarTargetPolicy.Resolve(AppConfig.Load(),out probeTargetNow);
 
