@@ -1,0 +1,73 @@
+name: R107 G14 Private Candidate Exact Hosted Install And Eight Probes
+
+on:
+  push:
+    branches:
+      - audit/g14-adaptive-native-geometry-r107
+
+permissions:
+  contents: read
+
+jobs:
+  installed-candidate-g14:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact candidate source without write credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET SDK from pinned contract
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Verify isolated test harness preflights in PowerShell 5.1 and 7
+        shell: pwsh
+        run: |
+          ./build/Test-G14-PrivateCandidate-R107.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R107 candidate harness static failed PS7' }
+          & powershell.exe -NoProfile -File ./build/Test-G14-PrivateCandidate-R107.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R107 candidate harness static failed PS5.1' }
+
+      - name: Build exact current candidate Main and Setup without signing or publishing
+        shell: pwsh
+        run: |
+          ./build/Build.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R107 candidate product source Build failed' }
+          $exe = './build/_out/App/TaskbarMonitorEnhanced.exe'
+          $setup = './build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.0.exe'
+          if (!(Test-Path $exe) -or !(Test-Path $setup)) { throw 'R107 Main or Setup not built' }
+          Write-Output ('R107_BUILT_MAIN_SHA='+(Get-FileHash $exe -Algorithm SHA256).Hash)
+          Write-Output ('R107_BUILT_SETUP_SHA='+(Get-FileHash $setup -Algorithm SHA256).Hash)
+
+      - name: Exact candidate install and eight real Main probes only on disposable hosted Windows
+        shell: pwsh
+        run: |
+          if ($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows'){
+            throw 'R107 refuses real-world PC'
+          }
+          ./build/Test-G14-PrivateCandidate-R107.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R107 installed candidate diagnostic or cleanup failed' }
+
+      - name: Independently verify eight-case receipts, hashes and fifteen hostile variations
+        shell: pwsh
+        run: |
+          $receipt = Join-Path $env:RUNNER_TEMP 'TBME_R107_PRIVATE_CANDIDATE/R107_PRIVATE_CANDIDATE_RECEIPT.json'
+          ./build/Verify-G14-PrivateCandidate-R107.ps1 -ReceiptPath $receipt -ExpectedCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R107 independent candidate acceptance contract rejected' }
+          Write-Output 'R107_DIAGNOSTIC_SUITE_COMPLETED_G14_FORMAL_NOT_RELEASED'
+
+      - name: Preserve private built candidate and raw real installed G14 diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: R107-private-candidate-setup-and-installed-proof
+          retention-days: 21
+          if-no-files-found: warn
+          path: |
+            build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.0.exe
+            build/_out/App/TaskbarMonitorEnhanced.exe
+            build/_out/App/TaskbarMonitorEnhanced.exe.config
+            ${{ runner.temp }}/TBME_R107_PRIVATE_CANDIDATE/**
