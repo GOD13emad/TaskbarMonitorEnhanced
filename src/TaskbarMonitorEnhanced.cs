@@ -365,6 +365,9 @@ namespace TaskbarMonitorEnhanced
         public string Theme { get; set; }
         public string Position { get; set; }
         public double Opacity { get; set; }
+        // Optional legacy Windows 11 workaround; OFF by default. The monitor
+        // remains anchored to the taskbar while Start/Search is open.
+        public bool FloatAboveStartMenu { get; set; }
         public int UpdateIntervalMs { get; set; }
         public bool ShowCpu { get; set; }
         public bool ShowRam { get; set; }
@@ -424,6 +427,7 @@ namespace TaskbarMonitorEnhanced
             Theme = "Dark Minimal Pro";
             Position = "Left";
             Opacity = 0.97;
+            FloatAboveStartMenu = false;
             UpdateIntervalMs = 1000;
             ShowCpu = true; ShowRam = true; ShowDisk = true; ShowGpu = true; ShowVram = true; ShowNetwork = true;
             ShowTemperatures = true;
@@ -4433,6 +4437,11 @@ namespace TaskbarMonitorEnhanced
                         {
                             config.Normalize();
                             config.Save();
+                            if(!config.FloatAboveStartMenu && startGlassTemporarilyFloating)
+                            {
+                                startGlassTemporarilyFloating=false;
+                                startGlassTemporaryBounds=Rectangle.Empty;
+                            }
                             Opacity=1.0; // Glass renderer controls background alpha per pixel; form-wide alpha must remain 100%.
                             history.SetLimit(config.SparklineHistoryLength);
                             metricTimer.Interval=EffectiveMetricIntervalMs();
@@ -5483,6 +5492,7 @@ namespace TaskbarMonitorEnhanced
         // On closing Start, a Form Hide/Show (not merely another ULW) makes
         // native ink visible again without recreating the whole OverlayForm.
         private bool startGlassTemporarilyFloating;
+        private bool startGlassPinnedDuringShell;
         private Rectangle startGlassTemporaryBounds=Rectangle.Empty;
         private int startGlassLiftTransitions;
         private int startGlassReturnTransitions;
@@ -5491,6 +5501,9 @@ namespace TaskbarMonitorEnhanced
         {
             if(!IsHandleCreated || !RequiresGlassTopLevel ||
                currentTaskbar==IntPtr.Zero || taskbar!=currentTaskbar)return;
+            // The old 60px Windows Start lift is OPT-IN only. Do not reposition
+            // translucent taskbar metrics as a side-effect of opening Start.
+            if(!config.FloatAboveStartMenu)return;
             try
             {
                 string foregroundProcess="",foregroundClass="";
@@ -5647,6 +5660,53 @@ namespace TaskbarMonitorEnhanced
         {
             try
             {
+                // R118: exact v1.6 default UX: keep taskbar glass pinned under
+                // genuine Start/Search. Freeze transient shell placement scans,
+                // then re-show/recompose the original alpha-zero HWND only
+                // after Start has closed, without any 60px upward movement.
+                if(RequiresGlassTopLevel && !config.FloatAboveStartMenu &&
+                   !recoveryPending && taskbar!=IntPtr.Zero &&
+                   IsHandleCreated && Native.IsWindow(taskbar) &&
+                   expectedRect.Width>=AdaptiveProbeGeometry.MinSafeWidth)
+                {
+                    string startProc="",startClass="";
+                    IntPtr startWindow=IntPtr.Zero;
+                    bool shellIsOpen=ShellUi.IsStartShellForeground(
+                        out startProc,out startClass,out startWindow);
+                    if(!shellIsOpen)
+                    {
+                        Rectangle surfaceRect=Rectangle.Empty;
+                        shellIsOpen=ShellUi.IsStartSurfacePresent(
+                            out startProc,out startClass,out surfaceRect,out startWindow);
+                    }
+                    if(shellIsOpen)
+                    {
+                        if(!startGlassPinnedDuringShell)
+                            Log.Write("INFO","START_PINNED_NATIVE_PASS rect="+expectedRect+
+                                " shell="+startProc);
+                        startGlassPinnedDuringShell=true;
+                        return;
+                    }
+                    if(startGlassPinnedDuringShell)
+                    {
+                        startGlassPinnedDuringShell=false;
+                        lastUpstreamPositionAt=DateTime.UtcNow;
+                        lastPositionAt=DateTime.UtcNow;
+                        if(settingsForm==null || settingsForm.IsDisposed ||
+                           !settingsForm.Visible)
+                        {
+                            Hide();
+                            Show(); // restore physical alpha ink after Start.
+                            Native.SetWindowPos(Handle,Native.HWND_TOPMOST,
+                                expectedRect.X,expectedRect.Y,
+                                expectedRect.Width,expectedRect.Height,
+                                Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW);
+                            if(!PaintPerPixelLayer())
+                                Log.Write("WARN","START_PINNED_RESTORE_INK_UNAVAILABLE");
+                        }
+                        Log.Write("INFO","START_PINNED_RETURN_NATIVE_PASS rect="+expectedRect);
+                    }
+                }
                 // R113: the 500ms Windows Forms watchdog is UI-thread based.
                 // Under real Start foreground, prioritize the existing pinned
                 // native Shell_TrayWnd HWND before sensor self-heal and costly
@@ -7111,7 +7171,7 @@ namespace TaskbarMonitorEnhanced
         private readonly AppConfig c; private readonly MetricsSnapshot snapshot; private readonly Func<string,int,int,Bitmap> themePreviewRenderer;
         private ComboBox theme,windowsLightTheme,windowsDarkTheme,position,taskbarDisplay,cpuMode,gpuMode,diskMode,netMode,multiLayout,memoryUnit,storageUnit,networkUnit,diskRateUnit;
         private NumericUpDown opacity,interval,width,cpuWarn,gpuWarn,diskWarn,batteryInterval,historyLength;
-        private CheckBox cpu,ram,disk,gpu,vram,net,temp,spark,startup,safe,ramNumeric,diskNumeric,flyout,hoverAll,autoCheckUpdates,tempAlerts,tempNotifications,adaptiveBattery,followWindowsTheme;
+        private CheckBox cpu,ram,disk,gpu,vram,net,temp,spark,startup,safe,floatAboveStart,ramNumeric,diskNumeric,flyout,hoverAll,autoCheckUpdates,tempAlerts,tempNotifications,adaptiveBattery,followWindowsTheme;
         private CheckedListBox cpuList,gpuList,diskList,netList;
         private Label updateCurrent,updateLatest,updateStatus;
         private Button checkUpdate,installUpdate,openRelease;
@@ -7186,7 +7246,7 @@ namespace TaskbarMonitorEnhanced
             TabPage display=new TabPage("Display"), metrics=new TabPage("Metrics"), alerts=new TabPage("Alerts"), hardware=new TabPage("Hardware"), units=new TabPage("Units"), behavior=new TabPage("Behavior"), updates=new TabPage("Updates"), diagnostics=new TabPage("Diagnostics"), advanced=new TabPage("Advanced");
             tabs.TabPages.Add(display);tabs.TabPages.Add(metrics);tabs.TabPages.Add(alerts);tabs.TabPages.Add(hardware);tabs.TabPages.Add(units);tabs.TabPages.Add(behavior);tabs.TabPages.Add(updates);tabs.TabPages.Add(diagnostics);tabs.TabPages.Add(advanced);
             foreach(TabPage page in tabs.TabPages){page.AutoScroll=true;page.Padding=new Padding(10);page.BackColor=SettingsWindow;page.ForeColor=SettingsText;}
-            display.AutoScrollMinSize=new Size(760,440);metrics.AutoScrollMinSize=new Size(760,430);alerts.AutoScrollMinSize=new Size(760,430);hardware.AutoScrollMinSize=new Size(760,760);units.AutoScrollMinSize=new Size(760,540);behavior.AutoScrollMinSize=new Size(760,520);updates.AutoScrollMinSize=new Size(760,540);diagnostics.AutoScrollMinSize=new Size(840,700);advanced.AutoScrollMinSize=new Size(760,540);
+            display.AutoScrollMinSize=new Size(760,440);metrics.AutoScrollMinSize=new Size(760,430);alerts.AutoScrollMinSize=new Size(760,430);hardware.AutoScrollMinSize=new Size(760,760);units.AutoScrollMinSize=new Size(760,540);behavior.AutoScrollMinSize=new Size(760,590);updates.AutoScrollMinSize=new Size(760,540);diagnostics.AutoScrollMinSize=new Size(840,700);advanced.AutoScrollMinSize=new Size(760,540);
 
             theme=Combo(display,"Theme",ThemeCatalog.Names,c.Theme,22);position=Combo(display,"Position",new string[]{"Left","Center","Right"},c.Position,68);
             taskbarDisplay=Combo(display,"Taskbar monitor",TaskbarTargetPolicy.SettingChoices(c.TaskbarDisplay),c.TaskbarDisplay,114);
@@ -7222,6 +7282,7 @@ namespace TaskbarMonitorEnhanced
             batteryInterval=Number(behavior,"Battery interval ms",c.BatteryUpdateIntervalMs,2000,10000,236);
             historyLength=Number(behavior,"Sparkline history samples",c.SparklineHistoryLength,30,300,286);
             Label behaviorNote=new Label();behaviorNote.Location=new Point(24,338);behaviorNote.Size=new Size(690,90);behaviorNote.Text="Adaptive battery mode never polls faster than your normal interval. Session Pause/Resume is available from the taskbar context menu and does not get cancelled by suspend/resume events.";behavior.Controls.Add(behaviorNote);
+            floatAboveStart=Check(behavior,"Optional: move monitor above Start/Search (default OFF)",c.FloatAboveStartMenu,444);
 
             updateCurrent=new Label();updateCurrent.Location=new Point(24,28);updateCurrent.Size=new Size(650,24);updateCurrent.Text="Installed version: "+BuildInfo.PublicVersion;updates.Controls.Add(updateCurrent);
             updateLatest=new Label();updateLatest.Location=new Point(24,62);updateLatest.Size=new Size(650,24);updateLatest.Text="Latest public release: Not checked";updates.Controls.Add(updateLatest);
@@ -7695,7 +7756,7 @@ namespace TaskbarMonitorEnhanced
                 cpuMode.SelectedItem=d.CpuDisplayMode;gpuMode.SelectedItem=d.GpuDisplayMode;diskMode.SelectedItem=d.DiskDisplayMode;netMode.SelectedItem=d.NetworkDisplayMode;multiLayout.SelectedItem=d.MultipleDeviceLayout;
                 memoryUnit.SelectedItem=d.MemoryUnit;storageUnit.SelectedItem=d.StorageUnit;diskRateUnit.SelectedItem=d.DiskRateUnit;networkUnit.SelectedItem=d.NetworkUnit;
                 ramNumeric.Checked=d.ShowRamNumeric;diskNumeric.Checked=d.ShowDiskNumeric;flyout.Checked=d.EnableHardwareFlyout;hoverAll.Checked=d.HoverShowAllDevices;
-                interval.Value=d.UpdateIntervalMs;startup.Checked=d.StartWithWindows;safe.Checked=d.SafePlacement;autoCheckUpdates.Checked=d.AutoCheckUpdates;
+                interval.Value=d.UpdateIntervalMs;startup.Checked=d.StartWithWindows;safe.Checked=d.SafePlacement;floatAboveStart.Checked=d.FloatAboveStartMenu;autoCheckUpdates.Checked=d.AutoCheckUpdates;
                 tempAlerts.Checked=d.EnableTemperatureAlerts;tempNotifications.Checked=d.EnableTemperatureNotifications;cpuWarn.Value=d.CpuTempWarningC;gpuWarn.Value=d.GpuTempWarningC;diskWarn.Value=d.DiskTempWarningC;
                 adaptiveBattery.Checked=d.AdaptiveBatteryMode;batteryInterval.Value=d.BatteryUpdateIntervalMs;historyLength.Value=d.SparklineHistoryLength;followWindowsTheme.Checked=d.FollowWindowsTheme;windowsLightTheme.SelectedItem=d.WindowsLightTheme;windowsDarkTheme.SelectedItem=d.WindowsDarkTheme;taskbarDisplay.SelectedItem=d.TaskbarDisplay;
                 CheckAll(cpuList);CheckAll(gpuList);CheckAll(diskList);CheckAll(netList);
@@ -7763,7 +7824,7 @@ namespace TaskbarMonitorEnhanced
         private CheckBox Check(Control p,string label,bool val,int y){CheckBox x=new CheckBox();x.Text=label;SetA11y(x,label,"Toggle "+label+".");x.Checked=val;x.Location=new Point(24,y);x.AutoSize=true;p.Controls.Add(x);return x;}
         private void Apply()
         {
-            c.Theme=(string)theme.SelectedItem;c.Position=(string)position.SelectedItem;c.Opacity=(double)opacity.Value/100.0;c.MinWidthLogicalPx=(int)width.Value;c.UpdateIntervalMs=(int)interval.Value;c.ShowCpu=cpu.Checked;c.ShowRam=ram.Checked;c.ShowDisk=disk.Checked;c.ShowGpu=gpu.Checked;c.ShowVram=vram.Checked;c.ShowNetwork=net.Checked;c.ShowTemperatures=temp.Checked;c.ShowSparklines=spark.Checked;c.StartWithWindows=startup.Checked;c.SafePlacement=safe.Checked;
+            c.Theme=(string)theme.SelectedItem;c.Position=(string)position.SelectedItem;c.Opacity=(double)opacity.Value/100.0;c.MinWidthLogicalPx=(int)width.Value;c.UpdateIntervalMs=(int)interval.Value;c.ShowCpu=cpu.Checked;c.ShowRam=ram.Checked;c.ShowDisk=disk.Checked;c.ShowGpu=gpu.Checked;c.ShowVram=vram.Checked;c.ShowNetwork=net.Checked;c.ShowTemperatures=temp.Checked;c.ShowSparklines=spark.Checked;c.StartWithWindows=startup.Checked;c.SafePlacement=safe.Checked;c.FloatAboveStartMenu=floatAboveStart.Checked;
             c.CpuDisplayMode=(string)cpuMode.SelectedItem;c.GpuDisplayMode=(string)gpuMode.SelectedItem;c.DiskDisplayMode=(string)diskMode.SelectedItem;c.NetworkDisplayMode=(string)netMode.SelectedItem;c.SelectedCpuIds=CheckedIds(cpuList);c.SelectedGpuIds=CheckedIds(gpuList);c.SelectedDiskIds=CheckedIds(diskList);c.SelectedNetworkIds=CheckedIds(netList);c.MultipleDeviceLayout=(string)multiLayout.SelectedItem;c.MemoryUnit=(string)memoryUnit.SelectedItem;c.StorageUnit=(string)storageUnit.SelectedItem;c.DiskRateUnit=(string)diskRateUnit.SelectedItem;c.NetworkUnit=(string)networkUnit.SelectedItem;c.ShowRamNumeric=ramNumeric.Checked;c.ShowDiskNumeric=diskNumeric.Checked;c.EnableHardwareFlyout=flyout.Checked;c.HoverShowAllDevices=hoverAll.Checked;c.AutoCheckUpdates=autoCheckUpdates.Checked;
             c.EnableTemperatureAlerts=tempAlerts.Checked;c.EnableTemperatureNotifications=tempNotifications.Checked;c.CpuTempWarningC=(int)cpuWarn.Value;c.GpuTempWarningC=(int)gpuWarn.Value;c.DiskTempWarningC=(int)diskWarn.Value;c.AdaptiveBatteryMode=adaptiveBattery.Checked;c.BatteryUpdateIntervalMs=(int)batteryInterval.Value;c.SparklineHistoryLength=(int)historyLength.Value;c.FollowWindowsTheme=followWindowsTheme.Checked;c.WindowsLightTheme=Convert.ToString(windowsLightTheme.SelectedItem,CultureInfo.InvariantCulture);c.WindowsDarkTheme=Convert.ToString(windowsDarkTheme.SelectedItem,CultureInfo.InvariantCulture);c.TaskbarDisplay=TaskbarTargetPolicy.NormalizeConfigId(Convert.ToString(taskbarDisplay.SelectedItem,CultureInfo.InvariantCulture));
         }
@@ -8258,6 +8319,8 @@ namespace TaskbarMonitorEnhanced
                     {
                     f.Width=1080;f.Height=760;f.StartPosition=FormStartPosition.Manual;f.Location=new Point(-32000,-32000);
                     f.Show();Application.DoEvents();f.PerformLayout();
+                    if(new AppConfig().FloatAboveStartMenu)
+                        throw new InvalidDataException("R118_PINNED_BY_DEFAULT_SETTINGS_GUARD");
                     // Reject a visually drawn but taskbar-hidden, nonactivatable,
                     // overlay-owned or no-activate Settings handle.
                     if(!f.ShowInTaskbar||!f.TopMost||!f.TopLevel||f.Owner!=null||
@@ -8566,6 +8629,156 @@ namespace TaskbarMonitorEnhanced
                     rect.Y==baselineRect.Y);
 
             return true;
+        }
+
+        // R118: independent native Start acceptance for owner-requested v1.6 UX:
+        // top-level alpha glass REMAINS PINNED to original taskbar rectangle while
+        // Start is open. Windows may cover taskbar ink in this mode; validate real
+        // cached native HWND/geometry for all 24 samples and real screen ink
+        // AFTER Start closes instead of fabricating visible metrics under Start.
+        public static int RunPinned(string outputDirectory)
+        {
+            Directory.CreateDirectory(outputDirectory);
+            uint pid=0;
+            string stimulus="";
+            int samplesPinned=0,shellSamples=0,invalidSamples=0;
+            bool visibleAfterClose=false,mainAlive=false;
+            Rectangle baseline=Rectangle.Empty;
+            IntPtr cached=IntPtr.Zero;
+            List<object> samples=new List<object>();
+            JavaScriptSerializer js=new JavaScriptSerializer();
+            try
+            {
+                AppConfig cfg=AppConfig.Load();cfg.Normalize();
+                if(cfg.FloatAboveStartMenu)
+                    throw new InvalidOperationException("PINNED_START_PROBE_USER_OPTED_IN_TO_FLOAT");
+                if(!TaskbarGlassHostMode.RequiresTopLevel(cfg.Opacity,SystemInformation.HighContrast))
+                    throw new InvalidOperationException("PINNED_START_PROBE_NOT_TRUE_GLASS");
+                Process self=Process.GetCurrentProcess();
+                Process[] all=Process.GetProcessesByName("TaskbarMonitorEnhanced");
+                List<Process> others=new List<Process>();
+                foreach(Process p in all){if(p.Id==self.Id)p.Dispose();else others.Add(p);}
+                if(others.Count!=1)
+                    throw new InvalidOperationException("PINNED_START_EXPECTED_ONE_RESIDENT count="+others.Count);
+                Process resident=others[0];pid=(uint)resident.Id;
+                string display;IntPtr taskbar=TaskbarTargetPolicy.Resolve(cfg,out display);
+                if(taskbar==IntPtr.Zero||
+                   !FindExpectedMonitorWindow(pid,taskbar,true,out cached,out baseline))
+                    throw new InvalidOperationException("PINNED_START_REAL_NATIVE_OVERLAY_NOT_FOUND");
+                string reason;
+                if(!AdaptiveProbeGeometry.Validate(taskbar,cfg,baseline,out reason))
+                    throw new InvalidOperationException("PINNED_START_BASELINE_GEOMETRY "+reason);
+                using(Bitmap image=CaptureRect(baseline))
+                {
+                    Dictionary<string,object> ink=InkMetrics(image);
+                    if(!(bool)ink["Pass"])
+                        throw new InvalidOperationException("PINNED_START_PRE_STIMULUS_INK_MISSING");
+                    image.Save(Path.Combine(outputDirectory,"PINNED_BEFORE_START.png"),ImageFormat.Png);
+                }
+                Native.KeybdTap(0x1B);
+                Thread.Sleep(350);
+                string proc="",klass="";IntPtr startHwnd=IntPtr.Zero;
+                Native.KeybdTap(0x5B);
+                if(ShellUi.WaitForStartShell(1400,out proc,out klass,out startHwnd))
+                    stimulus="KEYBD_EVENT_WIN";
+                else
+                {
+                    Native.CtrlEsc();
+                    if(ShellUi.WaitForStartShell(1400,out proc,out klass,out startHwnd))
+                        stimulus="KEYBD_EVENT_CTRL_ESC";
+                }
+                if(String.IsNullOrEmpty(stimulus))
+                    throw new InvalidOperationException("PINNED_START_REAL_START_FOREGROUND_MISSING");
+                for(int sample=1;sample<=24;sample++)
+                {
+                    Thread.Sleep(250);
+                    uint nowPid=0;
+                    Native.GetWindowThreadProcessId(cached,out nowPid);
+                    Native.RECT wr=new Native.RECT();
+                    bool rectKnown=Native.GetWindowRect(cached,out wr);
+                    Rectangle actual=rectKnown?wr.ToRectangle():Rectangle.Empty;
+                    bool alive=Native.IsWindow(cached),visible=Native.IsWindowVisible(cached);
+                    int cloaked=Native.GetCloaked(cached);
+                    string fgProc="",fgClass="",surfaceProc="",surfaceClass="";
+                    IntPtr fg=IntPtr.Zero,surfaceHwnd=IntPtr.Zero;
+                    bool startForeground=ShellUi.IsStartShellForeground(out fgProc,out fgClass,out fg);
+                    Rectangle surfaceRect=Rectangle.Empty;
+                    bool startSurface=ShellUi.IsStartSurfacePresent(
+                       out surfaceProc,out surfaceClass,out surfaceRect,out surfaceHwnd);
+                    bool pinned=alive&&visible&&cloaked==0&&rectKnown&&
+                                actual==baseline&&nowPid==pid;
+                    if(pinned)samplesPinned++;else invalidSamples++;
+                    if(startForeground||startSurface)shellSamples++;
+                    samples.Add(new Dictionary<string,object>{
+                      {"Sample",sample},{"ElapsedMs",sample*250},
+                      {"Pinned",pinned},{"OverlayHwnd",cached.ToInt64()},
+                      {"MainPid",pid},{"OwnerPid",nowPid},
+                      {"ActualRect",new int[]{actual.X,actual.Y,actual.Width,actual.Height}},
+                      {"WindowVisible",visible},{"WindowAlive",alive},{"Cloaked",cloaked},
+                      {"StartForeground",startForeground},{"StartSurface",startSurface},
+                      {"ForegroundProcess",fgProc},{"SurfaceProcess",surfaceProc}
+                    });
+                    if(sample==1||sample==4||sample==20)
+                        using(Bitmap crop=CaptureRect(baseline))
+                            crop.Save(Path.Combine(outputDirectory,"PINNED_DURING_START_"+sample+".png"),ImageFormat.Png);
+                }
+                Native.KeybdTap(0x1B);
+                DateTime returnLimit=DateTime.UtcNow.AddMilliseconds(5500);
+                while(DateTime.UtcNow<returnLimit)
+                {
+                    Native.RECT ret=new Native.RECT();
+                    if(Native.IsWindow(cached)&&Native.GetWindowRect(cached,out ret)&&
+                       ret.ToRectangle()==baseline)
+                    {
+                        using(Bitmap after=CaptureRect(baseline))
+                        {
+                            if((bool)InkMetrics(after)["Pass"])
+                            {
+                                visibleAfterClose=true;
+                                after.Save(Path.Combine(outputDirectory,"PINNED_AFTER_START.png"),ImageFormat.Png);
+                                break;
+                            }
+                        }
+                    }
+                    Thread.Sleep(100);
+                }
+                resident.Refresh();mainAlive=!resident.HasExited;
+                bool pass=mainAlive && samplesPinned==24 && shellSamples>=18 &&
+                    invalidSamples==0 && visibleAfterClose;
+                var manifest=new Dictionary<string,object>{
+                    {"Schema",1},{"Revision","R118"},
+                    {"EventCommit",Environment.GetEnvironmentVariable("GITHUB_SHA")??""},
+                    {"Status",pass?"PASS":"FAIL"},
+                    {"Test","REAL_PINNED_START_NO_60PX_LIFT"},
+                    {"Stimulus",stimulus},{"MainPid",pid},{"CachedOverlayHwnd",cached.ToInt64()},
+                    {"BaselineRect",new int[]{baseline.X,baseline.Y,baseline.Width,baseline.Height}},
+                    {"PinnedSamples",samplesPinned},{"RequiredPinnedSamples",24},
+                    {"ShellSamples",shellSamples},{"RequiredShellSamples",18},
+                    {"InvalidSamples",invalidSamples},{"RealPhysicalInkAfterStart",visibleAfterClose},
+                    {"MainProcessAlive",mainAlive},
+                    {"PixelOcclusionWhileStartOpen","ALLOWED_BY_USER_PINNED_MODE; NOT_FALSELY_MARKED_VISIBLE"},
+                    {"Samples",samples},{"FormalExternalLabAccepted",false}
+                };
+                File.WriteAllText(Path.Combine(outputDirectory,"START_PINNED_PROOF.json"),
+                    js.Serialize(manifest),Encoding.UTF8);
+                Console.WriteLine("TBME_START_PINNED_PROOF="+(pass?"PASS":"FAIL")+
+                    " 24_OF_24="+samplesPinned+" SHELL="+shellSamples+
+                    " RETURN_REAL_INK="+visibleAfterClose+" BAD="+invalidSamples);
+                return pass?0:52;
+            }
+            catch(Exception ex)
+            {
+                try{
+                    File.WriteAllText(Path.Combine(outputDirectory,"START_PINNED_PROOF.json"),
+                        js.Serialize(new Dictionary<string,object>{{"Revision","R118"},
+                         {"Status","FAIL_EXCEPTION"},{"Error",ex.ToString()},
+                         {"PinnedSamples",samplesPinned},{"ShellSamples",shellSamples},
+                         {"InvalidSamples",invalidSamples},{"Samples",samples}}),Encoding.UTF8);
+                    Native.KeybdTap(0x1B);
+                }catch{}
+                Console.Error.WriteLine("TBME_START_PINNED_PROOF=FAIL "+ex);
+                return 53;
+            }
         }
 
         public static int Run(string outputDirectory)
@@ -9366,6 +9579,7 @@ namespace TaskbarMonitorEnhanced
                 if(taskbarCreated==0)throw new Exception("TaskbarCreated message registration");
                 if(!ShellUi.IsStartShellProcessName("SearchHost"))throw new Exception("SearchHost detector");
                 if(!ShellUi.IsStartShellProcessName("StartMenuExperienceHost"))throw new Exception("StartMenu detector");
+                if(new AppConfig().FloatAboveStartMenu)throw new Exception("R118 Start must stay pinned by default");
                 if(!ShellUi.IsStartShellProcessName("SearchHost"))throw new Exception("SearchHost detector");
                 long recipe=Native.WS_EX_CONTROLPARENT|Native.WS_EX_LAYERED|Native.WS_EX_COMPOSITED|Native.WS_EX_TOOLWINDOW|Native.WS_EX_NOACTIVATE;
                 if(recipe!=0x0A090080L)throw new Exception("R07 interactive noactivate exstyle recipe");
@@ -9714,6 +9928,11 @@ namespace TaskbarMonitorEnhanced
             {
                 if(args.Length<2){Console.Error.WriteLine("TBME_SETTINGS_PROOF=FAIL missing output directory");return 13;}
                 return SettingsProof.Run(args[1]);
+            }
+            if(args!=null && args.Length>0 && args[0]=="--startpinnedprobe")
+            {
+                if(args.Length<2){Console.Error.WriteLine("TBME_START_PINNED_PROOF=FAIL missing output");return 53;}
+                return StartProbe.RunPinned(args[1]);
             }
             if(args!=null && args.Length>0 && args[0]=="--startprobe")
             {
