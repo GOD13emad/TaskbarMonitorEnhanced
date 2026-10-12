@@ -575,6 +575,9 @@ internal static class SetupProgram
           Encoding.ASCII);
         ProcessStartInfo psi=new ProcessStartInfo("cmd.exe","/c \""+cleanup+"\"");
         psi.UseShellExecute=false;psi.CreateNoWindow=true;
+        // R108: background cmd must not inherit AppRoot as its working directory.
+        // Otherwise its rmdir of AppRoot can fail although Uninstall.exe exits zero.
+        psi.WorkingDirectory=Path.GetTempPath();
         Process.Start(psi);
 
         if(!quiet)

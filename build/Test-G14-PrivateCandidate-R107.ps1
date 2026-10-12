@@ -67,6 +67,7 @@ $installed=$false;$installedMain=''
 $installCode=-999;$verifyCode=-999;$uninstallCode=-999
 $results=@();$failure='';$cleanup='NOT_DONE';$residentProcessId=0;$resident=$null
 $hardwareHealth='NOT_OBSERVED'
+$cleanupAudit=[ordered]@{Status='NOT_OBSERVED'}
 function Run-Bounded([string]$exe,[string[]]$childArgs,[int]$max,[string]$label){
    $info=[Diagnostics.ProcessStartInfo]::new()
    $info.FileName=$exe
@@ -191,10 +192,28 @@ finally{
        if($uninstallCode -ne 0){throw ('R107 OWNED UNINSTALL FAILED '+$uninstallCode)}
        for($i=0;$i -lt 25 -and (Test-Path $app);$i++){Start-Sleep -Milliseconds 500}
     }
-    if((Test-Path -LiteralPath $app) -or (Test-Path $reg) -or
-       (Test-Path -LiteralPath $link) -or (Test-Path -LiteralPath $desktop) -or
-       $null -ne (Get-ItemProperty -LiteralPath $run -Name 'TaskbarMonitorEnhanced' -ErrorAction SilentlyContinue)){
-       throw 'R107 SETUP LEFT EXTRA INSTALL OR STARTUP REGISTRATION'
+    # R108: capture only exact owned disposable paths, never delete unknown data
+    # or reinterpret a background cleanup failure as successful removal.
+    $runProp=Get-ItemProperty -LiteralPath $run -Name 'TaskbarMonitorEnhanced' -ErrorAction SilentlyContinue
+    $ownedFiles=@()
+    if(Test-Path -LiteralPath $app -PathType Container){
+        $ownedFiles=@(Get-ChildItem -LiteralPath $app -File -Recurse -ErrorAction SilentlyContinue|
+            Select-Object -First 24 -ExpandProperty Name)
+    }
+    $cleanupAudit=[ordered]@{
+      Status='OBSERVED_AFTER_UNINSTALL'
+      AppRootExists=[bool](Test-Path -LiteralPath $app)
+      UninstallRegistryExists=[bool](Test-Path $reg)
+      StartShortcutExists=[bool](Test-Path -LiteralPath $link)
+      DesktopShortcutExists=[bool](Test-Path -LiteralPath $desktop)
+      StartupRunValuePresent=($null -ne $runProp)
+      OwnedRemainingFileNames=@($ownedFiles)
+      RemainingMainProcessCount=@(Get-Process -Name TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count
+    }
+    if($cleanupAudit.AppRootExists -or $cleanupAudit.UninstallRegistryExists -or
+       $cleanupAudit.StartShortcutExists -or $cleanupAudit.DesktopShortcutExists -or
+       $cleanupAudit.StartupRunValuePresent -or $cleanupAudit.RemainingMainProcessCount -ne 0){
+       throw ('R108 EXACT DISPOSABLE UNINSTALL REMAINDER '+($cleanupAudit|ConvertTo-Json -Compress -Depth 4))
     }
     $modePost=Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers' -ErrorAction SilentlyContinue
     $wallAfter=if($modePost -and $null -ne $modePost.PSObject.Properties['BackgroundType']){
@@ -220,7 +239,8 @@ finally{
     StartupRegistryInitiallyAbsent=($null -eq $initialRun);WallpaperModeBefore=$wallMode
     OwnedSetupVerifyExit=$verifyCode;OwnedSetupInstallExit=$installCode;OwnedSetupUninstallExit=$uninstallCode
     DiagnosticAttempts=$results.Count;DiagnosticPasses=$passed;DiagnosticResults=$results
-    Cleanup=$cleanup;Failure=$failure;FormalG14Accepted=$false
+    Cleanup=$cleanup;CleanupAudit=$cleanupAudit
+    Failure=$failure;FormalG14Accepted=$false
     TrustedIndependentLabWitness='MISSING'
     PersonalInstallTouched=$false;PublicReleaseModified=$false;SystemRestarted=$false
     StartedUTC=$start;FinishedUTC=(Get-Date).ToUniversalTime().ToString('o')
