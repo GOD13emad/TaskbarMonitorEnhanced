@@ -9,7 +9,7 @@ $Source='R108'
 $TargetWidth=1600;$TargetHeight=900;$TargetBpp=32
 $AllowedModeFlags=[uint32]0
 $DisplayTestFlags=[uint32]2
-$ExpectedPrivateMainSHA='AB3DE48A4F7F56752507BE2AA3951AE606B9F5B39AC10B8C49AC2473868C21C7'
+$ExpectedPrivateMainSHA='1CC12BBA541C28800371DC674422FF4947711EADFC7FC9B9E75EAAFA121F1728'
 if($StaticOnly){
     $tokens=$null;$problems=$null
     [void][Management.Automation.Language.Parser]::ParseFile($PSCommandPath,[ref]$tokens,[ref]$problems)

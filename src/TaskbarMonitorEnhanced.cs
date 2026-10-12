@@ -8301,6 +8301,204 @@ namespace TaskbarMonitorEnhanced
     }
     internal static class SettingsProof
     {
+
+        // R120 disposable-VM native screen acceptance. Unlike --settingsproof,
+        // this shows Settings ON SCREEN above a real WS_EX_NOACTIVATE, layered,
+        // TopMost obstruction; Win32 foreground + CopyFromScreen are authoritative.
+        // No personal installation, config, persisted theme or shell alteration.
+        private sealed class NonactivatingTopmostGlassWitness : Form
+        {
+            protected override CreateParams CreateParams
+            {
+                get
+                {
+                    CreateParams p=base.CreateParams;
+                    p.ExStyle|=Native.WS_EX_NOACTIVATE|Native.WS_EX_LAYERED;
+                    return p;
+                }
+            }
+        }
+
+        private static Dictionary<string,int> PhysicalInkPixels(Bitmap bmp)
+        {
+            int saturated=0,pink=0;
+            HashSet<int> colors=new HashSet<int>();
+            for(int y=0;y<bmp.Height;y+=2)
+            for(int x=0;x<bmp.Width;x+=2)
+            {
+                Color px=bmp.GetPixel(x,y);
+                int max=Math.Max(px.R,Math.Max(px.G,px.B));
+                int min=Math.Min(px.R,Math.Min(px.G,px.B));
+                if(max>=80 && max-min>=24)saturated++;
+                if(px.R>170 && px.B>100 && px.G<65)pink++;
+                colors.Add(px.ToArgb());
+            }
+            return new Dictionary<string,int>{
+                {"Saturated",saturated},{"Pink",pink},{"DistinctColors",colors.Count}
+            };
+        }
+
+        private static Bitmap CopyRealScreen(Rectangle rect)
+        {
+            Bitmap bitmap=new Bitmap(rect.Width,rect.Height,PixelFormat.Format32bppArgb);
+            using(Graphics g=Graphics.FromImage(bitmap))
+                g.CopyFromScreen(rect.Left,rect.Top,0,0,rect.Size);
+            return bitmap;
+        }
+
+        private static string Sha256R120(string path)
+        {
+            using(FileStream stream=File.OpenRead(path))
+            using(SHA256 sha=SHA256.Create())
+                return BitConverter.ToString(sha.ComputeHash(stream)).Replace("-","");
+        }
+
+        public static int RunNativeForeground(string outputDirectory)
+        {
+            string commit=Environment.GetEnvironmentVariable("GITHUB_SHA")??"";
+            try
+            {
+                if(Environment.GetEnvironmentVariable("GITHUB_ACTIONS")!="true"||
+                    Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT")!="github-hosted"||
+                    Environment.GetEnvironmentVariable("RUNNER_OS")!="Windows"||
+                    !Environment.UserInteractive||
+                    Environment.MachineName.Equals("EMAD-PC-ULTIMAT",StringComparison.OrdinalIgnoreCase)||
+                    !Regex.IsMatch(commit,"^[0-9a-f]{40}$"))
+                    throw new InvalidOperationException("R120_REFUSE_NONDISPOSABLE_OR_UNBOUNDED_HOST");
+                if(String.IsNullOrWhiteSpace(outputDirectory)||Directory.Exists(outputDirectory))
+                    throw new InvalidOperationException("R120_MISSING_OUTPUT_OR_UNSAFE_RERUN");
+                Directory.CreateDirectory(outputDirectory);
+                Native.EnableDpi();
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Rectangle wa=Screen.PrimaryScreen.WorkingArea;
+                if(wa.Width<980||wa.Height<660)
+                    throw new InvalidOperationException("R120_REAL_SCREEN_NOT_LARGE_ENOUGH "+wa);
+                Rectangle window=new Rectangle(wa.Left+24,wa.Top+8,900,650);
+                Rectangle obstruction=new Rectangle(window.Left+110,window.Top+130,440,220);
+                int obstructionBefore=0,obstructionCovered=0,settingSaturated=0,distinct=0;
+                long settingsHandle=0,foregroundHandle=0,obstructionHandle=0;
+                long settingsEx=0,obstructionEx=0;
+                uint settingsPid=0,obstructionPid=0;
+                bool foreground=false,noOwner=false,aboveTopmost=false,visible=false;
+                string png="SETTINGS_REAL_FOREGROUND.png";
+                string obstaclePng="TOPMOST_GLASS_OBSTRUCTION_BEFORE.png";
+                AppConfig cfg=AppConfig.Load();cfg.Normalize();
+                MetricsSnapshot metrics=new MetricsSnapshot();
+                using(NonactivatingTopmostGlassWitness blocker=new NonactivatingTopmostGlassWitness())
+                using(OverlayForm renderer=new OverlayForm(cfg,true))
+                {
+                    blocker.StartPosition=FormStartPosition.Manual;
+                    blocker.Bounds=obstruction;
+                    blocker.FormBorderStyle=FormBorderStyle.None;
+                    blocker.ShowInTaskbar=false;
+                    blocker.BackColor=Color.FromArgb(252,0,205);
+                    blocker.TopMost=true;
+                    blocker.Opacity=0.98;
+                    blocker.Show();
+                    Application.DoEvents();
+                    Thread.Sleep(240);
+                    using(Bitmap before=CopyRealScreen(obstruction))
+                    {
+                        obstructionBefore=PhysicalInkPixels(before)["Pink"];
+                        before.Save(Path.Combine(outputDirectory,obstaclePng),ImageFormat.Png);
+                    }
+                    obstructionHandle=blocker.Handle.ToInt64();
+                    obstructionEx=Native.GetWindowLongPtr(blocker.Handle,Native.GWL_EXSTYLE).ToInt64();
+                    Native.GetWindowThreadProcessId(blocker.Handle,out obstructionPid);
+                    if(!blocker.IsHandleCreated||!Native.IsWindowVisible(blocker.Handle)||
+                        obstructionBefore<2000||(obstructionEx&Native.WS_EX_LAYERED)==0||
+                        (obstructionEx&Native.WS_EX_NOACTIVATE)==0||
+                        (obstructionEx&Native.WS_EX_TOPMOST)==0)
+                        throw new InvalidOperationException("R120_REAL_TOPMOST_LAYERED_GLASS_WITNESS_MISSING");
+                    renderer.PrimeSettingsThemePreviewFromLiveMetrics(12,100);
+                    using(SettingsForm f=new SettingsForm(cfg,metrics,"Display",renderer.RenderSettingsThemePreview))
+                    {
+                        f.StartPosition=FormStartPosition.Manual;
+                        f.Bounds=window;
+                        f.Show();
+                        Application.DoEvents();
+                        for(int attempt=0;attempt<8;attempt++)
+                        {
+                            f.BringToFront();
+                            f.Activate();
+                            Application.DoEvents();
+                            Thread.Sleep(140);
+                            if(Native.GetForegroundWindow()==f.Handle)break;
+                        }
+                        settingsHandle=f.Handle.ToInt64();
+                        foregroundHandle=Native.GetForegroundWindow().ToInt64();
+                        settingsEx=Native.GetWindowLongPtr(f.Handle,Native.GWL_EXSTYLE).ToInt64();
+                        Native.GetWindowThreadProcessId(f.Handle,out settingsPid);
+                        foreground=foregroundHandle==settingsHandle;
+                        noOwner=f.Owner==null&&Native.GetWindow(f.Handle,Native.GW_OWNER)==IntPtr.Zero;
+                        visible=f.Visible&&Native.IsWindowVisible(f.Handle)&&Native.GetCloaked(f.Handle)==0;
+                        aboveTopmost=f.ShowInTaskbar&&f.TopMost&&f.TopLevel&&
+                            (settingsEx&Native.WS_EX_TOPMOST)!=0&&
+                            (settingsEx&(Native.WS_EX_NOACTIVATE|Native.WS_EX_TOOLWINDOW))==0;
+                        using(Bitmap onScreen=CopyRealScreen(f.Bounds))
+                        {
+                            Dictionary<string,int> ink=PhysicalInkPixels(onScreen);
+                            settingSaturated=ink["Saturated"];
+                            distinct=ink["DistinctColors"];
+                            Rectangle overlap=Rectangle.Intersect(f.Bounds,obstruction);
+                            for(int y=overlap.Top;y<overlap.Bottom;y+=2)
+                            for(int x=overlap.Left;x<overlap.Right;x+=2)
+                            {
+                                Color px=onScreen.GetPixel(x-f.Left,y-f.Top);
+                                if(px.R>170&&px.B>100&&px.G<65)obstructionCovered++;
+                            }
+                            onScreen.Save(Path.Combine(outputDirectory,png),ImageFormat.Png);
+                        }
+                    }
+                }
+                bool pass=foreground&&visible&&noOwner&&aboveTopmost&&
+                    settingsPid==(uint)Process.GetCurrentProcess().Id&&
+                    obstructionPid==settingsPid&&settingSaturated>=150&&
+                    distinct>=24&&obstructionCovered<100&&obstructionBefore>=2000;
+                string real=Path.Combine(outputDirectory,png);
+                string witness=Path.Combine(outputDirectory,obstaclePng);
+                Dictionary<string,object> result=new Dictionary<string,object>{
+                    {"Schema",1},{"Revision","R120"},{"EventCommit",commit},
+                    {"Status",pass?"PASS":"FAIL"},{"Test","NATIVE_SETTINGS_FOREGROUND_ABOVE_LAYERED_NOACTIVATE_TOPMOST"},
+                    {"MainPid",Process.GetCurrentProcess().Id},{"SettingsPid",settingsPid},
+                    {"ObstaclePid",obstructionPid},{"SettingsHwnd",settingsHandle},{"ForegroundHwnd",foregroundHandle},
+                    {"ObstacleHwnd",obstructionHandle},{"SettingsNativeExStyle",settingsEx},
+                    {"ObstacleNativeExStyle",obstructionEx},{"ForegroundIsSettings",foreground},
+                    {"SettingsVisibleUncloaked",visible},{"SettingsHasNoOwner",noOwner},
+                    {"SettingsTopMostAndActivatable",aboveTopmost},
+                    {"SettingsBounds",new int[]{window.X,window.Y,window.Width,window.Height}},
+                    {"ObstacleBounds",new int[]{obstruction.X,obstruction.Y,obstruction.Width,obstruction.Height}},
+                    {"ObstaclePhysicalPinkBefore",obstructionBefore},
+                    {"ObstaclePhysicalPinkLeakingAfter",obstructionCovered},
+                    {"SettingsPhysicalSaturatedPixels",settingSaturated},{"SettingsPhysicalDistinctColors",distinct},
+                    {"SettingsScreenshotSha256",Sha256R120(real)},
+                    {"ObstacleScreenshotSha256",Sha256R120(witness)},
+                    {"FormalExternalLabAccepted",false}
+                };
+                File.WriteAllText(Path.Combine(outputDirectory,"SETTINGS_NATIVE_FOREGROUND_R120.json"),
+                    new JavaScriptSerializer().Serialize(result),Encoding.UTF8);
+                Console.WriteLine("TBME_R120_SETTINGS_NATIVE_FOREGROUND="+(pass?"PASS":"FAIL")+
+                    " FOREGROUND="+foreground+" ABOVE_TOPMOST="+aboveTopmost+
+                    " REAL_SAT="+settingSaturated+" OBSTACLE_BEFORE="+obstructionBefore+
+                    " LEAK="+obstructionCovered);
+                return pass?0:120;
+            }
+            catch(Exception ex)
+            {
+                try
+                {
+                    if(Directory.Exists(outputDirectory))
+                        File.WriteAllText(Path.Combine(outputDirectory,"SETTINGS_NATIVE_FOREGROUND_R120.json"),
+                            new JavaScriptSerializer().Serialize(
+                                new Dictionary<string,object>{{"Revision","R120"},{"EventCommit",commit},
+                                {"Status","FAIL_EXCEPTION"},{"Error",ex.ToString()}}),Encoding.UTF8);
+                }catch{}
+                Console.Error.WriteLine("TBME_R120_SETTINGS_NATIVE_FOREGROUND=FAIL "+ex);
+                return 121;
+            }
+        }
+
         public static int Run(string outputDirectory)
         {
             try
@@ -9936,6 +10134,11 @@ namespace TaskbarMonitorEnhanced
             {
                 if(args.Length<2){Console.Error.WriteLine("TBME_SETTINGS_PROOF=FAIL missing output directory");return 13;}
                 return SettingsProof.Run(args[1]);
+            }
+            if(args!=null && args.Length>0 && args[0]=="--settingsforegroundproof")
+            {
+                if(args.Length<2){Console.Error.WriteLine("TBME_R120_SETTINGS_NATIVE_FOREGROUND=FAIL missing output");return 121;}
+                return SettingsProof.RunNativeForeground(args[1]);
             }
             if(args!=null && args.Length>0 && args[0]=="--startpinnedprobe")
             {
