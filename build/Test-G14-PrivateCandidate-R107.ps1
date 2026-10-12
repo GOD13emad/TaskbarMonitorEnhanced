@@ -67,6 +67,8 @@ $installed=$false;$installedMain=''
 $installCode=-999;$verifyCode=-999;$uninstallCode=-999
 $results=@();$failure='';$cleanup='NOT_DONE';$residentProcessId=0;$resident=$null
 $hardwareHealth='NOT_OBSERVED'
+$r111LogStatus='NOT_CAPTURED'
+$r111CapturedLogs=@()
 $cleanupAudit=[ordered]@{Status='NOT_OBSERVED'}
 function Run-Bounded([string]$exe,[string[]]$childArgs,[int]$max,[string]$label){
    $info=[Diagnostics.ProcessStartInfo]::new()
@@ -168,6 +170,45 @@ try{
  }
 }catch{$failure=$_.Exception.ToString()}
 finally{
+ # R111: read-only sha-bound snapshot of the EXACT installed Main runtime log
+ # after Start and Shell; do not delete unknown data or mutate the window/driver.
+ try{
+    if($installed){
+      $logsRoot=Join-Path $app 'Logs'
+      if(!(Test-Path -LiteralPath $logsRoot -PathType Container)){
+        throw 'R111 MAIN RUNTIME LOG DIRECTORY MISSING'
+      }
+      $ownedLogs=@(Get-ChildItem -LiteralPath $logsRoot -File -ErrorAction Stop|
+          Where-Object {$_.Name -cmatch '^tbme_csharp_[0-9]{8}[.]log$'})
+      if($ownedLogs.Count -lt 1 -or $ownedLogs.Count -gt 3){
+        throw ('R111 OWNED APP LOG FILE COUNT '+$ownedLogs.Count)
+      }
+      foreach($log in $ownedLogs){
+        $stream=[IO.FileStream]::new($log.FullName,[IO.FileMode]::Open,
+           [IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+        $memory=[IO.MemoryStream]::new()
+        try{$stream.CopyTo($memory);$bytes=$memory.ToArray()}
+        finally{$memory.Dispose();$stream.Dispose()}
+        if($bytes.Length -lt 64 -or $bytes.Length -gt 2097152){
+            throw ('R111 LOG SIZE NOT BOUNDED '+$log.Name)
+        }
+        $name='R111_POST_G14_'+$log.Name
+        $dest=Join-Path $out $name
+        if(Test-Path -LiteralPath $dest){throw 'R111 REFUSE LOG SNAPSHOT OVERWRITE'}
+        [IO.File]::WriteAllBytes($dest,$bytes)
+        $r111CapturedLogs+=[ordered]@{
+            Name=$name;SourceName=$log.Name
+            SHA256=(Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash
+            Bytes=$bytes.Length
+        }
+      }
+      $r111LogStatus='PASS_READONLY_EXACT_TEMP_INSTALLED_MAIN_LOG'
+      Write-Output ('R111_POST_G14_MAIN_LOGS_CAPTURES='+$r111CapturedLogs.Count)
+    }
+ }catch{
+    $r111LogStatus='FAIL_CLOSED_MISSING_OR_STALE_RUNTIME_LOG'
+    $failure+=(' ; R111_DIAGNOSTIC '+$_.Exception.ToString())
+ }
  try{
     if($null -ne $resident){
        $resident.Refresh()
@@ -240,6 +281,7 @@ finally{
     OwnedSetupVerifyExit=$verifyCode;OwnedSetupInstallExit=$installCode;OwnedSetupUninstallExit=$uninstallCode
     DiagnosticAttempts=$results.Count;DiagnosticPasses=$passed;DiagnosticResults=$results
     Cleanup=$cleanup;CleanupAudit=$cleanupAudit
+    R111MainLogCaptureStatus=$r111LogStatus;R111CapturedMainLogs=@($r111CapturedLogs)
     Failure=$failure;FormalG14Accepted=$false
     TrustedIndependentLabWitness='MISSING'
     PersonalInstallTouched=$false;PublicReleaseModified=$false;SystemRestarted=$false
