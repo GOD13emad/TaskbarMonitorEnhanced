@@ -17,7 +17,7 @@ function Check-R107($r) {
      'CandidateIsPublicRelease','CandidateAuthenticodeSigned','CanonicalSingleRoot',
      'MainProcessPid','InstalledSensorStatus','StartupRegistryInitiallyAbsent','WallpaperModeBefore',
      'OwnedSetupVerifyExit','OwnedSetupInstallExit','OwnedSetupUninstallExit',
-     'DiagnosticAttempts','DiagnosticPasses','DiagnosticResults','Cleanup','Failure',
+     'DiagnosticAttempts','DiagnosticPasses','DiagnosticResults','Cleanup','CleanupAudit','Failure',
      'FormalG14Accepted','TrustedIndependentLabWitness','PersonalInstallTouched',
      'PublicReleaseModified','SystemRestarted','StartedUTC','FinishedUTC')){
     if($null -eq $r.PSObject.Properties[$field]){$bad.Add('MISSING_'+$field)}
@@ -32,7 +32,11 @@ function Check-R107($r) {
  foreach($v in @($r.CandidateMainSHA256,$r.CandidateSetupSHA256,$r.CandidateConfigSHA256)){
    if($v -cnotmatch '^[0-9A-F]{64}$'){$bad.Add('SOURCE_SHA_NOT_PINNED')}
  }
- if($r.CandidateMainSHA256 -ceq '63A724981E949BA4C91F8BD44F2659F223BDFE0350A2E229CEE7B05535D4BA70' -or
+ # R108-F01: a syntactically valid 64-hex digest is NOT evidence that the
+ # exact reproducible candidate was installed. Bind all three binary hashes.
+ if($r.CandidateMainSHA256 -cne '833710E15A6AB5909B7717B37DEBC3A50BA2D02538E6FE08DB6B737892103C1F' -or
+    $r.CandidateSetupSHA256 -cne '977C054B83DCF2FFDC83E176DDCF97D4BD39CB37BBE10E15A49B4C7E655F94EF' -or
+    $r.CandidateConfigSHA256 -cne 'D2E51872D93F0793C02AD07DCBF8C2802F59708C666548372A4FDDDA5C7C5E4F' -or
     $r.CandidateIsPublicRelease -ne $false -or
     $r.CandidateAuthenticodeSigned -ne $false -or
     $r.FormalG14Accepted -ne $false -or
@@ -47,6 +51,17 @@ function Check-R107($r) {
     $r.Failure -cne '' -or $r.PersonalInstallTouched -ne $false -or
     $r.PublicReleaseModified -ne $false -or $r.SystemRestarted -ne $false){
      $bad.Add('R107_INSTALL_CLEANUP_NOT_EXACT')
+ }
+ if($null -eq $r.CleanupAudit -or
+    $r.CleanupAudit.Status -cne 'OBSERVED_AFTER_UNINSTALL' -or
+    $r.CleanupAudit.AppRootExists -ne $false -or
+    $r.CleanupAudit.UninstallRegistryExists -ne $false -or
+    $r.CleanupAudit.StartShortcutExists -ne $false -or
+    $r.CleanupAudit.DesktopShortcutExists -ne $false -or
+    $r.CleanupAudit.StartupRunValuePresent -ne $false -or
+    @($r.CleanupAudit.OwnedRemainingFileNames).Count -ne 0 -or
+    $r.CleanupAudit.RemainingMainProcessCount -ne 0){
+    $bad.Add('R108_ASYNC_CLEANUP_NOT_INDEPENDENTLY_PROVEN')
  }
  $results=@($r.DiagnosticResults)
  if($r.DiagnosticAttempts -ne 8 -or $results.Count -ne 8 -or
@@ -90,6 +105,8 @@ if($SelfTest){
     @{K='TrustedIndependentLabWitness';V='FAKE'},
     @{K='HostRole';V='PERSONAL'},
     @{K='CandidateMainSHA256';V=('0'*64)},
+    @{K='CandidateSetupSHA256';V=('0'*64)},
+    @{K='CandidateConfigSHA256';V=('0'*64)},
     @{K='OwnedSetupInstallExit';V=1},
     @{K='OwnedSetupUninstallExit';V=1},
     @{K='Cleanup';V='UNKNOWN'},
@@ -107,7 +124,10 @@ if($SelfTest){
   $r=$original|ConvertFrom-Json
   $r.DiagnosticResults[0].StdoutSHA256=('0'*64)
   if(@(Check-R107 $r).Count -eq 0){throw 'R107_FALSE_RAW_SHA_ACCEPTED'}
-  Write-Output 'R107_FIFTEEN_HOSTILE_VERIFIER_CASES_REJECTED'
+  $r=$original|ConvertFrom-Json
+  $r.CleanupAudit.AppRootExists=$true
+  if(@(Check-R107 $r).Count -eq 0){throw 'R108_FALSIFIED_CLEANUP_ACCEPTED'}
+  Write-Output 'R108_EIGHTEEN_HOSTILE_VERIFIER_CASES_REJECTED'
 }
 Write-Output ('R107_CANDIDATE_INSTALLED_INDEPENDENT_EIGHT_ATTEMPTS='+$receipt.DiagnosticPasses+
   '/8 FORMAL_G14_NOT_ACCEPTED RECEIPT_SHA256='+
