@@ -34,6 +34,34 @@ jobs:
         shell: pwsh
         run: git diff --check HEAD^
 
+      - name: G13 G14 independent host witness contracts (22 adversarial scenarios)
+        shell: pwsh
+        run: |
+          $env:PYTHONDONTWRITEBYTECODE = '1'
+          python -B ./build/verify_host_acceptance.py --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Host proof parser failed.' }
+          python -B ./build/test_host_acceptance.py
+          if ($LASTEXITCODE -ne 0) { throw 'G13/G14 signed witness contract regressions failed.' }
+          $registry = Get-Content ./build/host_acceptance_trust.json -Raw | ConvertFrom-Json
+          if ($registry.Schema -ne 1 -or @($registry.TrustedWitnesses).Count -ne 0) { throw 'Unreviewed production lab key detected.' }
+
+      - name: G15 SignPath request origin/signed payload contract (negative regression)
+        shell: pwsh
+        run: |
+          python -B ./build/verify_signpath_g15.py --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'G15 Python static parser failed.' }
+          python -B ./build/test_signpath_g15.py
+          if ($LASTEXITCODE -ne 0) { throw 'G15 provider origin/signed artifact regression failed.' }
+          # This never signs or invokes the real provider; real G15 acceptance stays external.
+
+      - name: G16 public release asset contract (32 hostile regressions)
+        shell: pwsh
+        run: |
+          python -B ./build/verify_public_release_g16.py --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'G16 Python parser/static preflight failed.' }
+          python -B ./build/test_public_release_g16.py
+          if ($LASTEXITCODE -ne 0) { throw 'G16 release manifest, SHA256SUMS and CI negative regressions failed.' }
+
       - name: Reproducible build
         shell: pwsh
         run: ./build/Build.ps1
@@ -41,6 +69,51 @@ jobs:
       - name: Verify deterministic clean-clone build
         shell: pwsh
         run: ./build/Verify-Determinism.ps1
+
+      - name: Signed-staging separation regression (keep unsigned deterministic build pristine)
+        shell: pwsh
+        run: |
+          ./build/Test-Signed-Staging.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Signed artifact staging separation gate failed.' }
+
+      - name: G15 embedded signed Main payload contract (read-only installer verification)
+        shell: pwsh
+        run: |
+          ./build/Test-Signed-Payload-Contract.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Setup failed to embed exact staged Main SHA256.' }
+
+      - name: G15 OSS proprietary upstream exclusion negative test
+        shell: pwsh
+        run: |
+          ./build/Test-NoPawnIO-OssRelease.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'A signed Setup may not embed the official PawnIO binary.' }
+
+      - name: R85 absent PawnIO must degrade safely without driver or sensor mutation
+        shell: pwsh
+        run: |
+          ./build/Test-PawnIO-External-Degrade.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Optional driver missing state tried unsafe protected mutation.' }
+
+      - name: All-theme glass and chart visual acceptance (10 suites)
+        shell: pwsh
+        run: |
+          ./build/Test-Workspace.ps1 -Executable ./build/_out/App/TaskbarMonitorEnhanced.exe -OutputDirectory ./artifacts/ci-visual -Visual
+          if ($LASTEXITCODE -ne 0) { throw 'Visual regression suite failed.' }
+          $v = Get-Content ./artifacts/ci-visual/SUMMARY.json -Raw | ConvertFrom-Json
+          if ($v.Status -ne 'PASS' -or @($v.Results).Count -ne 10 -or @($v.Results | Where-Object Status -ne 'PASS').Count -ne 0) { throw 'Exactly ten visual and feature tests did not PASS.' }
+          $chart = Get-Content ./artifacts/ci-visual/chartglassproof/CHART_GLASS_PROOF.json -Raw | ConvertFrom-Json
+          if ($chart.Status -ne 'PASS' -or $chart.Themes -ne 49 -or $chart.Pairs -ne 196) { throw '49-theme 196-case chart foreground proof did not PASS.' }
+          $glass = Get-Content ./artifacts/ci-visual/glassproof/GLASS_PROOF.json -Raw | ConvertFrom-Json
+          if ($glass.Status -ne 'PASS' -or $glass.Tests -ne 196) { throw '49-theme alpha contrast foreground proof did not PASS.' }
+
+      - name: Portable runtime contract probes (5 suites; installed host checks separate)
+        shell: pwsh
+        run: |
+          ./build/Test-Runtime.ps1 -Executable ./build/_out/App/TaskbarMonitorEnhanced.exe -OutputDirectory ./artifacts/ci-runtime -CiContract
+          # Test-Runtime.ps1 uses Diagnostics.Process and validates child exit codes itself.
+          # Its summary and thrown exceptions are authoritative, not a nullable LASTEXITCODE.
+          $r = Get-Content ./artifacts/ci-runtime/SUMMARY.json -Raw | ConvertFrom-Json
+          if ($r.Status -ne 'PASS' -or $r.Mode -ne 'CI_PORTABLE_5' -or @($r.Results).Count -ne 5 -or @($r.Results | Where-Object Status -ne 'PASS').Count -ne 0) { throw 'Five portable CI runtime probes did not PASS. Installed health and Start/Shell probes remain separate stable gates.' }
 
       - name: Generate SPDX 2.3 SBOM
         shell: pwsh
@@ -73,6 +146,10 @@ jobs:
           path: |
             build/_out/contracts/SUMMARY.json
             artifacts/DETERMINISM.json
+            artifacts/ci-visual/SUMMARY.json
+            artifacts/ci-visual/chartglassproof/CHART_GLASS_PROOF.json
+            artifacts/ci-visual/glassproof/GLASS_PROOF.json
+            artifacts/ci-runtime/SUMMARY.json
             artifacts/BUILD_MANIFEST.json
             artifacts/SBOM.spdx.json
             build/_out/App/TaskbarMonitorEnhanced.exe

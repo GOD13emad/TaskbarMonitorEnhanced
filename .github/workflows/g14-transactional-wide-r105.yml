@@ -1,0 +1,72 @@
+name: R105 Disposable Wide Display + Installed G14 Diagnostic - Exact Rollback
+
+on:
+  push:
+    branches:
+      - audit/g14-transactional-widescreen-r105
+      - audit/g14-native-window-enumeration-r106
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  transactional-widescreen-installed-g14:
+    runs-on: windows-latest
+    timeout-minutes: 27
+    steps:
+      - name: Checkout exact source without write credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: PowerShell 5.1/7 static guards before display mutation
+        shell: pwsh
+        run: |
+          ./build/Probe-DisposableDisplayModes-R104.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R104 capability parser failed' }
+          ./build/Test-G14-WideScreenTransactional-R105.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R105 transactional display static rejected' }
+          & powershell.exe -NoProfile -File ./build/Test-G14-WideScreenTransactional-R105.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell 5.1 static parser rejected' }
+          ./build/Test-Unsigned-Preview-HostedInstall.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R88 owned-host installer preflight rejected' }
+          ./build/Probe-NativeWindows-R106.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R106 read-only native window static preflight failed' }
+          & powershell.exe -NoProfile -File ./build/Probe-NativeWindows-R106.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R106 PS5.1 parser failed' }
+      - name: Temporarily set exact 1600x900 on disposable Windows and always restore original
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows'){
+            throw 'R105 refuses non-disposable Windows'
+          }
+          ./build/Test-G14-WideScreenTransactional-R105.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R105 actual display transaction / installed G14 diagnostic failed; preserve raw failure artifact' }
+      - name: Independent 18 hostile receipts and actual hosted installed G14 raw SHA validation
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'TBME_R105_WideScreen'
+          ./build/Verify-G14-WideModeTransactional-R105.ps1 -ReceiptPath (Join-Path $root 'R105_WIDESCREEN_TRANSACTION_RECEIPT.json') -ExpectedCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R105 independent raw mode and rollback contract refused' }
+          $r88 = Join-Path $env:RUNNER_TEMP 'TBME_R88_UnsignedPreview_Smoke'
+          ./build/Verify-UnsignedPreview-HostReceipt.ps1 -ReceiptPath (Join-Path $r88 'R88_HOSTED_INSTALL_RECEIPT.json') -ExpectedTestCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R88 original exact installed headless receipt failed' }
+          ./build/Verify-G14-InstalledEight-R103.ps1 -ReceiptPath (Join-Path $r88 'R103_INSTALLED_8/R103_INSTALLED_EIGHT_DIAGNOSTIC.json') -ExpectedCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R103 eight installed raw cases failed independent verification' }
+          ./build/Verify-NativeWindows-R106.ps1 -ReceiptPath (Join-Path $r88 'R103_INSTALLED_8/R106_NATIVE_WINDOWS.json') -InstalledReceiptPath (Join-Path $r88 'R103_INSTALLED_8/R103_INSTALLED_EIGHT_DIAGNOSTIC.json') -ExpectedCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R106 exact native HWND inventory read-only witness rejected' }
+          ./build/Verify-WallpaperCanary-R91.ps1 -CanaryDirectory (Join-Path $r88 'R91_G13_CANARY') -ExpectedTestCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R91 real hosted Wallpaper regression failed' }
+          Write-Output 'R105_WINDOWS_DISPOSABLE_TEMPORARY_WIDE_G14_DIAGNOSTIC_VERIFICATION_PASS_FORMAL_G14_OPEN'
+      - name: Upload real raw evidence and rollback receipt even on failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: R105-temp-wide-G14-rollback
+          retention-days: 21
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/TBME_R105_WideScreen/**
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/**

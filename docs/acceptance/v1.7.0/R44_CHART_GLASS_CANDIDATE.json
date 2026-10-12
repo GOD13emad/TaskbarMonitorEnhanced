@@ -1,0 +1,36 @@
+{
+  "Schema": 1,
+  "Revision": "R44",
+  "Project": "TaskbarMonitorEnhanced",
+  "GeneratedUTC": "2026-10-10T11:19:04.102467+00:00",
+  "ParentSourceSHA": "5a6c7e5b9537e9694b4447b13e07e86de77b8696",
+  "Branch": "feature/v1.7.0-r44-chart-foreground",
+  "Status": "CHART_FOREGROUND_CANDIDATE_ACCEPTED_PUBLIC_RELEASE_BLOCKED",
+  "Goal": "All 49 themes show real foreground chart at 0% taskbar background opacity",
+  "Verification": {
+    "RedCompiler": "PASS_EXPECTED_CS1061",
+    "Build": "PASS_ZERO_WARNINGS_ERRORS",
+    "ThemeAndTaskbarPairs": "196/196 PASS",
+    "MinChartDifferencePixels": 776,
+    "MinOpaqueChartPixels": 317,
+    "MinAdaptiveInkPixels": 251,
+    "VisualSuite": "10/10 PASS",
+    "LiveEmadActualMetricsSamples": 24,
+    "LiveUniqueChartInkPixels": 1788,
+    "LivePreview": "PASS_REAL_SCREENSHOT_PREVIEW_ONLY",
+    "LivePreviewCleanup": "EXPIRED_CLEAN",
+    "ManualChartOff": "PASS",
+    "BackgroundAlphaZero": "PASS"
+  },
+  "StillOpen": [
+    "R44 exact commit clean-clone and GitHub CI",
+    "trusted static-Picture WallpaperStudio Apply+Restore canary",
+    "installed v1.7 transactional acceptance",
+    "trusted signing/public distribution requirements",
+    "public immutable 7-asset v1.7 release",
+    "cumulative R44 Project Brain verified transfer"
+  ],
+  "KnownBlocker": "Current EMAD-PC background Slideshow mode 2, Sandbox refused assembly LoadFrom (App Control 0x800711C7); user declined SAEID host",
+  "Safety": "Installed v1.6 unchanged; no wallpaper/slideshow edits; no release promotion without actual acceptance.",
+  "ControlDocument": "docs/project-control/R44_RELEASE_GATES_CHECKLIST.md"
+}

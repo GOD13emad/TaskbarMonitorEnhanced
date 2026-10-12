@@ -1,0 +1,98 @@
+name: Unsigned Public Preview Headless Install Smoke
+
+on:
+  push:
+    branches:
+      - audit/unsigned-preview-installer-smoke-r88
+      - audit/unsigned-preview-installed-native-five-r90
+      - audit/unsigned-preview-positive-wallpaper-r91
+      - audit/g13-reflection-type-guard-r97
+      - audit/g14-hosted-installed-eight-r103
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ephemeral-windows-installed-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 27
+    steps:
+      - name: Checkout isolated test-only source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Static parser and user-host protection
+        shell: pwsh
+        run: |
+          ./build/Test-Unsigned-Preview-HostedInstall.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R88 test source parser preflight failed.' }
+          ./build/Test-DisposableAbsentModeKey-R102.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R102 fixture guard parser/static preflight failed.' }
+          ./build/Test-G14-InstalledEight-R103.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R103 G14 installed eight-case static preflight failed.' }
+      - name: Verify and test exact immutable unsigned release on disposable hosted Windows
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./build/Test-Unsigned-Preview-HostedInstall.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R88 headless installed preview smoke failed; inspect receipt.' }
+      - name: Independent hosted receipt verifier with eight negative regressions
+        shell: pwsh
+        run: |
+          $p = Join-Path $env:RUNNER_TEMP 'TBME_R88_UnsignedPreview_Smoke/R88_HOSTED_INSTALL_RECEIPT.json'
+          ./build/Verify-UnsignedPreview-HostReceipt.ps1 -ReceiptPath $p -ExpectedTestCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'Hosted installation receipt failed independently verified strict schema.' }
+      - name: R90 independently verify installed native five and read-only GUI capability
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'TBME_R88_UnsignedPreview_Smoke'
+          $receipt = Join-Path $root 'R88_HOSTED_INSTALL_RECEIPT.json'
+          $summary = Join-Path $root 'R90_INSTALLED_NATIVE_5/SUMMARY.json'
+          $gui = Join-Path $root 'R90_GUI_SESSION_READINESS.json'
+          ./build/Verify-InstalledNative5-R90.ps1 -ReceiptPath $receipt -SummaryPath $summary -GuiCapabilityPath $gui -ExpectedTestCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R90 independently tested installed native five case proof did not PASS' }
+      - name: R91 independently verify positive static Picture apply-restore and host cleanup
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'TBME_R88_UnsignedPreview_Smoke/R91_G13_CANARY'
+          ./build/Verify-WallpaperCanary-R91.ps1 -CanaryDirectory $root -ExpectedTestCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R91 actual WallpaperStudio product canary raw bytes or rollback failed.' }
+      - name: R102 independently exercise originally absent Registry key guarded cleanup on disposable HKCU fixture
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'TBME_R88_UnsignedPreview_Smoke'
+          ./build/Test-DisposableAbsentModeKey-R102.ps1 -EvidenceDir $root
+          if ($LASTEXITCODE -ne 0) { throw 'R102 exact shared absent-key guard failed on disposable Windows.' }
+          ./build/Verify-DisposableAbsentModeKey-R102.ps1 -ReceiptPath (Join-Path $root 'R102_ABSENT_MODE_KEY_RECEIPT.json') -ExpectedCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R102 absent-key independent witness receipt contract failed.' }
+      - name: R103 independent eight attempted installed Main diagnostics and adversarial contract
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'TBME_R88_UnsignedPreview_Smoke'
+          ./build/Verify-G14-InstalledEight-R103.ps1 -ReceiptPath (Join-Path $root 'R103_INSTALLED_8/R103_INSTALLED_EIGHT_DIAGNOSTIC.json') -ExpectedCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R103 G14 raw eight attempts/integrity contract rejected.' }
+          # This diagnostic is NOT the independent signed G14 8/8 acceptance.
+      - name: Preserve actual host results even if install fails
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unsigned-preview-headless-install-R88
+          if-no-files-found: warn
+          retention-days: 21
+          path: |
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R88_HOSTED_INSTALL_RECEIPT.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R90_GUI_SESSION_READINESS.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R90_INSTALLED_NATIVE_5/SUMMARY.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R90_INSTALLED_NATIVE_5/*.out
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R90_INSTALLED_NATIVE_5/*.err
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CANARY/R91_G13_CANARY_RECEIPT.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CANARY/R91_G13_RAW_MANIFEST.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CANARY/raw/wallpaper/*.bin
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CANARY/raw/wallpaper/product-events.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CHILD_STDOUT.txt
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CHILD_STDERR.txt
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CHILD_PROCESS.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R102_ABSENT_MODE_KEY_RECEIPT.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R103_INSTALLED_8/**

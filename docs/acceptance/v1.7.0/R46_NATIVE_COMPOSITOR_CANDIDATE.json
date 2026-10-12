@@ -1,0 +1,47 @@
+{
+  "Schema": 1,
+  "Revision": "R46",
+  "Project": "TaskbarMonitorEnhanced",
+  "DateUTC": "2026-10-10T13:11:42.798032+00:00",
+  "ParentCommit": "a019ee72e676c8fa2f3cdd1d5ac28f9b0f1060cf",
+  "CandidateBranch": "feature/v1.7.0-r46-native-visible-glass",
+  "Status": "ACTUAL_NATIVE_OVERLAYFORM_VISUAL_ACCEPTED_EXACT_SOURCE_CI_PENDING_STABLE_BLOCKED",
+  "RootCause": "Win11 shell hides layered taskbar child ink; old native proof checked API not screenshot.",
+  "NewRenderingModes": {
+    "Opacity0To99": "TASKBAR_ANCHORED_TOPLEVEL_PARG_B_NOACTIVATE",
+    "Opacity100OrHighContrast": "ORIGINAL_OPAQUE_SHELL_CHILD"
+  },
+  "RealFormEvidence": {
+    "SourceExeSHA256": "FEF4FC84B06906D6DDAAB5D59EB0BA5A9B339130A42161B8467E2A13766795B3",
+    "ProofMode": true,
+    "RealNativeWin11TaskbarScreenshot": true,
+    "VisibleTextPixels": 2319,
+    "VisibleChartPixels": 2055,
+    "ChangedTransparentBackgroundPixels": 0,
+    "OpacityTransitions": [
+      0,
+      30,
+      97,
+      100,
+      0
+    ],
+    "TransitionsPASS": 4,
+    "InstalledExeUnchanged": true,
+    "WallpaperUnchanged": true,
+    "Receipt": ".local/r46/REAL_FORM_HASHED_FINAL/TOPGLASS_REAL_VISUAL_PROOF.json",
+    "TransitionReceipt": ".local/r46/REAL_FORM_HASHED_FINAL/TOPGLASS_MODE_TRANSITIONS.json",
+    "Screenshot": ".local/r46/REAL_FORM_HASHED_FINAL/PRODUCTION_FORM_TOPGLASS_R46.png"
+  },
+  "RequiredCandidateGates": 11,
+  "ExternalStableGates": 4,
+  "PublicInstalledBaseline": "v1.6.0 immutable",
+  "BlockedStable": [
+    "G12 authorization to test real positive static wallpaper apply/rollback",
+    "G13 transactional installed v1.7 8/8/sensors/Explorer/config rollback",
+    "G14 trusted Authenticode",
+    "G15 approved main CI and immutable public assets"
+  ],
+  "Safety": "Never install unsigned candidate or change current user slideshow without independent acceptance. No alternative PC SAEID.",
+  "Authority": "docs/project-control/R46_NATIVE_COMPOSITOR_VERIFICATION.md",
+  "ExactNextAction": "Freeze exact R46 source, build+CI, verify candidate 11/11, then private RC and cumulative Brain. Public Stable blocked until four independent gates pass."
+}

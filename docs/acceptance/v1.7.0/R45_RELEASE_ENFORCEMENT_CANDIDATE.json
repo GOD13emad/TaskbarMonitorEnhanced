@@ -1,0 +1,61 @@
+{
+  "Schema": 1,
+  "Project": "TaskbarMonitorEnhanced",
+  "Revision": "R45",
+  "Branch": "feature/v1.7.0-r44-chart-foreground",
+  "PreviousSourceSHA": "3926bfa7b9dddb735e7b79ede1c17632848b44d8",
+  "Status": "CI_10_VISUAL_5_PORTABLE_VERIFIER_RETEST_REQUIRED_STABLE_BLOCKED",
+  "GeneratedUTC": "2026-10-10T11:44:56.132075+00:00",
+  "CIContract": {
+    "VisualSuites": 10,
+    "RuntimeSuites": 5,
+    "ChartForegoundPairs": 196,
+    "TextAlphaPairs": 196,
+    "IndependentArtifacts": [
+      "ci-visual/SUMMARY.json",
+      "ci-visual/chartglassproof/CHART_GLASS_PROOF.json",
+      "ci-visual/glassproof/GLASS_PROOF.json",
+      "ci-runtime/SUMMARY.json"
+    ],
+    "RuntimeMode": "CI_PORTABLE_5",
+    "InstalledHostRuntimeSuiteCount": 8,
+    "InstalledHostRuntimeGate": "OPEN_INDEPENDENT"
+  },
+  "ReleaseEvaluator": {
+    "Path": "build/Test-Release-Gates.ps1",
+    "Checks": 14,
+    "SourceProofChecks": 10,
+    "StableExternalChecks": 4,
+    "FailClosedStableExitCode": 45,
+    "FailCandidateExitCode": 46,
+    "ChangesInstalledFiles": false,
+    "ChangesWallpaper": false,
+    "SignsOrPublishes": false
+  },
+  "NoLongerOpen": "Require explicit full CI visual+runtime checks; isolated R44 local proofs already PASS",
+  "OpenCriticalGates": [
+    "R45 exact-head CI full suite",
+    "trusted positive actual static-Picture Wallpaper apply/restore",
+    "installed v1.7 transactional validation",
+    "trusted code signing",
+    "approved main and immutable release"
+  ],
+  "CurrentPublicAndInstalled": "v1.6.0 immutable",
+  "BrainStatus": "R45_POSTCOMMIT_CUMULATIVE_TRANSFER_PENDING",
+  "FailureLedger": [
+    {
+      "Id": "R45-F3",
+      "Class": "CI_HOST_NOT_INSTALLED",
+      "GitHubCI": "38049549463 FAILED health DEGRADED exit12",
+      "EmadHost": "R45 Start probe 10/24 shell samples FAIL",
+      "Correction": "Five portable CI proofs versus eight independent installed-host proofs; thresholds retained"
+    },
+    {
+      "Id": "R45-F4",
+      "Class": "CI_WRAPPER_FALSE_FAILURE",
+      "GitHubCI": "38050088052 FAILED despite five runtime children exit0 PASS",
+      "Cause": "PowerShell nullable LASTEXITCODE comparison",
+      "Fix": "Drop invalid wrapper condition, keep semantic JSON and exception fail-close"
+    }
+  ]
+}

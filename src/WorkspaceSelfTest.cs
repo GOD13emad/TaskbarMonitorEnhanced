@@ -99,6 +99,15 @@ namespace TaskbarMonitorEnhanced
                 double a=Luminance(t.Foreground),b=Luminance(t.Background2);
                 Check((Math.Max(a,b)+.05)/(Math.Min(a,b)+.05)>=4.5,"Studio primary text contrast "+t.Name);
             }
+            foreach(Color taskbar in new[]{Color.Black,Color.White,Color.FromArgb(90,92,96),Color.FromArgb(235,230,226)})
+                foreach(int opacity in new[]{0,1,15,29,30,31,100})
+                {
+                    Color composite=TaskbarGlassColor.EffectiveBackground(taskbar,Color.FromArgb(36,43,58),opacity/100d);
+                    Check(TaskbarGlassColor.Contrast(TaskbarGlassColor.ReadableText(composite),composite)>=4.5,
+                          "glass contrast "+opacity);
+                }
+            var low=new AppConfig{Opacity=0};low.Normalize();Check(low.Opacity==0,"background alpha zero persisted");
+            low.Opacity=0.30;low.Normalize();Check(Math.Abs(low.Opacity-0.30)<.00001,"background alpha thirty persisted");
             Check(HardwareInventory.Read(null).Count==0,"null hardware snapshot");
             var s=new MetricsSnapshot();s.GpuDevices.Add(new GpuDeviceSnapshot{Name="Fixture GPU",UsageAvailable=false,PowerAvailable=true,PowerW=float.NaN});
             var rows=HardwareInventory.Read(s);
@@ -109,7 +118,7 @@ namespace TaskbarMonitorEnhanced
         {
             try
             {
-                Check(BuildInfo.PublicVersion=="1.6.0","version");
+                Check(BuildInfo.PublicVersion=="1.7.0","version");
                 for(int schema=0;schema<7;schema++){
                     var legacy=new AppConfig{ConfigSchemaVersion=schema,EnableTemperatureNotifications=true,CpuTempWarningC=0,FontSize=Double.NaN,Opacity=Double.NaN};legacy.Normalize();
                     Check(legacy.ConfigSchemaVersion==7,"all legacy schemas migrate "+schema);
@@ -130,9 +139,14 @@ namespace TaskbarMonitorEnhanced
                 Check(!WorkspaceMetric.Value(SessionTelemetryHistory.Snapshot()[0],6).HasValue,"disk unavailable chart gap");
                 var copied=SessionTelemetryHistory.Snapshot();copied[0].CpuPercent=999;
                 Check(SessionTelemetryHistory.Snapshot()[0].CpuPercent!=999,"history snapshot isolated");SessionTelemetryHistory.ClearForTest();
-                Check(ThemeCatalog.Names.Length==48,"theme count");
-                Check(ThemeCatalog.Names.Select(ThemeCatalog.Get).Count(t=>StudioThemes.IsStudio(t.Mode))==20,"studio theme count");
-                Check(StudioThemes.Create().Select(t=>t.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count()==20,"studio names distinct");
+                Check(WallpaperStudio.IsSafePictureBackgroundType(0),"static picture allowed");
+                Check(!WallpaperStudio.IsSafePictureBackgroundType(2),"slideshow blocked");
+                Check(!WallpaperStudio.IsSafePictureBackgroundType(3),"spotlight blocked");
+                Check(!WallpaperStudio.IsSafePictureBackgroundType(1),"solid color blocked");
+                Check(!WallpaperStudio.IsSafePictureBackgroundType(-1),"unknown mode blocked");
+                Check(ThemeCatalog.Names.Length==49,"theme count");
+                Check(ThemeCatalog.Names.Select(ThemeCatalog.Get).Count(t=>StudioThemes.IsStudio(t.Mode))==21,"studio theme count");
+                Check(StudioThemes.Create().Select(t=>t.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count()==21,"studio names distinct");Check(WallpaperStudio.TotalWallpaperCount==210&&WallpaperStudio.VariantLabels.Length==10,"21x10 wallpaper catalog");using(var wp=WallpaperStudio.Render("Sekiro",9,320,180))Check(wp.Width==320&&wp.Height==180,"Sekiro wallpaper render");
 
                 AppConfig c=new AppConfig();c.Normalize();
                 Check(c.ConfigSchemaVersion==7,"schema 7");
@@ -185,7 +199,7 @@ namespace TaskbarMonitorEnhanced
                     Check(keys.Length==6&&keys[0]=="NET"&&keys[1]=="VRAM"&&keys[2]=="GPU","renderer applies group ordering with independent VRAM");
                 }
                 CheckTrafficLedger();CheckProfileAndStatistics();CheckHardwareAndContrast();
-                Console.WriteLine("TBME_WORKSPACE_SELFTEST=PASS THEMES=48 STUDIO=20 SCHEMA=7 LEGACY_SCHEMA_RANGE=0..6 ORDER_INTEGRATED=TRUE UNAVAILABLE_GAPS=TRUE");
+                Console.WriteLine("TBME_WORKSPACE_SELFTEST=PASS THEMES=49 STUDIO=21 WALLPAPERS=210 SCHEMA=7 LEGACY_SCHEMA_RANGE=0..6 ORDER_INTEGRATED=TRUE UNAVAILABLE_GAPS=TRUE");
                 return 0;
             }
             catch(Exception ex)
@@ -225,9 +239,9 @@ namespace TaskbarMonitorEnhanced
                 }
                 string[] pages={"overview.png","processes.png","network.png","storage.png","alerts.png","themes.png","profiles.png","hardware.png"};
                 foreach(string p in pages)CheckFile(Path.Combine(outputDirectory,p));
-                var manifest=new Dictionary<string,object>{{"Version",BuildInfo.Version},{"PublicVersion",BuildInfo.PublicVersion},{"GeneratedUtc",DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture)},{"Status","PASS"},{"NoSyntheticMetricData",true},{"LiveSampleCount",SessionTelemetryHistory.Count},{"UIActions",actions},{"GeometryUniqueSamePalette",geometry},{"MinimumSizePages",8},{"ThemeCount",ThemeCatalog.Names.Length},{"StudioThemeCount",20},{"Pages",pages}};
+                var manifest=new Dictionary<string,object>{{"Version",BuildInfo.Version},{"PublicVersion",BuildInfo.PublicVersion},{"GeneratedUtc",DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture)},{"Status","PASS"},{"NoSyntheticMetricData",true},{"LiveSampleCount",SessionTelemetryHistory.Count},{"UIActions",actions},{"GeometryUniqueSamePalette",geometry},{"MinimumSizePages",8},{"ThemeCount",ThemeCatalog.Names.Length},{"StudioThemeCount",StudioThemes.Create().Length},{"WallpaperCount",WallpaperStudio.TotalWallpaperCount},{"Pages",pages}};
                 File.WriteAllText(Path.Combine(outputDirectory,"WORKSPACE_PROOF_MANIFEST.json"),new JavaScriptSerializer().Serialize(manifest),new UTF8Encoding(false));
-                Console.WriteLine("TBME_WORKSPACE_PROOF=PASS PAGES=8 THEMES=48 DIR="+outputDirectory);
+                Console.WriteLine("TBME_WORKSPACE_PROOF=PASS PAGES=8 THEMES="+ThemeCatalog.Names.Length+" STUDIO="+StudioThemes.Create().Length+" WALLPAPERS="+WallpaperStudio.TotalWallpaperCount+" DIR="+outputDirectory);
                 return 0;
             }
             catch(Exception ex)

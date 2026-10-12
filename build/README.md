@@ -1,17 +1,17 @@
 # Reproducible build
 
-Build.ps1 is the authoritative local and CI build path for the v1.6.0 Performance Workspace and Theme Studio, retaining the accepted protected sensor architecture.
+Build.ps1 is the authoritative local and CI build path for the unreleased v1.7.0 candidate, retaining the protected sensor architecture and an optional external official PawnIO driver.
 
 It performs the following gates:
 
 dependencies.lock.json is the single source of truth for upstream dependency versions, URLs and SHA-256 values.
 
-1. Downloads LibreHardwareMonitor 0.9.6 and PawnIO 2.2.0 only from their official GitHub release URLs.
+1. Verifies pinned LibreHardwareMonitor 0.9.6 and PawnIO 2.2.0 dependency provenance from upstream URLs. The official PawnIO binary is retained in the builder cache for historical compatibility only; it is not bundled or silently installed by v1.7 OSS Setup.
 2. Verifies the pinned SHA-256 of both dependency artifacts before extraction or use.
 3. Builds the main application, isolated sensor broker, and supervisor as x64 .NET Framework 4.8 binaries.
    Release projects explicitly enable deterministic/CI compilation and omit absolute PDB path metadata from production PE files.
 4. Builds the setup executable from those exact outputs.
-5. Runs setup /verify and requires 24 embedded resources.
+5. Runs setup /verify and requires exactly 25 OSS embedded resources; PawnIOBundled must be false for the SignPath-eligible release.
 6. Runs the legacy, feature-contract and workspace model-regression suites using actual child-process exit codes.
 7. Writes artifacts/BUILD_MANIFEST.json with dependency provenance and output SHA-256 values.
 

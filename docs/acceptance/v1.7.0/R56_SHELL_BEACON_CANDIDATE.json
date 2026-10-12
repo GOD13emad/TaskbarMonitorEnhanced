@@ -1,0 +1,37 @@
+{
+  "Schema": 1,
+  "Revision": "R56",
+  "Project": "TaskbarMonitorEnhanced",
+  "Parent": "de6d2bb3025b551dabfd0bd792fb368a1d6f519c",
+  "SourceBranch": "feature/v1.7.0-r53-start-compositor-visibility",
+  "Status": "SEVEN_OF_EIGHT_LIVE_R55_FAILED_NATIVE_BEACON_MODE_CORRECTED_RETEST_REQUIRED",
+  "R55ActualHost": {
+    "Status": "FAIL",
+    "Passed": 7,
+    "Failed": "shell",
+    "ShellExit": 6,
+    "R55LiveNativeText": 2895,
+    "R55LiveNativeChart": 2695,
+    "Start24Shell": 24,
+    "Start24AllInk": 24,
+    "OriginalV16Rollback": "PASS"
+  },
+  "R56Change": {
+    "AlphaBelow100": "exact true HWND PID + WS_POPUP LAYERED NOACTIVATE !WS_CHILD !COMPOSITED rect inside Shell_TrayWnd",
+    "Alpha100OrHighContrast": "old direct Shell_TrayWnd WS_CHILD",
+    "Beacon": "WM_TBME_VISUAL_BEACON performs synchronous native ULW on alpha glass; counts two distinct live colors >=100 before and <100 each after and screen signal>=300"
+  },
+  "CandidateGates": 12,
+  "StableExternalGates": 4,
+  "Pending": [
+    "exact commit reproducible 5 files / CI / source 10 visual + five portable",
+    "actual installed-path guarded R57 eight interactive including native active beacon",
+    "full installed v1.7 Setup Explorer/start/sensor rollback",
+    "authorized positive static WallpaperStudio apply original restore",
+    "publicly trusted publisher Authenticode main/setup",
+    "approved main and immutable public release"
+  ],
+  "PublicStill": "v1.6.0 immutable",
+  "SourceOfTruth": "docs/project-control/R56_SHELL_BEACON_NATIVE_ACCEPTANCE.md",
+  "UTC": "2026-10-10T16:57:47.715995+00:00"
+}

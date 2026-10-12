@@ -1,0 +1,61 @@
+{
+  "Schema": 1,
+  "Revision": "R80",
+  "ObservedDate": "2026-10-11",
+  "Project": "TaskbarMonitorEnhanced",
+  "AcceptedCandidateSourceSHA": "bfce93b0bb1c65d426be338bd5359b551a2a7aa5",
+  "ExperimentalSourceParentSHA": "0f6438dba4b0c701c66e8e8edb36e67808afd715",
+  "LatestPublicVersion": "v1.6.0",
+  "PublishedReleaseImmutable": true,
+  "PublicV16ReleaseURL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.6.0",
+  "OfficialRepository": "https://github.com/GOD13emad/TaskbarMonitorEnhanced",
+  "OriginalApplicationPacket": "docs/security/SIGNPATH_APPLICATION_PACKET.json",
+  "OriginalApplicationPacketStatus": "SUPERSEDED_AS_CURRENT_READY_PACKET_V1_1_2",
+  "ProviderApplicationURL": "https://signpath.org/apply.html",
+  "ProviderDocumentation": "https://docs.signpath.io/trusted-build-systems/github",
+  "ProviderApplicationSubmitted": false,
+  "ProviderApproved": "UNVERIFIED",
+  "HumanTermsAccepted": "PENDING_INDIVIDUAL",
+  "HumanPrivacyConsent": "PENDING_INDIVIDUAL",
+  "Recaptcha": "PENDING_HUMAN",
+  "ProviderSecretsPresence": "MISSING_ON_CURRENT_HOST",
+  "ActualProductionSignedArtifacts": false,
+  "PublicTrust": "BLOCKED",
+  "ActualG15": "BLOCKED",
+  "ActualG13": "OPEN",
+  "ActualG14": "OPEN",
+  "ActualG16": "BLOCKED",
+  "RequiredBuildSigningOrder": [
+    "reproducible unsigned source build and exact CI",
+    "provider-sign owned Main from GitHub trusted-build provenance and manual approval",
+    "create new Setup embedding exact signed Main SHA",
+    "provider-sign Setup as a second signing request and manual approval",
+    "independent certificate/timestamp/origin and embedded SHA verification",
+    "signed setup installed eight-probe acceptance",
+    "after all gates, exact main CI and immutable public seven assets"
+  ],
+  "UnsignedMainSHA256": "63A724981E949BA4C91F8BD44F2659F223BDFE0350A2E229CEE7B05535D4BA70",
+  "UnsignedSetupPriorSHA256": "AE302599EB5ED259DEF42691C8446D4BEB6E1D74281B2DEA4E2EB21BE1387A09",
+  "BrokerProductVersion": "1.1.2+r21",
+  "SupervisorProductVersion": "1.3.0+r33",
+  "MainProductVersion": "1.7.0+r39",
+  "CriticalLegalReview": {
+    "Component": "PawnIO_setup.exe",
+    "OfficialVersion": "2.2.0",
+    "PinnedSHA256": "1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032",
+    "Risk": "Published source PawnIO GPL-2.0-exception, but official distribution binary can be separately licensed. SignPath Foundation rejects proprietary bundled components. Provider/legal review needed before foundation code-signing approval.",
+    "Status": "UNVERIFIED_DO_NOT_AUTOMATICALLY_REMOVE_OR_RESIGN_THIRD_PARTY"
+  },
+  "PreviousProtection": {
+    "InstalledVersion": "v1.6.0",
+    "MainSHA256": "05F9E069C4598FDAD327A41BF1CA34A1498D022119DB81E09F4B3B091C9BA377",
+    "WindowsSlideshowBackgroundType": 2
+  },
+  "Forbidden": [
+    "Automatic user consent",
+    "Solve or bypass CAPTCHA",
+    "Development certificate as publicly trusted identity",
+    "signing _out unsigned deterministic baseline in place",
+    "public release on test-only proof"
+  ]
+}

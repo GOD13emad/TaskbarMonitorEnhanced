@@ -34,7 +34,8 @@ namespace TaskbarMonitorEnhanced
                 T("Origami Snow", "origami", 0xE6EDF4,0xFAFDFF,0x26334E,0x556782,0x98ACC7,true,0x37649F,0x8E478F,0x237A6E,0x906623,0xAD4B4D,0x525DA5),
                 T("Kintsugi Ink", "kintsugi", 0x171619,0x29252A,0xF5EDDF,0xC0B5A4,0x8C7B5B,false,0xEDC271,0xDDA5AA,0x9DC4CA,0xB7CF9E,0xC0AEEE,0xEAAF89),
                 T("Brutalist Concrete", "brutal", 0xDAD9D4,0xF5F4ED,0x171918,0x4F5450,0x282D2A,true,0x9F2A1D,0x254AA0,0x21704C,0x845600,0x733A80,0x006C77),
-                T("Stained Glass", "stained", 0x191629,0x2C2944,0xFFF4EF,0xC7B9D4,0x8E77A4,false,0xF5A597,0x9CC8F5,0x9DDBB1,0xF3D28D,0xD8ABEC,0x8FDFDC)
+                T("Stained Glass", "stained", 0x191629,0x2C2944,0xFFF4EF,0xC7B9D4,0x8E77A4,false,0xF5A597,0x9CC8F5,0x9DDBB1,0xF3D28D,0xD8ABEC,0x8FDFDC),
+                T("Sekiro", "shinobi", 0x0C0B0A,0x1C1712,0xF0E2CC,0xA9957B,0x6A4A31,false,0xC44B2F,0xD28B42,0x8B1E1E,0xBDA36B,0x6C7A52,0xC9B08B)
             };
         }
         internal static bool IsStudio(string mode) { return mode != null && mode.StartsWith("studio-", StringComparison.Ordinal); }
@@ -57,9 +58,7 @@ namespace TaskbarMonitorEnhanced
                     for(int x=-60;x<r.Width;x+=92) for(int k=0;k<3;k++) g.DrawEllipse(p,x-k*8,10-k*9,65+k*16,40+k*18);
                 } else if(mode=="circuit") {
                     for(int x=0;x<r.Width;x+=64) { g.DrawLines(p,new[]{new Point(x,5),new Point(x+18,5),new Point(x+28,15),new Point(x+55,15)}); g.DrawEllipse(p,x+54,12,5,5); }
-                } else if(mode=="stained" || mode=="prism") {
-                    for(int x=0;x<r.Width;x+=56) g.DrawPolygon(p,new[]{new Point(x,0),new Point(x+28,r.Height),new Point(x+56,0)});
-                }
+                } else if(mode=="stained" || mode=="prism") { for(int x=0;x<r.Width;x+=56) g.DrawPolygon(p,new[]{new Point(x,0),new Point(x+28,r.Height),new Point(x+56,0)}); } else if(mode=="shinobi") { for(int x=0;x<r.Width;x+=72) { g.DrawLine(p,x,r.Height,x+36,0); g.DrawArc(p,x+18,4,34,34,18,300); } }
             }
         }
         private void PaintStudioMetric(Graphics g, ThemeDefinition t, MetricView m, RectangleF r, Font labelFont, Font valueFont)
@@ -122,6 +121,8 @@ namespace TaskbarMonitorEnhanced
                             g.FillRectangle(fill,x,y,w,h);g.DrawLines(line,new[]{new PointF(x+w-4,y),new PointF(x+w-8,y+9),new PointF(x+w-3,y+18),new PointF(x+w-7,y+h)});break;
                         case "brutal":
                             g.FillRectangle(mark,x+3,y+3,w-3,h-3);g.FillRectangle(fill,x,y,w-3,h-3);using(var bold=new Pen(t.Foreground,2))g.DrawRectangle(bold,x+1,y+1,w-5,h-5);break;
+                        case "shinobi":
+                            g.FillRectangle(fill,x,y,w,h);g.FillRectangle(faint,x+w-22,y,22,h);g.DrawLine(line,x+w-28,y+h,x+w-8,y);g.DrawArc(line,x+3,y+3,12,12,25,285);break;
                         case "stained":
                             g.FillRectangle(fill,x,y,w,h);g.FillPolygon(faint,new[]{new PointF(x+w-26,y),new PointF(x+w,y+12),new PointF(x+w-4,y+h)});
                             g.DrawLines(edge,new[]{new PointF(x+w-26,y),new PointF(x+w-4,y+h),new PointF(x+w,y+h/2)});g.DrawRectangle(edge,x,y,w,h);break;
@@ -133,17 +134,69 @@ namespace TaskbarMonitorEnhanced
                 float readable=7.4f*scale;
                 string headline=BuildMetricHeadline(g,t,m,readable,textWidth);
                 using(Font f=FitHeadlineFont(g,t.FontName,headline,8.7f*scale,readable,textWidth))
-                using(var b=new SolidBrush(t.Foreground))g.DrawString(headline,f,b,new PointF(textX,y+4));
+                using(var b=new SolidBrush(t.Foreground))DrawThemeGlyph(g,headline,f,b,new PointF(textX,y+4));
                 bool stacked=HeadlineIsStacked(headline);
                 RectangleF graph=new RectangleF(x+9,y+(stacked?30:24),Math.Max(4,w-18),Math.Max(4,h-(stacked?34:28)));
                 if(!config.ShowSparklines)return;
-                if(mode=="lcd" || mode=="dots") {
-                    if(m.History==null||m.History.Count==0)return;
-                    int count=Math.Min(24,m.History.Count);float max=Math.Max(1,m.History.Skip(m.History.Count-count).Max());float dx=graph.Width/count;
-                    using(var b=new SolidBrush(accent))for(int i=0;i<count;i++){float v=m.History[m.History.Count-count+i]/max;int levels=Math.Max(1,(int)Math.Round(v*3));for(int k=0;k<levels;k++) {if(mode=="dots")g.FillEllipse(b,graph.X+i*dx,graph.Bottom-2-k*3,Math.Max(1,Math.Min(2,dx-1)),2);else g.FillRectangle(b,graph.X+i*dx,graph.Bottom-2-k*3,Math.Max(1,dx-1),2);}}
+                if(mode=="lcd" || mode=="dots")
+                {
+                    DrawStudioQuantizedChart(g,m.History,graph,accent,mode=="dots");
                 } else if(mode=="bauhaus" || mode=="metro" || mode=="brutal")DrawMissionBars(g,m.History,graph,accent);
                 else DrawSparkline(g,m.History,graph,accent,mode=="scope"?1.6f:1.25f,mode=="scope" || mode=="prism");
             } finally {g.Restore(saved);}
         }
+
+        // Discrete LCD / dot-chart geometry participates in the same glass
+        // foreground contract as line and bar charts; decorative tile art does not.
+        private void DrawStudioQuantizedChart(Graphics g,IList<float> values,
+            RectangleF graph,Color accent,bool dots)
+        {
+            PaintQuantizedChartCore(g,values,graph,accent,dots,false);
+            if(glassInkCanvas!=null)
+            {
+                GraphicsState st=glassInkCanvas.Save();
+                try
+                {
+                    glassInkCanvas.SetClip(graph,CombineMode.Intersect);
+                    PaintQuantizedChartCore(glassInkCanvas,values,graph,
+                        Color.FromArgb(255,accent),dots,false);
+                }
+                finally{glassInkCanvas.Restore(st);}
+                if(glassHaloCanvas!=null)
+                {
+                    GraphicsState halo=glassHaloCanvas.Save();
+                    try
+                    {
+                        glassHaloCanvas.SetClip(graph,CombineMode.Intersect);
+                        PaintQuantizedChartCore(glassHaloCanvas,values,graph,Color.White,dots,true);
+                    }
+                    finally{glassHaloCanvas.Restore(halo);}
+                }
+            }
+        }
+        private static void PaintQuantizedChartCore(Graphics g,IList<float> values,
+            RectangleF graph,Color accent,bool dots,bool ring)
+        {
+            if(values==null||values.Count==0||graph.Width<4||graph.Height<4)return;
+            int count=Math.Min(24,values.Count);
+            float max=Math.Max(1,values.Skip(values.Count-count).Max());
+            float dx=graph.Width/count;
+            using(var b=new SolidBrush(accent))
+            for(int i=0;i<count;i++)
+            {
+                float v=values[values.Count-count+i]/max;
+                int levels=Math.Max(1,(int)Math.Round(v*3));
+                for(int k=0;k<levels;k++)
+                {
+                    float xx=graph.X+i*dx-(ring?0.6f:0f);
+                    float yy=graph.Bottom-2-k*3-(ring?0.6f:0f);
+                    float ww=Math.Max(1,dots?Math.Min(2,dx-1):dx-1)+(ring?1.2f:0f);
+                    float hh=2+(ring?1.2f:0f);
+                    if(dots)g.FillEllipse(b,xx,yy,ww,hh);
+                    else g.FillRectangle(b,xx,yy,ww,hh);
+                }
+            }
+        }
+
     }
 }
