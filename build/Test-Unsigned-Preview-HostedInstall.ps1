@@ -363,7 +363,7 @@ try{
     InstalledNativeFiveSummarySHA256=$NativeFiveSHA
     GuiSessionCapabilityReport=if(Test-Path -LiteralPath $GuiSessionPath){'R90_GUI_SESSION_READINESS.json'}else{''}
     WallpaperBefore=$InitialType;RealInteractiveG13='NOT_TESTED'
-    RealInteractiveG14EightProbes=if($R103G14Attempted -eq 8){'EIGHT_ATTEMPTED_DIAGNOSTIC_NOT_SIGNED'}else{'NOT_TESTED'}
+    RealInteractiveG14EightProbes='NOT_TESTED' # Formal G14 acceptance remains untested; R103 separate receipt captures diagnostic attempts.
     R103G14DiagnosticStatus=$R103G14DiagnosticStatus
     R103G14Attempted=$R103G14Attempted;R103G14Passed=$R103G14Passed
     R103G14ReceiptSHA256=$R103G14ReceiptSHA

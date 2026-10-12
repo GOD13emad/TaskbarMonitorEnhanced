@@ -18,7 +18,8 @@ function Verify-R103Record([psobject]$r) {
  foreach($name in @('Schema','Revision','EventCommit','Purpose','Status',
   'ExactInstalledMainSHA256','InstalledConfigSHA256','HostRole','ExplorerSameSession',
   'UserInteractive','HostSessionId','OriginalPublicTag','ResidentStarted','ResidentProcessId',
-  'ResidentPath','ResidentMainSHA256','EighthCaseNames','Results','CompletedCases','PassedCases',
+  'ResidentPath','ResidentMainSHA256','GuiReadinessReport','GuiReadinessSHA256',
+  'EighthCaseNames','Results','CompletedCases','PassedCases',
   'FullInteractiveG14SignedAccepted','TrustedIndependentLabWitness','SensorLayerStatus',
   'SystemRestarted','DriverInstallPerformed','PersonalInstallTouched','PersonalWallpaperTouched',
   'Cleanup','Failure','StartedUTC','FinishedUTC')) {
@@ -37,6 +38,28 @@ function Verify-R103Record([psobject]$r) {
     $r.UserInteractive -ne $true -or $r.ExplorerSameSession -lt 1 -or
     $r.HostSessionId -lt 1 -or $r.ResidentStarted -ne $true -or $r.ResidentProcessId -lt 1 -or
     $r.ResidentPath -cnotmatch 'TaskbarMonitorEnhanced.exe$'){$errors.Add('NOT_INSTALLED_LIVE_REAL_EIGHT_PROBE')}
+ if($r.GuiReadinessReport -cne 'R103_GUI_READINESS.json' -or
+    $r.GuiReadinessSHA256 -cnotmatch '^[A-F0-9]{64}$'){
+    $errors.Add('G14_REAL_GUI_READINESS_REPORT_REFUSED')
+ }else{
+    $readinessPath=Join-Path $root 'R103_GUI_READINESS.json'
+    if(!(Test-Path -LiteralPath $readinessPath -PathType Leaf) -or
+       (Get-FileHash -LiteralPath $readinessPath -Algorithm SHA256).Hash -cne $r.GuiReadinessSHA256){
+        $errors.Add('G14_GUI_READINESS_RAW_HASH_MISSING')
+    }else{
+        $gui=Get-Content -LiteralPath $readinessPath -Raw|ConvertFrom-Json
+        if($gui.Revision -cne 'R103' -or $gui.EventCommit -cne $ExpectedCommit -or
+           $gui.HostRole -cne 'GITHUB_HOSTED_DISPOSABLE_WINDOWS' -or
+           $gui.ReadinessOnlyNotG14Acceptance -ne $true -or
+           $gui.RealInstalledMainPid -ne $r.ResidentProcessId -or
+           $gui.SameSessionId -ne $r.HostSessionId -or
+           $gui.SameSessionExplorerCount -lt 1 -or
+           $gui.UserInteractive -ne $true -or
+           @($gui.PrimaryScreenBounds).Count -ne 4){
+           $errors.Add('G14_GUI_READINESS_SOURCE_OR_SESSION_UNPROVEN')
+        }
+    }
+ }
  if($r.FullInteractiveG14SignedAccepted -ne $false -or
     $r.TrustedIndependentLabWitness -cne 'MISSING' -or
     $r.PersonalInstallTouched -ne $false -or $r.PersonalWallpaperTouched -ne $false -or
@@ -93,6 +116,7 @@ if($SelfTest){
   @{Test='FALSE_SENSOR_INDEPENDENCE';Obj='receipt';Field='DriverInstallPerformed';Value=$true},
   @{Test='WRONG_EXE_SHA';Obj='receipt';Field='ExactInstalledMainSHA256';Value=('0'*64)},
   @{Test='WRONG_CONFIG_SHA';Obj='receipt';Field='InstalledConfigSHA256';Value=('0'*64)},
+  @{Test='WRONG_GUI_READINESS_SHA';Obj='receipt';Field='GuiReadinessSHA256';Value=('0'*64)},
   @{Test='WRONG_RESTART';Obj='receipt';Field='SystemRestarted';Value=$true},
   @{Test='UNCLEAN_RESIDENT';Obj='receipt';Field='Cleanup';Value='NOT_DONE'},
   @{Test='FALSE_PASS_COUNT';Obj='receipt';Field='PassedCases';Value=9},
@@ -107,7 +131,7 @@ if($SelfTest){
        throw ('R103_HOSTILE_MUTATION_FALSE_ACCEPT '+$case.Test)
     }
  }
- Write-Output 'R103_G14_DIAGNOSTIC_VERIFIER_TWELVE_HOSTILE_CASES_REJECTED'
+ Write-Output 'R103_G14_DIAGNOSTIC_VERIFIER_THIRTEEN_HOSTILE_CASES_REJECTED'
 }
 Write-Output ('R103_G14_EIGHT_ACTUAL_INSTALLED_CASES_VERIFIED_ATTEMPTS='+$receipt.CompletedCases+
  ' PASS='+$receipt.PassedCases+' SIGNED_INDEPENDENT_G14=MISSING RECEIPT_SHA256='+

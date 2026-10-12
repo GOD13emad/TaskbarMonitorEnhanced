@@ -152,6 +152,51 @@ try{
     $lastResidentSHA=(Get-FileHash -LiteralPath $main -Algorithm SHA256).Hash
     # Give actual overlay time to initialize before Start and Shell-dependent probes.
     Start-Sleep -Seconds 5
+    # Read-only desktop capability observation. This is not proof of a
+    # visible 1100x48 native overlay or signed G14 acceptance.
+    $desktopReadiness=[ordered]@{
+        Revision='R103';EventCommit=$env:GITHUB_SHA
+        HostRole='GITHUB_HOSTED_DISPOSABLE_WINDOWS'
+        RealInstalledMainPid=$residentId
+        RealInstalledMainProcessAlive=(!$resident.HasExited)
+        SameSessionExplorerCount=$explorers.Count
+        SameSessionId=$session
+        MainWindowHandle=[long]$resident.MainWindowHandle.ToInt64()
+        MainResponding=[bool]$resident.Responding
+        UserInteractive=[Environment]::UserInteractive
+        TaskbarFound=$false
+        TaskbarRect=@()
+        PrimaryScreenBounds=@()
+        ReadinessOnlyNotG14Acceptance=$true
+        Error=''
+    }
+    try{
+        Add-Type -AssemblyName System.Windows.Forms
+        $screen=[Windows.Forms.Screen]::PrimaryScreen.Bounds
+        $desktopReadiness.PrimaryScreenBounds=@($screen.Left,$screen.Top,$screen.Width,$screen.Height)
+        Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class R103ReadOnlyTaskbar {
+ [StructLayout(LayoutKind.Sequential)]
+ public struct RECT { public int Left,Top,Right,Bottom; }
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)]
+ public static extern IntPtr FindWindow(string name,string title);
+ [DllImport("user32.dll")]
+ public static extern bool GetWindowRect(IntPtr h,out RECT rect);
+}
+'@
+        $tray=[R103ReadOnlyTaskbar]::FindWindow('Shell_TrayWnd',$null)
+        $desktopReadiness.TaskbarFound=($tray -ne [IntPtr]::Zero)
+        if($desktopReadiness.TaskbarFound){
+            $rect=New-Object R103ReadOnlyTaskbar+RECT
+            if([R103ReadOnlyTaskbar]::GetWindowRect($tray,[ref]$rect)){
+                $desktopReadiness.TaskbarRect=@($rect.Left,$rect.Top,$rect.Right,$rect.Bottom)
+            }
+        }
+    }catch{$desktopReadiness.Error=$_.Exception.Message}
+    [IO.File]::WriteAllText((Join-Path $folder 'R103_GUI_READINESS.json'),
+        ($desktopReadiness|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
     foreach($spec in $CaseSpecs){
         $result=Run-R103Probe -switch $spec.Switch -target $spec.Output -testName $spec.Test -timeout $spec.TimeoutMs
         $results+= $result
@@ -203,6 +248,10 @@ finally{
        OriginalPublicTag='v1.7.0-unsigned-preview.1'
        ResidentStarted=$residentStarted;ResidentProcessId=$residentId;ResidentPath=$lastResidentPath
        ResidentMainSHA256=$lastResidentSHA
+       GuiReadinessReport='R103_GUI_READINESS.json'
+       GuiReadinessSHA256=if(Test-Path -LiteralPath (Join-Path $folder 'R103_GUI_READINESS.json')){
+           (Get-FileHash -LiteralPath (Join-Path $folder 'R103_GUI_READINESS.json') -Algorithm SHA256).Hash
+       }else{''}
        EighthCaseNames=@('startup','hover','hardware','temperature','health','support','start','shell')
        Results=$results;CompletedCases=$results.Count;PassedCases=$passes
        FullInteractiveG14SignedAccepted=$false
