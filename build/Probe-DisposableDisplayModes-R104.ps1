@@ -56,11 +56,19 @@ public static class R104Win32Display {
 }
 '@
 Add-Type -AssemblyName System.Windows.Forms
+$primaryScreen=[Windows.Forms.Screen]::PrimaryScreen
+if($null -eq $primaryScreen){throw 'R104_NO_PRIMARY_SCREEN'}
+$deviceName=[string]$primaryScreen.DeviceName
+if($deviceName -cnotmatch '^\\\\\.\\DISPLAY[1-9][0-9]*$'){
+    throw ('R104_PRIMARY_DEVICE_NAME_INVALID '+$deviceName)
+}
+# R104-F01: hosted Windows rejected NULL default-device query; exact \.DISPLAY1
+# read-only query is supported. Do not enumerate an unspecified device.
 $current=[R104Win32Display]::NewMode()
-if(![R104Win32Display]::EnumDisplaySettings($null,-1,[ref]$current)){
+if(![R104Win32Display]::EnumDisplaySettings($deviceName,-1,[ref]$current)){
   throw 'R104_ENUM_CURRENT_DISPLAY_MODE_FAILED'
 }
-$primary=[Windows.Forms.Screen]::PrimaryScreen.Bounds
+$primary=$primaryScreen.Bounds
 $before=[ordered]@{Width=[int]$current.dmPelsWidth;Height=[int]$current.dmPelsHeight;
  BitsPerPixel=[int]$current.dmBitsPerPel;Frequency=[int]$current.dmDisplayFrequency;DEVMODEBytes=[int]$current.dmSize}
 if($before.Width -ne $primary.Width -or $before.Height -ne $primary.Height){
@@ -69,7 +77,7 @@ if($before.Width -ne $primary.Width -or $before.Height -ne $primary.Height){
 $rows=@();$tests=@()
 for($i=0;$i -lt 256;$i++){
  $mode=[R104Win32Display]::NewMode()
- if(![R104Win32Display]::EnumDisplaySettings($null,$i,[ref]$mode)){break}
+ if(![R104Win32Display]::EnumDisplaySettings($deviceName,$i,[ref]$mode)){break}
  $record=[ordered]@{Index=$i;Width=[int]$mode.dmPelsWidth;Height=[int]$mode.dmPelsHeight;
  BitsPerPixel=[int]$mode.dmBitsPerPel;Frequency=[int]$mode.dmDisplayFrequency}
  $rows+=$record
@@ -77,14 +85,14 @@ for($i=0;$i -lt 256;$i++){
     $record.BitsPerPixel -ge 32 -and $tests.Count -lt 20){
    # 0x00000002: CDS_TEST only; does not change the graphics mode.
    $result=[R104Win32Display]::ChangeDisplaySettingsEx(
-      $null,[ref]$mode,[IntPtr]::Zero,[uint32]2,[IntPtr]::Zero)
+      $deviceName,[ref]$mode,[IntPtr]::Zero,[uint32]2,[IntPtr]::Zero)
    $tests+=[ordered]@{Index=$i;Width=$record.Width;Height=$record.Height;
       BitDepth=$record.BitsPerPixel;Frequency=$record.Frequency;
       Win32Flag='CDS_TEST_ONLY';ReturnCode=$result;Supported=($result -eq 0)}
  }
 }
 $finalMode=[R104Win32Display]::NewMode()
-if(![R104Win32Display]::EnumDisplaySettings($null,-1,[ref]$finalMode)){
+if(![R104Win32Display]::EnumDisplaySettings($deviceName,-1,[ref]$finalMode)){
  throw 'R104_ENUM_FINAL_DISPLAY_FAILED'
 }
 $after=[ordered]@{Width=[int]$finalMode.dmPelsWidth;Height=[int]$finalMode.dmPelsHeight;
@@ -98,7 +106,7 @@ if($rows.Count -lt 1 -or $before.Width -ne $after.Width -or $before.Height -ne $
 $good=@($tests|Where-Object {$_.Supported})
 $report=[ordered]@{
  Schema=1;Revision='R104';EventCommit=$env:GITHUB_SHA;HostRole='GITHUB_HOSTED_DISPOSABLE_WINDOWS'
- Status='PASS_READONLY_DISPLAY_MODE_ENUMERATION';OriginalMode=$before;FinalMode=$after
+ Status='PASS_READONLY_DISPLAY_MODE_ENUMERATION';DisplayDeviceName=$deviceName;OriginalMode=$before;FinalMode=$after
  ScreenBefore=@($primary.X,$primary.Y,$primary.Width,$primary.Height)
  ScreenAfter=@($finalScreen.X,$finalScreen.Y,$finalScreen.Width,$finalScreen.Height)
  ModeCount=$rows.Count;EnumeratedModes=$rows

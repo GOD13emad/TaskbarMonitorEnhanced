@@ -10,7 +10,7 @@ if(!(Test-Path -LiteralPath $ReceiptPath -PathType Leaf)){throw 'R104 DISPLAY RA
 $receipt=Get-Content -LiteralPath $ReceiptPath -Raw | ConvertFrom-Json
 function Assert-R104Receipt([psobject]$r){
     $errors=[Collections.Generic.List[string]]::new()
-    foreach($name in @('Schema','Revision','EventCommit','HostRole','Status',
+    foreach($name in @('Schema','Revision','EventCommit','HostRole','Status','DisplayDeviceName',
        'OriginalMode','FinalMode','ScreenBefore','ScreenAfter','ModeCount','EnumeratedModes',
        'CDSTestModes','WiderSupportedCount','RequiredNativeOverlayWidth','SupportedWiderModeExists',
        'MutationFlagOnly','RegistryUpdated','GraphicsModeChanged','NoRebootOrLogoff',
@@ -24,6 +24,9 @@ function Assert-R104Receipt([psobject]$r){
        $r.HostRole -cne 'GITHUB_HOSTED_DISPOSABLE_WINDOWS' -or
        $r.Status -cne 'PASS_READONLY_DISPLAY_MODE_ENUMERATION'){
         $errors.Add('IDENTITY_OR_STATUS_INVALID')
+    }
+    if($r.DisplayDeviceName -cnotmatch '^\\\\\.\\DISPLAY[1-9][0-9]*$'){
+        $errors.Add('PRIMARY_DISPLAY_IDENTITY_NOT_PINNED')
     }
     if($r.MutationFlagOnly -cne 'CDS_TEST' -or $r.RegistryUpdated -ne $false -or
        $r.GraphicsModeChanged -ne $false -or $r.NoRebootOrLogoff -ne $true -or
@@ -120,6 +123,7 @@ if($SelfTest){
    @{Name='FORGED_WITNESS';Location='top';Field='IndependentLabWitnessSignature';Value='SELF_SIGNED'},
    @{Name='DISPOSABLE_FALSE';Location='top';Field='HostRole';Value='PERSONAL'},
    @{Name='FALSE_CDS_FLAG';Location='top';Field='MutationFlagOnly';Value='CDS_UPDATEREGISTRY'},
+   @{Name='FALSE_DEVICE_NAME';Location='top';Field='DisplayDeviceName';Value='unknown-display'},
    @{Name='REGISTRY_WRITE';Location='top';Field='RegistryUpdated';Value=$true},
    @{Name='ACTUAL_MODE_CHANGED';Location='top';Field='GraphicsModeChanged';Value=$true},
    @{Name='UNEXPECTED_REBOOT';Location='top';Field='NoRebootOrLogoff';Value=$false},
