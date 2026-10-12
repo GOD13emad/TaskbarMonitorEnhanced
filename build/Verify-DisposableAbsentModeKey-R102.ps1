@@ -18,8 +18,31 @@ $reason=@{
 }
 $helper=Join-Path $PSScriptRoot 'Restore-DisposableModeKey-R102.ps1'
 $harness=Join-Path $PSScriptRoot 'Test-WallpaperStaticDisposable-R91.ps1'
-$shaHelper=if(Test-Path -LiteralPath $helper){(Get-FileHash -LiteralPath $helper -Algorithm SHA256).Hash}else{''}
-$shaHarness=if(Test-Path -LiteralPath $harness){(Get-FileHash -LiteralPath $harness -Algorithm SHA256).Hash}else{''}
+# R102-F01: Git Windows CRLF versus Git LF, a recurrence of R96-F03.
+# Allow exactly UTF-8 original bytes and LF/CRLF conversions, never changed content.
+function Get-R102ExactLineEndingHashes([string]$path){
+    if(!(Test-Path -LiteralPath $path -PathType Leaf)){throw 'R102 SOURCE NOT PRESENT'}
+    $bytes=[IO.File]::ReadAllBytes($path)
+    $utf8=[Text.UTF8Encoding]::new($false,$true)
+    $text=$utf8.GetString($bytes)
+    if($text.Length -gt 0 -and [int]$text[0] -eq 65279){throw 'R102 BOM REFUSED'}
+    $lf=[string][char]10
+    $crlf=([string][char]13)+$lf
+    $canonical=$text.Replace($crlf,$lf)
+    if($canonical.Contains([string][char]13)){throw 'R102 BARE CR REFUSED'}
+    $win=$canonical.Replace($lf,$crlf)
+    $sh=[Security.Cryptography.SHA256]::Create()
+    try{
+        $values=@(
+          [BitConverter]::ToString($sh.ComputeHash($bytes)).Replace('-',''),
+          [BitConverter]::ToString($sh.ComputeHash($utf8.GetBytes($canonical))).Replace('-',''),
+          [BitConverter]::ToString($sh.ComputeHash($utf8.GetBytes($win))).Replace('-','')
+        )
+        return @($values|Select-Object -Unique)
+    }finally{$sh.Dispose()}
+}
+$allowedHelperHashes=@(Get-R102ExactLineEndingHashes $helper)
+$allowedHarnessHashes=@(Get-R102ExactLineEndingHashes $harness)
 function Check-R102([psobject]$r) {
     $issues=[Collections.Generic.List[string]]::new()
     foreach($prop in @('Schema','Revision','EventCommit','Status','CaseCount','Cases','HostRole',
@@ -33,8 +56,10 @@ function Check-R102([psobject]$r) {
     if($r.Schema -ne 1 -or $r.Revision -cne 'R102' -or $r.EventCommit -cne $ExpectedCommit -or
        $r.Status -cne 'PASS_DISPOSABLE_SYNTHETIC_ORIGINALLY_ABSENT_KEY_GUARD' -or
        $r.HostRole -cne 'GITHUB_HOSTED_DISPOSABLE_WINDOWS'){$issues.Add('SOURCE_OR_HOST_WRONG')}
-    if($shaHelper -cnotmatch '^[0-9A-Fa-f]{64}$' -or $shaHarness -cnotmatch '^[0-9A-Fa-f]{64}$' -or
-       $r.SourceHelperSHA256 -cne $shaHelper -or $r.SourceHarnessSHA256 -cne $shaHarness){
+    if($r.SourceHelperSHA256 -cnotmatch '^[0-9A-F]{64}$' -or
+       $r.SourceHarnessSHA256 -cnotmatch '^[0-9A-F]{64}$' -or
+       $r.SourceHelperSHA256 -cnotin $allowedHelperHashes -or
+       $r.SourceHarnessSHA256 -cnotin $allowedHarnessHashes){
        $issues.Add('HELPER_HARNESS_HASH_INVALID')
     }
     if($r.SyntheticFixtureKeysOnly -ne $true -or $r.RealWallpaperKeyWasNotWritten -ne $true -or
