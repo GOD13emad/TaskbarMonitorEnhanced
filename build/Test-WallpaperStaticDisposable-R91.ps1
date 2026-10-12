@@ -34,6 +34,22 @@ function Get-R91FileHash {
     finally{$stream.Dispose();$algo.Dispose()}
     return [pscustomobject]@{Hash=$digest;Path=$target;Algorithm='SHA256'}
 }
+function Invoke-R101FiveStringMethod {
+  [CmdletBinding()]
+  param([Reflection.MethodInfo]$Method,[string[]]$Values)
+  if($null -eq $Method -or !$Method.IsStatic -or $null -eq $Values -or $Values.Count -ne 5){throw 'R101 REFLECTION EXACT FIVE REQUIRED'}
+  $sig=@($Method.GetParameters())
+  if($sig.Count -ne 5){throw 'R101 REFLECTION ARGUMENT COUNT MISMATCH'}
+  for($i=0;$i -lt 5;$i++){
+    if($sig[$i].ParameterType -ne [string]){throw ('R101 REFLECTION SIGNATURE NOT STRING '+$i)}
+  }
+  $typed=New-Object 'object[]' 5
+  for($i=0;$i -lt 5;$i++){
+    $typed[$i]=[string]$Values[$i]
+    if(!($typed[$i] -is [string])){throw ('R101 REFLECTION CLR STRING MARSHAL FAILED '+$i)}
+  }
+  return $Method.Invoke($null,[object[]]$typed)
+}
 if($StaticOnly){
     $tokens=$null;$parseErrors=$null
     [void][Management.Automation.Language.Parser]::ParseFile($PSCommandPath,[ref]$tokens,[ref]$parseErrors)
@@ -45,7 +61,19 @@ if($StaticOnly){
     if(![string]::IsNullOrWhiteSpace($MainExe)){
        if((Get-R91FileHash -LiteralPath $MainExe).Hash -cne $MainSHA){throw 'R91 WINPS5 STREAMED EXE SHA256 IS NOT EXACT'}
     }
-    Write-Output 'R91_WINPS5_DOTNET_STREAMED_SHA256_VECTOR_AND_EXACT_FILE_PASS_NO_DESKTOP_MUTATION'
+    # No desktop access: real CLR MethodInfo positive and hostile signature-negative.
+    Add-Type -TypeDefinition 'public static class R101ReflectionProbe { private static string Five(string a,string b,string c,string d,string e) { return a+b+c+d+e; } private static string Wrong(string a,string b,int c,string d,string e) { return a+b+c+d+e; } }'
+    $probeType=[R101ReflectionProbe]
+    $pflags=[Reflection.BindingFlags]'NonPublic,Static'
+    $m=$probeType.GetMethod('Five',$pflags)
+    if((Invoke-R101FiveStringMethod -Method $m -Values @('a','b','c','d','e')) -cne 'abcde'){throw 'R101 REFLECTION POSITIVE PROBE FAIL'}
+    $bad=$probeType.GetMethod('Wrong',$pflags)
+    $rejected=$false
+    try{[void](Invoke-R101FiveStringMethod -Method $bad -Values @('a','b','c','d','e'))}catch{
+       if($_.Exception.Message -like '*R101 REFLECTION SIGNATURE NOT STRING*'){$rejected=$true}
+    }
+    if(!$rejected){throw 'R101 REFLECTION NEGATIVE PROBE FALSE ACCEPT'}
+    Write-Output 'R101_WINPS5_PS7_TYPED_FIVE_STRING_POSITIVE_AND_NEGATIVE_STATIC_PASS_NO_DESKTOP_MUTATION'
     exit 0
 }
 if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
@@ -86,6 +114,8 @@ $R91ProductEvents=[ordered]@{
   Schema=1;Revision='R91';SourceSHA=$SourceSHA;ProductClass='WallpaperStudio'
   EventCommit=$env:GITHUB_SHA
   ApplyDesktopInvoked=$false;RestoreDesktopPreStateInvoked=$false
+  RestoreDesktopPreStateAttempted=$false;RestoreDesktopPreStateReturned=$false
+  OriginalModeKeyExists=$false;RestoredModeKeyExists=$null
   IndependentAfterStateObserved=$false;ProcessId=$PID
   NegativeSlideshowRefusalObserved=$false;RealUserHostTouched=$false
 }
@@ -94,6 +124,8 @@ $R91Original=[ordered]@{}
 $R91Key=Get-Item -LiteralPath $DesktopRegPath -ErrorAction Stop
 $R91ModeKey=Get-Item -LiteralPath $WallpaperModePath -ErrorAction SilentlyContinue
 $R91ModeOriginallyExists=$null -ne $R91ModeKey
+$modeKeyExistsFinal=$null
+$R91ProductEvents.OriginalModeKeyExists=[bool]$R91ModeOriginallyExists
 $R91ModePresent=$R91ModeOriginallyExists -and @($R91ModeKey.GetValueNames()) -contains 'BackgroundType'
 $R91OriginalMode=if($R91ModePresent){[int]$R91ModeKey.GetValue('BackgroundType')}else{$null}
 if($R91ModePresent -and $R91OriginalMode -ne 0){throw 'R91 REFUSE TO OVERWRITE NONSTATIC SLIDESHOW/SPOTLIGHT EVEN ON EPHEMERAL RUNNER'}
@@ -194,9 +226,13 @@ try{
        (Get-R91FileHash -LiteralPath ([string]$appBackup.OriginalImageBackup)).Hash -cne $R91SyntheticSHA){
         throw 'R91 PRODUCT PRIOR WALLPAPER BACKUP HASH INVALID'
     }
+    # Attempt is distinct from verified return: never pass PSObject wrappers as CLR strings.
+    $R91ProductEvents.RestoreDesktopPreStateAttempted=$true
+    [void](Invoke-R101FiveStringMethod -Method $restoreMethod -Values @(
+       [string]$R91SeedPath,[string]$R91Before.WallpaperStyle,[string]$R91Before.TileWallpaper,
+       [string]$appBackup.OriginalImageBackup,[string]$R91SyntheticSHA))
+    $R91ProductEvents.RestoreDesktopPreStateReturned=$true
     $R91ProductEvents.RestoreDesktopPreStateInvoked=$true
-    [void]$restoreMethod.Invoke($null,@($R91SeedPath,$R91Before.WallpaperStyle,$R91Before.TileWallpaper,
-        [string]$appBackup.OriginalImageBackup,$R91SyntheticSHA))
     $restored=Read-R91WallpaperState
     if($restored.BackgroundType -ne 0 -or $restored.WallPaper -cne $R91SeedPath -or
        $restored.WallpaperStyle -cne $R91Before.WallpaperStyle -or
@@ -269,10 +305,22 @@ try{
                 else{$mkey.DeleteValue('BackgroundType',$false)}
             }finally{$mkey.Dispose()}
         }else{
+            # Only remove the exact test-created key when it is empty; preserve any unknown content.
             $mkey=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($ModeRegNative,$true)
-            if($mkey){try{$mkey.DeleteValue('BackgroundType',$false)}finally{$mkey.Dispose()}}
+            if($mkey){
+                $onlyEmpty=$false
+                try{
+                    $mkey.DeleteValue('BackgroundType',$false)
+                    $onlyEmpty=($mkey.ValueCount -eq 0 -and $mkey.SubKeyCount -eq 0)
+                }finally{$mkey.Dispose()}
+                if(!$onlyEmpty){throw 'R101 TEMP MODE KEY HAS UNOWNED CONTENT; DO NOT DELETE'}
+                [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKey($ModeRegNative,$false)
+            }
         }
         $modeFinal=Get-Item -LiteralPath $WallpaperModePath -ErrorAction SilentlyContinue
+        $modeKeyExistsFinal=$null -ne $modeFinal
+        $R91ProductEvents.RestoredModeKeyExists=[bool]$modeKeyExistsFinal
+        if($modeKeyExistsFinal -ne $R91ModeOriginallyExists){throw 'R101 ORIGINAL MODE KEY EXISTENCE NOT RESTORED'}
         $modePresentFinal=$modeFinal -and @($modeFinal.GetValueNames()) -contains 'BackgroundType'
         if($modePresentFinal -ne $R91ModePresent){throw 'R91 ORIGINAL MODE PRESENCE NOT RESTORED'}
         if($R91ModePresent -and [int]$modeFinal.GetValue('BackgroundType') -ne $R91OriginalMode){throw 'R91 ORIGINAL MODE VALUE NOT RESTORED'}
@@ -301,6 +349,10 @@ try{
         HostRole='GITHUB_HOSTED_DISPOSABLE_INTERACTIVE_WINDOWS'
         HostSessionId=$R91Session;ExplorerInSameSessionCount=$R91Explorer.Count
         OriginalHostedWallpaperMode=$R91InitialMode;SyntheticBaselineMode=0
+        OriginalModeKeyExists=[bool]$R91ModeOriginallyExists
+        RestoredModeKeyExists=if($null -ne $modeKeyExistsFinal){[bool]$modeKeyExistsFinal}else{$null}
+        RestoreMethodAttempted=[bool]$R91ProductEvents.RestoreDesktopPreStateAttempted
+        RestoreMethodReturned=[bool]$R91ProductEvents.RestoreDesktopPreStateReturned
         ProductApplyStatus=$R91AppPositive;ProductRestoreStatus=$R91Rollback
         NegativeDynamicModeStatus=$R91Negative
         OriginalHostRestorationStatus=$R91OuterRestore

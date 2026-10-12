@@ -6,6 +6,7 @@ on:
       - audit/unsigned-preview-installer-smoke-r88
       - audit/unsigned-preview-installed-native-five-r90
       - audit/unsigned-preview-positive-wallpaper-r91
+      - audit/g13-reflection-type-guard-r97
   workflow_dispatch:
 
 permissions:

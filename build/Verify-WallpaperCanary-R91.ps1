@@ -29,7 +29,8 @@ function Validate-ActualCanary([psobject]$R,[psobject]$E,[psobject]$M,[string]$C
     'HostRole','HostSessionId','ExplorerInSameSessionCount','ProductApplyStatus',
     'ProductRestoreStatus','NegativeDynamicModeStatus','OriginalHostRestorationStatus',
     'BeforeImageSHA256','AppliedImageSHA256','RestoredImageSHA256','FormalG13Accepted',
-    'IndependentLabWitnessSignature','UserPersonalWallpaperTouched','Error','RestorationError')
+    'IndependentLabWitnessSignature','UserPersonalWallpaperTouched','Error','RestorationError',
+    'OriginalModeKeyExists','RestoredModeKeyExists','RestoreMethodAttempted','RestoreMethodReturned')
   foreach($key in $required){if($null -eq $R.PSObject.Properties[$key]){$errors.Add('MISSING_'+$key)}}
   if($errors.Count -gt 0){return $errors.ToArray()}
   if($R.Schema -ne 1 -or $R.Revision -cne 'R91' -or $R.EventCommit -cne $Commit -or
@@ -41,6 +42,9 @@ function Validate-ActualCanary([psobject]$R,[psobject]$E,[psobject]$M,[string]$C
      $R.ProductRestoreStatus -cne 'PASS_EXACT_PRODUCT_APPLY_THEN_RESTORE' -or
      $R.NegativeDynamicModeStatus -cne 'PASS_REAL_PRODUCT_REJECTED_DYNAMIC_SLIDESHOW' -or
      $R.OriginalHostRestorationStatus -cne 'PASS_ORIGINAL_HOST_REGISTRY_AND_ORIGINAL_FILE_SHA'){$errors.Add('PRODUCT_TRANSACTION_NOT_PROVEN')}
+  if($R.RestoreMethodAttempted -ne $true -or $R.RestoreMethodReturned -ne $true -or
+      $R.OriginalModeKeyExists -ne $R.RestoredModeKeyExists -or
+      $null -eq $R.RestoredModeKeyExists){$errors.Add('R101_RESTORE_RETURN_OR_KEY_EXISTENCE_UNPROVEN')}
   if($R.FormalG13Accepted -ne $false -or
      $R.IndependentLabWitnessSignature -cne 'MISSING_NOT_FORMAL_G13_ACCEPTANCE' -or
      $R.UserPersonalWallpaperTouched -ne $false){$errors.Add('FALSE_SIGNED_INDEPENDENT_G13_CLAIM')}
@@ -54,6 +58,10 @@ function Validate-ActualCanary([psobject]$R,[psobject]$E,[psobject]$M,[string]$C
      $E.EventCommit -cne $Commit -or
      $E.ApplyDesktopInvoked -ne $true -or
      $E.RestoreDesktopPreStateInvoked -ne $true -or
+      $E.RestoreDesktopPreStateAttempted -ne $true -or
+      $E.RestoreDesktopPreStateReturned -ne $true -or
+      $E.OriginalModeKeyExists -ne $R.OriginalModeKeyExists -or
+      $E.RestoredModeKeyExists -ne $R.RestoredModeKeyExists -or
      $E.IndependentAfterStateObserved -ne $true -or
      $E.NegativeSlideshowRefusalObserved -ne $true -or
      $E.ProcessId -lt 1){$errors.Add('NO_REAL_PRODUCT_EVENT_CHAIN')}
@@ -101,7 +109,10 @@ if($SelfTest){
    @{Name='DYNAMIC_NOT_REJECTED';Obj='receipt';Field='NegativeDynamicModeStatus';Value='NOT_RUN'},
    @{Name='PRODUCT_EVENT_MISSING';Obj='events';Field='RestoreDesktopPreStateInvoked';Value=$false},
    @{Name='FALSE_DIFFERENT_IMAGE';Obj='receipt';Field='AppliedImageSHA256';Value=$receipt.BeforeImageSHA256},
-   @{Name='NOT_STATIC_AFTER';Obj='events';Field='BeforeRegistry';Value=[pscustomobject]@{WallPaper='';WallpaperStyle='10';TileWallpaper='0';BackgroundType=2}}
+   @{Name='NOT_STATIC_AFTER';Obj='events';Field='BeforeRegistry';Value=[pscustomobject]@{WallPaper='';WallpaperStyle='10';TileWallpaper='0';BackgroundType=2}},
+   @{Name='RESTORE_DID_NOT_RETURN';Obj='events';Field='RestoreDesktopPreStateReturned';Value=$false},
+   @{Name='RECEIPT_RESTORE_DID_NOT_RETURN';Obj='receipt';Field='RestoreMethodReturned';Value=$false},
+   @{Name='KEY_EXISTENCE_CHANGED';Obj='receipt';Field='RestoredModeKeyExists';Value=(!$receipt.OriginalModeKeyExists)}
  )
  foreach($case in $cases){
    $r=$rraw|ConvertFrom-Json
@@ -115,7 +126,7 @@ if($SelfTest){
    $rejected=@(Validate-ActualCanary $r $e $m $ExpectedTestCommit)
    if($rejected.Count -eq 0){throw ('R91 NEGATIVE MUTATION FALSELY ACCEPTED '+$case.Name)}
  }
- Write-Output 'R91_REAL_PRODUCT_G13_CANARY_VERIFIER_EIGHT_NEGATIVES_PASS'
+ Write-Output 'R101_REAL_PRODUCT_G13_CANARY_VERIFIER_ELEVEN_NEGATIVES_PASS'
 }
 Write-Output ('R91_REAL_ACTUAL_STATIC_PICTURE_APPLY_RESTORE_SHA_PASS='+(Get-FileHash $ReceiptFile).Hash+
  ' FORMAL_INDEPENDENT_SIGNATURE=MISSING FULL_G13_ACCEPTANCE=UNPROVEN')
