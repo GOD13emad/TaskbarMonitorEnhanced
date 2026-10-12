@@ -8226,6 +8226,102 @@ namespace TaskbarMonitorEnhanced
             catch(Exception ex){Console.Error.WriteLine("TBME_SETTINGS_PROOF=FAIL "+ex);return 13;}
         }
     }
+    internal static class AdaptiveProbeGeometry
+    {
+        internal const int MinSafeWidth=420;
+        internal static bool Basic(Rectangle tb,Rectangle rect,int requested,bool safePlacement)
+        {
+            int target=Math.Min(Math.Max(1,requested),tb.Width);
+            if(tb.Width<MinSafeWidth || tb.Height!=48 || rect.Height!=48 ||
+               !tb.Contains(rect) || rect.Width>target || rect.Width<MinSafeWidth)
+                return false;
+            if(!safePlacement && rect.Width!=target)return false;
+            return true;
+        }
+
+        // Safety: test the visible actual native rectangle against the SAME
+        // interactive UIA types that production avoids, using an independent
+        // anti-overlap scan. If UIA cannot be inspected, do not accept G14.
+        internal static bool Validate(IntPtr taskbar,AppConfig config,Rectangle rect,out string reason)
+        {
+            reason="";
+            if(taskbar==IntPtr.Zero||config==null)
+            {
+                reason="TASKBAR_OR_CONFIG_MISSING";return false;
+            }
+            Native.RECT tr;
+            if(!Native.GetWindowRect(taskbar,out tr))
+            {
+                reason="TASKBAR_GEOMETRY_UNAVAILABLE";return false;
+            }
+            Rectangle tb=tr.ToRectangle();
+            if(!Basic(tb,rect,config.MinWidthLogicalPx,config.SafePlacement))
+            {
+                reason="RECT_OUTSIDE_REAL_SAFE_BOUNDS_OR_TOO_NARROW";return false;
+            }
+            if(!config.SafePlacement)return true;
+            try
+            {
+                AutomationElement element=AutomationElement.FromHandle(taskbar);
+                if(element==null){reason="UIA_TASKBAR_ROOT_UNAVAILABLE";return false;}
+                AutomationElementCollection all=element.FindAll(TreeScope.Descendants,Condition.TrueCondition);
+                int observedInteractive=0;
+                for(int i=0;i<all.Count;i++)
+                {
+                    AutomationElement e=all[i];
+                    ControlType ct;
+                    try{ct=e.Current.ControlType;}catch{continue;}
+                    if(ct!=ControlType.Button && ct!=ControlType.Edit &&
+                       ct!=ControlType.MenuItem && ct!=ControlType.CheckBox &&
+                       ct!=ControlType.RadioButton && ct!=ControlType.ComboBox &&
+                       ct!=ControlType.Hyperlink)continue;
+                    System.Windows.Rect wr;
+                    try{wr=e.Current.BoundingRectangle;}catch{continue;}
+                    if(wr.IsEmpty||wr.Width<3||wr.Height<3)continue;
+                    int l=(int)Math.Floor(wr.Left)-8;
+                    int right=(int)Math.Ceiling(wr.Right)+8;
+                    int top=(int)Math.Floor(wr.Top);
+                    int bottom=(int)Math.Ceiling(wr.Bottom);
+                    if(right<=tb.Left||l>=tb.Right||bottom<=tb.Top||top>=tb.Bottom)continue;
+                    observedInteractive++;
+                    if(right>rect.Left&&l<rect.Right&&bottom>rect.Top&&top<rect.Bottom)
+                    {
+                        reason="OVERLAP_WITH_UIA_INTERACTIVE_CONTROL";return false;
+                    }
+                }
+                if(rect.Width<Math.Min(Math.Max(1,config.MinWidthLogicalPx),tb.Width) &&
+                   observedInteractive==0)
+                {
+                    reason="ADAPTIVE_SHRINK_UNEXPLAINED_BY_UIA";return false;
+                }
+                return true;
+            }
+            catch(Exception ex)
+            {
+                reason="UIA_CHECK_UNAVAILABLE_"+ex.GetType().Name;
+                return false;
+            }
+        }
+
+        internal static void SelfTest()
+        {
+            Rectangle tb=new Rectangle(0,852,1600,48);
+            Rectangle actual=new Rectangle(0,852,570,48);
+            if(!Basic(tb,actual,1100,true)||
+               !Basic(tb,new Rectangle(500,852,1100,48),1100,true)||
+               Basic(tb,actual,1100,false)||
+               Basic(tb,new Rectangle(0,852,419,48),1100,true)||
+               Basic(tb,new Rectangle(0,852,1101,48),1100,true)||
+               Basic(tb,new Rectangle(-1,852,570,48),1100,true)||
+               Basic(tb,new Rectangle(0,851,570,48),1100,true)||
+               Basic(tb,new Rectangle(0,852,570,47),1100,true)||
+               Basic(tb,new Rectangle(1200,852,570,48),1100,true)||
+               Basic(new Rectangle(0,852,1024,48),new Rectangle(0,852,1100,48),1100,true)||
+               Basic(new Rectangle(0,852,1600,47),actual,1100,true)||
+               !Basic(tb,new Rectangle(0,852,1100,48),1100,false))
+                throw new InvalidOperationException("R107_ADAPTIVE_GEOMETRY_12_CASES_FAILED");
+        }
+    }
     internal static class StartProbe
     {
         private static Bitmap CaptureRect(Rectangle r)
@@ -8305,7 +8401,7 @@ namespace TaskbarMonitorEnhanced
                 if(!Native.GetWindowRect(h,out wr))return true;
                 Rectangle r=wr.ToRectangle();
 
-                if(r.Width<900 || r.Height<30 || r.Height>70)return true;
+                if(r.Width<AdaptiveProbeGeometry.MinSafeWidth || r.Height<30 || r.Height>70)return true;
 
                 found=h;
                 foundRect=r;
@@ -8346,7 +8442,7 @@ namespace TaskbarMonitorEnhanced
                 Native.RECT wr;
                 if(!Native.GetWindowRect(h,out wr))return true;
                 Rectangle r=wr.ToRectangle();
-                if(r.Width<900||r.Height<30||r.Height>70||!bounds.Contains(r))return true;
+                if(r.Width<AdaptiveProbeGeometry.MinSafeWidth||r.Height<30||r.Height>70||!bounds.Contains(r))return true;
                 found=h;foundRect=r;
                 return false;
             },IntPtr.Zero);
@@ -8468,8 +8564,9 @@ namespace TaskbarMonitorEnhanced
                         topLevelGlass?"START_PROBE_BASELINE_TOPLEVEL_GLASS_GATE":
                         "START_PROBE_BASELINE_DIRECT_CHILD_GATE");
 
-                if(baselineRect.Width!=1100 || baselineRect.Height!=48)
-                    throw new InvalidOperationException("START_PROBE_BASELINE_GEOMETRY_GATE rect="+baselineRect);
+                string adaptiveReason;
+                if(!AdaptiveProbeGeometry.Validate(taskbar,probeConfig,baselineRect,out adaptiveReason))
+                    throw new InvalidOperationException("START_PROBE_BASELINE_SAFE_GEOMETRY_GATE reason="+adaptiveReason+" rect="+baselineRect);
                 if(topLevelGlass)
                 {
                     expectedFloatingRect=new Rectangle(
@@ -8837,7 +8934,7 @@ namespace TaskbarMonitorEnhanced
                 Native.RECT wr;
                 if(!Native.GetWindowRect(h,out wr))return true;
                 Rectangle r=wr.ToRectangle();
-                if(r.Width<900 || r.Height<30 || r.Height>70)return true;
+                if(r.Width<AdaptiveProbeGeometry.MinSafeWidth || r.Height<30 || r.Height>70)return true;
 
                 found=h;
                 foundRect=r;
@@ -8875,7 +8972,7 @@ namespace TaskbarMonitorEnhanced
                 Native.RECT bounds=new Native.RECT();
                 if(!Native.GetWindowRect(candidate,out bounds))return true;
                 Rectangle target=bounds.ToRectangle();
-                if(target.Width!=1100||target.Height!=48||
+                if(target.Width<AdaptiveProbeGeometry.MinSafeWidth||target.Width>taskbarRect.Width||target.Height!=48||
                    !taskbarRect.Contains(target))return true;
                 found=candidate;location=target;return false;
             },IntPtr.Zero);
@@ -8948,6 +9045,9 @@ namespace TaskbarMonitorEnhanced
                 if(!found)
                     throw new InvalidOperationException(nativeGlass?
                         "NATIVE_TASKBAR_POPUP_NOT_FOUND":"DIRECT_CHILD_NOT_FOUND");
+                string adaptiveReason;
+                if(!AdaptiveProbeGeometry.Validate(taskbar,probeConfig,rect,out adaptiveReason))
+                    throw new InvalidOperationException("ADAPTIVE_OVERLAY_SAFE_GEOMETRY_FAIL "+adaptiveReason);
 
                 long activeStyle=Native.GetWindowLongPtr(overlay,Native.GWL_STYLE).ToInt64();
                 long activeEx=Native.GetWindowLongPtr(overlay,Native.GWL_EXSTYLE).ToInt64();
@@ -9036,7 +9136,8 @@ namespace TaskbarMonitorEnhanced
                     parentOk &&
                     visible &&
                     cloaked==0 &&
-                    rect.Width==1100 &&
+                    rect.Width>=AdaptiveProbeGeometry.MinSafeWidth &&
+                    rect.Width<=Math.Min(probeConfig.MinWidthLogicalPx,actualTaskbar.ToRectangle().Width) &&
                     rect.Height==48 &&
                     signal>=300 &&
                     beaconPass;
@@ -9110,7 +9211,7 @@ namespace TaskbarMonitorEnhanced
                 string[] expected=new string[]{"Dark Minimal Pro","Glass Morphism","Neon Cyberpunk","Sleek White","Round Compact","Honeycomb Tech","Retro Terminal","Fluent Glass","OLED Mono","Cyber Neon","Mission Control","Blueprint Tech","Medical Telemetry","Carbon Racing","Aurora Borealis","Solarized Luxe","Arctic Frost","Sakura Night","Matrix Grid","Desert Sand","Royal Amethyst","Ocean Depth","Copper Industrial","Nordic Light","Ember Forge","Synthwave Sunset","Quantum Violet","Monochrome Paper"};
                 string[] expectedModes=new string[]{"minimal","glass","neon","white","round","hex","terminal","fluent","oled","cyber2","mission","blueprint","medical","carbon","aurora","luxe","zen","synth","matrix","paper","luxe","aurora","industrial","zen","industrial","synth","synth","paper"};
                 for(int i=0;i<expected.Length;i++){if(ThemeCatalog.Names[i]!=expected[i])throw new Exception("theme name " + i);if(ThemeCatalog.Get(expected[i]).Mode!=expectedModes[i])throw new Exception("theme mode " + i);}
-                AppConfig c=new AppConfig();c.Normalize();if(c.MinWidthLogicalPx!=1100||c.MarginLogicalPx!=0||c.VerticalMarginLogicalPx!=0)throw new Exception("geometry defaults");
+                AppConfig c=new AppConfig();c.Normalize();if(c.MinWidthLogicalPx!=1100||c.MarginLogicalPx!=0||c.VerticalMarginLogicalPx!=0)throw new Exception("geometry defaults");AdaptiveProbeGeometry.SelfTest();
                 if(!Native.DllSearchHardeningActive)throw new Exception("DLL search hardening");
                 if(!TaskbarTargetPolicy.SelfTest())throw new Exception("taskbar target selector");
                 if(c.ConfigSchemaVersion<6||!c.EnableTemperatureAlerts||c.EnableTemperatureNotifications||c.CpuTempWarningC!=85||c.GpuTempWarningC!=85||c.DiskTempWarningC!=60)throw new Exception("v1.5 alert defaults");
