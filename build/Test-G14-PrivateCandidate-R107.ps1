@@ -67,7 +67,7 @@ $installed=$false;$installedMain=''
 $installCode=-999;$verifyCode=-999;$uninstallCode=-999
 $results=@();$failure='';$cleanup='NOT_DONE';$residentProcessId=0;$resident=$null
 $hardwareHealth='NOT_OBSERVED'
-function Run-Bounded([string]$exe,[string[]]$args,[int]$max,[string]$label){
+function Run-Bounded([string]$exe,[string[]]$childArgs,[int]$max,[string]$label){
    $info=[Diagnostics.ProcessStartInfo]::new()
    $info.FileName=$exe
    $info.UseShellExecute=$false
@@ -75,7 +75,7 @@ function Run-Bounded([string]$exe,[string[]]$args,[int]$max,[string]$label){
    $info.WorkingDirectory=Split-Path $exe -Parent
    $info.RedirectStandardOutput=$true
    $info.RedirectStandardError=$true
-   foreach($arg in $args){[void]$info.ArgumentList.Add([string]$arg)}
+   foreach($arg in $childArgs){[void]$info.ArgumentList.Add([string]$arg)}
    $p=[Diagnostics.Process]::Start($info)
    if(!$p){throw ('R107 CHILD DID NOT START '+$label)}
    try{
@@ -101,7 +101,7 @@ function Run-Bounded([string]$exe,[string[]]$args,[int]$max,[string]$label){
 }
 try{
  $checkFile=Join-Path $out 'candidate-setup-verify.json'
- $x=Run-Bounded -exe $setup -args @('/verify',('/verifyfile='+$checkFile)) -max 45000 -label 'setup-verify'
+ $x=Run-Bounded -exe $setup -childArgs @('/verify',('/verifyfile='+$checkFile)) -max 45000 -label 'setup-verify'
  $verifyCode=$x.Exit
  if($verifyCode -ne 0 -or !(Test-Path -LiteralPath $checkFile)){throw 'R107 SETUP VERIFY FAILED'}
  $check=Get-Content -LiteralPath $checkFile -Raw|ConvertFrom-Json
@@ -109,7 +109,7 @@ try{
     $check.Resources -ne 25 -or $check.PawnIOBundled -ne $false){
     throw 'R107 SETUP EMBEDDED SOURCE/MAIN NOT MATCHING BUILT APP'
  }
- $x=Run-Bounded -exe $setup -args @('/install','/quiet','/desktop=0','/startup=0') -max 210000 -label 'setup-install'
+ $x=Run-Bounded -exe $setup -childArgs @('/install','/quiet','/desktop=0','/startup=0') -max 210000 -label 'setup-install'
  $installCode=$x.Exit
  if($installCode -ne 0){throw ('R107 CANDIDATE INSTALL RETURNED '+$installCode)}
  $installedMain=Join-Path $app 'TaskbarMonitorEnhanced.exe'
@@ -151,9 +151,9 @@ try{
  New-Item -ItemType Directory -Path $testDir -ErrorAction Stop|Out-Null
  foreach($spec in $caseSpecs){
    $target=if($spec.Target){Join-Path $testDir $spec.Target}else{''}
-   $args=@([string]$spec.Switch)
-   if($target){$args+= $target}
-   $x=Run-Bounded -exe $installedMain -args $args -max $spec.Timeout -label ('G14-'+$spec.Name)
+   $probeArgs=@([string]$spec.Switch)
+   if($target){$probeArgs+= $target}
+   $x=Run-Bounded -exe $installedMain -childArgs $probeArgs -max $spec.Timeout -label ('G14-'+$spec.Name)
    $pass=($x.Exit -eq 0 -and $x.Stdout.Contains('=PASS') -and
      !$x.Stderr.Contains('=FAIL') -and (!$target -or (Test-Path $target)))
    $results+= [ordered]@{
@@ -186,7 +186,7 @@ finally{
           (Get-FileHash -LiteralPath $uninstaller -Algorithm SHA256).Hash -cne $setupSHA){
            throw 'R107 EXACT OWNED UNINSTALLER HASH MISMATCH'
        }
-       $x=Run-Bounded -exe $uninstaller -args @('/uninstall','/quiet') -max 180000 -label 'setup-uninstall'
+       $x=Run-Bounded -exe $uninstaller -childArgs @('/uninstall','/quiet') -max 180000 -label 'setup-uninstall'
        $uninstallCode=$x.Exit
        if($uninstallCode -ne 0){throw ('R107 OWNED UNINSTALL FAILED '+$uninstallCode)}
        for($i=0;$i -lt 25 -and (Test-Path $app);$i++){Start-Sleep -Milliseconds 500}
