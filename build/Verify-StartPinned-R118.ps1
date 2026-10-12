@@ -19,7 +19,7 @@ function Check-R118($a,$receipt) {
  foreach($n in @('Schema','Revision','EventCommit','Status','Test','Stimulus','MainPid','CachedOverlayHwnd',
  'BaselineRect','PinnedSamples','RequiredPinnedSamples','ShellSamples','RequiredShellSamples',
  'InvalidSamples','RealPhysicalInkAfterStart','MainProcessAlive','PixelOcclusionWhileStartOpen',
- 'Samples','FormalExternalLabAccepted')){
+ 'Samples','BeforeStartSaturatedPixels','AfterStartSaturatedPixels','FormalExternalLabAccepted')){
    if($null -eq $a.PSObject.Properties[$n]){$bad.Add('MISSING_'+$n)}
  }
  if($bad.Count){return $bad.ToArray()}
@@ -31,8 +31,8 @@ function Check-R118($a,$receipt) {
     $bad.Add('SOURCE_NATIVE_START_FORMAL_CONTRACT')
  }
  if($receipt.EventCommit -cne $ExpectedCommit -or
-    $receipt.CandidateMainSHA256 -cne '51164F2F171C506EE311D6795E08586B1E917BD21A5F109A3D2E03B64BD9F43F' -or
-    $receipt.CandidateSetupSHA256 -cne '3C3E53947D83FA8423AD450A4F09B727D4335D913C4AE170935BC1543BD04096' -or
+    $receipt.CandidateMainSHA256 -cne 'AB3DE48A4F7F56752507BE2AA3951AE606B9F5B39AC10B8C49AC2473868C21C7' -or
+    $receipt.CandidateSetupSHA256 -cne '82AB87013EE749AE5E694F864487A61DF8E221509966A62CF7856FFF7019268C' -or
     $receipt.MainProcessPid -ne $a.MainPid -or
     $receipt.FormalG14Accepted -ne $false -or
     $receipt.DiagnosticPasses -ne 8){
@@ -46,7 +46,8 @@ function Check-R118($a,$receipt) {
  if($a.PinnedSamples -ne 24 -or $a.RequiredPinnedSamples -ne 24 -or
     $a.InvalidSamples -ne 0 -or $a.ShellSamples -lt 18 -or
     $a.RequiredShellSamples -ne 18 -or
-    $a.RealPhysicalInkAfterStart -ne $true -or $a.MainProcessAlive -ne $true -or
+    $a.RealPhysicalInkAfterStart -ne $true -or $a.BeforeStartSaturatedPixels -lt 300 -or
+    $a.AfterStartSaturatedPixels -lt 300 -or $a.MainProcessAlive -ne $true -or
     $a.PixelOcclusionWhileStartOpen -cnotmatch '^ALLOWED_BY_USER_PINNED_MODE'){
     $bad.Add('FALSIFIED_START_PIN_SHELL_OR_POST_INK')
  }
@@ -79,7 +80,7 @@ $images=@('PINNED_BEFORE_START.png','PINNED_DURING_START_1.png',
 Add-Type -AssemblyName System.Drawing
 foreach($name in $images){
  $path=Join-Path $dir $name
- if(!(Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -lt 600){
+ if(!(Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -lt 100){
   throw ('R118_REAL_WINDOW_CROPPED_PNG_MISSING '+$name)
  }
  $bitmap=[Drawing.Bitmap]::new($path)
@@ -89,6 +90,40 @@ foreach($name in $images){
   }
  }finally{$bitmap.Dispose()}
 }
+
+# R119: the native HWND may be pinned but visually covered by Start. On return,
+# verify real colored metric glyphs/graphs from physical PNGs, not just a bright
+# solid Windows/Start/Taskbar background. The three DURING files may legitimately
+# be tiny and occluded; the BEFORE and AFTER evidence may NOT.
+$beforePng=[Drawing.Bitmap]::new((Join-Path $dir 'PINNED_BEFORE_START.png'))
+$afterPng=[Drawing.Bitmap]::new((Join-Path $dir 'PINNED_AFTER_START.png'))
+$beforeSat=0;$afterSat=0;$alignedSat=0
+try {
+ for($y=0;$y -lt $beforePng.Height;$y++){
+  for($x=0;$x -lt $beforePng.Width;$x++){
+   $a=$beforePng.GetPixel($x,$y)
+   $b=$afterPng.GetPixel($x,$y)
+   $aMax=[Math]::Max($a.R,[Math]::Max($a.G,$a.B))
+   $aMin=[Math]::Min($a.R,[Math]::Min($a.G,$a.B))
+   $bMax=[Math]::Max($b.R,[Math]::Max($b.G,$b.B))
+   $bMin=[Math]::Min($b.R,[Math]::Min($b.G,$b.B))
+   $aColored=($aMax -ge 70 -and ($aMax-$aMin) -ge 25)
+   $bColored=($bMax -ge 70 -and ($bMax-$bMin) -ge 25)
+   if($aColored){$beforeSat++}
+   if($bColored){$afterSat++}
+   if($aColored -and $bColored){$alignedSat++}
+  }
+ }
+}finally{$beforePng.Dispose();$afterPng.Dispose()}
+if($beforeSat -lt 300 -or $afterSat -lt 300 -or $alignedSat -lt 120 -or
+   $trace.BeforeStartSaturatedPixels -ne $beforeSat -or
+   $trace.AfterStartSaturatedPixels -ne $afterSat){
+  throw ('R119_REAL_POST_START_PHYSICAL_METRIC_INK_MISSING BEFORE='+
+   $beforeSat+' AFTER='+$afterSat+' ALIGNED='+$alignedSat)
+}
+Write-Output ('R119_REAL_AFTER_START_COLOR_SATURATION_PASS BEFORE='+$beforeSat+
+ ' AFTER='+$afterSat+' MATCHED_POSITIONS='+$alignedSat)
+
 if($SelfTest){
  $raw=Get-Content -LiteralPath $ManifestPath -Raw
  $hostiles=@(
@@ -112,6 +147,8 @@ if($SelfTest){
  if(@(Check-R118 $t $candidate).Count -eq 0){throw 'R118_FALSE_PINNED_SAMPLE_ACCEPTED'}
  $t=$raw|ConvertFrom-Json;$t.Samples[0].ActualRect[1]-=60
  if(@(Check-R118 $t $candidate).Count -eq 0){throw 'R118_FALSE_NATIVE_60PX_LIFT_ACCEPTED'}
+ $t=$raw|ConvertFrom-Json;$t.AfterStartSaturatedPixels=0
+ if(@(Check-R118 $t $candidate).Count -eq 0){throw 'R119_FALSE_INK_COUNT_ACCEPTED'}
  $t=$raw|ConvertFrom-Json;$t.Samples[0].OwnerPid=0
  if(@(Check-R118 $t $candidate).Count -eq 0){throw 'R118_FORGED_MAIN_PID_ACCEPTED'}
  $t=$raw|ConvertFrom-Json;$t.Samples[0].StartForeground=$false;$t.Samples[0].StartSurface=$false

@@ -34,8 +34,8 @@ function Check-R107($r) {
  }
  # R108-F01: a syntactically valid 64-hex digest is NOT evidence that the
  # exact reproducible candidate was installed. Bind all three binary hashes.
- if($r.CandidateMainSHA256 -cne '51164F2F171C506EE311D6795E08586B1E917BD21A5F109A3D2E03B64BD9F43F' -or
-    $r.CandidateSetupSHA256 -cne '3C3E53947D83FA8423AD450A4F09B727D4335D913C4AE170935BC1543BD04096' -or
+ if($r.CandidateMainSHA256 -cne 'AB3DE48A4F7F56752507BE2AA3951AE606B9F5B39AC10B8C49AC2473868C21C7' -or
+    $r.CandidateSetupSHA256 -cne '82AB87013EE749AE5E694F864487A61DF8E221509966A62CF7856FFF7019268C' -or
     $r.CandidateConfigSHA256 -cne 'D2E51872D93F0793C02AD07DCBF8C2802F59708C666548372A4FDDDA5C7C5E4F' -or
     $r.CandidateIsPublicRelease -ne $false -or
     $r.CandidateAuthenticodeSigned -ne $false -or

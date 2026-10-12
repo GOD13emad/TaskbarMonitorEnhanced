@@ -8642,6 +8642,7 @@ namespace TaskbarMonitorEnhanced
             uint pid=0;
             string stimulus="";
             int samplesPinned=0,shellSamples=0,invalidSamples=0;
+            int beforeSaturated=0,afterSaturated=0;
             bool visibleAfterClose=false,mainAlive=false;
             Rectangle baseline=Rectangle.Empty;
             IntPtr cached=IntPtr.Zero;
@@ -8671,8 +8672,9 @@ namespace TaskbarMonitorEnhanced
                 using(Bitmap image=CaptureRect(baseline))
                 {
                     Dictionary<string,object> ink=InkMetrics(image);
-                    if(!(bool)ink["Pass"])
-                        throw new InvalidOperationException("PINNED_START_PRE_STIMULUS_INK_MISSING");
+                    beforeSaturated=Convert.ToInt32(ink["SaturatedPixels"],CultureInfo.InvariantCulture);
+                    if(!(bool)ink["Pass"] || beforeSaturated<300)
+                        throw new InvalidOperationException("R119_PINNED_START_PRE_STIMULUS_COLORED_INK_MISSING");
                     image.Save(Path.Combine(outputDirectory,"PINNED_BEFORE_START.png"),ImageFormat.Png);
                 }
                 Native.KeybdTap(0x1B);
@@ -8732,10 +8734,14 @@ namespace TaskbarMonitorEnhanced
                     {
                         using(Bitmap after=CaptureRect(baseline))
                         {
-                            if((bool)InkMetrics(after)["Pass"])
+                            Dictionary<string,object> afterInk=InkMetrics(after);
+                            afterSaturated=Convert.ToInt32(afterInk["SaturatedPixels"],CultureInfo.InvariantCulture);
+                            // Preserve the exact physical image even on FAIL, so a blocked
+                            // screen cannot masquerade as returned text and graph ink.
+                            after.Save(Path.Combine(outputDirectory,"PINNED_AFTER_START.png"),ImageFormat.Png);
+                            if((bool)afterInk["Pass"] && afterSaturated>=300)
                             {
                                 visibleAfterClose=true;
-                                after.Save(Path.Combine(outputDirectory,"PINNED_AFTER_START.png"),ImageFormat.Png);
                                 break;
                             }
                         }
@@ -8754,7 +8760,8 @@ namespace TaskbarMonitorEnhanced
                     {"BaselineRect",new int[]{baseline.X,baseline.Y,baseline.Width,baseline.Height}},
                     {"PinnedSamples",samplesPinned},{"RequiredPinnedSamples",24},
                     {"ShellSamples",shellSamples},{"RequiredShellSamples",18},
-                    {"InvalidSamples",invalidSamples},{"RealPhysicalInkAfterStart",visibleAfterClose},
+                    {"InvalidSamples",invalidSamples},{"BeforeStartSaturatedPixels",beforeSaturated},
+                    {"AfterStartSaturatedPixels",afterSaturated},{"RealPhysicalInkAfterStart",visibleAfterClose},
                     {"MainProcessAlive",mainAlive},
                     {"PixelOcclusionWhileStartOpen","ALLOWED_BY_USER_PINNED_MODE; NOT_FALSELY_MARKED_VISIBLE"},
                     {"Samples",samples},{"FormalExternalLabAccepted",false}
@@ -8763,7 +8770,8 @@ namespace TaskbarMonitorEnhanced
                     js.Serialize(manifest),Encoding.UTF8);
                 Console.WriteLine("TBME_START_PINNED_PROOF="+(pass?"PASS":"FAIL")+
                     " 24_OF_24="+samplesPinned+" SHELL="+shellSamples+
-                    " RETURN_REAL_INK="+visibleAfterClose+" BAD="+invalidSamples);
+                    " RETURN_REAL_INK="+visibleAfterClose+" AFTER_SATURATED="+afterSaturated+
+                    " BAD="+invalidSamples);
                 return pass?0:52;
             }
             catch(Exception ex)

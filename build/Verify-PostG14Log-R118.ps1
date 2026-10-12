@@ -21,7 +21,7 @@ function Validate-R111($item){
   if($item.EventCommit -cne $ExpectedCommit -or
      $item.HostRole -cne 'GITHUB_HOSTED_DISPOSABLE_WINDOWS' -or
      $item.Status -cne 'PASS_PRIVATE_CANDIDATE_INSTALLED_EIGHT_DIAGNOSTICS_CAPTURED' -or
-     $item.CandidateMainSHA256 -cne '51164F2F171C506EE311D6795E08586B1E917BD21A5F109A3D2E03B64BD9F43F' -or
+     $item.CandidateMainSHA256 -cne 'AB3DE48A4F7F56752507BE2AA3951AE606B9F5B39AC10B8C49AC2473868C21C7' -or
      $item.FormalG14Accepted -ne $false -or
      $item.MainProcessPid -le 0 -or
      $item.CanonicalSingleRoot -cnotmatch '\\TaskbarMonitorEnhanced$'){

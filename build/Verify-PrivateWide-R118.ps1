@@ -91,7 +91,7 @@ function Validate-R108($r){
  $installed=Get-Content -LiteralPath $child -Raw|ConvertFrom-Json
  if($installed.EventCommit -cne $ExpectedCommit -or
     $installed.CandidateIsPublicRelease -ne $false -or
-    $installed.CandidateMainSHA256 -cne '51164F2F171C506EE311D6795E08586B1E917BD21A5F109A3D2E03B64BD9F43F' -or
+    $installed.CandidateMainSHA256 -cne 'AB3DE48A4F7F56752507BE2AA3951AE606B9F5B39AC10B8C49AC2473868C21C7' -or
     $installed.DiagnosticAttempts -ne 8 -or $installed.DiagnosticPasses -ne $r.G14Passed -or
     $installed.FormalG14Accepted -ne $false -or
     (Get-FileHash -LiteralPath $child -Algorithm SHA256).Hash -cne $r.G14ReceiptSHA256){
