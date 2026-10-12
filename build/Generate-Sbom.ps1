@@ -9,6 +9,14 @@ $ErrorActionPreference='Stop'
 
 $manifest=Get-Content -LiteralPath $ManifestPath -Raw|ConvertFrom-Json
 $lock=Get-Content -LiteralPath $DependencyLockPath -Raw|ConvertFrom-Json
+# A version-pinned official upstream PawnIO binary can be kept as dependency provenance,
+# but it must not be contained in the OSS signing candidate or described as mandatory.
+$setupProof=Join-Path $PSScriptRoot '_out\setup_verify.json'
+if(!(Test-Path -LiteralPath $setupProof -PathType Leaf)){throw 'SBOM R85 OSS Setup proof missing'}
+$setupControl=Get-Content -LiteralPath $setupProof -Raw|ConvertFrom-Json
+if($setupControl.Status -cne 'PASS' -or $setupControl.PawnIOBundled -ne $false -or [int]$setupControl.Resources -ne 25){
+    throw 'SBOM REFUSE: proprietary official PawnIO bundled into OSS Setup'
+}
 $gitHead=(& git -C (Join-Path $PSScriptRoot '..') rev-parse HEAD).Trim()
 if($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($gitHead)){throw 'Could not resolve Git HEAD for SBOM.'}
 
@@ -44,7 +52,18 @@ foreach($prop in $lock.dependencies.PSObject.Properties){
         copyrightText='NOASSERTION'
         checksums=@([ordered]@{algorithm='SHA256';checksumValue=([string]$d.sha256).ToLowerInvariant()})
     }
-    $relationships += [ordered]@{spdxElementId='SPDXRef-Package-TBME';relationshipType='DEPENDS_ON';relatedSpdxElement=$id}
+    if($name -ceq 'PawnIO'){
+        # SPDX 2.3 direction: PawnIO is OPTIONAL_DEPENDENCY_OF TaskbarMonitorEnhanced,
+        # not CONTAINS, not a mandatory dependency. Only the end user provides it.
+        $relationships += [ordered]@{
+            spdxElementId=$id
+            relationshipType='OPTIONAL_DEPENDENCY_OF'
+            relatedSpdxElement='SPDXRef-Package-TBME'
+            comment='Externally and optionally installed by user. The official PawnIO binary is not bundled/signed by this OSS Setup.'
+        }
+    }else{
+        $relationships += [ordered]@{spdxElementId='SPDXRef-Package-TBME';relationshipType='DEPENDS_ON';relatedSpdxElement=$id}
+    }
 }
 
 $files=@()

@@ -2,7 +2,7 @@
 
 **Live Windows taskbar monitoring, an eight-page Performance Workspace, and 48 built-in themes.**
 
-**Stable / Latest: [v1.6.0](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.6.0)** — immutable release, 7/7 uploaded digest matches. [Exact acceptance record](docs/acceptance/v1.6.0/PUBLIC_RELEASE_ACCEPTANCE.json).
+**Stable / Latest: [v1.7.0](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.7.0)** — official Windows x64 release, **unsigned**. [Install and update without reinstalling](DOWNLOAD.md). Earlier [v1.6.0](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.6.0) remains immutable.
 
 Monitor CPU, RAM, disk, network, GPU, VRAM and available temperatures without putting privileged sensor collection inside the desktop UI. Version 1.6.0 adds 20 original Studio designs, local analysis, hardware inventory and practical alert controls.
 
@@ -41,6 +41,12 @@ Session history is capped at **3,600 samples**. Daily traffic history is capped 
 There is no project cloud telemetry or background monitoring upload. Process inspection is read-only. Presentation profiles cannot import startup registrations, sensor paths, notification permissions or traffic-retention settings. Exports are initiated by the user; process and hardware exports can contain local application and device names. See [Privacy](PRIVACY.md).
 
 The non-elevated main UI retains process-isolated sensors, Explorer/taskbar recovery, continuous startup registration self-heal, adaptive battery polling, pause/resume, High Contrast and PerMonitorV2 configuration. Sensor availability is shown explicitly; unavailable values are not invented.
+
+## One installation and in-place updates
+
+**Exactly one installation per Windows user:** fresh Setup uses the canonical `%LOCALAPPDATA%\TaskbarMonitorEnhanced` root. When Setup finds a recognized existing public v1.6.0 or public unsigned Preview1 installation, it upgrades **in place** without uninstalling and without changing configuration, user data, Startup preferences or Wallpaper mode. Close the running monitor normally before updating. Unknown or modified managed components fail closed and are not replaced. Run the installer normally or use `/update /quiet` for an existing recognized version.
+
+The official v1.7.0 release is **unsigned by owner decision**. Windows may show **Unknown publisher**. Check the official SHA-256 before running Setup. Protected sensors can optionally use the separately installed signed upstream PawnIO driver; it is not bundled or silently downloaded.
 
 ## Installation and release integrity
 

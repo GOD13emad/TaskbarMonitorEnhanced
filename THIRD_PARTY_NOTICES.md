@@ -20,6 +20,8 @@ PawnIO is used by the protected sensor layer where low-level hardware access is 
 
 PawnIO and its setup components remain subject to the licensing terms published by their upstream project. Taskbar Monitor Enhanced does not claim ownership of PawnIO.
 
+The official PawnIO Setup binary is NOT embedded in the v1.7 OSS release installer. The upstream source is GPL-2-or-later with a linking exception, but the upstream official binary edition is distributed under a separate license. Where optional protected sensors are needed, users can independently obtain the official installer with their consent from https://github.com/namazso/PawnIO.Setup/releases/tag/2.2.0 . This project does not silently download, sign, replace or uninstall PawnIO.
+
 The R21 candidate pins PawnIO Setup 2.2.0 from its official upstream release asset with SHA-256:
 
 1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032

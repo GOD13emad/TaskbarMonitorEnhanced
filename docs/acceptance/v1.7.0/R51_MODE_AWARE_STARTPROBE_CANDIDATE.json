@@ -1,0 +1,27 @@
+{
+  "Schema": 1,
+  "Revision": "R51",
+  "Project": "TaskbarMonitorEnhanced",
+  "ParentCommit": "ce5aa4cdbcb132f752321a274ad13fc379b01688",
+  "Branch": "feature/v1.7.0-r49-live-metric-glass-refresh",
+  "Utc": "2026-10-10T14:51:24.840478+00:00",
+  "Status": "SOURCE_10_VISUAL_5_PORTABLE_PASS_ACTUAL_8_INTERACTIVE_PENDING",
+  "Change": "StartProbe recognizes TOPLEVEL_LAYERED when alpha<100 and child when opaque/high-contrast; original>=18 of24 Start shell observations and other strict checks kept",
+  "PriorRealR50": {
+    "InstalledPathCanary": "PASS_NATIVE_VISIBLE",
+    "TextPixels": 3174,
+    "ChartPixels": 2898,
+    "RealSensorHistory": true,
+    "R50Eight": "6_PASS_START_FAILED",
+    "R50Rollback": "PASS_EXACT_V1_6"
+  },
+  "ValidationRequired": [
+    "R51 real host 8/8 interactive including Start and shell plus exact rollback",
+    "exact frozen source clean-clone and CI",
+    "authorized wallpaper positive canary",
+    "full Setup v1.7 install/rollback Explorer recovery",
+    "trusted public Authenticode",
+    "main and release immutable assets"
+  ],
+  "CurrentPublic": "v1.6.0 immutable"
+}

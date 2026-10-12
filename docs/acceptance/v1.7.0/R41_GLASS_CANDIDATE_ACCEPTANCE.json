@@ -1,0 +1,74 @@
+{
+  "Project": "TaskbarMonitorEnhanced",
+  "Revision": "R41",
+  "VersionCandidate": "1.7.0",
+  "Authority": "feature/v1.7.0-glass-legibility",
+  "ParentCommit": "3a0663fb9ed55c77d28ca3ee8d3d928adf1d2e42",
+  "CurrentStatus": "CANDIDATE_VERIFIED_NOT_INSTALLED_NOT_RELEASED",
+  "Need": "Every built-in theme supports background opacity 0..100 independent of text, and at <=30 text adapts to taskbar color",
+  "Evidence": {
+    "Build": "PASS 0 warnings 0 errors",
+    "SetupVerify": "PASS 26/26 resources",
+    "VisualSuite": "PASS 9/9",
+    "GlassProof": "PASS 49 themes 196 combinations",
+    "LiveNativeTaskbar": "PASS 0,10,29,30,100 with true sampled taskbar color",
+    "Wallpapers": "PASS 210/210 unique",
+    "InstalledVersionStill": "public immutable v1.6.0"
+  },
+  "BuildOutputs": [
+    {
+      "Name": "TaskbarMonitorEnhanced.exe",
+      "Bytes": 502272,
+      "SHA256": "D7F5987D1EB51883C5B94AD2E224DC26799E1E2EE4D7E9E31ECD2F3E8B2FA62E"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced.exe.config",
+      "Bytes": 456,
+      "SHA256": "D2E51872D93F0793C02AD07DCBF8C2802F59708C666548372A4FDDDA5C7C5E4F"
+    },
+    {
+      "Name": "TaskbarMonitorSensorBroker.exe",
+      "Bytes": 22528,
+      "SHA256": "182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833"
+    },
+    {
+      "Name": "TaskbarMonitorSensorSupervisor.exe",
+      "Bytes": 34816,
+      "SHA256": "0E28911AACDE0C3B1C6997C8BC6FF141C0FAA650B58438A9991CB3AD6C13C785"
+    },
+    {
+      "Name": "TaskbarMonitorEnhanced_Setup_1.7.0.exe",
+      "Bytes": 11542528,
+      "SHA256": "9C65D43C251EF932AAD60C8918BB542F8AA5148E31149C1E5A331ED2674FDD53"
+    }
+  ],
+  "ScreenshotsSaved": false,
+  "ProtectedSensorsChanged": false,
+  "OpenCriticalGates": [
+    "exact commit",
+    "exact clean-clone determinism",
+    "GitHub CI/provenance",
+    "unrelated R40 wallpaper apply/rollback canary",
+    "installed runtime acceptance",
+    "public v1.7 promotion"
+  ],
+  "Deferred": [
+    "No global publisher Authenticode trust claimed",
+    "Exact live app installed pointer integration not yet tested",
+    "Absolute superiority over other specialist products unproven"
+  ],
+  "HistoricalFailures": [
+    "F1 wrong local hash guard stopped before product mutation",
+    "F2 incorrect 7-vs-8 suite count corrected with 9/9",
+    "F3 proof handle no parent",
+    "F4 Win32 parent/style order in test",
+    "F5 PowerShell argument concatenation"
+  ],
+  "Rollback": {
+    "GitParent": "3a0663fb9ed55c77d28ca3ee8d3d928adf1d2e42",
+    "RawBackups": ".local/r41/BACKUP_* and .local/r41/PRE_PACKAGE_*"
+  },
+  "ExactNextAction": "Commit R41 source then clean-clone deterministic build on exact commit; no install/public before separate R40 gates",
+  "BrainStatus": "INCOMPLETE until transfer ZIP",
+  "RecordedUtc": "2026-10-10T03:02:12.193021+00:00"
+}

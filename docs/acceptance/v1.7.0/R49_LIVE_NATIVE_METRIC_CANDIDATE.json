@@ -1,0 +1,38 @@
+{
+  "Schema": 1,
+  "Revision": "R49",
+  "Project": "TaskbarMonitorEnhanced",
+  "ParentSHA": "b1c5ae23876ce88ca63b46e5468342d79ab49b90",
+  "Branch": "feature/v1.7.0-r49-live-metric-glass-refresh",
+  "UTC": "2026-10-10T14:07:22.093656+00:00",
+  "Status": "NATIVE_METRIC_REFRESH_DEV_PASS_INSTALLED_AND_EXACT_CI_OPEN",
+  "Fix": "Force native layered UpdateLayeredWindow after every genuine MetricsSnapshot commit; no synthetic normal-app telemetry.",
+  "Proof": {
+    "RealNativeMetricUploads": 2,
+    "VisibleTextPixels": 2206,
+    "VisibleGraphPixels": 1833,
+    "VisualSuites": 10,
+    "PortableRuntime": 5
+  },
+  "HistoricalNormalInstalledPathFailures": {
+    "R47": {
+      "GraphPixels": 0,
+      "Rollback": "PASS independently"
+    },
+    "R48": {
+      "GraphPixels": 0,
+      "StartupProbesPass": 6,
+      "Start": "FAIL",
+      "Rollback": "PASS"
+    }
+  },
+  "NewCandidateSHA256": "D02BEDEA639ED908F3653F6D84E87CFA16A2D92661A5F0B2F51041F6C34A2B1C",
+  "Pending": [
+    "freeze exact commit build+CI",
+    "actual normal-app installed-path 0% real graphs and 8 interactive probes + exact v1.6 restore",
+    "trusted static Wallpaper canary",
+    "signed production Main+Setup",
+    "approved main exact CI + immutable seven assets public"
+  ],
+  "Safety": "Preserve active user Slideshow and v1.6 baseline; never report a real app as validated when only proof mode passes."
+}
