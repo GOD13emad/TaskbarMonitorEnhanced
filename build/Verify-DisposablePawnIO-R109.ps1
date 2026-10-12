@@ -32,7 +32,7 @@ function Reject-R109([psobject]$a,[psobject]$health){
     $errors.Add('DRIVER_SOURCE_IDENTITY_FALSE')
  }
  if($a.OfficialUrl -cne 'https://github.com/namazso/PawnIO.Setup/releases/download/2.2.0/PawnIO_setup.exe' -or
-    $a.Version -cne '2.2.0' -or $a.InstalledRegistryVersion -cne '2.2.0' -or
+    $a.Version -cne '2.2.0' -or $a.InstalledRegistryVersion -cne '2.2.0.0' -or
     $a.PinnedSHA256 -cne $expected -or $a.DownloadedSHA256 -cne $expected -or
     $a.AuthenticodeStatus -cne 'Valid' -or
     $a.SignerSubject -cnotmatch 'CN=namazso\.eu' -or

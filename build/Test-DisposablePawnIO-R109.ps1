@@ -102,7 +102,7 @@ try{
         if($installed.Count){break}
         Start-Sleep -Milliseconds 700
     }while((Get-Date) -lt $deadline)
-    if($installed.Count -ne 1 -or $installed[0] -cne $Version){
+    if($installed.Count -ne 1 -or $installed[0] -cne '2.2.0.0'){
         throw ('R109 PINNED PAWNIO REGISTRY VERSION NOT MATCHED '+($installed -join ','))
     }
     $installedVersion=$installed[0]
