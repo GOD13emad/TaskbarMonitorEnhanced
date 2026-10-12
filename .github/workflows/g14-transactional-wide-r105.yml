@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - audit/g14-transactional-widescreen-r105
+      - audit/g14-native-window-enumeration-r106
   workflow_dispatch:
 
 permissions:
@@ -29,6 +30,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell 5.1 static parser rejected' }
           ./build/Test-Unsigned-Preview-HostedInstall.ps1 -StaticOnly
           if ($LASTEXITCODE -ne 0) { throw 'R88 owned-host installer preflight rejected' }
+          ./build/Probe-NativeWindows-R106.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R106 read-only native window static preflight failed' }
+          & powershell.exe -NoProfile -File ./build/Probe-NativeWindows-R106.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R106 PS5.1 parser failed' }
       - name: Temporarily set exact 1600x900 on disposable Windows and always restore original
         shell: pwsh
         env:
@@ -50,6 +55,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'R88 original exact installed headless receipt failed' }
           ./build/Verify-G14-InstalledEight-R103.ps1 -ReceiptPath (Join-Path $r88 'R103_INSTALLED_8/R103_INSTALLED_EIGHT_DIAGNOSTIC.json') -ExpectedCommit $env:GITHUB_SHA -SelfTest
           if ($LASTEXITCODE -ne 0) { throw 'R103 eight installed raw cases failed independent verification' }
+          ./build/Verify-NativeWindows-R106.ps1 -ReceiptPath (Join-Path $r88 'R103_INSTALLED_8/R106_NATIVE_WINDOWS.json') -InstalledReceiptPath (Join-Path $r88 'R103_INSTALLED_8/R103_INSTALLED_EIGHT_DIAGNOSTIC.json') -ExpectedCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R106 exact native HWND inventory read-only witness rejected' }
           ./build/Verify-WallpaperCanary-R91.ps1 -CanaryDirectory (Join-Path $r88 'R91_G13_CANARY') -ExpectedTestCommit $env:GITHUB_SHA -SelfTest
           if ($LASTEXITCODE -ne 0) { throw 'R91 real hosted Wallpaper regression failed' }
           Write-Output 'R105_WINDOWS_DISPOSABLE_TEMPORARY_WIDE_G14_DIAGNOSTIC_VERIFICATION_PASS_FORMAL_G14_OPEN'

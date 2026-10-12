@@ -197,6 +197,15 @@ public static class R103ReadOnlyTaskbar {
     }catch{$desktopReadiness.Error=$_.Exception.Message}
     [IO.File]::WriteAllText((Join-Path $folder 'R103_GUI_READINESS.json'),
         ($desktopReadiness|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+    # R106 read-only Win32 HWND/PID/Explorer topology of the exact hosted installed Main.
+    # No window/desktop mutation and never treat this evidence as formal G14 acceptance.
+    $nativeProbe=Join-Path $PSScriptRoot 'Probe-NativeWindows-R106.ps1'
+    if(!(Test-Path -LiteralPath $nativeProbe -PathType Leaf)){throw 'R106 native probe missing'}
+    & $nativeProbe -ExpectedPid $residentId -ExpectedMain $main -OutputDirectory $folder
+    if($LASTEXITCODE -ne 0){throw 'R106 native HWND diagnostic failed'}
+    if(!(Test-Path -LiteralPath (Join-Path $folder 'R106_NATIVE_WINDOWS.json') -PathType Leaf)){
+        throw 'R106 native raw receipt missing'
+    }
     foreach($spec in $CaseSpecs){
         $result=Run-R103Probe -switch $spec.Switch -target $spec.Output -testName $spec.Test -timeout $spec.TimeoutMs
         $results+= $result
@@ -251,6 +260,10 @@ finally{
        GuiReadinessReport='R103_GUI_READINESS.json'
        GuiReadinessSHA256=if(Test-Path -LiteralPath (Join-Path $folder 'R103_GUI_READINESS.json')){
            (Get-FileHash -LiteralPath (Join-Path $folder 'R103_GUI_READINESS.json') -Algorithm SHA256).Hash
+       }else{''}
+       R106NativeWindowReport='R106_NATIVE_WINDOWS.json'
+       R106NativeWindowSHA256=if(Test-Path -LiteralPath (Join-Path $folder 'R106_NATIVE_WINDOWS.json')){
+           (Get-FileHash -LiteralPath (Join-Path $folder 'R106_NATIVE_WINDOWS.json') -Algorithm SHA256).Hash
        }else{''}
        EighthCaseNames=@('startup','hover','hardware','temperature','health','support','start','shell')
        Results=$results;CompletedCases=$results.Count;PassedCases=$passes
