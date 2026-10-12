@@ -50,6 +50,9 @@ function Invoke-R101FiveStringMethod {
   }
   return $Method.Invoke($null,[object[]]$typed)
 }
+$R102HelperPath=Join-Path $PSScriptRoot 'Restore-DisposableModeKey-R102.ps1'
+if(!(Test-Path -LiteralPath $R102HelperPath -PathType Leaf)){throw 'R102 RESTORE HELPER MISSING'}
+. $R102HelperPath
 if($StaticOnly){
     $tokens=$null;$parseErrors=$null
     [void][Management.Automation.Language.Parser]::ParseFile($PSCommandPath,[ref]$tokens,[ref]$parseErrors)
@@ -305,17 +308,9 @@ try{
                 else{$mkey.DeleteValue('BackgroundType',$false)}
             }finally{$mkey.Dispose()}
         }else{
-            # Only remove the exact test-created key when it is empty; preserve any unknown content.
-            $mkey=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($ModeRegNative,$true)
-            if($mkey){
-                $onlyEmpty=$false
-                try{
-                    $mkey.DeleteValue('BackgroundType',$false)
-                    $onlyEmpty=($mkey.ValueCount -eq 0 -and $mkey.SubKeyCount -eq 0)
-                }finally{$mkey.Dispose()}
-                if(!$onlyEmpty){throw 'R101 TEMP MODE KEY HAS UNOWNED CONTENT; DO NOT DELETE'}
-                [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKey($ModeRegNative,$false)
-            }
+            # R102: ONE shared fail-closed cleanup function, also exercised on never-existing
+            # synthetic HKCU fixture paths in a disposable hosted Windows session.
+            [void](Invoke-R102RestoreOriginallyAbsentModeKey -NativeSubKey $ModeRegNative -OriginalKeyExists ([bool]$R91ModeOriginallyExists))
         }
         $modeFinal=Get-Item -LiteralPath $WallpaperModePath -ErrorAction SilentlyContinue
         $modeKeyExistsFinal=$null -ne $modeFinal

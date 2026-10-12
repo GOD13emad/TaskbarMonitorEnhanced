@@ -26,6 +26,8 @@ jobs:
         run: |
           ./build/Test-Unsigned-Preview-HostedInstall.ps1 -StaticOnly
           if ($LASTEXITCODE -ne 0) { throw 'R88 test source parser preflight failed.' }
+          ./build/Test-DisposableAbsentModeKey-R102.ps1 -StaticOnly
+          if ($LASTEXITCODE -ne 0) { throw 'R102 fixture guard parser/static preflight failed.' }
       - name: Verify and test exact immutable unsigned release on disposable hosted Windows
         shell: pwsh
         env:
@@ -54,6 +56,14 @@ jobs:
           $root = Join-Path $env:RUNNER_TEMP 'TBME_R88_UnsignedPreview_Smoke/R91_G13_CANARY'
           ./build/Verify-WallpaperCanary-R91.ps1 -CanaryDirectory $root -ExpectedTestCommit $env:GITHUB_SHA -SelfTest
           if ($LASTEXITCODE -ne 0) { throw 'R91 actual WallpaperStudio product canary raw bytes or rollback failed.' }
+      - name: R102 independently exercise originally absent Registry key guarded cleanup on disposable HKCU fixture
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'TBME_R88_UnsignedPreview_Smoke'
+          ./build/Test-DisposableAbsentModeKey-R102.ps1 -EvidenceDir $root
+          if ($LASTEXITCODE -ne 0) { throw 'R102 exact shared absent-key guard failed on disposable Windows.' }
+          ./build/Verify-DisposableAbsentModeKey-R102.ps1 -ReceiptPath (Join-Path $root 'R102_ABSENT_MODE_KEY_RECEIPT.json') -ExpectedCommit $env:GITHUB_SHA -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'R102 absent-key independent witness receipt contract failed.' }
       - name: Preserve actual host results even if install fails
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -74,3 +84,4 @@ jobs:
             ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CHILD_STDOUT.txt
             ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CHILD_STDERR.txt
             ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R91_G13_CHILD_PROCESS.json
+            ${{ runner.temp }}/TBME_R88_UnsignedPreview_Smoke/R102_ABSENT_MODE_KEY_RECEIPT.json
