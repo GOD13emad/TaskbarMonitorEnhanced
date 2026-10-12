@@ -5497,6 +5497,28 @@ namespace TaskbarMonitorEnhanced
                 IntPtr foreground=IntPtr.Zero;
                 bool start=ShellUi.IsStartShellForeground(
                     out foregroundProcess,out foregroundClass,out foreground);
+                // R110: a genuine Windows Start surface can remain open when
+                // another Explorer window temporarily owns foreground focus.
+                // Reuse the existing strict signed-Windows-shell process,
+                // physical rectangle and location checks; do not treat arbitrary
+                // foreground windows as an active Start menu.
+                if(!start)
+                {
+                    string surfaceProcess="",surfaceClass="";
+                    Rectangle surfaceRect=Rectangle.Empty;
+                    IntPtr surfaceHwnd=IntPtr.Zero;
+                    if(ShellUi.IsStartSurfacePresent(out surfaceProcess,
+                        out surfaceClass,out surfaceRect,out surfaceHwnd))
+                    {
+                        foregroundProcess="START_SURFACE:"+surfaceProcess;
+                        foregroundClass=surfaceClass;
+                        start=true;
+                        if(!startGlassTemporarilyFloating)
+                            Log.Write("INFO","START_GUARD_VERIFIED_SURFACE"+
+                                " process="+surfaceProcess+" hwnd="+surfaceHwnd.ToInt64()+
+                                " rect="+surfaceRect);
+                    }
+                }
 
                 if(start)
                 {
