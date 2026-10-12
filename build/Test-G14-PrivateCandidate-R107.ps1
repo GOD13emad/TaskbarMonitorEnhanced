@@ -29,8 +29,8 @@ if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-host
    $env:RUNNER_OS -cne 'Windows' -or [string]::IsNullOrEmpty($env:RUNNER_TEMP) -or
    $env:GITHUB_SHA -cnotmatch '^[0-9a-f]{40}$' -or $env:COMPUTERNAME -ceq 'EMAD-PC-ULTIMAT' -or
    ![Environment]::UserInteractive){throw 'R107 REFUSE NONDISPOSABLE HOST'}
-$home=[Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
-$app=Join-Path $home 'TaskbarMonitorEnhanced'
+$candidateLocalAppData=[Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
+$app=Join-Path $candidateLocalAppData 'TaskbarMonitorEnhanced'
 $reg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
 $run='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 $link=Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::Programs)) 'Taskbar Monitor Enhanced.lnk'
@@ -65,7 +65,7 @@ $testDir=Join-Path $out 'G14_8'
 $start=(Get-Date).ToUniversalTime().ToString('o')
 $installed=$false;$installedMain=''
 $installCode=-999;$verifyCode=-999;$uninstallCode=-999
-$results=@();$failure='';$cleanup='NOT_DONE';$pid=0;$resident=$null
+$results=@();$failure='';$cleanup='NOT_DONE';$residentProcessId=0;$resident=$null
 $hardwareHealth='NOT_OBSERVED'
 function Run-Bounded([string]$exe,[string[]]$args,[int]$max,[string]$label){
    $info=[Diagnostics.ProcessStartInfo]::new()
@@ -143,11 +143,11 @@ try{
  $psi.UseShellExecute=$false
  $resident=[Diagnostics.Process]::Start($psi)
  if(!$resident){throw 'R107 MAIN RESIDENT NOT SPAWNED'}
- $pid=[int]$resident.Id
+ $residentProcessId=[int]$resident.Id
  Start-Sleep -Seconds 7
  $resident.Refresh()
  if($resident.HasExited){throw ('R107 INSTALLED REAL MAIN EXITED EARLY '+$resident.ExitCode)}
- if((Get-Process -Id $pid).SessionId -ne $session){throw 'R107 MAIN NOT SAME EXPLORER SESSION'}
+ if((Get-Process -Id $residentProcessId).SessionId -ne $session){throw 'R107 MAIN NOT SAME EXPLORER SESSION'}
  New-Item -ItemType Directory -Path $testDir -ErrorAction Stop|Out-Null
  foreach($spec in $caseSpecs){
    $target=if($spec.Target){Join-Path $testDir $spec.Target}else{''}
@@ -171,8 +171,8 @@ finally{
     if($null -ne $resident){
        $resident.Refresh()
        if(!$resident.HasExited){
-          if($resident.Id -ne $pid -or
-             (Get-Process -Id $pid -ErrorAction SilentlyContinue).Path -cne $installedMain){
+          if($resident.Id -ne $residentProcessId -or
+             (Get-Process -Id $residentProcessId -ErrorAction SilentlyContinue).Path -cne $installedMain){
              throw 'R107 REFUSE KILL UNKNOWN PROCESS'
           }
           $resident.Kill()
@@ -216,7 +216,7 @@ finally{
     CandidateMainSHA256=$mainSHA;CandidateSetupSHA256=$setupSHA
     CandidateConfigSHA256=$configSHA;CandidateIsPublicRelease=$false
     CandidateAuthenticodeSigned=$false;CanonicalSingleRoot=$app
-    MainProcessPid=$pid;InstalledSensorStatus=$hardwareHealth
+    MainProcessPid=$residentProcessId;InstalledSensorStatus=$hardwareHealth
     StartupRegistryInitiallyAbsent=($null -eq $initialRun);WallpaperModeBefore=$wallMode
     OwnedSetupVerifyExit=$verifyCode;OwnedSetupInstallExit=$installCode;OwnedSetupUninstallExit=$uninstallCode
     DiagnosticAttempts=$results.Count;DiagnosticPasses=$passed;DiagnosticResults=$results
