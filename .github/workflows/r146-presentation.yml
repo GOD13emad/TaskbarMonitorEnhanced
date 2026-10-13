@@ -1,0 +1,91 @@
+name: R146 Private Explicit Glass And Real Taskbar Visibility
+on:
+  push:
+    branches: [fix/r145-explicit-glass]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-private:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Exact source checkout without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Build private candidate and preflight native test parsers
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R146 source not exact'}
+          foreach($rel in @('build/Test-Appearance-R145.ps1','build/Test-Visibility-R146.ps1','build/Test-Native-Presentation-R146.ps1')){
+            $t=$null;$e=$null
+            [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $rel).Path,[ref]$t,[ref]$e)
+            if(@($e).Count){throw ('R146 parser '+$rel)}
+          }
+          ./build/Build.ps1
+          if($LASTEXITCODE -ne 0){throw 'R146 build failure'}
+          $main='./build/_out/App/TaskbarMonitorEnhanced.exe'
+          $setup='./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.1.exe'
+          $candidate=[ordered]@{Commit=$env:GITHUB_SHA;Private=$true;NotForPublicInstallation=$true;MainSHA256=(Get-FileHash $main -Algorithm SHA256).Hash;SetupSHA256=(Get-FileHash $setup -Algorithm SHA256).Hash}
+          [IO.File]::WriteAllText((Join-Path $pwd 'build/_out/CANDIDATE.json'),($candidate|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
+      - name: Actual binary control and pixel contracts, no desktop mutation
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Test-Appearance-R145.ps1 -MainPath ./build/_out/App/TaskbarMonitorEnhanced.exe -OutDir (Join-Path $env:RUNNER_TEMP 'R146_APPEARANCE')
+          ./build/Test-Visibility-R146.ps1 -MainPath ./build/_out/App/TaskbarMonitorEnhanced.exe -OutDir (Join-Path $env:RUNNER_TEMP 'R146_POLICY')
+      - name: Private candidate only, never publish or promote
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R146-private-candidate
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            build/_out/CANDIDATE.json
+            build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.1.exe
+      - name: Preserve model and pill-control contract receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R146-model-contracts
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/R146_APPEARANCE/**
+            ${{ runner.temp }}/R146_POLICY/**
+  native-windows:
+    needs: build-private
+    name: Native taskbar real menu Start Settings fullscreen (${{ matrix.host }})
+    runs-on: windows-latest
+    timeout-minutes: 24
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [A, B]
+    steps:
+      - name: Fresh independent Windows source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Exact candidate transfer without rebuilding or reusing source host
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: R146-private-candidate
+          path: build/_out
+      - name: Three real modes and genuine Windows user interactions
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Test-Native-Presentation-R146.ps1 -CandidateDir ./build/_out -HostLabel '${{ matrix.host }}'
+          $r=Get-Content (Join-Path $env:RUNNER_TEMP 'TBME_R146_${{ matrix.host }}/R146_NATIVE.json') -Raw|ConvertFrom-Json
+          if($r.Status -cne 'PASS_REAL_MENU_SETTINGS_START_FULLSCREEN_TASKBAR_VISIBILITY_THREE_MODES' -or $r.EventCommit -cne $env:GITHUB_SHA -or $r.PersonalComputerTouched -ne $false){throw 'R146 incomplete native acceptance'}
+      - name: Preserve physical pixels and first failure evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R146-native-${{ matrix.host }}
+          retention-days: 21
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/TBME_R146_${{ matrix.host }}/**

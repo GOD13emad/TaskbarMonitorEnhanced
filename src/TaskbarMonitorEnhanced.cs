@@ -4392,6 +4392,8 @@ namespace TaskbarMonitorEnhanced
         private ContextMenuStrip BuildMenu()
         {
             ContextMenuStrip m=new ContextMenuStrip();
+            m.Opened+=delegate{RefreshTaskbarPresentation(true);};
+            m.Closed+=delegate{RefreshTaskbarPresentation(true);};
             AddWorkspaceMenu(m);
             ToolStripMenuItem themes=new ToolStripMenuItem("Themes");
             foreach(string n in ThemeCatalog.Names)
@@ -4444,6 +4446,7 @@ namespace TaskbarMonitorEnhanced
                     settingsForm.Show();
                     settingsForm.BringToFront();
                     settingsForm.Activate();
+                    RefreshTaskbarPresentation(true);
 
                     Log.Write(
                         "INFO",
@@ -4506,6 +4509,7 @@ namespace TaskbarMonitorEnhanced
                 f.Show();
                 f.BringToFront();
                 f.Activate();
+                RefreshTaskbarPresentation(true);
 
                 Log.Write(
                     "INFO",
@@ -5288,6 +5292,7 @@ namespace TaskbarMonitorEnhanced
                 ScheduleRecovery("GLASS_TASKBAR_NOT_FOUND",500);
                 return;
             }
+            if(RefreshTaskbarPresentation(false))return;
             trayNotify=Native.FindDescendantByClass(taskbar,"TrayNotifyWnd");
             ResetPlacementStability("TOPLEVEL_GLASS_ATTACH");
             try
@@ -5429,6 +5434,7 @@ namespace TaskbarMonitorEnhanced
             string resolvedTarget;IntPtr currentTaskbar=TaskbarTargetPolicy.Resolve(config,out resolvedTarget);
             if(currentTaskbar==IntPtr.Zero)return;
             taskbar=currentTaskbar;
+            if(RefreshTaskbarPresentation(false))return;
 
             if(expectedRect.Width>0 && IsTransientShellSurfaceActive())
                 return;
@@ -5525,8 +5531,6 @@ namespace TaskbarMonitorEnhanced
         // native ink visible again without recreating the whole OverlayForm.
         private bool startGlassTemporarilyFloating;
         private bool startGlassPinnedDuringShell;
-        private IntPtr lastGlassForeground=IntPtr.Zero;
-        private DateTime nextGlassForegroundRefreshAt=DateTime.MinValue;
         private Rectangle startGlassTemporaryBounds=Rectangle.Empty;
         private int startGlassLiftTransitions;
         private int startGlassReturnTransitions;
@@ -5694,127 +5698,10 @@ namespace TaskbarMonitorEnhanced
         {
             try
             {
-                // R118: exact v1.6 default UX: keep taskbar glass pinned under
-                // genuine Start/Search. Freeze transient shell placement scans,
-                // then re-show/recompose the original alpha-zero HWND only
-                // after Start has closed, without any 60px upward movement.
-                if(RequiresGlassTopLevel && !config.FloatAboveStartMenu &&
-                   !recoveryPending && taskbar!=IntPtr.Zero &&
-                   IsHandleCreated && Native.IsWindow(taskbar) &&
-                   expectedRect.Width>=AdaptiveProbeGeometry.MinSafeWidth)
-                {
-                    string startProc="",startClass="";
-                    IntPtr startWindow=IntPtr.Zero;
-                    bool shellIsOpen=ShellUi.IsStartShellForeground(
-                        out startProc,out startClass,out startWindow);
-                    if(!shellIsOpen)
-                    {
-                        Rectangle surfaceRect=Rectangle.Empty;
-                        shellIsOpen=ShellUi.IsStartSurfacePresent(
-                            out startProc,out startClass,out surfaceRect,out startWindow);
-                    }
-                    if(shellIsOpen)
-                    {
-                        if(!startGlassPinnedDuringShell)
-                            Log.Write("INFO","START_PINNED_NATIVE_PASS rect="+expectedRect+
-                                " shell="+startProc);
-                        startGlassPinnedDuringShell=true;
-                        return;
-                    }
-                    if(startGlassPinnedDuringShell)
-                    {
-                        startGlassPinnedDuringShell=false;
-                        lastUpstreamPositionAt=DateTime.UtcNow;
-                        lastPositionAt=DateTime.UtcNow;
-                        if(settingsForm==null || settingsForm.IsDisposed ||
-                           !settingsForm.Visible)
-                        {
-                            Hide();
-                            Show(); // restore physical alpha ink after Start.
-                            Native.SetWindowPos(Handle,Native.HWND_TOPMOST,
-                                expectedRect.X,expectedRect.Y,
-                                expectedRect.Width,expectedRect.Height,
-                                Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW);
-                            if(!PaintPerPixelLayer())
-                                Log.Write("WARN","START_PINNED_RESTORE_INK_UNAVAILABLE");
-                        }
-                        Log.Write("INFO","START_PINNED_RETURN_NATIVE_PASS rect="+expectedRect);
-                    }
-                }
-                // R113: the 500ms Windows Forms watchdog is UI-thread based.
-                // Under real Start foreground, prioritize the existing pinned
-                // native Shell_TrayWnd HWND before sensor self-heal and costly
-                // target enumeration. Retain strict PID/class/rect/native style
-                // checks in StartGuardTick; no arbitrary popup can trigger lift.
-                if(RequiresGlassTopLevel && !startGlassTemporarilyFloating &&
-                   !recoveryPending && taskbar!=IntPtr.Zero &&
-                   IsHandleCreated && Native.IsWindow(taskbar))
-                {
-                    StringBuilder pinnedClass=new StringBuilder(128);
-                    Native.GetClassName(taskbar,pinnedClass,pinnedClass.Capacity);
-                    if(String.Equals(pinnedClass.ToString(),"Shell_TrayWnd",StringComparison.Ordinal))
-                    {
-                        string fgProcess="",fgClass="";
-                        IntPtr fgHwnd=IntPtr.Zero;
-                        if(ShellUi.IsStartShellForeground(out fgProcess,out fgClass,out fgHwnd))
-                        {
-                            Native.RECT pinnedBounds=new Native.RECT();
-                            if(Native.GetWindowRect(taskbar,out pinnedBounds) &&
-                                pinnedBounds.ToRectangle().Contains(expectedRect))
-                            {
-                                StartGuardTick(taskbar);
-                                if(startGlassTemporarilyFloating)return;
-                            }
-                        }
-                    }
-                }
-                // R133: R125 reused the 420px G14 WIDESCREEN test minimum.
-                // A genuine 1024x768 taskbar monitor can be only 279px wide,
-                // so R125's reassert NEVER executed when normal windows focused.
-                // Use bounded native compact geometry (>=180px, height 25..70),
-                // and retain the separate strict actual-taskbar.Contains rect gate.
-                // Never activate the overlay; never lift during Start/Search;
-                // Settings remains independently above this topmost monitor.
-                if(RequiresGlassTopLevel && !startGlassPinnedDuringShell &&
-                   !startGlassTemporarilyFloating && !recoveryPending &&
-                   IsHandleCreated && taskbar!=IntPtr.Zero && Native.IsWindow(taskbar) &&
-                   (settingsForm==null || settingsForm.IsDisposed || !settingsForm.Visible) &&
-                   expectedRect.Width>=180 && expectedRect.Height>=25 &&
-                   expectedRect.Height<=70 && Native.IsWindow(Handle))
-                {
-                    IntPtr foregroundNow=Native.GetForegroundWindow();
-                    DateTime now=DateTime.UtcNow;
-                    if(foregroundNow!=IntPtr.Zero &&
-                       (foregroundNow!=lastGlassForeground || now>=nextGlassForegroundRefreshAt))
-                    {
-                        string startProc="",startClass="";
-                        IntPtr startHwnd=IntPtr.Zero;
-                        Rectangle startRect=Rectangle.Empty;
-                        bool start=ShellUi.IsStartShellForeground(out startProc,out startClass,out startHwnd);
-                        if(!start)start=ShellUi.IsStartSurfacePresent(
-                            out startProc,out startClass,out startRect,out startHwnd);
-                        Native.RECT trayRect;
-                        if(!start && Native.GetWindowRect(taskbar,out trayRect) &&
-                           trayRect.ToRectangle().Contains(expectedRect))
-                        {
-                            lastGlassForeground=foregroundNow;
-                            nextGlassForegroundRefreshAt=now.AddSeconds(3);
-                            bool restacked=Native.SetWindowPos(
-                                Handle,Native.HWND_TOPMOST,
-                                expectedRect.X,expectedRect.Y,expectedRect.Width,expectedRect.Height,
-                                Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW|Native.SWP_NOOWNERZORDER);
-                            if(!restacked)
-                                Log.Write("WARN","GLASS_FOREGROUND_ZORDER_REASSERT_FAILED win32="+Marshal.GetLastWin32Error());
-                            else if(!PaintPerPixelLayer())
-                                Log.Write("WARN","GLASS_FOREGROUND_REUPLOAD_FAILED");
-                            else
-                                Log.Write("INFO","GLASS_FOREGROUND_REASSERT_FIXED_RECT hwnd="+
-                                    Handle.ToInt64()+" fg="+foregroundNow.ToInt64()+" rect="+expectedRect);
-                        }
-                    }
-                }
+                // R146: presentation follows the real taskbar, not a perpetual TOPMOST timer.
+                if(RefreshTaskbarPresentation(true))return;
                 SensorSupervisorSelfHealWatchdog();
-                string probeTargetNow;IntPtr currentTaskbar=TaskbarTargetPolicy.Resolve(AppConfig.Load(),out probeTargetNow);
+                string probeTargetNow;IntPtr currentTaskbar=TaskbarTargetPolicy.Resolve(config,out probeTargetNow);
 
                 if(currentTaskbar==IntPtr.Zero)
                 {
@@ -5872,6 +5759,7 @@ namespace TaskbarMonitorEnhanced
 
         protected override void OnPaint(PaintEventArgs e)
         {
+            if(presentationSuppressed)return;
             if(PaintPerPixelLayer())return;
             base.OnPaint(e); e.Graphics.SmoothingMode=SmoothingMode.AntiAlias; e.Graphics.TextRenderingHint=System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             ThemeDefinition theme=WindowsThemePolicy.Resolve(config);
@@ -7296,6 +7184,13 @@ namespace TaskbarMonitorEnhanced
             // must not be covered by its taskbar z-band and must be Alt+Tab-able.
             ShowInTaskbar=true;
             TopMost=true;
+            Shown+=delegate{
+                Rectangle work=Screen.FromControl(this).WorkingArea;
+                int w=Math.Min(Width,Math.Max(200,work.Width-16));
+                int h=Math.Min(Height,Math.Max(200,work.Height-16));
+                MinimumSize=new Size(Math.Min(MinimumSize.Width,w),Math.Min(MinimumSize.Height,h));
+                Bounds=new Rectangle(work.Left+(work.Width-w)/2,work.Top+(work.Height-h)/2,w,h);
+            };
             BackColor=SettingsWindow;ForeColor=SettingsText;Font=new Font("Segoe UI",9.4f,FontStyle.Regular);DoubleBuffered=true;
 
             TableLayoutPanel root=new TableLayoutPanel();root.Dock=DockStyle.Fill;root.BackColor=SettingsWindow;root.ColumnCount=2;root.RowCount=1;root.Margin=Padding.Empty;root.Padding=Padding.Empty;root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,214f));root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100f));root.RowStyles.Add(new RowStyle(SizeType.Percent,100f));Controls.Add(root);
