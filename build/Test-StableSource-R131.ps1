@@ -4,7 +4,7 @@ param([string]$SetupPath="$PSScriptRoot\_out\Setup\TaskbarMonitorEnhanced_Setup_
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $f=[IO.Path]::GetFullPath($SetupPath)
-$want='C03B09B7D740F5BFFAE3CF586DB0BD37384307629ABB3B29A0F564F1901732CF'
+$want='ABD106630F7BAB3471CAF3F5BD4313DFCF2D61DDE1DF79E72EFE91933C8F2F89'
 if(!(Test-Path -LiteralPath $f -PathType Leaf) -or
    (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash -cne $want -or
    [IO.Path]::GetFileName($f) -cne 'TaskbarMonitorEnhanced_Setup_1.7.1.exe'){
