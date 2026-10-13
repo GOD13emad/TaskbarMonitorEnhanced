@@ -43,10 +43,19 @@ try{
  $exe=Join-Path $app 'TaskbarMonitorEnhanced.exe'
  $state=Join-Path $app 'install_state.json'
  $config=Join-Path $app 'config.json'
- if(!(Test-Path $config -PathType Leaf) -or !(Test-Path $state -PathType Leaf) -or
+ if(!(Test-Path $state -PathType Leaf) -or
    (Get-FileHash $exe -Algorithm SHA256).Hash -cne $mainSHA){throw 'R143_INSTALLED_MAIN_SHA_OR_STATE_DRIFT'}
  $s=Get-Content $state -Raw|ConvertFrom-Json
  if($s.Version -cne '1.7.1' -or $s.ProductIdentity -cne 'LOCKED'){throw 'R143_WRONG_INSTALLED_VERSION'}
+ # Fresh official Setup intentionally does not create config until Main starts.
+ # The hosted stable in-place contract creates an owner fixture after Setup.
+ # On THIS disposable Windows only, create the exact same minimal settings.
+ $resident=@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue)
+ if($resident.Count -ne 0){throw 'R143_INSTALLER_AUTOLAUNCHED_UNEXPECTED_RUNTIME'}
+ if(!(Test-Path $config -PathType Leaf)){
+  $initial='{"Theme":"Retro Terminal","Opacity":0.31,"GlassMode":false,"OpacityWhenGlassOff":0.31,"ConfigSchemaVersion":8,"StartWithWindows":false,"UpdateIntervalMs":1000,"ShowSparklines":true}'
+  [IO.File]::WriteAllText($config,$initial,[Text.UTF8Encoding]::new($false))
+ }
  $phase='KNOWN_FIXTURE_ONLY_DISPOSABLE'
  $cfg=Get-Content $config -Raw|ConvertFrom-Json
  $cfg.Theme='Retro Terminal'
