@@ -7250,7 +7250,7 @@ namespace TaskbarMonitorEnhanced
         private readonly AppConfig c; private readonly MetricsSnapshot snapshot; private readonly Func<string,int,int,Bitmap> themePreviewRenderer;
         private ComboBox theme,windowsLightTheme,windowsDarkTheme,position,taskbarDisplay,cpuMode,gpuMode,diskMode,netMode,multiLayout,memoryUnit,storageUnit,networkUnit,diskRateUnit;
         private NumericUpDown opacity,interval,width,cpuWarn,gpuWarn,diskWarn,batteryInterval,historyLength;
-        private TrackBar glassModeToggle;
+        private GlassToggleSwitch glassModeToggle;
         private int lastOpacityPercent;
         private CheckBox cpu,ram,disk,gpu,vram,net,temp,spark,startup,safe,floatAboveStart,ramNumeric,diskNumeric,flyout,hoverAll,autoCheckUpdates,tempAlerts,tempNotifications,adaptiveBattery,followWindowsTheme;
         private CheckedListBox cpuList,gpuList,diskList,netList;
@@ -7334,16 +7334,15 @@ namespace TaskbarMonitorEnhanced
             // R124: a separate binary slider/switch for glass, not a second opacity control.
             Label glassLabel=new Label{Text="Glass mode",Location=new Point(24,164),Size=new Size(145,26)};
             display.Controls.Add(glassLabel);
-            glassModeToggle=new TrackBar{Minimum=0,Maximum=1,TickStyle=TickStyle.None,
-                SmallChange=1,LargeChange=1,Location=new Point(180,156),Size=new Size(108,38),
-                Value=c.GlassMode?1:0};
-            SetA11y(glassModeToggle,"Glass mode switch","Slide right ON for 0% background and locked opacity; left OFF to restore your previous 1–100% value.");
+            glassModeToggle=new GlassToggleSwitch{Location=new Point(180,158),
+                Size=new Size(112,34),Checked=c.GlassMode};
+            SetA11y(glassModeToggle,"Glass mode switch","Click or press Space to switch Glass on or off. On: zero background; Off: your saved 1-100% opacity.");
             display.Controls.Add(glassModeToggle);
             lastOpacityPercent=Math.Max(1,Math.Min(100,(int)Math.Round(c.OpacityWhenGlassOff*100)));
-            opacity=Number(display,"Background opacity %",c.GlassMode?0:(decimal)(c.Opacity*100),0,100,216);
+            opacity=Number(display,"Background opacity %",c.GlassMode?0:(decimal)(c.Opacity*100),c.GlassMode?0:1,100,216);
             opacity.Enabled=!c.GlassMode;
             opacity.ValueChanged+=delegate{if(opacity.Enabled&&opacity.Value>=1)lastOpacityPercent=(int)opacity.Value;};
-            glassModeToggle.ValueChanged+=delegate{SyncGlassOpacityUi();};
+            glassModeToggle.CheckedChanged+=delegate{SyncGlassOpacityUi();};
             width=Number(display,"Locked width px",c.MinWidthLogicalPx,900,1500,266);
             followWindowsTheme=Check(display,"Follow Windows app light/dark mode",c.FollowWindowsTheme,314);
             windowsLightTheme=Combo(display,"Windows light theme",ThemeCatalog.Names,c.WindowsLightTheme,352);
@@ -7602,17 +7601,19 @@ namespace TaskbarMonitorEnhanced
         private void SyncGlassOpacityUi()
         {
             if(glassModeToggle==null || opacity==null)return;
-            if(glassModeToggle.Value==1)
+            if(glassModeToggle.Checked)
             {
                 if(opacity.Enabled && opacity.Value>0)lastOpacityPercent=(int)opacity.Value;
                 opacity.Enabled=false;
+                opacity.Minimum=0;
                 opacity.Value=0;
             }
             else
             {
+                bool restore=!opacity.Enabled || opacity.Value<1;
+                opacity.Minimum=1;
+                if(restore)opacity.Value=Math.Max(1,Math.Min(100,lastOpacityPercent));
                 opacity.Enabled=true;
-                if(opacity.Value==0)
-                    opacity.Value=Math.Max(1,Math.Min(100,lastOpacityPercent));
             }
         }
         private void UpdateThemeModeUi()
@@ -7866,8 +7867,8 @@ namespace TaskbarMonitorEnhanced
                 AppConfig d=new AppConfig();d.Normalize();
                 theme.SelectedItem=d.Theme;position.SelectedItem=d.Position;
                 lastOpacityPercent=Math.Max(1,Math.Min(100,(int)Math.Round(d.OpacityWhenGlassOff*100)));
-                glassModeToggle.Value=0;opacity.Enabled=true;opacity.Value=lastOpacityPercent;
-                glassModeToggle.Value=d.GlassMode?1:0;SyncGlassOpacityUi();
+                glassModeToggle.Checked=false;opacity.Enabled=true;opacity.Minimum=1;opacity.Value=lastOpacityPercent;
+                glassModeToggle.Checked=d.GlassMode;SyncGlassOpacityUi();
                 width.Value=d.MinWidthLogicalPx;
                 cpu.Checked=d.ShowCpu;ram.Checked=d.ShowRam;disk.Checked=d.ShowDisk;gpu.Checked=d.ShowGpu;vram.Checked=d.ShowVram;net.Checked=d.ShowNetwork;temp.Checked=d.ShowTemperatures;spark.Checked=d.ShowSparklines;
                 cpuMode.SelectedItem=d.CpuDisplayMode;gpuMode.SelectedItem=d.GpuDisplayMode;diskMode.SelectedItem=d.DiskDisplayMode;netMode.SelectedItem=d.NetworkDisplayMode;multiLayout.SelectedItem=d.MultipleDeviceLayout;
@@ -7942,7 +7943,7 @@ namespace TaskbarMonitorEnhanced
         private void Apply()
         {
             c.Theme=(string)theme.SelectedItem;c.Position=(string)position.SelectedItem;
-            c.GlassMode=glassModeToggle.Value==1;
+            c.GlassMode=glassModeToggle.Checked;
             c.OpacityWhenGlassOff=Math.Max(0.01,lastOpacityPercent/100.0);
             c.Opacity=c.GlassMode?0.0:(double)opacity.Value/100.0;
             c.MinWidthLogicalPx=(int)width.Value;c.UpdateIntervalMs=(int)interval.Value;c.ShowCpu=cpu.Checked;c.ShowRam=ram.Checked;c.ShowDisk=disk.Checked;c.ShowGpu=gpu.Checked;c.ShowVram=vram.Checked;c.ShowNetwork=net.Checked;c.ShowTemperatures=temp.Checked;c.ShowSparklines=spark.Checked;c.StartWithWindows=startup.Checked;c.SafePlacement=safe.Checked;c.FloatAboveStartMenu=floatAboveStart.Checked;

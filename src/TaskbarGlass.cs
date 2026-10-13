@@ -15,6 +15,52 @@ using Microsoft.Win32;
 
 namespace TaskbarMonitorEnhanced
 {
+    // R145: actual binary pill switch, with native CheckBox keyboard/accessibility semantics.
+    // No TrackBar and no continuous-position state. Only the thumb position changes.
+    internal sealed class GlassToggleSwitch : CheckBox
+    {
+        internal GlassToggleSwitch()
+        {
+            AutoSize=false;Size=new Size(112,34);TabStop=true;Text="";
+            AccessibleRole=AccessibleRole.CheckButton;
+            SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|
+                ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw|
+                ControlStyles.SupportsTransparentBackColor,true);
+            BackColor=Color.Transparent;Cursor=Cursors.Hand;
+        }
+        protected override void OnCheckedChanged(EventArgs e)
+        {base.OnCheckedChanged(e);Invalidate();}
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            if(e.KeyCode==Keys.Left||e.KeyCode==Keys.Right)
+            {Checked=e.KeyCode==Keys.Right;e.Handled=true;e.SuppressKeyPress=true;return;}
+            base.OnKeyDown(e);
+        }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            float h=Math.Max(12,Math.Min(ClientSize.Height-6,26f*DeviceDpi/96f));
+            float w=h*1.9f,x=3,y=(ClientSize.Height-h)/2f;
+            Color track=SystemInformation.HighContrast?
+                (Checked?SystemColors.Highlight:SystemColors.ControlDark):
+                (Checked?Color.FromArgb(41,128,227):Color.FromArgb(96,106,121));
+            if(!Enabled)track=SystemColors.GrayText;
+            using(var path=new System.Drawing.Drawing2D.GraphicsPath())
+            {
+                path.AddArc(x,y,h,h,90,180);path.AddArc(x+w-h,y,h,h,270,180);path.CloseFigure();
+                using(var brush=new SolidBrush(track))e.Graphics.FillPath(brush,path);
+            }
+            bool right=Checked^(RightToLeft==RightToLeft.Yes);
+            float inset=Math.Max(2,h/9),d=h-2*inset;
+            using(var thumb=new SolidBrush(SystemInformation.HighContrast?SystemColors.HighlightText:Color.White))
+                e.Graphics.FillEllipse(thumb,right?x+w-inset-d:x+inset,y+inset,d,d);
+            TextRenderer.DrawText(e.Graphics,Checked?"On":"Off",Font,
+                new Rectangle((int)(x+w+8),0,Math.Max(1,ClientSize.Width-(int)(x+w+8)),ClientSize.Height),
+                Enabled?ForeColor:SystemColors.GrayText,TextFormatFlags.Left|TextFormatFlags.VerticalCenter);
+            if(Focused&&ShowFocusCues)ControlPaint.DrawFocusRectangle(e.Graphics,ClientRectangle);
+        }
+    }
+
     internal static class TaskbarGlassColor
     {
         internal static double Luminance(Color c)
@@ -132,17 +178,17 @@ namespace TaskbarMonitorEnhanced
             finally{b.UnlockBits(d);}
         }
         private static byte Byte(double x){return (byte)Math.Max(0,Math.Min(255,(int)Math.Round(x)));}
-        internal static Bitmap Compose(Bitmap full,Bitmap glyph,Bitmap halo,int opacityPercent,Color taskbar,Color themeBackground)
+        internal static Bitmap Compose(Bitmap full,Bitmap glyph,Bitmap halo,int opacityPercent,Color taskbar,Color themeBackground,bool glassMode)
         {
             if(full==null)throw new ArgumentNullException("full");
             if(glyph!=null&&(glyph.Width!=full.Width||glyph.Height!=full.Height))throw new ArgumentException("glyph geometry");
             if(halo!=null&&(halo.Width!=full.Width||halo.Height!=full.Height))throw new ArgumentException("halo geometry");
-            int pct=Math.Max(0,Math.Min(100,opacityPercent));
+            int pct=glassMode?0:Math.Max(1,Math.Min(100,opacityPercent));
             byte[] basePixels=ReadPixels(full,PixelFormat.Format32bppArgb);
             byte[] inkPixels=glyph==null?null:ReadPixels(glyph,PixelFormat.Format32bppPArgb);
             byte[] haloPixels=halo==null?null:ReadPixels(halo,PixelFormat.Format32bppPArgb);
             byte[] pixels=new byte[basePixels.Length];
-            bool adaptInk=pct<=30;
+            bool adaptInk=glassMode; // R145: NEVER infer material or recolor ink from an opacity threshold.
             Color chosen=TaskbarGlassColor.ReadableText(TaskbarGlassColor.EffectiveBackground(taskbar,themeBackground,pct/100d));
             Color outline=chosen.ToArgb()==Color.White.ToArgb()?Color.Black:Color.White;
             double backgroundScale=pct/100d;
@@ -376,9 +422,13 @@ namespace TaskbarMonitorEnhanced
             }
         }
         internal Bitmap RenderGlassPixelsForProof(string theme,int width,int height,int percent,Color taskbar)
-        {return RenderGlassBitmap(ThemeCatalog.Get(theme),width,height,percent,taskbar);}
-        private Bitmap RenderGlassBitmap(ThemeDefinition theme,int width,int height,int percent,Color taskbar)
+        {return RenderGlassBitmap(ThemeCatalog.Get(theme),width,height,percent,taskbar,percent==0);}
+        // Explicit test seam; production always supplies config.GlassMode, not inferred alpha.
+        internal Bitmap RenderAppearanceForProof(string theme,int width,int height,int percent,Color taskbar,bool glassMode)
+        {return RenderGlassBitmap(ThemeCatalog.Get(theme),width,height,percent,taskbar,glassMode);}
+        private Bitmap RenderGlassBitmap(ThemeDefinition theme,int width,int height,int percent,Color taskbar,bool glassMode)
         {
+            percent=glassMode?0:Math.Max(1,Math.Min(100,percent));
             width=Math.Max(320,width);height=Math.Max(32,height);
             Bitmap ink=null,halo=null,full=null;
             try
@@ -390,7 +440,7 @@ namespace TaskbarMonitorEnhanced
                     glassInkCanvas.TextRenderingHint=System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
                     glassInkCanvas.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                     glassInkCanvas.Clear(Color.Transparent);
-                    if(percent<=30)
+                    if(glassMode)
                     {
                         halo=new Bitmap(width,height,PixelFormat.Format32bppPArgb);
                         glassHaloCanvas=Graphics.FromImage(halo);
@@ -400,7 +450,7 @@ namespace TaskbarMonitorEnhanced
                     }
                 }
                 full=RenderThemeDefinition(theme,width,height);
-                Bitmap output=TaskbarGlassPixels.Compose(full,ink,halo,percent,taskbar,theme.Background);
+                Bitmap output=TaskbarGlassPixels.Compose(full,ink,halo,percent,taskbar,theme.Background,glassMode);
                 if(diagnosticBeacon&&!proofMode)
                     using(Graphics beacon=Graphics.FromImage(output))PaintDiagnosticBeacon(beacon);
                 return output;
@@ -423,8 +473,9 @@ namespace TaskbarMonitorEnhanced
             ThemeDefinition theme=WindowsThemePolicy.Resolve(config);
             try
             {
-                Color sampled=GlassTaskbarSample();
-                using(Bitmap pixels=RenderGlassBitmap(theme,r.Width,r.Height,alpha,sampled))
+                // Plain translucency retains theme ink and never reads desktop pixels.
+                Color sampled=config.GlassMode?GlassTaskbarSample():theme.Background;
+                using(Bitmap pixels=RenderGlassBitmap(theme,r.Width,r.Height,alpha,sampled,config.GlassMode&&!SystemInformation.HighContrast))
                 {
                     int win32;
                     if(TaskbarGlassNative.Upload(Handle,pixels,PointToScreen(Point.Empty),out win32))
@@ -571,7 +622,7 @@ namespace TaskbarMonitorEnhanced
             }
             Check(chartPixels>=16,"missing separate chart pixels for "+theme+" alpha="+opacity+" chart="+chartPixels);
             Check(solidChart>=7,"chart ink too faint for "+theme+" alpha="+opacity+" strong="+solidChart);
-            if(opacity<=30)
+            if(opacity==0)
             {
                 Check(inkContrast>=6,"adapted chart ink wrong for "+theme+" alpha="+opacity+" count="+inkContrast);
                 Check(TaskbarGlassColor.Contrast(expected,
