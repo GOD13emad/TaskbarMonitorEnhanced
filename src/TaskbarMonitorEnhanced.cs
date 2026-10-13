@@ -3560,22 +3560,45 @@ namespace TaskbarMonitorEnhanced
             s=DeviceId(s);
             return Regex.IsMatch(s,@"^DISPLAY\d+$",RegexOptions.CultureInvariant)?s:PrimaryId;
         }
+        [DllImport("user32.dll",EntryPoint="FindWindowExW",CharSet=CharSet.Unicode,SetLastError=true)]
+        private static extern IntPtr FindTaskbarAfter(IntPtr parent,IntPtr after,string cls,string title);
+
+        private static void AddTaskbarIfValid(List<TaskbarTargetInfo> list,IntPtr h)
+        {
+            if(h==IntPtr.Zero||!Native.IsWindow(h)||list.Any(t=>t.Handle==h))return;
+            StringBuilder name=new StringBuilder(128);
+            Native.GetClassName(h,name,name.Capacity);string cls=name.ToString();
+            if(cls!="Shell_TrayWnd"&&cls!="Shell_SecondaryTrayWnd")return;
+            Native.RECT nr;if(!Native.GetWindowRect(h,out nr))return;
+            Rectangle r=nr.ToRectangle();if(r.Width<=0||r.Height<=0)return;
+            Screen screen=Screen.FromRectangle(r);
+            list.Add(new TaskbarTargetInfo{Handle=h,ClassName=cls,DeviceId=DeviceId(screen.DeviceName),Primary=screen.Primary,Bounds=r});
+        }
         public static List<TaskbarTargetInfo> Enumerate()
         {
             List<TaskbarTargetInfo> list=new List<TaskbarTargetInfo>();
             try
             {
-                Native.EnumWindows(delegate(IntPtr h,IntPtr l)
-                {
-                    StringBuilder b=new StringBuilder(128);Native.GetClassName(h,b,b.Capacity);string cls=b.ToString();
-                    if(!String.Equals(cls,"Shell_TrayWnd",StringComparison.Ordinal)&&!String.Equals(cls,"Shell_SecondaryTrayWnd",StringComparison.Ordinal))return true;
-                    Native.RECT nr;if(!Native.GetWindowRect(h,out nr))return true;Rectangle r=nr.ToRectangle();if(r.Width<=0||r.Height<=0)return true;
-                    Screen screen=Screen.FromRectangle(r);
-                    list.Add(new TaskbarTargetInfo{Handle=h,ClassName=cls,DeviceId=DeviceId(screen.DeviceName),Primary=screen.Primary,Bounds=r});
-                    return true;
-                },IntPtr.Zero);
+                Native.EnumWindows(delegate(IntPtr h,IntPtr l){AddTaskbarIfValid(list,h);return true;},IntPtr.Zero);
             }
             catch(Exception ex){Log.Write("WARN","TASKBAR_ENUM_FAIL "+ex.Message);}
+            // R152: EnumWindows is not an authoritative inventory of all shell
+            // surfaces on current Windows. A missing enumerated taskbar during
+            // Start must not destroy/reparent our valid owner relationship.
+            // Query the two known taskbar classes directly, validating class,
+            // native geometry and uniqueness. Visibility policy is separate.
+            try
+            {
+                AddTaskbarIfValid(list,Native.FindWindow("Shell_TrayWnd",null));
+                IntPtr after=IntPtr.Zero;
+                for(int i=0;i<16;i++)
+                {
+                    IntPtr next=FindTaskbarAfter(IntPtr.Zero,after,"Shell_SecondaryTrayWnd",null);
+                    if(next==IntPtr.Zero||next==after)break;
+                    AddTaskbarIfValid(list,next);after=next;
+                }
+            }
+            catch(Exception ex){Log.Write("WARN","TASKBAR_DIRECT_DISCOVERY_FAIL "+ex.Message);}
             return list.OrderByDescending(t=>t.Primary).ThenBy(t=>t.DeviceId,StringComparer.OrdinalIgnoreCase).ToList();
         }
         internal static TaskbarTargetInfo Select(string requested,IList<TaskbarTargetInfo> items)

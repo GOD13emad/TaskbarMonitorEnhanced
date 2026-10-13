@@ -74,7 +74,13 @@ function Assert-Visible([IntPtr]$h,[Drawing.Rectangle]$original,[string]$label,[
  if(![R146Native]::IsWindowVisible($h)){throw ('R146_MONITOR_HIDDEN '+$label)}
  $r=Box $h
  if($r.X -ne $original.X -or $r.Y -ne $original.Y -or $r.Height -ne $original.Height -or [Math]::Abs($r.Width-$original.Width) -gt 96){throw ('R146_UNEXPECTED_MOVEMENT '+$label)}
- if([R146Native]::GetWindow($h,4) -ne $taskbar){throw ('R151_MONITOR_TASKBAR_OWNER_MISSING '+$label)}
+ if([R146Native]::GetWindow($h,4) -ne $taskbar){
+  $nativeOwner=[R146Native]::GetWindow($h,4)
+  $directTray=[R146Native]::FindWindow('Shell_TrayWnd',$null)
+  $frame=Capture $h ($label+'_OWNER_FAILURE')
+  [IO.File]::WriteAllText((Join-Path $out ($label+'_NATIVE_FAILURE.json')),(@{ExpectedOwner=$taskbar.ToInt64();ActualOwner=$nativeOwner.ToInt64();DirectTaskbar=$directTray.ToInt64();Frame=$frame}|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+  throw ('R152_TASKBAR_OWNER_DRIFT '+$label+' EXPECTED='+$taskbar.ToInt64()+' ACTUAL='+$nativeOwner.ToInt64()+' DIRECT='+$directTray.ToInt64())
+ }
  if(([R146Native]::GetWindowLongPtr($h,-16).ToInt64() -band 0x40000000) -ne 0){throw ('R151_MONITOR_BECAME_CHILD '+$label)}
  if($top -and [R146Native]::Above($taskbar,$h)){throw ('R146_MONITOR_UNDER_TASKBAR '+$label)}
 }
@@ -160,7 +166,7 @@ finally{
  try{
   $logs=@(Get-ChildItem (Join-Path $app 'Logs') -Filter 'tbme_csharp_*.log' -File -ErrorAction Stop)
   foreach($log in $logs){
-   Get-Content -LiteralPath $log.FullName -Tail 1600 | Select-String -Pattern 'PRESENTATION|GLASS_NATIVE|GLASS_COMPOSITION|VISIBILITY_WATCHDOG|LOW_PRESSURE|CONTEXT_MENU|SETTINGS|START_|RECOVERY' | ForEach-Object Line | Set-Content -LiteralPath (Join-Path $out ('DIAG_'+$log.Name)) -Encoding UTF8
+   Get-Content -LiteralPath $log.FullName -Tail 1600 | Select-String -Pattern 'PRESENTATION|GLASS_NATIVE|GLASS_COMPOSITION|TASKBAR_|VISIBILITY_WATCHDOG|LOW_PRESSURE|CONTEXT_MENU|SETTINGS|START_|RECOVERY' | ForEach-Object Line | Set-Content -LiteralPath (Join-Path $out ('DIAG_'+$log.Name)) -Encoding UTF8
   }
  }catch{Write-Output ('R148_LOG_COLLECTION_WARNING '+$_.Exception.Message)}
  $r=[ordered]@{Revision='R146';Status=$status;Phase=$phase;Failure=$failure;Host=$HostLabel;EventCommit=$env:GITHUB_SHA;MainSHA256=$manifest.MainSHA256;SetupSHA256=$manifest.SetupSHA256;Evidence=$evidence;TestedModes=@('plain1','plain10','glass0','opaque100');ExpectedTaskbarOwner=$taskbar.ToInt64();PersonalComputerTouched=$false;Proof='Installed candidate + native HWND + real screenshots + real input; not synthetic taskbar paint'}
