@@ -67,18 +67,24 @@ function Capture([IntPtr]$h,[string]$label){
   }}
   $b.Save((Join-Path $out $file),[Drawing.Imaging.ImageFormat]::Png)
   if($edges -lt 60){$visualFailures.Add(('R146_PHYSICAL_GLYPHS_MISSING '+$label+' EDGES='+$edges))}
-  return @{State=$label;File=$file;SHA256=(Get-FileHash (Join-Path $out $file) -Algorithm SHA256).Hash;Edges=$edges;Rect=@($r.X,$r.Y,$r.Width,$r.Height);Parent=[R146Native]::GetParent($h).ToInt64();Owner=[R146Native]::GetWindow($h,4).ToInt64();PreviousSibling=[R146Native]::GetWindow($h,3).ToInt64();ExStyle=[R146Native]::GetWindowLongPtr($h,-20).ToInt64();Style=[R146Native]::GetWindowLongPtr($h,-16).ToInt64();Foreground=[R146Native]::GetForegroundWindow().ToInt64()}
+  return @{State=$label;File=$file;SHA256=(Get-FileHash (Join-Path $out $file) -Algorithm SHA256).Hash;Edges=$edges;Rect=@($r.X,$r.Y,$r.Width,$r.Height);Parent=[R146Native]::GetParent($h).ToInt64();Owner=[R146Native]::GetWindow($h,4).ToInt64();OwnerMemory=[R146Native]::GetWindowLongPtr($h,-8).ToInt64();PreviousSibling=[R146Native]::GetWindow($h,3).ToInt64();ExStyle=[R146Native]::GetWindowLongPtr($h,-20).ToInt64();Style=[R146Native]::GetWindowLongPtr($h,-16).ToInt64();Foreground=[R146Native]::GetForegroundWindow().ToInt64()}
  }finally{$b.Dispose()}
 }
 function Assert-Visible([IntPtr]$h,[Drawing.Rectangle]$original,[string]$label,[bool]$top){
  if(![R146Native]::IsWindowVisible($h)){throw ('R146_MONITOR_HIDDEN '+$label)}
  $r=Box $h
  if($r.X -ne $original.X -or $r.Y -ne $original.Y -or $r.Height -ne $original.Height -or [Math]::Abs($r.Width-$original.Width) -gt 96){throw ('R146_UNEXPECTED_MOVEMENT '+$label)}
- if([R146Native]::GetWindow($h,4) -ne $taskbar){
+ # R153: retain both direct owner-memory and WS_POPUP GetParent checks.
+ # R152 real Start evidence showed GW_OWNER=0 but GetParent=the exact
+ # taskbar and 877 physical glyph edges. Never let a relationship-walk
+ # API substitute for pixels; never waive actual owner-memory or geometry.
+ $ownerMemory=[R146Native]::GetWindowLongPtr($h,-8)
+ $popupOwner=[R146Native]::GetParent($h)
+ if($ownerMemory -ne $taskbar -or $popupOwner -ne $taskbar){
   $nativeOwner=[R146Native]::GetWindow($h,4)
   $directTray=[R146Native]::FindWindow('Shell_TrayWnd',$null)
   $frame=Capture $h ($label+'_OWNER_FAILURE')
-  [IO.File]::WriteAllText((Join-Path $out ($label+'_NATIVE_FAILURE.json')),(@{ExpectedOwner=$taskbar.ToInt64();ActualOwner=$nativeOwner.ToInt64();DirectTaskbar=$directTray.ToInt64();Frame=$frame}|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+  [IO.File]::WriteAllText((Join-Path $out ($label+'_NATIVE_FAILURE.json')),(@{ExpectedOwner=$taskbar.ToInt64();ActualOwner=$nativeOwner.ToInt64();DirectOwnerMemory=$ownerMemory.ToInt64();PopupOwner=$popupOwner.ToInt64();DirectTaskbar=$directTray.ToInt64();Frame=$frame}|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
   throw ('R152_TASKBAR_OWNER_DRIFT '+$label+' EXPECTED='+$taskbar.ToInt64()+' ACTUAL='+$nativeOwner.ToInt64()+' DIRECT='+$directTray.ToInt64())
  }
  if(([R146Native]::GetWindowLongPtr($h,-16).ToInt64() -band 0x40000000) -ne 0){throw ('R151_MONITOR_BECAME_CHILD '+$label)}
