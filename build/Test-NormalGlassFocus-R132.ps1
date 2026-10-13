@@ -94,7 +94,7 @@ $app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
 $exe=Join-Path $app 'TaskbarMonitorEnhanced.exe'
 $config=Join-Path $app 'config.json'
 $state=Join-Path $app 'install_state.json'
-$expected='C79064C6A284F2D6537D28D500D07621BEEF050BDCEA794495DB5B2AAE8A0AC1'
+$expected='D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420'
 $out=Join-Path $env:RUNNER_TEMP 'TBME_R132_GLASS_FOCUS'
 $receipt=Join-Path $out 'R132_NORMAL_WINDOW_GLASS.json'
 if((Test-Path -LiteralPath $out) -or !(Test-Path -LiteralPath $config -PathType Leaf) -or
@@ -218,12 +218,24 @@ try{
    throw ('R132_REAL_USER_ORDINARY_WINDOW_FOREGROUND_MISSING '+$index)
   }
   $nowRect=[R132Native+RECT]::new()
-  if(![R132Native]::IsWindow($found) -or ![R132Native]::IsWindowVisible($found) -or
-     ![R132Native]::GetWindowRect($found,[ref]$nowRect) -or
-     $nowRect.Left -ne $rect.Left -or $nowRect.Top -ne $rect.Top -or
-     $nowRect.Width -ne $rect.Width -or $nowRect.Height -ne $rect.Height -or
-     (([R132Native]::GetWindowLongPtr($found,[R132Native]::GWL_EXSTYLE).ToInt64() -band [R132Native]::REQUIRED) -ne [R132Native]::REQUIRED)){
-   throw ('R132_GLASS_NO_LONGER_TOPMOST_FIXED_TASKBAR '+$index)
+  $alive=[R132Native]::IsWindow($found)
+  $visible=$alive -and [R132Native]::IsWindowVisible($found)
+  $rectKnown=$alive -and [R132Native]::GetWindowRect($found,[ref]$nowRect)
+  $exNow=if($alive){[R132Native]::GetWindowLongPtr($found,[R132Native]::GWL_EXSTYLE).ToInt64()}else{0L}
+  $sameRect=$rectKnown -and $nowRect.Left -eq $rect.Left -and
+    $nowRect.Top -eq $rect.Top -and $nowRect.Width -eq $rect.Width -and
+    $nowRect.Height -eq $rect.Height
+  if(!$alive -or !$visible -or !$sameRect -or
+     (($exNow -band [R132Native]::REQUIRED) -ne [R132Native]::REQUIRED)){
+   # First-failure native receipt evidence. Do NOT repair/change the window
+   # from inside this independent tester; surface precise class of failure.
+   $image=Join-Path $out ('R133_FAILURE_FOREGROUND_'+$index+'.png')
+   Snapshot $image $rect
+   throw ('R133_NORMAL_FOCUS_HWND_NATIVE_STATE_REJECTED INDEX='+$index+
+    ' ALIVE='+$alive+' VISIBLE='+$visible+' RECT_KNOWN='+$rectKnown+
+    ' ACTUAL_RECT='+$nowRect.Left+','+$nowRect.Top+','+$nowRect.Width+','+$nowRect.Height+
+    ' BASELINE='+$rect.Left+','+$rect.Top+','+$rect.Width+','+$rect.Height+
+    ' EX_STYLE=0x'+$exNow.ToString('X')+' FOREGROUND='+([R132Native]::GetForegroundWindow().ToInt64()))
   }
   $path=Join-Path $out ('R132_NORMAL_FOCUS_'+$index+'.png')
   Snapshot $path $rect

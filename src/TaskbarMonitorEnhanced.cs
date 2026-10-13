@@ -5768,15 +5768,19 @@ namespace TaskbarMonitorEnhanced
                         }
                     }
                 }
-                // R125: Windows can re-stack Shell_TrayWnd when another application becomes
-                // foreground. TopMost=true is not a permanent z-order guarantee. Re-assert
-                // at the SAME taskbar rectangle, without activation and without Start lift.
-                // Keep Settings above the overlay and do not disturb genuine Start/Search.
+                // R133: R125 reused the 420px G14 WIDESCREEN test minimum.
+                // A genuine 1024x768 taskbar monitor can be only 279px wide,
+                // so R125's reassert NEVER executed when normal windows focused.
+                // Use bounded native compact geometry (>=180px, height 25..70),
+                // and retain the separate strict actual-taskbar.Contains rect gate.
+                // Never activate the overlay; never lift during Start/Search;
+                // Settings remains independently above this topmost monitor.
                 if(RequiresGlassTopLevel && !startGlassPinnedDuringShell &&
                    !startGlassTemporarilyFloating && !recoveryPending &&
                    IsHandleCreated && taskbar!=IntPtr.Zero && Native.IsWindow(taskbar) &&
                    (settingsForm==null || settingsForm.IsDisposed || !settingsForm.Visible) &&
-                   expectedRect.Width>=AdaptiveProbeGeometry.MinSafeWidth)
+                   expectedRect.Width>=180 && expectedRect.Height>=25 &&
+                   expectedRect.Height<=70 && Native.IsWindow(Handle))
                 {
                     IntPtr foregroundNow=Native.GetForegroundWindow();
                     DateTime now=DateTime.UtcNow;
