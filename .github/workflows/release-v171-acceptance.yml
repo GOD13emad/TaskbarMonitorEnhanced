@@ -1,9 +1,10 @@
-name: R129 Fresh Windows Stable Upgrade and Signed-Payload Verifier
+name: v1.7.1 Stable - Real In-Place Upgrade And Physical Glass Acceptance
 
 on:
   push:
     branches:
-      - audit/r131-official-stable-root-preflight
+      - release/r137-single-workflow
+      - main
   workflow_dispatch:
 
 permissions:
@@ -34,16 +35,24 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
+          if((Get-FileHash ./docs/releases/v1.7.1/RELEASE_NOTES.md -Algorithm SHA256).Hash -cne 'BAB1450B20C2E1336E5059A1072B7F34107A5529BE397A936CBC1FDD94143D8F'){throw 'R135_STABLE_RELEASE_NOTES_SHA_DRIFT'}
           ./build/Build.ps1
+          ./build/Generate-Sbom.ps1
+          ./build/Verify-Release-Metadata-R136.ps1 -SelfTest
+          if ($LASTEXITCODE -ne 0) {throw 'R137 release manifest / SPDX / real bytes version gate failed'}
           $main=(Get-FileHash ./build/_out/App/TaskbarMonitorEnhanced.exe -Algorithm SHA256).Hash
           $setup=(Get-FileHash ./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.1.exe -Algorithm SHA256).Hash
-          if ($main -cne 'C79064C6A284F2D6537D28D500D07621BEEF050BDCEA794495DB5B2AAE8A0AC1' -or
-              $setup -cne '9D0B42590E25ABCF484BDF34495E4486EA102F67521BD4D63D8F8458BB2F703B') {
+          if ($main -cne 'D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420' -or
+              $setup -cne 'ABD106630F7BAB3471CAF3F5BD4313DFCF2D61DDE1DF79E72EFE91933C8F2F89') {
             throw ('R129 private candidate SHA mismatch Main='+$main+' Setup='+$setup)
           }
           ./build/Test-Signed-Payload-Contract.ps1
           ./build/Test-StateUpgrade-R128.ps1
           ./build/Test-StableSource-R131.ps1
+          ./build/Test-NormalGlassFocus-R132.ps1 -StaticOnly
+          $ts=$null;$es=$null
+          [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path './build/Verify-NormalGlassFocus-R132.ps1').Path,[ref]$ts,[ref]$es)
+          if (@($es).Count -ne 0) { throw 'R132 independent physical PNG verifier does not parse' }
           if ($LASTEXITCODE -ne 0) {throw 'R131 private compiled stable root policy refused'}
           if ($LASTEXITCODE -ne 0) {throw 'R129 exact candidate JSON upgrade contract failed'}
           if ($LASTEXITCODE -ne 0) {throw 'R129 independent Main resource verifier failed'}
@@ -51,7 +60,7 @@ jobs:
       - name: Transfer exact private binary candidate; never publish
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: R131-exact-private-binaries
+          name: v171-verified-single-installer
           retention-days: 21
           if-no-files-found: error
           path: |
@@ -76,7 +85,7 @@ jobs:
       - name: Transfer private Main and Setup without any build on this install test VM
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: R131-exact-private-binaries
+          name: v171-verified-single-installer
           path: build/_out
       - name: Reject pre-existing application data, process and registry; exact binary SHA
         shell: pwsh
@@ -94,9 +103,9 @@ jobs:
                ' Reg='+[bool](Test-Path $reg)+' Processes='+$processes.Count)
           }
           if((Get-FileHash ./build/_out/App/TaskbarMonitorEnhanced.exe -Algorithm SHA256).Hash -cne
-                'C79064C6A284F2D6537D28D500D07621BEEF050BDCEA794495DB5B2AAE8A0AC1' -or
+                'D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420' -or
              (Get-FileHash ./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.1.exe -Algorithm SHA256).Hash -cne
-                '9D0B42590E25ABCF484BDF34495E4486EA102F67521BD4D63D8F8458BB2F703B'){
+                'ABD106630F7BAB3471CAF3F5BD4313DFCF2D61DDE1DF79E72EFE91933C8F2F89'){
             throw 'R129 private installed candidate bytes drift'
           }
           ./build/Test-Stable170-InPlace-R126.ps1 -StaticOnly
@@ -122,11 +131,38 @@ jobs:
              $r.R131RootDisposition -cnotin @('PRESENT_EXACT_OFFICIAL_SHA','ABSENT_SHA_BACKED_IN_DISPOSABLE_RUNNER')) {throw 'R129 native upgrade acceptance incomplete'}
           Write-Output ('R129_NATIVE_PUBLIC_STABLE_UPDATE_PASS HOST=${{ matrix.host }} RECEIPT_SHA256='+
             (Get-FileHash $f -Algorithm SHA256).Hash)
+      - name: R132 genuine topmost taskbar ink after two normal foreground windows, glass 0 percent
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows') {throw 'R132 personal/unknown Windows host refused'}
+          $app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
+          $main=Join-Path $app 'TaskbarMonitorEnhanced.exe'
+          if((Get-FileHash -LiteralPath $main -Algorithm SHA256).Hash -cne
+                'D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420'){
+            throw 'R132 not running exactly upgraded official Stable candidate'
+          }
+          pwsh.exe -NoProfile -STA -NonInteractive -File ./build/Test-NormalGlassFocus-R132.ps1
+          if($LASTEXITCODE -ne 0){throw 'R132 real normal foreground glass not verified'}
+          $manifest=Join-Path $env:RUNNER_TEMP 'TBME_R132_GLASS_FOCUS/R132_NORMAL_WINDOW_GLASS.json'
+          ./build/Verify-NormalGlassFocus-R132.ps1 -ReceiptPath $manifest -ExpectedCommit $env:GITHUB_SHA -ExpectedMainSha256 'D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420' -ExpectedHost '${{ matrix.host }}' -SelfTest
+          if($LASTEXITCODE -ne 0){throw 'R132 independent actual screenshot HSV acceptance failed'}
+          Write-Output ('R132_NATIVE_FOREGROUND_PLUS_GLASS_ACCEPTED HOST=${{ matrix.host }} SHA256='+(Get-FileHash $manifest -Algorithm SHA256).Hash)
+      - name: Preserve exact R132 physical native screen and independent receipt, even on failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: v171-physical-glass-${{ matrix.host }}
+          retention-days: 21
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/TBME_R132_GLASS_FOCUS/**
       - name: Preserve exact native receipt even when upgrade fails
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: R131-public-stable-inplace-${{ matrix.host }}
+          name: v171-public-stable-inplace-${{ matrix.host }}
           retention-days: 21
           if-no-files-found: warn
           path: |
