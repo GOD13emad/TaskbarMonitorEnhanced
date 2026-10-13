@@ -20,14 +20,14 @@ using Microsoft.Win32;
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.7.1.0")]
-[assembly: AssemblyFileVersion("1.7.1.0")]
-[assembly: AssemblyInformationalVersion("1.7.1+r126")]
+[assembly: AssemblyVersion("1.7.2.0")]
+[assembly: AssemblyFileVersion("1.7.2.0")]
+[assembly: AssemblyInformationalVersion("1.7.2+r155")]
 
 internal static partial class SetupProgram
 {
     const string Product="Taskbar Monitor Enhanced";
-    const string Version="1.7.1";
+    const string Version="1.7.2";
     const string SensorProtocolVersion="1.1.2+r21";
     const string SensorSupervisorVersion="1.3.0+r33";
     const string Publisher="Dr. Ali-Akbar Emadeddin";
@@ -58,7 +58,7 @@ internal static partial class SetupProgram
       "Payload.COPYRIGHT_AND_ATTRIBUTION.md",
       "Payload.AI_ASSISTED_DEVELOPMENT.md",
       "Payload.THIRD_PARTY_NOTICES.md",
-      "Payload.RELEASE_NOTES_v1.7.1.md",
+      "Payload.RELEASE_NOTES_v1.7.2.md",
       "Payload.UPSTREAM_REFERENCE_GPL_NOTICE.md",
       "Payload.TaskbarMonitorEnhanced_Setup.cs"
     };
@@ -228,8 +228,8 @@ internal static partial class SetupProgram
         string sensorMode=sensorOutcome==null?"":(sensorOutcome.LayerMode??"");
         string json="{\r\n"+
           "  \"App\": \"Taskbar Monitor Enhanced\",\r\n"+
-          "  \"Version\": \"1.7.1\",\r\n"+
-          "  \"PublicVersion\": \"1.7.1\",\r\n"+
+          "  \"Version\": \"1.7.2\",\r\n"+
+          "  \"PublicVersion\": \"1.7.2\",\r\n"+
           "  \"InternalRuntimeBaseline\": \"V1_1_2_R21_PRODUCTION_HARDENING\",\r\n"+
           "  \"SensorSupervisor\": \"V1_3_0_R33_STORAGE_COMPLETION_HARDENING\",\r\n"+
           "  \"SensorLayerStatus\": \""+sensorStatus.Replace("\\","\\\\").Replace("\"","\\\"")+"\",\r\n"+
@@ -445,7 +445,7 @@ internal static partial class SetupProgram
     static SensorOutcome Install(bool desktop,bool startup)
     {
         if(!Environment.Is64BitOperatingSystem)
-            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.7.1 requires 64-bit Windows.");
+            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.7.2 requires 64-bit Windows.");
 
         // R114: prevent fresh-install code from ever overwriting an installed
         // product or user-owned files. Existing roots must use /update.
@@ -475,7 +475,7 @@ internal static partial class SetupProgram
         string[] docs=new string[]{
           "LICENSE","README.md","AUTHORS.md","COPYRIGHT_AND_ATTRIBUTION.md",
           "AI_ASSISTED_DEVELOPMENT.md","THIRD_PARTY_NOTICES.md",
-          "RELEASE_NOTES_v1.7.1.md","UPSTREAM_REFERENCE_GPL_NOTICE.md"
+          "RELEASE_NOTES_v1.7.2.md","UPSTREAM_REFERENCE_GPL_NOTICE.md"
         };
         foreach(string doc in docs)
             Extract("Payload."+doc,Path.Combine(AppRoot,"Docs",doc));
@@ -619,7 +619,7 @@ internal static partial class SetupProgram
             }
             if(!String.IsNullOrEmpty(path)){
                 string json="{\"Status\":\"PASS\",\"Resources\":"+(RequiredResources.Length+(pawnBundled?1:0))+
-                    ",\"Version\":\"1.7.1\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\""+
+                    ",\"Version\":\"1.7.2\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\""+
                     ",\"SensorArchitecture\":\"R21_PROCESS_ISOLATED\",\"SensorUpgradePolicy\":\"EXACT_R33_SUPERVISOR_R21_PROTOCOL\""+
                     ",\"PawnIOBundled\":"+(pawnBundled?"true":"false")+",\"EmbeddedMainSHA256\":\""+embeddedMainSHA256+"\",\"EmbeddedMainBytes\":"+embeddedMainBytes+"}";
                 File.WriteAllText(path,json,Encoding.UTF8);
@@ -658,7 +658,7 @@ internal static partial class SetupProgram
             Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
             Label title=new Label();
-            title.Text=Product+"  1.7.1";
+            title.Text=Product+"  1.7.2";
             title.Font=new Font(Font.FontFamily,18,FontStyle.Bold);
             title.Left=28;title.Top=22;title.AutoSize=true;Controls.Add(title);
 
@@ -693,12 +693,12 @@ internal static partial class SetupProgram
                     progress.Visible=false;
                     status.Text="Installation completed.";
                     if(outcome.IsHealthy){
-                        MessageBox.Show(Product+" 1.7.1 was installed successfully.\r\n\r\nProtected hardware sensor monitoring is active.",
+                        MessageBox.Show(Product+" 1.7.2 was installed successfully.\r\n\r\nProtected hardware sensor monitoring is active.",
                           "Setup complete",MessageBoxButtons.OK,MessageBoxIcon.Information);
                     }else{
                         string extra=outcome.RebootRequired ? "\r\n\r\nRestart Windows, then use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors if needed." :
                           "\r\n\r\nThe application is installed and usable. The sensor supervisor continues in the background. If protected CPU/GPU/storage telemetry is still unavailable after a short wait or restart, use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors.";
-                        MessageBox.Show(Product+" 1.7.1 was installed successfully.\r\n\r\n"+outcome.Message+extra,
+                        MessageBox.Show(Product+" 1.7.2 was installed successfully.\r\n\r\n"+outcome.Message+extra,
                           "Setup complete - sensor warning",MessageBoxButtons.OK,MessageBoxIcon.Warning);
                     }
                     Close();
@@ -831,6 +831,9 @@ internal static partial class SetupProgram
     const string UpgradeStageMarker="TBME_UPGRADE_R92_OWNED_STAGE_V1";
     const string InstalledV16="1.6.0";
     const string InstalledV170="1.7.0";
+    const string InstalledV171="1.7.1";
+    const string OfficialV171SetupSHA="ABD106630F7BAB3471CAF3F5BD4313DFCF2D61DDE1DF79E72EFE91933C8F2F89";
+    const string OfficialV171MainSHA="D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420";
     const string OfficialV170SetupSHA="148827212B716238DDB270309F393140EBE3CB935CD0E80D36233220A4BE611E";
     const string OfficialV170MainSHA="B56E322826A86927999A00FB933C17979213798A68C8BB71C2176E68962E30EA";
     const string LegacyInstallerSha="F5130BC2F81383E16912454FCC62E307501885A6256E7241E674A9CF10BAC9C5";
@@ -921,6 +924,34 @@ internal static partial class SetupProgram
         "Uninstall.exe|148827212B716238DDB270309F393140EBE3CB935CD0E80D36233220A4BE611E"
     };
 
+    // R155: exact immutable public v1.7.1 payload, extracted without running Setup.
+    // Optional root .cs may be absent following a genuine previous in-place update.
+    static readonly string[] OfficialStableV171Rows=new string[] {
+        "TaskbarMonitorEnhanced.cs|8754E313DF92478D649918D82E303E48AF8FEA5FEB5B876E9820CB2679CCB06C",
+        "TaskbarMonitorEnhanced.exe|D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420",
+        "TaskbarMonitorEnhanced.exe.config|D2E51872D93F0793C02AD07DCBF8C2802F59708C666548372A4FDDDA5C7C5E4F",
+        "TaskbarMonitorEnhanced.ico|0AD07C8E5DB434EE0403FCC92557C89D6E8EDF6A61FABD285C45518DF73A8EEF",
+        "Source/TaskbarMonitorEnhanced.cs|8754E313DF92478D649918D82E303E48AF8FEA5FEB5B876E9820CB2679CCB06C",
+        "Source/StudioThemes.cs|7872BBDDC6DFD95FD8943CD5B714E47A9AB44D40AC15CBD8DA35F643768808CD",
+        "Source/WallpaperStudio.cs|14DF1E87A49D6D791D4B9501E757E5E2EE466BCEF9618523CF0D1FCE584E461D",
+        "Source/TaskbarGlass.cs|E0BDAD9347EB91B149B99D45040F3CABF1AC6E698FD95EEB4361A416C2D65697",
+        "Source/WorkspaceModels.cs|2146D1F369A89A684F504BAB71D6686A381E79260980F7E0ACBCBAC2B3484D19",
+        "Source/MonitorWorkspace.cs|BA512B04F326DF09B6F9051E34D5CF0C6D24C9DC12DF03B948624DA7F5941F65",
+        "Source/WorkspaceSelfTest.cs|90F177F3091DEC6FD670A085616D5635FDE8144D098EC2922DC3673C3A817B99",
+        "Source/TaskbarMonitorSensorBroker.cs|D650CBC8861027F4A8EC3B48B71769840D2E6CB5F89DDBEBA949EE0CB6A72C0B",
+        "Source/TaskbarMonitorSensorSupervisor.cs|DEDF15076D4908A96B0791AC46DAE8F773D4256D9961EE44625F701D5770C60B",
+        "Source/TaskbarMonitorEnhanced_Setup.cs|14BE5D92B31F60B2441862AAC5B51C6B151820FE93AB82D7BCD6DE6E07AE017C",
+        "Docs/LICENSE|3972DC9744F6499F0F9B2DBF76696F2AE7AD8AF9B23DDE66D6AF86C9DFB36986",
+        "Docs/README.md|8B392B6F0B174C2A58F67A8B7CB9760FA4DC14291C3E0D33AAF51F42FA0295EB",
+        "Docs/AUTHORS.md|0005B1D25E43C9CB1AF6C6428D7662F0F6E383D295CE66E5E7768ED8965BFA40",
+        "Docs/COPYRIGHT_AND_ATTRIBUTION.md|503CF0194431F8FFE884014165111702061BB16B57C4BA118CE334489DBF4153",
+        "Docs/AI_ASSISTED_DEVELOPMENT.md|7793264C5E9256888B069E88BD9ABAE692193CFEB6C28E21ECC8F69F3E3172EB",
+        "Docs/THIRD_PARTY_NOTICES.md|7A8F14410B0B934447FB952E7AB0248B8D3342F88358F0F6B0D4332833D3F559",
+        "Docs/RELEASE_NOTES_v1.7.1.md|BAB1450B20C2E1336E5059A1072B7F34107A5529BE397A936CBC1FDD94143D8F",
+        "Docs/UPSTREAM_REFERENCE_GPL_NOTICE.md|14B86621663CDFB7A6750D9E5ABFE7BE8AA72433A56AA08382698BA09261A293",
+        "Uninstall.exe|ABD106630F7BAB3471CAF3F5BD4313DFCF2D61DDE1DF79E72EFE91933C8F2F89",
+    };
+
     sealed class UpgradeTarget
     {
         internal readonly string Rel;
@@ -948,13 +979,14 @@ internal static partial class SetupProgram
         new UpgradeTarget("Docs/COPYRIGHT_AND_ATTRIBUTION.md","Payload.COPYRIGHT_AND_ATTRIBUTION.md"),
         new UpgradeTarget("Docs/AI_ASSISTED_DEVELOPMENT.md","Payload.AI_ASSISTED_DEVELOPMENT.md"),
         new UpgradeTarget("Docs/THIRD_PARTY_NOTICES.md","Payload.THIRD_PARTY_NOTICES.md"),
-        new UpgradeTarget("Docs/RELEASE_NOTES_v1.7.1.md","Payload.RELEASE_NOTES_v1.7.1.md"),
+        new UpgradeTarget("Docs/RELEASE_NOTES_v1.7.2.md","Payload.RELEASE_NOTES_v1.7.2.md"),
         new UpgradeTarget("Docs/UPSTREAM_REFERENCE_GPL_NOTICE.md","Payload.UPSTREAM_REFERENCE_GPL_NOTICE.md"),
         new UpgradeTarget("Uninstall.exe","@SELF"),
         new UpgradeTarget("install_state.json","@INSTALLSTATE"),
         new UpgradeTarget("TaskbarMonitorEnhanced.cs",null), // redundant v1.6 root duplicate
         new UpgradeTarget("Docs/RELEASE_NOTES_v1.6.0.md",null), // superseded v1.6 official file
-        new UpgradeTarget("Docs/RELEASE_NOTES_v1.7.0.md",null) // historical stable/Preview1 note; leave user edits untouched
+        new UpgradeTarget("Docs/RELEASE_NOTES_v1.7.0.md",null), // exact historical managed note only
+        new UpgradeTarget("Docs/RELEASE_NOTES_v1.7.1.md",null) // previous version; refuse any user-edited bytes
     };
 
     static string UpgradeHash(string path)
@@ -978,6 +1010,8 @@ internal static partial class SetupProgram
         { rows=LegacyManagedRows; expectedSetup=LegacyInstallerSha; count=21; }
         else if(version==InstalledV170 && channel=="OFFICIAL_STABLE_V170")
         { rows=OfficialStableV170Rows; expectedSetup=OfficialV170SetupSHA; count=23; }
+        else if(version==InstalledV171 && channel=="OFFICIAL_STABLE_V171")
+        { rows=OfficialStableV171Rows; expectedSetup=OfficialV171SetupSHA; count=23; }
         else if(version==InstalledV170 && channel=="PREVIEW1")
         { rows=LegacyPreview1Rows; expectedSetup=LegacyPreview1InstallerSha; count=23; }
         else throw new InvalidDataException("Unsupported exact prior source identity; no downgrade/second root.");
@@ -1078,7 +1112,7 @@ internal static partial class SetupProgram
             throw new InvalidDataException("Old install state Version/PublicVersion mismatch.");
         string prior=installed.Groups["v"].Value;
         if(prior==Version)return source;
-        if(prior!=InstalledV16 && prior!=InstalledV170)
+        if(prior!=InstalledV16 && prior!=InstalledV170 && prior!=InstalledV171)
             throw new InvalidDataException("Prior install state version not a pinned officially allowed ancestor.");
         string next=ReplaceStateVersion(source,"Version",prior);
         next=ReplaceStateVersion(next,"PublicVersion",prior);
@@ -1104,7 +1138,7 @@ internal static partial class SetupProgram
             if(bytes.Length<1 || fresh.ContainsKey(t.Rel))throw new InvalidDataException("Duplicate/empty payload "+t.Rel);
             fresh.Add(t.Rel,bytes);
         }
-        if(fresh.Count!=UpgradeTargets.Length-3)
+        if(fresh.Count!=UpgradeTargets.Length-4)
             throw new InvalidDataException("Upgrade static target map is invalid.");
         return fresh;
     }
@@ -1113,7 +1147,7 @@ internal static partial class SetupProgram
     {
         // Only one SHA-pinned historical Stable file may be absent. Any present
         // occurrence still requires the exact immutable published source hash.
-        return channel=="OFFICIAL_STABLE_V170" &&
+        return (channel=="OFFICIAL_STABLE_V170" || channel=="OFFICIAL_STABLE_V171") &&
                String.Equals(rel,"TaskbarMonitorEnhanced.cs",StringComparison.Ordinal);
     }
 
@@ -1216,7 +1250,7 @@ internal static partial class SetupProgram
             }
         }
         File.WriteAllText(Path.Combine(UpgradeRoot,"index.txt"),String.Join("\n",lines.ToArray()),Encoding.ASCII);
-        if(previousVersion!=InstalledV16 && previousVersion!=InstalledV170 && previousVersion!=Version)throw new InvalidDataException("Invalid previous version for journal.");
+        if(previousVersion!=InstalledV16 && previousVersion!=InstalledV170 && previousVersion!=InstalledV171 && previousVersion!=Version)throw new InvalidDataException("Invalid previous version for journal.");
         File.WriteAllText(Path.Combine(UpgradeRoot,"previous_version.txt"),previousVersion,Encoding.ASCII);
         WritePhase("PREPARED");
     }
@@ -1267,7 +1301,7 @@ internal static partial class SetupProgram
         string priorVersionPath=Path.Combine(UpgradeRoot,"previous_version.txt");
         if(!File.Exists(priorVersionPath))throw new IOException("Previous upgrade version missing; retain stage.");
         string priorVersion=File.ReadAllText(priorVersionPath,Encoding.ASCII);
-        if(priorVersion!=InstalledV16 && priorVersion!=InstalledV170 && priorVersion!=Version)throw new IOException("Unknown previous version; retain stage.");
+        if(priorVersion!=InstalledV16 && priorVersion!=InstalledV170 && priorVersion!=InstalledV171 && priorVersion!=Version)throw new IOException("Unknown previous version; retain stage.");
         // This works after a mid-commit process kill: exact old snapshots are persisted
         // on the same volume, and new-only files are removed only if their SHA is known.
         for(int i=rows.Count-1;i>=0;i--){
@@ -1356,8 +1390,8 @@ internal static partial class SetupProgram
         CheckSingleCanonicalRoot();
         string installed=CurrentInstalledVersion();
         string newSha=Sha256Resource("Payload.TaskbarMonitorEnhanced.exe");
-        if(installed!=InstalledV16 && installed!=InstalledV170 && installed!=Version)
-            throw new InvalidOperationException("Only SHA-pinned official v1.6, v1.7.0 stable or Preview1 may upgrade in place.");
+        if(installed!=InstalledV16 && installed!=InstalledV170 && installed!=InstalledV171 && installed!=Version)
+            throw new InvalidOperationException("Only SHA-pinned official v1.6, v1.7.0 stable/Preview1 or v1.7.1 may upgrade in place.");
         string channel="OFFICIAL_V16";
         string currentMainSHA=UpgradeHash(AppExe);
         string installedSetup=UPath("Uninstall.exe");
@@ -1370,9 +1404,10 @@ internal static partial class SetupProgram
             if(currentMainSHA==newSha && oldSetupSHA==newSetupSHA &&
                !File.Exists(UPath("TaskbarMonitorEnhanced.cs")) &&
                !File.Exists(UPath("Docs/RELEASE_NOTES_v1.6.0.md")) &&
-               !File.Exists(UPath("Docs/RELEASE_NOTES_v1.7.0.md")))
+                !File.Exists(UPath("Docs/RELEASE_NOTES_v1.7.0.md")) &&
+                !File.Exists(UPath("Docs/RELEASE_NOTES_v1.7.1.md")))
                 return ExistingSensorOutcome();
-            throw new InvalidOperationException("Unknown v1.7.1 maintenance revision; no files changed.");
+            throw new InvalidOperationException("Unknown current-version maintenance revision; no files changed.");
         }
         if(installed==InstalledV170)
         {
@@ -1382,6 +1417,13 @@ internal static partial class SetupProgram
                     oldSetupSHA==LegacyPreview1InstallerSha)
                 channel="PREVIEW1";
             else throw new InvalidOperationException("Unknown v1.7.0 source/Setup identity; refuse before any mutation.");
+        }
+
+        if(installed==InstalledV171)
+        {
+            if(currentMainSHA!=OfficialV171MainSHA || oldSetupSHA!=OfficialV171SetupSHA)
+                throw new InvalidOperationException("Unknown v1.7.1 source/Setup identity; refuse before any mutation.");
+            channel="OFFICIAL_STABLE_V171";
         }
 
         // No force-kill; the owner must close their currently running app normally.
