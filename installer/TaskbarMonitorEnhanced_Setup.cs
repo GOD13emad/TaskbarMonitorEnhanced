@@ -20,14 +20,14 @@ using Microsoft.Win32;
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.7.0.0")]
-[assembly: AssemblyFileVersion("1.7.0.0")]
-[assembly: AssemblyInformationalVersion("1.7.0+r39")]
+[assembly: AssemblyVersion("1.7.1.0")]
+[assembly: AssemblyFileVersion("1.7.1.0")]
+[assembly: AssemblyInformationalVersion("1.7.1+r126")]
 
 internal static partial class SetupProgram
 {
     const string Product="Taskbar Monitor Enhanced";
-    const string Version="1.7.0";
+    const string Version="1.7.1";
     const string SensorProtocolVersion="1.1.2+r21";
     const string SensorSupervisorVersion="1.3.0+r33";
     const string Publisher="Dr. Ali-Akbar Emadeddin";
@@ -58,7 +58,7 @@ internal static partial class SetupProgram
       "Payload.COPYRIGHT_AND_ATTRIBUTION.md",
       "Payload.AI_ASSISTED_DEVELOPMENT.md",
       "Payload.THIRD_PARTY_NOTICES.md",
-      "Payload.RELEASE_NOTES_v1.7.0.md",
+      "Payload.RELEASE_NOTES_v1.7.1.md",
       "Payload.UPSTREAM_REFERENCE_GPL_NOTICE.md",
       "Payload.TaskbarMonitorEnhanced_Setup.cs"
     };
@@ -228,8 +228,8 @@ internal static partial class SetupProgram
         string sensorMode=sensorOutcome==null?"":(sensorOutcome.LayerMode??"");
         string json="{\r\n"+
           "  \"App\": \"Taskbar Monitor Enhanced\",\r\n"+
-          "  \"Version\": \"1.7.0\",\r\n"+
-          "  \"PublicVersion\": \"1.7.0\",\r\n"+
+          "  \"Version\": \"1.7.1\",\r\n"+
+          "  \"PublicVersion\": \"1.7.1\",\r\n"+
           "  \"InternalRuntimeBaseline\": \"V1_1_2_R21_PRODUCTION_HARDENING\",\r\n"+
           "  \"SensorSupervisor\": \"V1_3_0_R33_STORAGE_COMPLETION_HARDENING\",\r\n"+
           "  \"SensorLayerStatus\": \""+sensorStatus.Replace("\\","\\\\").Replace("\"","\\\"")+"\",\r\n"+
@@ -445,7 +445,7 @@ internal static partial class SetupProgram
     static SensorOutcome Install(bool desktop,bool startup)
     {
         if(!Environment.Is64BitOperatingSystem)
-            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.7.0 requires 64-bit Windows.");
+            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.7.1 requires 64-bit Windows.");
 
         // R114: prevent fresh-install code from ever overwriting an installed
         // product or user-owned files. Existing roots must use /update.
@@ -475,7 +475,7 @@ internal static partial class SetupProgram
         string[] docs=new string[]{
           "LICENSE","README.md","AUTHORS.md","COPYRIGHT_AND_ATTRIBUTION.md",
           "AI_ASSISTED_DEVELOPMENT.md","THIRD_PARTY_NOTICES.md",
-          "RELEASE_NOTES_v1.7.0.md","UPSTREAM_REFERENCE_GPL_NOTICE.md"
+          "RELEASE_NOTES_v1.7.1.md","UPSTREAM_REFERENCE_GPL_NOTICE.md"
         };
         foreach(string doc in docs)
             Extract("Payload."+doc,Path.Combine(AppRoot,"Docs",doc));
@@ -619,7 +619,7 @@ internal static partial class SetupProgram
             }
             if(!String.IsNullOrEmpty(path)){
                 string json="{\"Status\":\"PASS\",\"Resources\":"+(RequiredResources.Length+(pawnBundled?1:0))+
-                    ",\"Version\":\"1.7.0\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\""+
+                    ",\"Version\":\"1.7.1\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\""+
                     ",\"SensorArchitecture\":\"R21_PROCESS_ISOLATED\",\"SensorUpgradePolicy\":\"EXACT_R33_SUPERVISOR_R21_PROTOCOL\""+
                     ",\"PawnIOBundled\":"+(pawnBundled?"true":"false")+",\"EmbeddedMainSHA256\":\""+embeddedMainSHA256+"\",\"EmbeddedMainBytes\":"+embeddedMainBytes+"}";
                 File.WriteAllText(path,json,Encoding.UTF8);
@@ -658,7 +658,7 @@ internal static partial class SetupProgram
             Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
             Label title=new Label();
-            title.Text=Product+"  1.7.0";
+            title.Text=Product+"  1.7.1";
             title.Font=new Font(Font.FontFamily,18,FontStyle.Bold);
             title.Left=28;title.Top=22;title.AutoSize=true;Controls.Add(title);
 
@@ -693,12 +693,12 @@ internal static partial class SetupProgram
                     progress.Visible=false;
                     status.Text="Installation completed.";
                     if(outcome.IsHealthy){
-                        MessageBox.Show(Product+" 1.7.0 was installed successfully.\r\n\r\nProtected hardware sensor monitoring is active.",
+                        MessageBox.Show(Product+" 1.7.1 was installed successfully.\r\n\r\nProtected hardware sensor monitoring is active.",
                           "Setup complete",MessageBoxButtons.OK,MessageBoxIcon.Information);
                     }else{
                         string extra=outcome.RebootRequired ? "\r\n\r\nRestart Windows, then use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors if needed." :
                           "\r\n\r\nThe application is installed and usable. The sensor supervisor continues in the background. If protected CPU/GPU/storage telemetry is still unavailable after a short wait or restart, use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors.";
-                        MessageBox.Show(Product+" 1.7.0 was installed successfully.\r\n\r\n"+outcome.Message+extra,
+                        MessageBox.Show(Product+" 1.7.1 was installed successfully.\r\n\r\n"+outcome.Message+extra,
                           "Setup complete - sensor warning",MessageBoxButtons.OK,MessageBoxIcon.Warning);
                     }
                     Close();
@@ -728,6 +728,39 @@ internal static partial class SetupProgram
         }
     }
 
+    // R129: diagnostic-only, strictly on short-lived GitHub-hosted Windows.
+    // No user PC logging, no fallback writes, no overwrite, no installer bypass.
+    static void WriteHostedUpgradeFailure(Exception ex)
+    {
+        try
+        {
+            if(Environment.GetEnvironmentVariable("GITHUB_ACTIONS")!="true" ||
+               Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT")!="github-hosted" ||
+               Environment.GetEnvironmentVariable("RUNNER_OS")!="Windows" ||
+               !Regex.IsMatch(Environment.GetEnvironmentVariable("GITHUB_SHA")??"","^[0-9a-f]{40}$"))
+                return;
+            string phase=Environment.GetEnvironmentVariable("TBME_UPDATE_DIAGNOSTIC_PHASE")??"";
+            if(phase!="NEGATIVE_USER_EDIT" && phase!="POSITIVE_OFFICIAL_STABLE" &&
+               phase!="IDEMPOTENT" && phase!="DOWNGRADE")return;
+            string temp=Environment.GetEnvironmentVariable("RUNNER_TEMP")??"";
+            if(String.IsNullOrWhiteSpace(temp))return;
+            string evidence=Path.Combine(Path.GetFullPath(temp),"TBME_R126_STABLE_UPDATE");
+            if(!Directory.Exists(evidence))return;
+            string file=Path.Combine(evidence,"R129_DIAG_"+phase+".txt");
+            using(FileStream output=new FileStream(file,FileMode.CreateNew,FileAccess.Write,FileShare.None))
+            using(StreamWriter writer=new StreamWriter(output,new UTF8Encoding(false)))
+            {
+                writer.WriteLine("R129_FAIL_CLOSED_DIAGNOSTIC");
+                writer.WriteLine("TEST_PHASE="+phase);
+                writer.WriteLine("GIT_SHA="+Environment.GetEnvironmentVariable("GITHUB_SHA"));
+                writer.WriteLine("EXCEPTION="+ex.GetType().FullName);
+                writer.WriteLine(ex.ToString().Substring(0,Math.Min(12000,ex.ToString().Length)));
+                writer.Flush();
+            }
+        }
+        catch{} // Diagnostic must never change Setup's failure/rollback behavior.
+    }
+
     static int RunMain(string[] args)
     {
         if(Has(args,"/verify"))
@@ -739,6 +772,7 @@ internal static partial class SetupProgram
                 UpgradeExisting(); // never fresh-install; rollback journal required
                 return 0;
             }catch(Exception ex){
+                WriteHostedUpgradeFailure(ex);
                 if(!quiet)MessageBox.Show(ex.Message,"In-place update declined",MessageBoxButtons.OK,MessageBoxIcon.Error);
                 return 34;
             }
@@ -796,6 +830,9 @@ internal static partial class SetupProgram
     const string UpgradeStageName=".tbme-upgrade";
     const string UpgradeStageMarker="TBME_UPGRADE_R92_OWNED_STAGE_V1";
     const string InstalledV16="1.6.0";
+    const string InstalledV170="1.7.0";
+    const string OfficialV170SetupSHA="148827212B716238DDB270309F393140EBE3CB935CD0E80D36233220A4BE611E";
+    const string OfficialV170MainSHA="B56E322826A86927999A00FB933C17979213798A68C8BB71C2176E68962E30EA";
     const string LegacyInstallerSha="F5130BC2F81383E16912454FCC62E307501885A6256E7241E674A9CF10BAC9C5";
     const string LegacyPreview1InstallerSha="9A1B4F81C07CC39E3D5A329E89EFD834A9DFDC3D7BB6CF12812AC7C300E6B104";
 
@@ -854,6 +891,36 @@ internal static partial class SetupProgram
         "Docs/RELEASE_NOTES_v1.7.0.md|8D329AD435B9DCA0F116683114068F3299779E7C12C8218A5E0C113CA0A04B6A",
     };
 
+    // v1.7.0 official immutable public stable, SHA256SUMS and bundled source independently verified.
+    // A direct public Stable installation has a root-level duplicate .cs file. A user
+    // upgraded from v1.6 may legitimately lack it; its absence is accepted ONLY for
+    // the exact verified official Stable source identity; if present it MUST hash-match.
+    static readonly string[] OfficialStableV170Rows=new string[] {
+        "TaskbarMonitorEnhanced.cs|B65606629A6EA1363B387064933FEED3027ED7CD5007FFDDE76BE938009267E1",
+        "TaskbarMonitorEnhanced.exe|B56E322826A86927999A00FB933C17979213798A68C8BB71C2176E68962E30EA",
+        "TaskbarMonitorEnhanced.exe.config|D2E51872D93F0793C02AD07DCBF8C2802F59708C666548372A4FDDDA5C7C5E4F",
+        "TaskbarMonitorEnhanced.ico|0AD07C8E5DB434EE0403FCC92557C89D6E8EDF6A61FABD285C45518DF73A8EEF",
+        "Source/TaskbarMonitorEnhanced.cs|B65606629A6EA1363B387064933FEED3027ED7CD5007FFDDE76BE938009267E1",
+        "Source/StudioThemes.cs|7872BBDDC6DFD95FD8943CD5B714E47A9AB44D40AC15CBD8DA35F643768808CD",
+        "Source/WallpaperStudio.cs|14DF1E87A49D6D791D4B9501E757E5E2EE466BCEF9618523CF0D1FCE584E461D",
+        "Source/TaskbarGlass.cs|E0BDAD9347EB91B149B99D45040F3CABF1AC6E698FD95EEB4361A416C2D65697",
+        "Source/WorkspaceModels.cs|2146D1F369A89A684F504BAB71D6686A381E79260980F7E0ACBCBAC2B3484D19",
+        "Source/MonitorWorkspace.cs|BA512B04F326DF09B6F9051E34D5CF0C6D24C9DC12DF03B948624DA7F5941F65",
+        "Source/WorkspaceSelfTest.cs|5F2B663B2A920F4C7AF0984E0AD40CD5856B809194A8C04BB19B7080630450FF",
+        "Source/TaskbarMonitorSensorBroker.cs|D650CBC8861027F4A8EC3B48B71769840D2E6CB5F89DDBEBA949EE0CB6A72C0B",
+        "Source/TaskbarMonitorSensorSupervisor.cs|DEDF15076D4908A96B0791AC46DAE8F773D4256D9961EE44625F701D5770C60B",
+        "Source/TaskbarMonitorEnhanced_Setup.cs|FB1F970D3ECE01BB15B2EF508F7EE5FEB770BE3E7E60330D89382DA35D0D4938",
+        "Docs/LICENSE|3972DC9744F6499F0F9B2DBF76696F2AE7AD8AF9B23DDE66D6AF86C9DFB36986",
+        "Docs/README.md|AC63A821E287A16FFED9506A422F87E6717944CF69E66D82650C64F171BD861E",
+        "Docs/AUTHORS.md|0005B1D25E43C9CB1AF6C6428D7662F0F6E383D295CE66E5E7768ED8965BFA40",
+        "Docs/COPYRIGHT_AND_ATTRIBUTION.md|503CF0194431F8FFE884014165111702061BB16B57C4BA118CE334489DBF4153",
+        "Docs/AI_ASSISTED_DEVELOPMENT.md|7793264C5E9256888B069E88BD9ABAE692193CFEB6C28E21ECC8F69F3E3172EB",
+        "Docs/THIRD_PARTY_NOTICES.md|7A8F14410B0B934447FB952E7AB0248B8D3342F88358F0F6B0D4332833D3F559",
+        "Docs/RELEASE_NOTES_v1.7.0.md|A453660F5A1CB0F654BBC7D6B7627B8E7E708FDFB3AE2F655294E60CC84426DB",
+        "Docs/UPSTREAM_REFERENCE_GPL_NOTICE.md|14B86621663CDFB7A6750D9E5ABFE7BE8AA72433A56AA08382698BA09261A293",
+        "Uninstall.exe|148827212B716238DDB270309F393140EBE3CB935CD0E80D36233220A4BE611E"
+    };
+
     sealed class UpgradeTarget
     {
         internal readonly string Rel;
@@ -881,12 +948,13 @@ internal static partial class SetupProgram
         new UpgradeTarget("Docs/COPYRIGHT_AND_ATTRIBUTION.md","Payload.COPYRIGHT_AND_ATTRIBUTION.md"),
         new UpgradeTarget("Docs/AI_ASSISTED_DEVELOPMENT.md","Payload.AI_ASSISTED_DEVELOPMENT.md"),
         new UpgradeTarget("Docs/THIRD_PARTY_NOTICES.md","Payload.THIRD_PARTY_NOTICES.md"),
-        new UpgradeTarget("Docs/RELEASE_NOTES_v1.7.0.md","Payload.RELEASE_NOTES_v1.7.0.md"),
+        new UpgradeTarget("Docs/RELEASE_NOTES_v1.7.1.md","Payload.RELEASE_NOTES_v1.7.1.md"),
         new UpgradeTarget("Docs/UPSTREAM_REFERENCE_GPL_NOTICE.md","Payload.UPSTREAM_REFERENCE_GPL_NOTICE.md"),
         new UpgradeTarget("Uninstall.exe","@SELF"),
         new UpgradeTarget("install_state.json","@INSTALLSTATE"),
         new UpgradeTarget("TaskbarMonitorEnhanced.cs",null), // redundant v1.6 root duplicate
-        new UpgradeTarget("Docs/RELEASE_NOTES_v1.6.0.md",null) // superseded exact official file
+        new UpgradeTarget("Docs/RELEASE_NOTES_v1.6.0.md",null), // superseded v1.6 official file
+        new UpgradeTarget("Docs/RELEASE_NOTES_v1.7.0.md",null) // historical stable/Preview1 note; leave user edits untouched
     };
 
     static string UpgradeHash(string path)
@@ -901,22 +969,27 @@ internal static partial class SetupProgram
         using(SHA256 sha=SHA256.Create())return BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-","");
     }
 
-    static Dictionary<string,string> LegacyExpected(string version)
+    static Dictionary<string,string> LegacyExpected(string version,string channel)
     {
-        if(version!=InstalledV16 && version!=Version)
-            throw new InvalidDataException("Unsupported previous version: no implicit downgrade or second root.");
-        string[] rows=version==InstalledV16?LegacyManagedRows:LegacyPreview1Rows;
+        string[] rows;
+        string expectedSetup;
+        int count;
+        if(version==InstalledV16 && channel=="OFFICIAL_V16")
+        { rows=LegacyManagedRows; expectedSetup=LegacyInstallerSha; count=21; }
+        else if(version==InstalledV170 && channel=="OFFICIAL_STABLE_V170")
+        { rows=OfficialStableV170Rows; expectedSetup=OfficialV170SetupSHA; count=23; }
+        else if(version==InstalledV170 && channel=="PREVIEW1")
+        { rows=LegacyPreview1Rows; expectedSetup=LegacyPreview1InstallerSha; count=23; }
+        else throw new InvalidDataException("Unsupported exact prior source identity; no downgrade/second root.");
         Dictionary<string,string> expected=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
         foreach(string line in rows){
             string[] parts=line.Split('|');
-            if(parts.Length!=2 || parts[1].Length!=64 || expected.ContainsKey(parts[0]))
-                throw new InvalidDataException("The pinned official legacy manifest has malformed or duplicate rows.");
+            if(parts.Length!=2 || !Regex.IsMatch(parts[1],"^[0-9A-F]{64}$") || expected.ContainsKey(parts[0]))
+                throw new InvalidDataException("Pinned prior stable file inventory malformed.");
             expected.Add(parts[0],parts[1]);
         }
-        int count=version==InstalledV16?21:23;
-        string setupHash=version==InstalledV16?LegacyInstallerSha:LegacyPreview1InstallerSha;
-        if(expected.Count!=count || expected["Uninstall.exe"]!=setupHash)
-            throw new InvalidDataException("Pinned official old-source setup/row count changed.");
+        if(expected.Count!=count || expected["Uninstall.exe"]!=expectedSetup)
+            throw new InvalidDataException("Pinned prior official resource/Setup SHA changed.");
         return expected;
     }
 
@@ -989,18 +1062,27 @@ internal static partial class SetupProgram
         return m.Groups["v"].Value;
     }
 
+    static string ReplaceStateVersion(string state,string field,string previous)
+    {
+        string rx="(\\\""+Regex.Escape(field)+"\\\"\\s*:\\s*\\\")"+
+            Regex.Escape(previous)+"(\\\")";
+        if(Regex.Matches(state,rx).Count!=1)
+            throw new InvalidDataException("Old version field ambiguous: "+field);
+        return Regex.Replace(state,rx,delegate(Match m){return m.Groups[1].Value+Version+m.Groups[2].Value;});
+    }
     static string NewInstallState(string source)
     {
-        // Maintenance upgrade within published v1.7.0: preserve state byte-for-byte.
-        // Never silently treat the Main SHA as a complete Setup/maintenance revision.
-        if(source.Contains("\"Version\": \"1.7.0\"") &&
-           source.Contains("\"PublicVersion\": \"1.7.0\""))return source;
-        int versions=Regex.Matches(source,"\\\"Version\\\"\\s*:\\s*\\\"1\\.6\\.0\\\"").Count;
-        int publics=Regex.Matches(source,"\\\"PublicVersion\\\"\\s*:\\s*\\\"1\\.6\\.0\\\"").Count;
-        if(versions!=1 || publics!=1)throw new InvalidDataException("Exact v1.6 install state is not unambiguous.");
-        source=Regex.Replace(source,"(\\\"Version\\\"\\s*:\\s*\\\")1\\.6\\.0(\\\")","${1}1.7.0${2}");
-        source=Regex.Replace(source,"(\\\"PublicVersion\\\"\\s*:\\s*\\\")1\\.6\\.0(\\\")","${1}1.7.0${2}");
-        return source;
+        Match installed=Regex.Match(source,"\\\"Version\\\"\\s*:\\s*\\\"(?<v>[0-9.]+)\\\"");
+        Match pub=Regex.Match(source,"\\\"PublicVersion\\\"\\s*:\\s*\\\"(?<v>[0-9.]+)\\\"");
+        if(!installed.Success || !pub.Success || installed.Groups["v"].Value!=pub.Groups["v"].Value)
+            throw new InvalidDataException("Old install state Version/PublicVersion mismatch.");
+        string prior=installed.Groups["v"].Value;
+        if(prior==Version)return source;
+        if(prior!=InstalledV16 && prior!=InstalledV170)
+            throw new InvalidDataException("Prior install state version not a pinned officially allowed ancestor.");
+        string next=ReplaceStateVersion(source,"Version",prior);
+        next=ReplaceStateVersion(next,"PublicVersion",prior);
+        return next;
     }
 
     static Dictionary<string,byte[]> PrepareNewBytes(string previousState)
@@ -1022,15 +1104,25 @@ internal static partial class SetupProgram
             if(bytes.Length<1 || fresh.ContainsKey(t.Rel))throw new InvalidDataException("Duplicate/empty payload "+t.Rel);
             fresh.Add(t.Rel,bytes);
         }
-        if(fresh.Count!=UpgradeTargets.Length-2)
+        if(fresh.Count!=UpgradeTargets.Length-3)
             throw new InvalidDataException("Upgrade static target map is invalid.");
         return fresh;
     }
 
-    static void VerifyLegacyFiles(Dictionary<string,string> legacy)
+    static bool IsOptionalStableLegacyRoot(string rel,string channel)
+    {
+        // Only one SHA-pinned historical Stable file may be absent. Any present
+        // occurrence still requires the exact immutable published source hash.
+        return channel=="OFFICIAL_STABLE_V170" &&
+               String.Equals(rel,"TaskbarMonitorEnhanced.cs",StringComparison.Ordinal);
+    }
+
+    static void VerifyLegacyFiles(Dictionary<string,string> legacy,string channel)
     {
         foreach(KeyValuePair<string,string> item in legacy){
             string path=UPath(item.Key);
+            if(!File.Exists(path) && IsOptionalStableLegacyRoot(item.Key,channel))
+                continue;
             if(!File.Exists(path) || !String.Equals(UpgradeHash(path),item.Value,StringComparison.Ordinal))
                 throw new InvalidOperationException("Protected/edited/missing old program component "+item.Key+"; NO files changed. Preserve user changes and request review.");
         }
@@ -1074,8 +1166,25 @@ internal static partial class SetupProgram
         return raw.Substring(UpgradeStageMarker.Length+1);
     }
 
-    static void StageNewManaged(Dictionary<string,byte[]> fresh, Dictionary<string,string> legacy, string stateSource,string previousVersion)
+    static void StageNewManaged(Dictionary<string,byte[]> fresh, Dictionary<string,string> legacy, string stateSource,string previousVersion,string channel)
     {
+        // Regression guard: validate ALL target paths before the first stage
+        // directory/write. Previously a late unknown file could leave an owner-
+        // marked but unindexed stage, and rollback then masked the real cause.
+        foreach(UpgradeTarget target in UpgradeTargets)
+        {
+            string live=UPath(target.Rel);
+            if(File.Exists(live))
+            {
+                if(target.Rel!="install_state.json" &&
+                   (!legacy.ContainsKey(target.Rel) ||
+                    UpgradeHash(live)!=legacy[target.Rel]))
+                    throw new InvalidDataException("Pre-stage managed component changed; NO STAGE created: "+target.Rel);
+            }
+            else if(legacy.ContainsKey(target.Rel) &&
+                    !IsOptionalStableLegacyRoot(target.Rel,channel))
+                throw new InvalidDataException("Pre-stage required official component missing; NO STAGE created: "+target.Rel);
+        }
         Directory.CreateDirectory(UpgradeRoot);
         File.WriteAllText(Path.Combine(UpgradeRoot,"owner.txt"),UpgradeStageMarker,Encoding.ASCII);
         List<string> lines=new List<string>();
@@ -1094,7 +1203,9 @@ internal static partial class SetupProgram
                 Directory.CreateDirectory(Path.GetDirectoryName(prior));
                 File.Copy(current,prior,false);
                 if(UpgradeHash(prior)!=previous)throw new IOException("Backup SHA mismatch "+target.Rel);
-            }else if(legacy.ContainsKey(target.Rel))throw new InvalidDataException("Expected old file is missing "+target.Rel);
+            }else if(legacy.ContainsKey(target.Rel) &&
+                     !IsOptionalStableLegacyRoot(target.Rel,channel))
+                throw new InvalidDataException("Expected old file is missing "+target.Rel);
             string newSha= fresh.ContainsKey(target.Rel)?UpgradeHash(fresh[target.Rel]):"-";
             lines.Add(target.Rel+"|"+previous+"|"+newSha);
             if(fresh.ContainsKey(target.Rel)){
@@ -1105,7 +1216,7 @@ internal static partial class SetupProgram
             }
         }
         File.WriteAllText(Path.Combine(UpgradeRoot,"index.txt"),String.Join("\n",lines.ToArray()),Encoding.ASCII);
-        if(previousVersion!=InstalledV16 && previousVersion!=Version)throw new InvalidDataException("Invalid previous version for journal.");
+        if(previousVersion!=InstalledV16 && previousVersion!=InstalledV170 && previousVersion!=Version)throw new InvalidDataException("Invalid previous version for journal.");
         File.WriteAllText(Path.Combine(UpgradeRoot,"previous_version.txt"),previousVersion,Encoding.ASCII);
         WritePhase("PREPARED");
     }
@@ -1156,7 +1267,7 @@ internal static partial class SetupProgram
         string priorVersionPath=Path.Combine(UpgradeRoot,"previous_version.txt");
         if(!File.Exists(priorVersionPath))throw new IOException("Previous upgrade version missing; retain stage.");
         string priorVersion=File.ReadAllText(priorVersionPath,Encoding.ASCII);
-        if(priorVersion!=InstalledV16 && priorVersion!=Version)throw new IOException("Unknown previous version; retain stage.");
+        if(priorVersion!=InstalledV16 && priorVersion!=InstalledV170 && priorVersion!=Version)throw new IOException("Unknown previous version; retain stage.");
         // This works after a mid-commit process kill: exact old snapshots are persisted
         // on the same volume, and new-only files are removed only if their SHA is known.
         for(int i=rows.Count-1;i>=0;i--){
@@ -1245,34 +1356,38 @@ internal static partial class SetupProgram
         CheckSingleCanonicalRoot();
         string installed=CurrentInstalledVersion();
         string newSha=Sha256Resource("Payload.TaskbarMonitorEnhanced.exe");
-        if(installed!=InstalledV16 && installed!=Version)
-            throw new InvalidOperationException("In-place upgrade supports only official v1.6 or immutable unsigned Preview 1. No downgrade or ambiguous version.");
-        if(installed==Version){
-            // R114: either exact current private target (idempotent) OR exact
-            // immutable public Preview1 source+installer (same-semver upgrade).
-            // No unknown v1.7 binary or other publisher revision is accepted.
-            string currentMainSHA=UpgradeHash(AppExe);
-            bool exactCurrent=String.Equals(currentMainSHA,newSha,StringComparison.Ordinal);
-            bool exactOfficialPreview1=String.Equals(currentMainSHA,
-                LegacyPreview1Rows[0].Split('|')[1],StringComparison.Ordinal);
-            if(!exactCurrent && !exactOfficialPreview1)
-                throw new InvalidOperationException("Unknown v1.7 Main; no data changed.");
-            string installedSetup=UPath("Uninstall.exe");
-            if(!File.Exists(installedSetup))throw new InvalidDataException("Maintenance executable missing.");
-            string oldSetupSHA=UpgradeHash(installedSetup);
-            string newSetupSHA=UpgradeHash(System.Windows.Forms.Application.ExecutablePath);
-            if(exactCurrent && oldSetupSHA==newSetupSHA &&
+        if(installed!=InstalledV16 && installed!=InstalledV170 && installed!=Version)
+            throw new InvalidOperationException("Only SHA-pinned official v1.6, v1.7.0 stable or Preview1 may upgrade in place.");
+        string channel="OFFICIAL_V16";
+        string currentMainSHA=UpgradeHash(AppExe);
+        string installedSetup=UPath("Uninstall.exe");
+        if(!File.Exists(installedSetup))throw new InvalidDataException("Maintenance executable missing.");
+        string oldSetupSHA=UpgradeHash(installedSetup);
+        string newSetupSHA=UpgradeHash(System.Windows.Forms.Application.ExecutablePath);
+        if(installed==Version)
+        {
+            // Idempotence is TWO exact binaries, never just the same semver or Main SHA.
+            if(currentMainSHA==newSha && oldSetupSHA==newSetupSHA &&
                !File.Exists(UPath("TaskbarMonitorEnhanced.cs")) &&
-               !File.Exists(UPath("Docs/RELEASE_NOTES_v1.6.0.md")))
-                return ExistingSensorOutcome(); // already at exact target, no-op
-            if(!exactOfficialPreview1 || oldSetupSHA!=LegacyPreview1InstallerSha)
-                throw new InvalidOperationException("Unknown v1.7 installer/source combination; no update.");
+               !File.Exists(UPath("Docs/RELEASE_NOTES_v1.6.0.md")) &&
+               !File.Exists(UPath("Docs/RELEASE_NOTES_v1.7.0.md")))
+                return ExistingSensorOutcome();
+            throw new InvalidOperationException("Unknown v1.7.1 maintenance revision; no files changed.");
+        }
+        if(installed==InstalledV170)
+        {
+            if(currentMainSHA==OfficialV170MainSHA && oldSetupSHA==OfficialV170SetupSHA)
+                channel="OFFICIAL_STABLE_V170";
+            else if(currentMainSHA==LegacyPreview1Rows[0].Split('|')[1] &&
+                    oldSetupSHA==LegacyPreview1InstallerSha)
+                channel="PREVIEW1";
+            else throw new InvalidOperationException("Unknown v1.7.0 source/Setup identity; refuse before any mutation.");
         }
 
         // No force-kill; the owner must close their currently running app normally.
         EnsureAppNotRunning();
-        Dictionary<string,string> official=LegacyExpected(installed);
-        VerifyLegacyFiles(official);
+        Dictionary<string,string> official=LegacyExpected(installed,channel);
+        VerifyLegacyFiles(official,channel);
         string stateSource=File.ReadAllText(UPath("install_state.json"),Encoding.UTF8);
         string configPath=UPath("config.json");
         string configBackupPath=UPath("config.json.bak");
@@ -1295,7 +1410,7 @@ internal static partial class SetupProgram
         if(Directory.Exists(UpgradeRoot))throw new IOException("Upgrade journal is not clear; no changes made.");
         List<StageEntry> entries=null;
         try{
-            StageNewManaged(fresh,official,stateSource,installed);
+            StageNewManaged(fresh,official,stateSource,installed,channel);
             entries=ReadStageIndex();
             WritePhase("COMMITTING"); // persisted before first managed mutation
             int step=0;
@@ -1334,11 +1449,16 @@ internal static partial class SetupProgram
             WritePhase("COMMITTED");
             CleanOwnedStage(entries);
             return ExistingSensorOutcome();
-        }catch{
+        }catch(Exception firstFailure){
             if(Directory.Exists(UpgradeRoot)){
                 try{RecoverUpgradeStageIfAny();}
                 catch(Exception rollback){
-                    throw new IOException("Upgrade failed and rollback is UNRESOLVED. Preserve stage and do not uninstall. "+rollback.Message,rollback);
+                    // Preserve first observed cause and rollback exception together;
+                    // never delete an unrecognized or incomplete transaction journal.
+                    throw new IOException("Upgrade failed; rollback UNRESOLVED. Preserve stage and do not uninstall. FIRST="+
+                        firstFailure.GetType().FullName+": "+firstFailure.Message+
+                        "; ROLLBACK="+rollback.GetType().FullName+": "+rollback.Message,
+                        new AggregateException(firstFailure,rollback));
                 }
             }
             throw;

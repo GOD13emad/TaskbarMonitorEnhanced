@@ -119,6 +119,13 @@ jobs:
         shell: pwsh
         run: ./build/Generate-Sbom.ps1
 
+      - name: R136 release manifest and SBOM must match actual versioned setup bytes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Verify-Release-Metadata-R136.ps1 -SelfTest
+          if ($LASTEXITCODE -ne 0) {throw 'R136 release version, 5 output SHA and SBOM source gates FAILED'}
+
       - name: Attest binary build provenance
         if: github.event_name != 'pull_request'
         uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1

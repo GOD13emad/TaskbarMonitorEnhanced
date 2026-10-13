@@ -106,8 +106,16 @@ namespace TaskbarMonitorEnhanced
                     Check(TaskbarGlassColor.Contrast(TaskbarGlassColor.ReadableText(composite),composite)>=4.5,
                           "glass contrast "+opacity);
                 }
-            var low=new AppConfig{Opacity=0};low.Normalize();Check(low.Opacity==0,"background alpha zero persisted");
-            low.Opacity=0.30;low.Normalize();Check(Math.Abs(low.Opacity-0.30)<.00001,"background alpha thirty persisted");
+            var low=new AppConfig{GlassMode=true,Opacity=0,OpacityWhenGlassOff=.30};
+            low.Normalize();Check(low.GlassMode && low.Opacity==0 && Math.Abs(low.OpacityWhenGlassOff-.30)<.00001,"glass zero alpha independent of saved opacity");
+            low.GlassMode=false;low.Opacity=low.OpacityWhenGlassOff;low.Normalize();
+            Check(!low.GlassMode && Math.Abs(low.Opacity-.30)<.00001,"glass OFF restores 30% opacity");
+            var one=new AppConfig{Opacity=0};one.Normalize();
+            Check(!one.GlassMode && Math.Abs(one.Opacity-.01)<.00001,"non-glass opacity clamps at 1%");
+            var legacyTransparent=new AppConfig{ConfigSchemaVersion=7,Opacity=0};
+            legacyTransparent.Normalize();
+            Check(legacyTransparent.GlassMode && legacyTransparent.Opacity==0 && legacyTransparent.ConfigSchemaVersion==8,
+                "legacy 0% opacity migrates to glass without visible regression");
             Check(HardwareInventory.Read(null).Count==0,"null hardware snapshot");
             var s=new MetricsSnapshot();s.GpuDevices.Add(new GpuDeviceSnapshot{Name="Fixture GPU",UsageAvailable=false,PowerAvailable=true,PowerW=float.NaN});
             var rows=HardwareInventory.Read(s);
@@ -118,10 +126,10 @@ namespace TaskbarMonitorEnhanced
         {
             try
             {
-                Check(BuildInfo.PublicVersion=="1.7.0","version");
+                Check(BuildInfo.PublicVersion=="1.7.1","version");
                 for(int schema=0;schema<7;schema++){
                     var legacy=new AppConfig{ConfigSchemaVersion=schema,EnableTemperatureNotifications=true,CpuTempWarningC=0,FontSize=Double.NaN,Opacity=Double.NaN};legacy.Normalize();
-                    Check(legacy.ConfigSchemaVersion==7,"all legacy schemas migrate "+schema);
+                    Check(legacy.ConfigSchemaVersion==8,"all legacy schemas migrate "+schema);
                     if(schema<6)Check(!legacy.EnableTemperatureNotifications,"legacy notification opt-in "+schema);
                     if(schema<4)Check(legacy.CpuTempWarningC==85,"legacy thermal default "+schema);
                     Check(MetricStatistics.Finite(legacy.FontSize)&&MetricStatistics.Finite(legacy.Opacity),"finite presentation "+schema);
@@ -149,13 +157,13 @@ namespace TaskbarMonitorEnhanced
                 Check(StudioThemes.Create().Select(t=>t.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count()==21,"studio names distinct");Check(WallpaperStudio.TotalWallpaperCount==210&&WallpaperStudio.VariantLabels.Length==10,"21x10 wallpaper catalog");using(var wp=WallpaperStudio.Render("Sekiro",9,320,180))Check(wp.Width==320&&wp.Height==180,"Sekiro wallpaper render");
 
                 AppConfig c=new AppConfig();c.Normalize();
-                Check(c.ConfigSchemaVersion==7,"schema 7");
+                Check(c.ConfigSchemaVersion==8,"schema 8");
                 Check(c.CpuUsageWarningPercent==95&&c.RamUsageWarningPercent==90&&c.GpuUsageWarningPercent==95,"usage defaults");
                 Check(c.SustainedAlertSeconds==30&&c.UsageAlertCooldownMinutes==10,"alert timing defaults");
                 Check(c.MetricOrder=="CPU;RAM;DISK;GPU;VRAM;NET","metric order default");
 
                 AppConfig migrated=new AppConfig();migrated.ConfigSchemaVersion=6;migrated.CpuUsageWarningPercent=0;migrated.RecordTrafficHistory=true;migrated.StartWithWindows=false;migrated.Normalize();
-                Check(migrated.ConfigSchemaVersion==7,"schema migrate");
+                Check(migrated.ConfigSchemaVersion==8,"schema migrate");
                 Check(migrated.CpuUsageWarningPercent==95,"schema migration initializes new fields");
                 Check(!migrated.RecordTrafficHistory,"migration privacy default");
                 Check(!migrated.StartWithWindows,"migration preserves old field");

@@ -1,0 +1,240 @@
+{
+  "Schema": 1,
+  "Revision": "R137",
+  "Objective": "Retire stale version/experiment branch-specific workflows from active main tree without erasing Git history",
+  "Status": "KNOWN_HISTORICAL_WORKFLOWS_SUPERSEDED",
+  "BeforeCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+  "PreviouslyTrackedCount": 28,
+  "RetiredCount": 27,
+  "AfterActive": [
+    "ci.yml",
+    "release-v171-acceptance.yml"
+  ],
+  "ReleaseQualifiedBy": [
+    "R135 hosted Windows A/B + public CI success",
+    "R136 manifest/SBOM exact version gate"
+  ],
+  "Rules": [
+    "No source, historical Git object, evidence, personal data or release deleted",
+    "Archived workflow bytes remain recoverable by git show exact parent commit:path",
+    "Do not rerun historical unsigned/private same-version pipelines"
+  ],
+  "Paths": [
+    {
+      "Path": ".github/workflows/final-inplace-upgrade-r114.yml",
+      "SHA256": "1B0DFCC0D0B530FEC1EA4348AC5F0DDBA23BDDFF397B4DA4F0EB4E2D495F983D",
+      "Bytes": 7347,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/final-inplace-upgrade-r114.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-anchor-foreground-r125.yml",
+      "SHA256": "A1E19B9CD49BDAF2CEDFF927C6CC996EDE8E235ECD27F174FCAC337C25FC715E",
+      "Bytes": 11086,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-anchor-foreground-r125.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-display-readiness-r104.yml",
+      "SHA256": "9B9AF77AA45AAD52000C49C2FD5A36319246151AC1DD3E8A46BE148179E00013",
+      "Bytes": 2317,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-display-readiness-r104.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-health-supervisor-r109.yml",
+      "SHA256": "48E86250AD2DB2431558D0FECE7E7994BE10EE4AF696A96A4739A9713F88D98F",
+      "Bytes": 7509,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-health-supervisor-r109.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-pinned-default-r118.yml",
+      "SHA256": "F01AEB243CFCD6AD5E6A671D4E2A0710E7204F4A4EFFFE63E678CD5FA15CF4F3",
+      "Bytes": 8263,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-pinned-default-r118.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-post-start-logs-r111.yml",
+      "SHA256": "653903C2D0AE5A9502CCB98F471D477D146CC821460221B22C7B412776EE8FCC",
+      "Bytes": 7862,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-post-start-logs-r111.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-private-candidate-r107.yml",
+      "SHA256": "CA9B50876E836F21E2829278CC64D5730DA9675114E4E76957F50A2251946CD3",
+      "Bytes": 5340,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-private-candidate-r107.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-private-wide-r108.yml",
+      "SHA256": "5DD6FF78119D73FA6C1A2F45A23934344B4FB445B936D85080511284EFE73B17",
+      "Bytes": 5845,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-private-wide-r108.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-real-ink-r119.yml",
+      "SHA256": "DB4BFD3CCE13CF2B1DF2E13BB2AD1D33C089F998BABDF1F433F8773B4FC71EC4",
+      "Bytes": 8262,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-real-ink-r119.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-settings-native-r120.yml",
+      "SHA256": "D74744A3F73D0D253769C5E7FE3BF7C4883E4472C3274F0EB77C0718F24B75BC",
+      "Bytes": 9380,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-settings-native-r120.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-settings-process-wait-r122.yml",
+      "SHA256": "FA10A6FA585E8E792380EEC7FD837CD5976DDFCC4745C2DD03564326E61680F9",
+      "Bytes": 11113,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-settings-process-wait-r122.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-settings-userclick-r121.yml",
+      "SHA256": "ADFB70E6367C09C1EE5619214DA8CBD858FFBE521D7958B6A7D666851C66E2B4",
+      "Bytes": 9385,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-settings-userclick-r121.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-start-activation-r112.yml",
+      "SHA256": "FC9EDE55C7BDD69EBEC324300B462B64C9C49921B92FC0AF6DE54867FB35E0EC",
+      "Bytes": 8281,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-start-activation-r112.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-start-early-r113.yml",
+      "SHA256": "CAC4C3671E4BD33F9F9416026681BA64BC46FA8B7BB7ED47572088BEBE9C3793",
+      "Bytes": 8261,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-start-early-r113.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-start-surface-r110.yml",
+      "SHA256": "6E56DF2ACC7A109E5BA9E1A9D4A4FD948D5EF51C23C676366827AECE63163CA5",
+      "Bytes": 7511,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-start-surface-r110.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/g14-transactional-wide-r105.yml",
+      "SHA256": "F83FCFCBE3EB4FB43560A2E1F5FFC6BA86EB44A16BEF3D19E150AD2CB948E48B",
+      "Bytes": 4548,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/g14-transactional-wide-r105.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/r126-official-stable-inplace.yml",
+      "SHA256": "C083315397E946BCE0FC0F82FDEF0795C5641D554E43BB710B06FF50EEE101F1",
+      "Bytes": 3991,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/r126-official-stable-inplace.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/r127-fresh-vm-stable-upgrade.yml",
+      "SHA256": "DBAD0D08C45AF0058BFE6E86A2D0036FA393F5B4F9BADC6367C2220DE791F0E8",
+      "Bytes": 6346,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/r127-fresh-vm-stable-upgrade.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/r128-stable-upgrade.yml",
+      "SHA256": "C219107DB2FD7B335A129059B3679F5E7EBC3408C38166C13B91713D3FCC5F12",
+      "Bytes": 6483,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/r128-stable-upgrade.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/r129-upgrade-diagnostic.yml",
+      "SHA256": "92E453EE6E58061CC755CE9706E77726360253C4937C393496297B477314D5E8",
+      "Bytes": 6564,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/r129-upgrade-diagnostic.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/r130-upgrade-first-cause.yml",
+      "SHA256": "E5410DA893CC76933E4AF5D79772388A913BC37FBB6011D0B9840D81656A41BA",
+      "Bytes": 6555,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/r130-upgrade-first-cause.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/r131-stable-root-upgrade.yml",
+      "SHA256": "24AA86FFF4ECD026B683A7CA3B06290328EAEB7B811CB9D255475DB60EB5F78C",
+      "Bytes": 7015,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/r131-stable-root-upgrade.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/r132-physical-glass.yml",
+      "SHA256": "B29091FD2DB919D4893FC3194CCDA0B2003D664BECF74960F75D3CFDA4FAB276",
+      "Bytes": 9322,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/r132-physical-glass.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/r133-compact-glass.yml",
+      "SHA256": "6B63F7A800C0976A23E516583C096C3170269F160899E0607159EF3AA0ED6D0B",
+      "Bytes": 9314,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/r133-compact-glass.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/r134-physical-glass.yml",
+      "SHA256": "A1C0A48F09D7761CF751429E76C679C4B1EAE368B620E6A97EE31D9C01A155BD",
+      "Bytes": 9322,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/r134-physical-glass.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/r135-stable-patch-validation.yml",
+      "SHA256": "25AD435B56BED93348FA509A76C2301DA8C5FB334F957AC00C400B3A5DE5E308",
+      "Bytes": 9539,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/r135-stable-patch-validation.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    },
+    {
+      "Path": ".github/workflows/unsigned-preview-installed-smoke.yml",
+      "SHA256": "4E2011C3B16AAA305FC4DD67731171BDB1C0FCC320474105363C5B8D124E0456",
+      "Bytes": 6223,
+      "PreservedAtGitCommit": "eba8a5c7637745aebd5ad4b9f73429d95531f8a1",
+      "ReconstructWith": "git show eba8a5c7637745aebd5ad4b9f73429d95531f8a1:.github/workflows/unsigned-preview-installed-smoke.yml",
+      "Classification": "SUPERSEDED—DO NOT RUN"
+    }
+  ]
+}
