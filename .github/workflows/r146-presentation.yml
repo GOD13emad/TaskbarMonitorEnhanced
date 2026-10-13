@@ -36,6 +36,7 @@ jobs:
           $ErrorActionPreference='Stop'
           ./build/Test-Appearance-R145.ps1 -MainPath ./build/_out/App/TaskbarMonitorEnhanced.exe -OutDir (Join-Path $env:RUNNER_TEMP 'R146_APPEARANCE')
           ./build/Test-Visibility-R146.ps1 -MainPath ./build/_out/App/TaskbarMonitorEnhanced.exe -OutDir (Join-Path $env:RUNNER_TEMP 'R146_POLICY')
+          ./build/Test-Geometry-R150.ps1 -MainPath ./build/_out/App/TaskbarMonitorEnhanced.exe -OutDir (Join-Path $env:RUNNER_TEMP 'R150_GEOMETRY')
       - name: Private candidate only, never publish or promote
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -55,6 +56,7 @@ jobs:
           path: |
             ${{ runner.temp }}/R146_APPEARANCE/**
             ${{ runner.temp }}/R146_POLICY/**
+            ${{ runner.temp }}/R150_GEOMETRY/**
   native-windows:
     needs: build-private
     name: Native taskbar real menu Start Settings fullscreen (${{ matrix.host }})

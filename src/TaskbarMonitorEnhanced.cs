@@ -4780,7 +4780,9 @@ namespace TaskbarMonitorEnhanced
 
         private Bitmap RenderThemeDefinition(ThemeDefinition theme,int width,int height)
         {
-            width=Math.Max(320,width);height=Math.Max(32,height);
+            // R150: full, glyph and halo surfaces must share the exact native size.
+            // A preview-only 320px minimum here broke compact 279px taskbar rendering.
+            width=Math.Max(1,width);height=Math.Max(1,height);
             Bitmap bmp=new Bitmap(width,height,System.Drawing.Imaging.PixelFormat.Format32bppArgb);
             using(Graphics g=Graphics.FromImage(bmp))
             {
