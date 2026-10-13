@@ -32,6 +32,12 @@ $configBak=Join-Path $app 'config.json.bak'
 $doc=Join-Path $app 'Docs\README.md'
 $backend=Join-Path $app 'SensorBackend\LibreHardwareMonitor-0.9.6\LibreHardwareMonitorLib.dll'
 $sentinel=Join-Path $app 'UserOwnedR126\preferences.txt'
+$legacyRoot=Join-Path $app 'TaskbarMonitorEnhanced.cs'
+$officialRootSHA='B65606629A6EA1363B387064933FEED3027ED7CD5007FFDDE76BE938009267E1'
+$rootScenario=$env:TBME_R131_ROOT_SCENARIO
+if($rootScenario -cnotin @('A','B')){throw 'R131_REQUIRES_EXACT_DISPOSABLE_HOST_SCENARIO_A_OR_B'}
+$historicalBackup=Join-Path $dir 'R131_STABLE_HISTORICAL_ROOT_BEFORE_UPDATE.cs'
+$legacyRootDisposition='NOT_CHECKED'
 $stage=Join-Path $app '.tbme-upgrade'
 $oldNote=Join-Path $app 'Docs\RELEASE_NOTES_v1.7.0.md'
 $newNote=Join-Path $app 'Docs\RELEASE_NOTES_v1.7.1.md'
@@ -88,6 +94,20 @@ try{
    throw 'R126_PUBLIC_INSTALLED_STATE_WRONG'
  }
  if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count -ne 0){throw 'R126_AUTOSTART_UNEXPECTED'}
+ # The immutable public v1.7.0 installer lays down the root-level duplicate.
+ # A verifies a true fresh Stable installation; B preserves the SHA-bound duplicate
+ # in runner temp and tests the equally valid already-upgraded-from-v1.6 layout.
+ if((SHA $legacyRoot) -cne $officialRootSHA){throw 'R131_FRESH_OFFICIAL_HISTORICAL_ROOT_NOT_VERIFIED'}
+ if($rootScenario -ceq 'B'){
+  if(Test-Path -LiteralPath $historicalBackup){throw 'R131_HISTORICAL_BACKUP_ALREADY_PRESENT'}
+  Move-Item -LiteralPath $legacyRoot -Destination $historicalBackup -ErrorAction Stop
+  if((Test-Path -LiteralPath $legacyRoot) -or (SHA $historicalBackup) -cne $officialRootSHA){
+   throw 'R131_HISTORICAL_ROOT_PRESERVATION_MISMATCH'
+  }
+  $legacyRootDisposition='ABSENT_SHA_BACKED_IN_DISPOSABLE_RUNNER'
+ }else{
+  $legacyRootDisposition='PRESENT_EXACT_OFFICIAL_SHA'
+ }
  if(!(Test-Path $config -PathType Leaf)){
   [IO.File]::WriteAllText($config,'{"Theme":"Retro Terminal","Opacity":0.31,"StartWithWindows":false}',[Text.UTF8Encoding]::new($false))
  }
@@ -97,6 +117,12 @@ try{
  [IO.File]::WriteAllText($sentinel,'R126_USER_FILE_KEEP',[Text.UTF8Encoding]::new($false))
  $before=@{Config=SHA $config;Backup=SHA $configBak;Backend=SHA $backend;Sentinel=SHA $sentinel;Doc=SHA $doc;Main=SHA $main;Uninstaller=SHA (Join-Path $app 'Uninstall.exe');Startup=StartupValue;Wallpaper=WallpaperValue}
  if(!(Test-Path $oldNote) -or (Test-Path $newNote)){throw 'R126_RELEASE_NOTES_BASELINE_WRONG'}
+ if($rootScenario -ceq 'A' -and (SHA $legacyRoot) -cne $officialRootSHA){
+  throw 'R131_REAL_STABLE_ROOT_WAS_LOST_BEFORE_NEGATIVE_TEST'
+ }
+ if($rootScenario -ceq 'B' -and (Test-Path $legacyRoot)){
+  throw 'R131_SIMULATED_PREVIOUS_UPGRADE_ROOT_STILL_PRESENT'
+ }
  $phase='NEGATIVE_MODIFIED_MANAGED_DOC'
  $docOriginal=[IO.File]::ReadAllBytes($doc)
  try{
@@ -121,7 +147,8 @@ try{
  if($actual.Version -cne '1.7.1' -or $actual.PublicVersion -cne '1.7.1' -or
    $actual.ProductIdentity -cne 'LOCKED' -or (Get-ItemProperty $reg).DisplayVersion -cne '1.7.1' -or
    (SHA $main) -cne $newMainSha -or (SHA (Join-Path $app 'Uninstall.exe')) -cne $newSetupSha -or
-   !(Test-Path $newNote -PathType Leaf) -or (Test-Path $oldNote) -or (Test-Path $stage)){
+   !(Test-Path $newNote -PathType Leaf) -or (Test-Path $oldNote) -or
+   (Test-Path $legacyRoot) -or (Test-Path $stage)){
   throw 'R126_AFTER_UPDATE_IDENTITY_OR_NOTES_NOT_CORRECT'
  }
  if((SHA $config) -cne $before.Config -or (SHA $configBak) -cne $before.Backup -or
@@ -191,6 +218,11 @@ finally{
   OfficialMainSHA256=$oldMainSha;OfficialSetupSHA256=$oldSetupSha
   PatchMainSHA256=$newMainSha;PatchSetupSHA256=$newSetupSha
   NegativeEdit=$negative;Upgrade=$upgraded;Idempotence=$repeat;Downgrade=$downgrade
+  R131RootScenario=$rootScenario;R131OriginalRootSHA256=$officialRootSHA
+  R131RootDisposition=$legacyRootDisposition
+  R131HistoricalSourcePreserved=($rootScenario -ceq 'A' -or
+    ((Test-Path -LiteralPath $historicalBackup -PathType Leaf) -and
+      (SHA $historicalBackup) -ceq $officialRootSHA))
   Before=$before;After=$after;ExternalLabAccepted=$false
   PersonalInstallTouched=$false;NoSecondInstall=$true
  }

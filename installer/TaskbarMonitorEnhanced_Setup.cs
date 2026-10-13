@@ -892,8 +892,11 @@ internal static partial class SetupProgram
     };
 
     // v1.7.0 official immutable public stable, SHA256SUMS and bundled source independently verified.
-    // Never treat v1.7.0 stable as the older unsigned Preview1.
+    // A direct public Stable installation has a root-level duplicate .cs file. A user
+    // upgraded from v1.6 may legitimately lack it; its absence is accepted ONLY for
+    // the exact verified official Stable source identity; if present it MUST hash-match.
     static readonly string[] OfficialStableV170Rows=new string[] {
+        "TaskbarMonitorEnhanced.cs|B65606629A6EA1363B387064933FEED3027ED7CD5007FFDDE76BE938009267E1",
         "TaskbarMonitorEnhanced.exe|B56E322826A86927999A00FB933C17979213798A68C8BB71C2176E68962E30EA",
         "TaskbarMonitorEnhanced.exe.config|D2E51872D93F0793C02AD07DCBF8C2802F59708C666548372A4FDDDA5C7C5E4F",
         "TaskbarMonitorEnhanced.ico|0AD07C8E5DB434EE0403FCC92557C89D6E8EDF6A61FABD285C45518DF73A8EEF",
@@ -974,7 +977,7 @@ internal static partial class SetupProgram
         if(version==InstalledV16 && channel=="OFFICIAL_V16")
         { rows=LegacyManagedRows; expectedSetup=LegacyInstallerSha; count=21; }
         else if(version==InstalledV170 && channel=="OFFICIAL_STABLE_V170")
-        { rows=OfficialStableV170Rows; expectedSetup=OfficialV170SetupSHA; count=22; }
+        { rows=OfficialStableV170Rows; expectedSetup=OfficialV170SetupSHA; count=23; }
         else if(version==InstalledV170 && channel=="PREVIEW1")
         { rows=LegacyPreview1Rows; expectedSetup=LegacyPreview1InstallerSha; count=23; }
         else throw new InvalidDataException("Unsupported exact prior source identity; no downgrade/second root.");
@@ -1106,10 +1109,20 @@ internal static partial class SetupProgram
         return fresh;
     }
 
-    static void VerifyLegacyFiles(Dictionary<string,string> legacy)
+    static bool IsOptionalStableLegacyRoot(string rel,string channel)
+    {
+        // Only one SHA-pinned historical Stable file may be absent. Any present
+        // occurrence still requires the exact immutable published source hash.
+        return channel=="OFFICIAL_STABLE_V170" &&
+               String.Equals(rel,"TaskbarMonitorEnhanced.cs",StringComparison.Ordinal);
+    }
+
+    static void VerifyLegacyFiles(Dictionary<string,string> legacy,string channel)
     {
         foreach(KeyValuePair<string,string> item in legacy){
             string path=UPath(item.Key);
+            if(!File.Exists(path) && IsOptionalStableLegacyRoot(item.Key,channel))
+                continue;
             if(!File.Exists(path) || !String.Equals(UpgradeHash(path),item.Value,StringComparison.Ordinal))
                 throw new InvalidOperationException("Protected/edited/missing old program component "+item.Key+"; NO files changed. Preserve user changes and request review.");
         }
@@ -1153,8 +1166,25 @@ internal static partial class SetupProgram
         return raw.Substring(UpgradeStageMarker.Length+1);
     }
 
-    static void StageNewManaged(Dictionary<string,byte[]> fresh, Dictionary<string,string> legacy, string stateSource,string previousVersion)
+    static void StageNewManaged(Dictionary<string,byte[]> fresh, Dictionary<string,string> legacy, string stateSource,string previousVersion,string channel)
     {
+        // Regression guard: validate ALL target paths before the first stage
+        // directory/write. Previously a late unknown file could leave an owner-
+        // marked but unindexed stage, and rollback then masked the real cause.
+        foreach(UpgradeTarget target in UpgradeTargets)
+        {
+            string live=UPath(target.Rel);
+            if(File.Exists(live))
+            {
+                if(target.Rel!="install_state.json" &&
+                   (!legacy.ContainsKey(target.Rel) ||
+                    UpgradeHash(live)!=legacy[target.Rel]))
+                    throw new InvalidDataException("Pre-stage managed component changed; NO STAGE created: "+target.Rel);
+            }
+            else if(legacy.ContainsKey(target.Rel) &&
+                    !IsOptionalStableLegacyRoot(target.Rel,channel))
+                throw new InvalidDataException("Pre-stage required official component missing; NO STAGE created: "+target.Rel);
+        }
         Directory.CreateDirectory(UpgradeRoot);
         File.WriteAllText(Path.Combine(UpgradeRoot,"owner.txt"),UpgradeStageMarker,Encoding.ASCII);
         List<string> lines=new List<string>();
@@ -1173,7 +1203,9 @@ internal static partial class SetupProgram
                 Directory.CreateDirectory(Path.GetDirectoryName(prior));
                 File.Copy(current,prior,false);
                 if(UpgradeHash(prior)!=previous)throw new IOException("Backup SHA mismatch "+target.Rel);
-            }else if(legacy.ContainsKey(target.Rel))throw new InvalidDataException("Expected old file is missing "+target.Rel);
+            }else if(legacy.ContainsKey(target.Rel) &&
+                     !IsOptionalStableLegacyRoot(target.Rel,channel))
+                throw new InvalidDataException("Expected old file is missing "+target.Rel);
             string newSha= fresh.ContainsKey(target.Rel)?UpgradeHash(fresh[target.Rel]):"-";
             lines.Add(target.Rel+"|"+previous+"|"+newSha);
             if(fresh.ContainsKey(target.Rel)){
@@ -1355,7 +1387,7 @@ internal static partial class SetupProgram
         // No force-kill; the owner must close their currently running app normally.
         EnsureAppNotRunning();
         Dictionary<string,string> official=LegacyExpected(installed,channel);
-        VerifyLegacyFiles(official);
+        VerifyLegacyFiles(official,channel);
         string stateSource=File.ReadAllText(UPath("install_state.json"),Encoding.UTF8);
         string configPath=UPath("config.json");
         string configBackupPath=UPath("config.json.bak");
@@ -1378,7 +1410,7 @@ internal static partial class SetupProgram
         if(Directory.Exists(UpgradeRoot))throw new IOException("Upgrade journal is not clear; no changes made.");
         List<StageEntry> entries=null;
         try{
-            StageNewManaged(fresh,official,stateSource,installed);
+            StageNewManaged(fresh,official,stateSource,installed,channel);
             entries=ReadStageIndex();
             WritePhase("COMMITTING"); // persisted before first managed mutation
             int step=0;
