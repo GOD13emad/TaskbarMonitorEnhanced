@@ -1,14 +1,14 @@
 # Taskbar Monitor Enhanced
 
-**Live Windows taskbar monitoring, an eight-page Performance Workspace, and 48 built-in themes.**
+**Live Windows taskbar monitoring, an eight-page Performance Workspace, and 49 built-in themes.**
 
-**Stable / Latest: [v1.7.0](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.7.0)** — official Windows x64 release, **unsigned**. [Install and update without reinstalling](DOWNLOAD.md). Earlier [v1.6.0](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.6.0) remains immutable.
+**Stable / Latest: [v1.7.1](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.7.1)** — official Windows x64 Stable, **unsigned**. [Use the one installer and protected in-place updater](DOWNLOAD.md). Older [v1.7.0](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.7.0) and [v1.6.0](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.6.0) remain immutable.
 
 Monitor CPU, RAM, disk, network, GPU, VRAM and available temperatures without putting privileged sensor collection inside the desktop UI. Version 1.6.0 adds 20 original Studio designs, local analysis, hardware inventory and practical alert controls.
 
 ## Performance Workspace
 
-Right-click the taskbar monitor and choose **Performance workspace...** or **Theme Studio - 48 designs...**.
+Right-click the taskbar monitor and choose **Performance workspace...** or **Theme Studio — 49 designs...**.
 
 | Page | What it provides |
 |---|---|
@@ -32,7 +32,7 @@ These are renderer-backed designs, not background images or palette-only recolor
 ![Prism, Ribbon, Circuit, Dot Matrix and Topographic themes](docs/screenshots/v1.6.0/studio-3.png)
 ![Memphis, Origami, Kintsugi, Brutalist and Stained Glass themes](docs/screenshots/v1.6.0/studio-4.png)
 
-All 28 existing themes remain available. New Studio primary-text contrast, compact rendering and the real selection/apply path have dedicated regression checks.
+The 28 original themes, twenty Studio themes and Glass Morphism are available as 49 renderer-backed choices. Contrast and compact rendering have dedicated regression tests.
 
 ## Data, privacy and reliability
 
@@ -44,9 +44,9 @@ The non-elevated main UI retains process-isolated sensors, Explorer/taskbar reco
 
 ## One installation and in-place updates
 
-**Exactly one installation per Windows user:** fresh Setup uses the canonical `%LOCALAPPDATA%\TaskbarMonitorEnhanced` root. When Setup finds a recognized existing public v1.6.0 or public unsigned Preview1 installation, it upgrades **in place** without uninstalling and without changing configuration, user data, Startup preferences or Wallpaper mode. Close the running monitor normally before updating. Unknown or modified managed components fail closed and are not replaced. Run the installer normally or use `/update /quiet` for an existing recognized version.
+**Exactly one installation per Windows user:** the official v1.7.1 Setup targets the canonical per-user LocalAppData TaskbarMonitorEnhanced root. Recognized public v1.6.0, v1.7 Preview1 and official v1.7.0 Stable installations update **in place**, without uninstalling, preserving settings, backup, sensor backend, Startup and Wallpaper. Close the running monitor normally before a manual update. Edited or unknown managed files are refused and running the exact same v1.7.1 Setup again is idempotent.
 
-The official v1.7.0 release is **unsigned by owner decision**. Windows may show **Unknown publisher**. Check the official SHA-256 before running Setup. Protected sensors can optionally use the separately installed signed upstream PawnIO driver; it is not bundled or silently downloaded.
+The current official **v1.7.1 is unsigned by owner decision**. Windows may show **Unknown publisher**. Verify SHA256 ABD106630F7BAB3471CAF3F5BD4313DFCF2D61DDE1DF79E72EFE91933C8F2F89 against the immutable official GitHub Release. Separately licensed protected PawnIO is not silently bundled.
 
 ## Installation and release integrity
 
@@ -69,7 +69,7 @@ Requirements: x64 Windows, .NET Framework 4.8, Git and the SDK pinned in `global
 
 Use a new exact evidence directory for every test run; existing evidence is never silently replaced. Clean-clone determinism requires committed, clean source. Runtime tests require an interactive Windows desktop and the installed monitoring environment for hardware-dependent checks.
 
-The tests cover schema migration, unavailable/nonfinite data, traffic resets/retention/persistence, profile boundaries, actual UI actions, 48 themes and 20 distinct Studio geometries. Compilation alone is not release acceptance. Exact revision, installed runtime and publication evidence are recorded under [acceptance](docs/acceptance/) and [project control](docs/project-control/).
+Tests cover schema migration, hardware errors, traffic resets, profile boundaries, all 49 themes, real taskbar Glass over ordinary foreground windows, Start/Settings native behavior and immutable-release integrity. Compilation alone does not constitute acceptance; linked hosted Windows receipts and SHA evidence are retained in Git history.
 
 ## Scope and compatibility
 

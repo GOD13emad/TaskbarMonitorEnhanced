@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.7.1 — Official Stable: Glass, Start, and safe versioned update (2026-10-13)
+
+- add a separate Glass ON/OFF slider: ON makes background opacity 0% and locks numeric control; OFF restores previous 1–100%
+- restore v1.6 fixed taskbar position when Start/Search opens and while ordinary applications are foreground; keep Settings independently visible
+- upgrade in place from exact public v1.7.0 Stable and other supported predecessors with one canonical install, protected config/backups/sensors and no duplicate registration
+- independently validate real Windows A/B GUI and updater plus immutable public seven-asset SHA/SBOM provenance
+- release exactly one owner-authorized unsigned installer; historical PRs, commits and evidence remain recoverable
+
+## 1.7.0 — Official Stable: Wallpaper Studio (2026-10-12)
+
+- publish Wallpaper Studio, preserving hardware monitoring and protected sensor functionality
+- release official immutable source, one installer and checksum/SBOM evidence; owner-authorized unsigned
+- superseded by the fully in-place compatible v1.7.1 taskbar corrections; historical 1.7.0 release remains unchanged
+
+## 1.6.0 — Performance Workspace and Studio Themes (2026-10-02)
+
+- introduce eight Performance Workspace pages and twenty original Studio themes
+- provide the Start/Settings/taskbar interaction baseline restored in v1.7.1
+
 ## 1.5.0 — Actionable Alerts & Session Export (candidate)
 
 - add optional WinForms NotifyIcon temperature notifications for CPU, GPU and disk threshold crossings
