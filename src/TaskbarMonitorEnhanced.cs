@@ -365,6 +365,10 @@ namespace TaskbarMonitorEnhanced
         public string Theme { get; set; }
         public string Position { get; set; }
         public double Opacity { get; set; }
+        // Glass is an independent ON/OFF state, NOT the transparency percentage.
+        // When ON: background alpha is exactly 0; the editable 1-100% value is saved.
+        public bool GlassMode { get; set; }
+        public double OpacityWhenGlassOff { get; set; }
         // Optional legacy Windows 11 workaround; OFF by default. The monitor
         // remains anchored to the taskbar while Start/Search is open.
         public bool FloatAboveStartMenu { get; set; }
@@ -427,6 +431,8 @@ namespace TaskbarMonitorEnhanced
             Theme = "Dark Minimal Pro";
             Position = "Left";
             Opacity = 0.97;
+            GlassMode = false;
+            OpacityWhenGlassOff = 0.97;
             FloatAboveStartMenu = false;
             UpdateIntervalMs = 1000;
             ShowCpu = true; ShowRam = true; ShowDisk = true; ShowGpu = true; ShowVram = true; ShowNetwork = true;
@@ -455,7 +461,7 @@ namespace TaskbarMonitorEnhanced
             AdaptiveBatteryMode = true; BatteryUpdateIntervalMs = 3000; SparklineHistoryLength = 120;
             FollowWindowsTheme=false;WindowsLightTheme="Nordic Light";WindowsDarkTheme="Dark Minimal Pro";TaskbarDisplay="Primary";
             InitializeWorkspaceDefaults();
-            ConfigSchemaVersion = 7;
+            ConfigSchemaVersion = 8;
         }
 
         public void Normalize()
@@ -463,7 +469,8 @@ namespace TaskbarMonitorEnhanced
             if (String.IsNullOrWhiteSpace(Theme) || String.Equals(Theme, "Auto", StringComparison.OrdinalIgnoreCase)) Theme = "Dark Minimal Pro";
             if (!ThemeCatalog.Names.Contains(Theme)) Theme = "Dark Minimal Pro";
             if (String.IsNullOrWhiteSpace(Position) || (Position != "Left" && Position != "Center" && Position != "Right")) Position = "Left";
-            if (!MetricStatistics.Finite(Opacity)) Opacity = 0.97; else Opacity = Math.Max(0.0,Math.Min(1.0,Opacity));
+            if (!MetricStatistics.Finite(Opacity)) Opacity = 0.97;
+            else Opacity = Math.Max(0.0,Math.Min(1.0,Opacity));
             if (UpdateIntervalMs < 1000 || UpdateIntervalMs > 5000) UpdateIntervalMs = 1000;
             if (MinWidthLogicalPx < 900 || MinWidthLogicalPx > 1500) MinWidthLogicalPx = 1100;
             if (MaxWidthLogicalPx < MinWidthLogicalPx) MaxWidthLogicalPx = Math.Max(1400, MinWidthLogicalPx);
@@ -494,6 +501,27 @@ namespace TaskbarMonitorEnhanced
                 EnableTemperatureNotifications=false;ConfigSchemaVersion=6;
             }
             NormalizeWorkspace();
+            // Preserve the meaning of an existing v1.7 0%-opacity config while
+            // migrating without overwriting a user's selected opacity or theme.
+            if(ConfigSchemaVersion<8)
+            {
+                GlassMode=Opacity<=0.0;
+                OpacityWhenGlassOff=Opacity>0.0?Opacity:0.97;
+                ConfigSchemaVersion=8;
+            }
+            if(!MetricStatistics.Finite(OpacityWhenGlassOff) ||
+               OpacityWhenGlassOff<0.01 || OpacityWhenGlassOff>1.0)
+                OpacityWhenGlassOff=0.97;
+            if(GlassMode)
+            {
+                if(Opacity>0.0)OpacityWhenGlassOff=Math.Max(0.01,Opacity);
+                Opacity=0.0;
+            }
+            else
+            {
+                Opacity=Math.Max(0.01,Math.Min(1.0,Opacity));
+                OpacityWhenGlassOff=Opacity;
+            }
             if(String.IsNullOrWhiteSpace(WindowsLightTheme)||!ThemeCatalog.Names.Contains(WindowsLightTheme))WindowsLightTheme="Nordic Light";
             if(String.IsNullOrWhiteSpace(WindowsDarkTheme)||!ThemeCatalog.Names.Contains(WindowsDarkTheme))WindowsDarkTheme="Dark Minimal Pro";
             TaskbarDisplay=TaskbarTargetPolicy.NormalizeConfigId(TaskbarDisplay);
@@ -7171,6 +7199,8 @@ namespace TaskbarMonitorEnhanced
         private readonly AppConfig c; private readonly MetricsSnapshot snapshot; private readonly Func<string,int,int,Bitmap> themePreviewRenderer;
         private ComboBox theme,windowsLightTheme,windowsDarkTheme,position,taskbarDisplay,cpuMode,gpuMode,diskMode,netMode,multiLayout,memoryUnit,storageUnit,networkUnit,diskRateUnit;
         private NumericUpDown opacity,interval,width,cpuWarn,gpuWarn,diskWarn,batteryInterval,historyLength;
+        private TrackBar glassModeToggle;
+        private int lastOpacityPercent;
         private CheckBox cpu,ram,disk,gpu,vram,net,temp,spark,startup,safe,floatAboveStart,ramNumeric,diskNumeric,flyout,hoverAll,autoCheckUpdates,tempAlerts,tempNotifications,adaptiveBattery,followWindowsTheme;
         private CheckedListBox cpuList,gpuList,diskList,netList;
         private Label updateCurrent,updateLatest,updateStatus;
@@ -7250,11 +7280,25 @@ namespace TaskbarMonitorEnhanced
 
             theme=Combo(display,"Theme",ThemeCatalog.Names,c.Theme,22);position=Combo(display,"Position",new string[]{"Left","Center","Right"},c.Position,68);
             taskbarDisplay=Combo(display,"Taskbar monitor",TaskbarTargetPolicy.SettingChoices(c.TaskbarDisplay),c.TaskbarDisplay,114);
-            opacity=Number(display,"Background opacity %",(decimal)(c.Opacity*100),0,100,160);width=Number(display,"Locked width px",c.MinWidthLogicalPx,900,1500,206);
-            Label glassNote=new Label{Text="0% = entirely clear background; all text stays visible. At 30% and below, text follows sampled taskbar brightness with contrast outlines. Windows High Contrast keeps the overlay opaque.",Location=new Point(24,374),Size=new Size(720,57),AutoEllipsis=false};display.Controls.Add(glassNote);
-            followWindowsTheme=Check(display,"Follow Windows app light/dark mode",c.FollowWindowsTheme,254);
-            windowsLightTheme=Combo(display,"Windows light theme",ThemeCatalog.Names,c.WindowsLightTheme,290);
-            windowsDarkTheme=Combo(display,"Windows dark theme",ThemeCatalog.Names,c.WindowsDarkTheme,332);
+            // R124: a separate binary slider/switch for glass, not a second opacity control.
+            Label glassLabel=new Label{Text="Glass mode",Location=new Point(24,164),Size=new Size(145,26)};
+            display.Controls.Add(glassLabel);
+            glassModeToggle=new TrackBar{Minimum=0,Maximum=1,TickStyle=TickStyle.None,
+                SmallChange=1,LargeChange=1,Location=new Point(180,156),Size=new Size(108,38),
+                Value=c.GlassMode?1:0};
+            SetA11y(glassModeToggle,"Glass mode switch","Slide right ON for 0% background and locked opacity; left OFF to restore your previous 1–100% value.");
+            display.Controls.Add(glassModeToggle);
+            lastOpacityPercent=Math.Max(1,Math.Min(100,(int)Math.Round(c.OpacityWhenGlassOff*100)));
+            opacity=Number(display,"Background opacity %",c.GlassMode?0:(decimal)(c.Opacity*100),0,100,216);
+            opacity.Enabled=!c.GlassMode;
+            opacity.ValueChanged+=delegate{if(opacity.Enabled&&opacity.Value>=1)lastOpacityPercent=(int)opacity.Value;};
+            glassModeToggle.ValueChanged+=delegate{SyncGlassOpacityUi();};
+            width=Number(display,"Locked width px",c.MinWidthLogicalPx,900,1500,266);
+            followWindowsTheme=Check(display,"Follow Windows app light/dark mode",c.FollowWindowsTheme,314);
+            windowsLightTheme=Combo(display,"Windows light theme",ThemeCatalog.Names,c.WindowsLightTheme,352);
+            windowsDarkTheme=Combo(display,"Windows dark theme",ThemeCatalog.Names,c.WindowsDarkTheme,390);
+            Label glassNote=new Label{Text="Glass switch ON: background opacity = 0% (locked), text and charts stay visible. OFF: opacity 1–100%, with the previous value restored. Windows High Contrast stays readable and opaque.",Location=new Point(24,432),Size=new Size(730,58),AutoEllipsis=false};
+            display.Controls.Add(glassNote);
             cpu=Check(metrics,"CPU",c.ShowCpu,24);ram=Check(metrics,"RAM",c.ShowRam,55);disk=Check(metrics,"Disk / storage",c.ShowDisk,86);gpu=Check(metrics,"GPU",c.ShowGpu,117);vram=Check(metrics,"VRAM",c.ShowVram,148);net=Check(metrics,"Network",c.ShowNetwork,179);temp=Check(metrics,"CPU/GPU temperature",c.ShowTemperatures,210);spark=Check(metrics,"Real sparklines",c.ShowSparklines,241);
 
             tempAlerts=Check(alerts,"Enable temperature warning highlights",c.EnableTemperatureAlerts,24);
@@ -7316,7 +7360,7 @@ namespace TaskbarMonitorEnhanced
             ModernizeSettingsPage(diagnostics,"Diagnostics","Inspect live health, copy reports and export support evidence.");
             ModernizeSettingsPage(advanced,"Advanced","Maintenance, logs and safe configuration reset.");
 
-            themePreview=new ThemePreviewControl(themePreviewRenderer);themePreview.Location=new Point(24,390);themePreview.Size=new Size(650,132);themePreview.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;display.AutoScrollMinSize=new Size(760,565);display.Controls.Add(themePreview);themePreview.BringToFront();
+            themePreview=new ThemePreviewControl(themePreviewRenderer);themePreview.Location=new Point(24,500);themePreview.Size=new Size(650,132);themePreview.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;display.AutoScrollMinSize=new Size(760,680);display.Controls.Add(themePreview);themePreview.BringToFront();
             theme.SelectedIndexChanged+=delegate{UpdateThemeModeUi();};windowsLightTheme.SelectedIndexChanged+=delegate{UpdateThemeModeUi();};windowsDarkTheme.SelectedIndexChanged+=delegate{UpdateThemeModeUi();};followWindowsTheme.CheckedChanged+=delegate{UpdateThemeModeUi();};UpdateThemeModeUi();
             EnsureAccessibilityMetadata(this);
 
@@ -7502,6 +7546,22 @@ namespace TaskbarMonitorEnhanced
                 return WindowsThemePolicy.AppsUseLightTheme()?Convert.ToString(windowsLightTheme.SelectedItem,CultureInfo.InvariantCulture):Convert.ToString(windowsDarkTheme.SelectedItem,CultureInfo.InvariantCulture);
             return Convert.ToString(theme.SelectedItem,CultureInfo.InvariantCulture);
         }
+        private void SyncGlassOpacityUi()
+        {
+            if(glassModeToggle==null || opacity==null)return;
+            if(glassModeToggle.Value==1)
+            {
+                if(opacity.Enabled && opacity.Value>0)lastOpacityPercent=(int)opacity.Value;
+                opacity.Enabled=false;
+                opacity.Value=0;
+            }
+            else
+            {
+                opacity.Enabled=true;
+                if(opacity.Value==0)
+                    opacity.Value=Math.Max(1,Math.Min(100,lastOpacityPercent));
+            }
+        }
         private void UpdateThemeModeUi()
         {
             if(theme==null)return;bool follow=followWindowsTheme!=null&&followWindowsTheme.Checked;
@@ -7515,7 +7575,7 @@ namespace TaskbarMonitorEnhanced
             {
                 Control c0=stack.Pop();foreach(Control child in c0.Controls)stack.Push(child);
                 bool internalChild=c0.Parent is NumericUpDown||c0.Parent is ComboBox||c0.Parent is CheckedListBox;
-                bool relevant=!internalChild&&(c0 is Button||c0 is ComboBox||c0 is NumericUpDown||c0 is CheckBox||c0 is CheckedListBox||c0 is TextBox);
+                bool relevant=!internalChild&&(c0 is Button||c0 is ComboBox||c0 is NumericUpDown||c0 is CheckBox||c0 is TrackBar||c0 is CheckedListBox||c0 is TextBox);
                 if(!relevant)continue;interactive++;
                 if(String.IsNullOrWhiteSpace(c0.AccessibleName))
                 {
@@ -7751,7 +7811,11 @@ namespace TaskbarMonitorEnhanced
                 if(!String.IsNullOrWhiteSpace(backup))Log.Write("INFO","CONFIG_SAFE_RESET_BACKUP "+backup);
 
                 AppConfig d=new AppConfig();d.Normalize();
-                theme.SelectedItem=d.Theme;position.SelectedItem=d.Position;opacity.Value=(decimal)(d.Opacity*100);width.Value=d.MinWidthLogicalPx;
+                theme.SelectedItem=d.Theme;position.SelectedItem=d.Position;
+                lastOpacityPercent=Math.Max(1,Math.Min(100,(int)Math.Round(d.OpacityWhenGlassOff*100)));
+                glassModeToggle.Value=0;opacity.Enabled=true;opacity.Value=lastOpacityPercent;
+                glassModeToggle.Value=d.GlassMode?1:0;SyncGlassOpacityUi();
+                width.Value=d.MinWidthLogicalPx;
                 cpu.Checked=d.ShowCpu;ram.Checked=d.ShowRam;disk.Checked=d.ShowDisk;gpu.Checked=d.ShowGpu;vram.Checked=d.ShowVram;net.Checked=d.ShowNetwork;temp.Checked=d.ShowTemperatures;spark.Checked=d.ShowSparklines;
                 cpuMode.SelectedItem=d.CpuDisplayMode;gpuMode.SelectedItem=d.GpuDisplayMode;diskMode.SelectedItem=d.DiskDisplayMode;netMode.SelectedItem=d.NetworkDisplayMode;multiLayout.SelectedItem=d.MultipleDeviceLayout;
                 memoryUnit.SelectedItem=d.MemoryUnit;storageUnit.SelectedItem=d.StorageUnit;diskRateUnit.SelectedItem=d.DiskRateUnit;networkUnit.SelectedItem=d.NetworkUnit;
@@ -7824,7 +7888,11 @@ namespace TaskbarMonitorEnhanced
         private CheckBox Check(Control p,string label,bool val,int y){CheckBox x=new CheckBox();x.Text=label;SetA11y(x,label,"Toggle "+label+".");x.Checked=val;x.Location=new Point(24,y);x.AutoSize=true;p.Controls.Add(x);return x;}
         private void Apply()
         {
-            c.Theme=(string)theme.SelectedItem;c.Position=(string)position.SelectedItem;c.Opacity=(double)opacity.Value/100.0;c.MinWidthLogicalPx=(int)width.Value;c.UpdateIntervalMs=(int)interval.Value;c.ShowCpu=cpu.Checked;c.ShowRam=ram.Checked;c.ShowDisk=disk.Checked;c.ShowGpu=gpu.Checked;c.ShowVram=vram.Checked;c.ShowNetwork=net.Checked;c.ShowTemperatures=temp.Checked;c.ShowSparklines=spark.Checked;c.StartWithWindows=startup.Checked;c.SafePlacement=safe.Checked;c.FloatAboveStartMenu=floatAboveStart.Checked;
+            c.Theme=(string)theme.SelectedItem;c.Position=(string)position.SelectedItem;
+            c.GlassMode=glassModeToggle.Value==1;
+            c.OpacityWhenGlassOff=Math.Max(0.01,lastOpacityPercent/100.0);
+            c.Opacity=c.GlassMode?0.0:(double)opacity.Value/100.0;
+            c.MinWidthLogicalPx=(int)width.Value;c.UpdateIntervalMs=(int)interval.Value;c.ShowCpu=cpu.Checked;c.ShowRam=ram.Checked;c.ShowDisk=disk.Checked;c.ShowGpu=gpu.Checked;c.ShowVram=vram.Checked;c.ShowNetwork=net.Checked;c.ShowTemperatures=temp.Checked;c.ShowSparklines=spark.Checked;c.StartWithWindows=startup.Checked;c.SafePlacement=safe.Checked;c.FloatAboveStartMenu=floatAboveStart.Checked;
             c.CpuDisplayMode=(string)cpuMode.SelectedItem;c.GpuDisplayMode=(string)gpuMode.SelectedItem;c.DiskDisplayMode=(string)diskMode.SelectedItem;c.NetworkDisplayMode=(string)netMode.SelectedItem;c.SelectedCpuIds=CheckedIds(cpuList);c.SelectedGpuIds=CheckedIds(gpuList);c.SelectedDiskIds=CheckedIds(diskList);c.SelectedNetworkIds=CheckedIds(netList);c.MultipleDeviceLayout=(string)multiLayout.SelectedItem;c.MemoryUnit=(string)memoryUnit.SelectedItem;c.StorageUnit=(string)storageUnit.SelectedItem;c.DiskRateUnit=(string)diskRateUnit.SelectedItem;c.NetworkUnit=(string)networkUnit.SelectedItem;c.ShowRamNumeric=ramNumeric.Checked;c.ShowDiskNumeric=diskNumeric.Checked;c.EnableHardwareFlyout=flyout.Checked;c.HoverShowAllDevices=hoverAll.Checked;c.AutoCheckUpdates=autoCheckUpdates.Checked;
             c.EnableTemperatureAlerts=tempAlerts.Checked;c.EnableTemperatureNotifications=tempNotifications.Checked;c.CpuTempWarningC=(int)cpuWarn.Value;c.GpuTempWarningC=(int)gpuWarn.Value;c.DiskTempWarningC=(int)diskWarn.Value;c.AdaptiveBatteryMode=adaptiveBattery.Checked;c.BatteryUpdateIntervalMs=(int)batteryInterval.Value;c.SparklineHistoryLength=(int)historyLength.Value;c.FollowWindowsTheme=followWindowsTheme.Checked;c.WindowsLightTheme=Convert.ToString(windowsLightTheme.SelectedItem,CultureInfo.InvariantCulture);c.WindowsDarkTheme=Convert.ToString(windowsDarkTheme.SelectedItem,CultureInfo.InvariantCulture);c.TaskbarDisplay=TaskbarTargetPolicy.NormalizeConfigId(Convert.ToString(taskbarDisplay.SelectedItem,CultureInfo.InvariantCulture));
         }
