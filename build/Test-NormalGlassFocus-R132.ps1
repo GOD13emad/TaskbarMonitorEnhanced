@@ -50,6 +50,7 @@ public static class R132Native
  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd,out uint pid);
  [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc func,IntPtr p);
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+ [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT p);
  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
  [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT point);
  [StructLayout(LayoutKind.Sequential)] public struct POINT{public int X,Y;}
@@ -211,20 +212,46 @@ try{
   $normal+=@($form)
   $form.Show()
   [Windows.Forms.Application]::DoEvents()
-  [void]([R132Native]::RealTitleClick(($form.Left+120),($form.Top+15)))
-  Start-Sleep -Milliseconds 1450
-  [Windows.Forms.Application]::DoEvents()
-  if([R132Native]::GetForegroundWindow() -ne $form.Handle){
-   throw ('R132_REAL_USER_ORDINARY_WINDOW_FOREGROUND_MISSING '+$index)
+  $nativeInputCount=0;$attempts=0;$titleHitCount=0;$userForeground=$false
+  for($try=0;$try -lt 4;$try++){
+   $form.BringToFront();$form.Activate()
+   [Windows.Forms.Application]::DoEvents()
+   Start-Sleep -Milliseconds 110
+   $point=[R132Native+POINT]::new()
+   $point.X=$form.Left+120;$point.Y=$form.Top+15
+   if([R132Native]::WindowFromPoint($point) -ne $form.Handle){continue}
+   $titleHitCount++
+   $nativeInputCount+=[R132Native]::RealTitleClick($point.X,$point.Y)
+   $attempts++
+   Start-Sleep -Milliseconds 350
+   [Windows.Forms.Application]::DoEvents()
+   if([R132Native]::GetForegroundWindow() -eq $form.Handle){
+    $userForeground=$true;break
+   }
   }
+  if(!$userForeground -or $attempts -lt 1 -or
+     $nativeInputCount -ne (2*$attempts) -or $titleHitCount -lt 1){
+   throw ('R134_REAL_USER_TITLE_FOREGROUND_REFUSED INDEX='+$index+
+    ' ATTEMPTS='+$attempts+' REAL_HITS='+$titleHitCount+
+    ' NATIVE_EVENTS='+$nativeInputCount+
+    ' CURRENT_FG='+([R132Native]::GetForegroundWindow().ToInt64())+
+    ' TARGET='+$form.Handle.ToInt64())
+  }
+  Start-Sleep -Milliseconds 550
+  [Windows.Forms.Application]::DoEvents()
   $nowRect=[R132Native+RECT]::new()
   $alive=[R132Native]::IsWindow($found)
   $visible=$alive -and [R132Native]::IsWindowVisible($found)
   $rectKnown=$alive -and [R132Native]::GetWindowRect($found,[ref]$nowRect)
   $exNow=if($alive){[R132Native]::GetWindowLongPtr($found,[R132Native]::GWL_EXSTYLE).ToInt64()}else{0L}
+  # R133 native evidence: published taskbar anchor never moved up, while
+  # bounded content width adapted from 279 to 320. Require same X/Y/height
+  # and constrain both widths to real taskbar; never ignore a vertical lift.
   $sameRect=$rectKnown -and $nowRect.Left -eq $rect.Left -and
-    $nowRect.Top -eq $rect.Top -and $nowRect.Width -eq $rect.Width -and
-    $nowRect.Height -eq $rect.Height
+    $nowRect.Top -eq $rect.Top -and $nowRect.Height -eq $rect.Height -and
+    $nowRect.Width -ge 180 -and [Math]::Abs($nowRect.Width-$rect.Width) -le 96 -and
+    $nowRect.Left -ge $tray.Left -and $nowRect.Right -le $tray.Right -and
+    $nowRect.Top -ge $tray.Top -and $nowRect.Bottom -le $tray.Bottom
   if(!$alive -or !$visible -or !$sameRect -or
      (($exNow -band [R132Native]::REQUIRED) -ne [R132Native]::REQUIRED)){
    # First-failure native receipt evidence. Do NOT repair/change the window
@@ -243,12 +270,30 @@ try{
   try{$ink=Get-PhysicalInk $pic}finally{$pic.Dispose()}
   $afterEdgeH=$ink.HorizontalEdges;$afterEdgeV=$ink.VerticalEdges
   $afterEdgeRows=$ink.EdgeRows
+  # Also inspect the COMPLETE real HWND rectangle after adaptive content width.
+  $fullPath=Join-Path $out ('R134_COMPLETE_OVERLAY_'+$index+'.png')
+  Snapshot $fullPath $nowRect
+  $full=[Drawing.Bitmap]::new($fullPath)
+  try{$fullInk=Get-PhysicalInk $full}finally{$full.Dispose()}
+  if(!$fullInk.RealInk){
+   throw ('R134_COMPLETE_ACTUAL_HWND_PHYSICAL_INK_MISSING '+$index)
+  }
   $screens+=@([ordered]@{
    Index=$index;ForegroundHwnd=$form.Handle.ToInt64()
    ForegroundType='real ordinary WinForms form, TopMost=false'
    ColoredPixels=$ink.Colored;HorizontalEdges=$ink.HorizontalEdges
    VerticalEdges=$ink.VerticalEdges;EdgeRows=$ink.EdgeRows
    RealInk=$ink.RealInk
+   NativeInputEvents=$nativeInputCount;ClickAttempts=$attempts
+   ExactTitleNativeHit=($titleHitCount -ge 1)
+   OverlayRectAfter=@($nowRect.Left,$nowRect.Top,$nowRect.Width,$nowRect.Height)
+   NativeExStyleAfter=$exNow
+   FullOverlayPng=(Split-Path $fullPath -Leaf)
+   FullOverlaySha256=(Get-FileHash $fullPath -Algorithm SHA256).Hash
+   FullOverlayColoredPixels=$fullInk.Colored
+   FullOverlayHorizontalEdges=$fullInk.HorizontalEdges
+   FullOverlayVerticalEdges=$fullInk.VerticalEdges
+   FullOverlayEdgeRows=$fullInk.EdgeRows
    PhysicalPng=(Split-Path $path -Leaf)
    PngSha256=(Get-FileHash $path -Algorithm SHA256).Hash
   })

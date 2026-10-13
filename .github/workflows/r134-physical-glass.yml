@@ -1,0 +1,165 @@
+name: R134 Real Native Glass Foreground And Stable v1.7.1 Upgrade
+
+on:
+  push:
+    branches:
+      - audit/r134-physical-focus-adaptive-layout
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-private:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Fresh checkout at exact source commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.400
+      - name: Strict source and no-install preflight
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA) {throw 'R129 commit does not match trigger'}
+          ./build/Test-Stable170-InPlace-R126.ps1 -StaticOnly
+          git diff --check HEAD
+          if ($LASTEXITCODE -ne 0) {throw 'R129 parser or whitespace'}
+      - name: Deterministic exact candidate build and independent Main payload verifier
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Build.ps1
+          $main=(Get-FileHash ./build/_out/App/TaskbarMonitorEnhanced.exe -Algorithm SHA256).Hash
+          $setup=(Get-FileHash ./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.1.exe -Algorithm SHA256).Hash
+          if ($main -cne 'D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420' -or
+              $setup -cne 'C03B09B7D740F5BFFAE3CF586DB0BD37384307629ABB3B29A0F564F1901732CF') {
+            throw ('R129 private candidate SHA mismatch Main='+$main+' Setup='+$setup)
+          }
+          ./build/Test-Signed-Payload-Contract.ps1
+          ./build/Test-StateUpgrade-R128.ps1
+          ./build/Test-StableSource-R131.ps1
+          ./build/Test-NormalGlassFocus-R132.ps1 -StaticOnly
+          $ts=$null;$es=$null
+          [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path './build/Verify-NormalGlassFocus-R132.ps1').Path,[ref]$ts,[ref]$es)
+          if (@($es).Count -ne 0) { throw 'R132 independent physical PNG verifier does not parse' }
+          if ($LASTEXITCODE -ne 0) {throw 'R131 private compiled stable root policy refused'}
+          if ($LASTEXITCODE -ne 0) {throw 'R129 exact candidate JSON upgrade contract failed'}
+          if ($LASTEXITCODE -ne 0) {throw 'R129 independent Main resource verifier failed'}
+          Write-Output ('R129_PRIVATE_BINARIES_SOURCE_EXACT MAIN='+$main+' SETUP='+$setup)
+      - name: Transfer exact private binary candidate; never publish
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: R134-exact-private-binaries
+          retention-days: 21
+          if-no-files-found: error
+          path: |
+            build/_out/App/TaskbarMonitorEnhanced.exe
+            build/_out/App/TaskbarMonitorEnhanced.exe.config
+            build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.1.exe
+
+  installed-stable-upgrade:
+    needs: build-private
+    name: Independent real public 1.7.0 -> 1.7.1 update (${{ matrix.host }})
+    runs-on: windows-latest
+    timeout-minutes: 24
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [A, B]
+    steps:
+      - name: Fresh Windows source checkout no persistent GitHub credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Transfer private Main and Setup without any build on this install test VM
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: R134-exact-private-binaries
+          path: build/_out
+      - name: Reject pre-existing application data, process and registry; exact binary SHA
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_SHA -cnotmatch '^[0-9a-f]{40}$') {
+            throw 'R129 must not access personal machine'
+          }
+          $app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
+          $reg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
+          $processes=@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue)
+          if((Test-Path $app) -or (Test-Path $reg) -or $processes.Count -gt 0){
+            throw ('R129 native VM not clean App='+[bool](Test-Path $app)+
+               ' Reg='+[bool](Test-Path $reg)+' Processes='+$processes.Count)
+          }
+          if((Get-FileHash ./build/_out/App/TaskbarMonitorEnhanced.exe -Algorithm SHA256).Hash -cne
+                'D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420' -or
+             (Get-FileHash ./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.1.exe -Algorithm SHA256).Hash -cne
+                'C03B09B7D740F5BFFAE3CF586DB0BD37384307629ABB3B29A0F564F1901732CF'){
+            throw 'R129 private installed candidate bytes drift'
+          }
+          ./build/Test-Stable170-InPlace-R126.ps1 -StaticOnly
+          Write-Output 'R129_FRESH_DISPOSABLE_WINDOWS_PRESTATE_PASS'
+      - name: True public 1.7.0 in-place preservation, rejected edit, repeat, no downgrade
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $env:TBME_R131_ROOT_SCENARIO='${{ matrix.host }}'
+          ./build/Test-Stable170-InPlace-R126.ps1
+          $f=Join-Path $env:RUNNER_TEMP 'TBME_R126_STABLE_UPDATE/R126_STABLE_UPDATE_RECEIPT.json'
+          if (!(Test-Path $f -PathType Leaf)){throw 'R129 native update receipt missing'}
+          $r=Get-Content $f -Raw|ConvertFrom-Json
+          if($r.EventCommit -cne $env:GITHUB_SHA -or
+             $r.Status -cne 'PASS_REAL_PUBLIC_STABLE_V170_TO_PATCH_V171_SINGLE_ROOT' -or
+             $r.NegativeEdit -cne 'PASS_REFUSED_EDIT_WITHOUT_OVERWRITE' -or
+             $r.Upgrade -cne 'PASS_OFFICIAL_V170_TO_V171_SAME_ROOT_EXACT_USER_SHAS' -or
+             $r.Idempotence -cne 'PASS_IDEMPOTENT_NO_USER_CHANGE' -or
+             $r.Downgrade -cne 'PASS_NO_DOWNGRADE' -or
+             $r.PersonalInstallTouched -ne $false -or
+             $r.R131RootScenario -cne '${{ matrix.host }}' -or
+             $r.R131HistoricalSourcePreserved -ne $true -or
+             $r.R131RootDisposition -cnotin @('PRESENT_EXACT_OFFICIAL_SHA','ABSENT_SHA_BACKED_IN_DISPOSABLE_RUNNER')) {throw 'R129 native upgrade acceptance incomplete'}
+          Write-Output ('R129_NATIVE_PUBLIC_STABLE_UPDATE_PASS HOST=${{ matrix.host }} RECEIPT_SHA256='+
+            (Get-FileHash $f -Algorithm SHA256).Hash)
+      - name: R132 genuine topmost taskbar ink after two normal foreground windows, glass 0 percent
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows') {throw 'R132 personal/unknown Windows host refused'}
+          $app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
+          $main=Join-Path $app 'TaskbarMonitorEnhanced.exe'
+          if((Get-FileHash -LiteralPath $main -Algorithm SHA256).Hash -cne
+                'D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420'){
+            throw 'R132 not running exactly upgraded official Stable candidate'
+          }
+          pwsh.exe -NoProfile -STA -NonInteractive -File ./build/Test-NormalGlassFocus-R132.ps1
+          if($LASTEXITCODE -ne 0){throw 'R132 real normal foreground glass not verified'}
+          $manifest=Join-Path $env:RUNNER_TEMP 'TBME_R132_GLASS_FOCUS/R132_NORMAL_WINDOW_GLASS.json'
+          ./build/Verify-NormalGlassFocus-R132.ps1 -ReceiptPath $manifest -ExpectedCommit $env:GITHUB_SHA -ExpectedMainSha256 'D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420' -ExpectedHost '${{ matrix.host }}' -SelfTest
+          if($LASTEXITCODE -ne 0){throw 'R132 independent actual screenshot HSV acceptance failed'}
+          Write-Output ('R132_NATIVE_FOREGROUND_PLUS_GLASS_ACCEPTED HOST=${{ matrix.host }} SHA256='+(Get-FileHash $manifest -Algorithm SHA256).Hash)
+      - name: Preserve exact R132 physical native screen and independent receipt, even on failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: R134-physical-glass-${{ matrix.host }}
+          retention-days: 21
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/TBME_R132_GLASS_FOCUS/**
+      - name: Preserve exact native receipt even when upgrade fails
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: R134-public-stable-inplace-${{ matrix.host }}
+          retention-days: 21
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/TBME_R126_STABLE_UPDATE/**
+            ${{ runner.temp }}/TBME_R126_STABLE_UPDATE/R129_DIAG_*.txt

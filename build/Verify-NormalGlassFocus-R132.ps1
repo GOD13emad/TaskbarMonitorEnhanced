@@ -88,6 +88,26 @@ function Check-R132Receipt($item){
      $s.PngSha256 -cnotmatch '^[0-9A-F]{64}$'){
     $reasons.Add('R132_REAL_USER_FOREGROUND_OR_PHYSICAL_PNG_'+($i+1))
   }
+  $actual=@($s.OverlayRectAfter)
+  if($actual.Count -ne 4 -or
+     $s.NativeInputEvents -ne (2*$s.ClickAttempts) -or
+     $s.ClickAttempts -lt 1 -or $s.ClickAttempts -gt 4 -or
+     $s.ExactTitleNativeHit -ne $true -or
+     ([long]$s.NativeExStyleAfter -band $style) -ne $style -or
+     $s.FullOverlayPng -cne ('R134_COMPLETE_OVERLAY_'+($i+1)+'.png') -or
+     $s.FullOverlaySha256 -cnotmatch '^[0-9A-F]{64}$' -or
+     $s.FullOverlayHorizontalEdges -lt 140 -or $s.FullOverlayVerticalEdges -lt 80){
+   $reasons.Add('R134_NATIVE_INPUT_AND_FULL_HWND_INK_MISSING_'+($i+1))
+  }else{
+   if($actual[0] -ne $overlay[0] -or $actual[1] -ne $overlay[1] -or
+      $actual[3] -ne $overlay[3] -or $actual[2] -lt 180 -or
+      [Math]::Abs($actual[2]-$overlay[2]) -gt 96 -or
+      $actual[0] -lt $task[0] -or $actual[1] -lt $task[1] -or
+      $actual[0]+$actual[2] -gt $task[0]+$task[2] -or
+      $actual[1]+$actual[3] -gt $task[1]+$task[3]){
+     $reasons.Add('R134_MOVED_OUTSIDE_TASKBAR_OR_UNBOUNDED_WIDTH_'+($i+1))
+   }
+  }
   $handles+=@($s.ForegroundHwnd)
  }
  if($handles[0] -eq $handles[1]){
@@ -120,7 +140,22 @@ if($SelfTest){
    throw ('R132_HOSTILE_RECEIPT_ACCEPTED '+$m.Property)
   }
  }
- Write-Output 'R132_THIRTEEN_HOSTILE_FOREGROUND_AND_GLASS_RECEIPT_MUTANTS_REJECTED'
+ $extra=[ordered]@{}
+ $h=($r|ConvertTo-Json -Depth 14|ConvertFrom-Json)
+ $h.ForegroundWindows[0].ClickAttempts=0
+ $extra['ZERO_NATIVE_USER_CLICKS']=$h
+ $h=($r|ConvertTo-Json -Depth 14|ConvertFrom-Json)
+ $h.ForegroundWindows[0].OverlayRectAfter[1]=[int]$h.ForegroundWindows[0].OverlayRectAfter[1]+10
+ $extra['VERTICAL_TASKBAR_LIFT']=$h
+ $h=($r|ConvertTo-Json -Depth 14|ConvertFrom-Json)
+ $h.ForegroundWindows[1].FullOverlaySha256=('0'*64)
+ $extra['FORGED_FULL_HWND_IMAGE_SHA']=$h
+ foreach($item in $extra.GetEnumerator()){
+  if(@(Check-R132Receipt $item.Value).Count -eq 0){
+   throw ('R134_HOSTILE_NATIVE_WINDOW_RECEIPT_ACCEPTED '+$item.Key)
+  }
+ }
+ Write-Output 'R134_SIXTEEN_HOSTILE_PHYSICAL_GLASS_RECEIPT_MUTANTS_REJECTED'
 }
 $dir=Split-Path -Parent ([IO.Path]::GetFullPath($ReceiptPath))
 Add-Type -AssemblyName System.Drawing
@@ -153,9 +188,11 @@ function PhysicalInk([Drawing.Bitmap]$bitmap){
  }
 }
 $paths=@(
- @{Name='R132_BEFORE_ORDINARY_WINDOW.png';Sha=$r.FirstScreenshotSha256;Count=$r.BeforeColored;Horizontal=$r.BeforeHorizontalEdges;Vertical=$r.BeforeVerticalEdges;Rows=$r.BeforeEdgeRows},
- @{Name='R132_NORMAL_FOCUS_1.png';Sha=$r.ForegroundWindows[0].PngSha256;Count=$r.ForegroundWindows[0].ColoredPixels;Horizontal=$r.ForegroundWindows[0].HorizontalEdges;Vertical=$r.ForegroundWindows[0].VerticalEdges;Rows=$r.ForegroundWindows[0].EdgeRows},
- @{Name='R132_NORMAL_FOCUS_2.png';Sha=$r.ForegroundWindows[1].PngSha256;Count=$r.ForegroundWindows[1].ColoredPixels;Horizontal=$r.ForegroundWindows[1].HorizontalEdges;Vertical=$r.ForegroundWindows[1].VerticalEdges;Rows=$r.ForegroundWindows[1].EdgeRows}
+ @{Name='R132_BEFORE_ORDINARY_WINDOW.png';Sha=$r.FirstScreenshotSha256;Count=$r.BeforeColored;Horizontal=$r.BeforeHorizontalEdges;Vertical=$r.BeforeVerticalEdges;Rows=$r.BeforeEdgeRows;Width=$r.OverlayRect[2];Height=$r.OverlayRect[3]},
+ @{Name='R132_NORMAL_FOCUS_1.png';Sha=$r.ForegroundWindows[0].PngSha256;Count=$r.ForegroundWindows[0].ColoredPixels;Horizontal=$r.ForegroundWindows[0].HorizontalEdges;Vertical=$r.ForegroundWindows[0].VerticalEdges;Rows=$r.ForegroundWindows[0].EdgeRows;Width=$r.OverlayRect[2];Height=$r.OverlayRect[3]},
+ @{Name='R132_NORMAL_FOCUS_2.png';Sha=$r.ForegroundWindows[1].PngSha256;Count=$r.ForegroundWindows[1].ColoredPixels;Horizontal=$r.ForegroundWindows[1].HorizontalEdges;Vertical=$r.ForegroundWindows[1].VerticalEdges;Rows=$r.ForegroundWindows[1].EdgeRows;Width=$r.OverlayRect[2];Height=$r.OverlayRect[3]},
+ @{Name='R134_COMPLETE_OVERLAY_1.png';Sha=$r.ForegroundWindows[0].FullOverlaySha256;Count=$r.ForegroundWindows[0].FullOverlayColoredPixels;Horizontal=$r.ForegroundWindows[0].FullOverlayHorizontalEdges;Vertical=$r.ForegroundWindows[0].FullOverlayVerticalEdges;Rows=$r.ForegroundWindows[0].FullOverlayEdgeRows;Width=$r.ForegroundWindows[0].OverlayRectAfter[2];Height=$r.ForegroundWindows[0].OverlayRectAfter[3]},
+ @{Name='R134_COMPLETE_OVERLAY_2.png';Sha=$r.ForegroundWindows[1].FullOverlaySha256;Count=$r.ForegroundWindows[1].FullOverlayColoredPixels;Horizontal=$r.ForegroundWindows[1].FullOverlayHorizontalEdges;Vertical=$r.ForegroundWindows[1].FullOverlayVerticalEdges;Rows=$r.ForegroundWindows[1].FullOverlayEdgeRows;Width=$r.ForegroundWindows[1].OverlayRectAfter[2];Height=$r.ForegroundWindows[1].OverlayRectAfter[3]}
 )
 $bitmaps=@()
 try{
@@ -169,7 +206,7 @@ try{
   }
   $b=[Drawing.Bitmap]::new($f)
   $bitmaps+=@($b)
-  if($b.Width -ne $r.OverlayRect[2] -or $b.Height -ne $r.OverlayRect[3]){
+  if($b.Width -ne $entry.Width -or $b.Height -ne $entry.Height){
    throw ('R132_PHYSICAL_SCREENSHOT_NOT_REAL_NATIVE_RECT '+$entry.Name)
   }
   $physical=PhysicalInk $b
