@@ -42,7 +42,7 @@ jobs:
             throw ('R129 private candidate SHA mismatch Main='+$main+' Setup='+$setup)
           }
           ./build/Test-Signed-Payload-Contract.ps1
-          ./build/Test-StateUpgrade-R129.ps1
+          ./build/Test-StateUpgrade-R128.ps1
           if ($LASTEXITCODE -ne 0) {throw 'R129 exact candidate JSON upgrade contract failed'}
           if ($LASTEXITCODE -ne 0) {throw 'R129 independent Main resource verifier failed'}
           Write-Output ('R129_PRIVATE_BINARIES_SOURCE_EXACT MAIN='+$main+' SETUP='+$setup)
