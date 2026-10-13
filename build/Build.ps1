@@ -152,7 +152,7 @@ if([string]$v.Status -ne 'PASS' -or [int]$v.Resources -ne 25 -or $v.PawnIOBundle
 if($LASTEXITCODE -ne 0){throw 'Application contract suite failed.'}
 
 $manifest=[ordered]@{
-    Version='1.7.0'
+    Version='1.7.1'
     Build='V1_7_1_R126_GLASS_FIX'
     GeneratedUtc=[datetime]::UtcNow.ToString('o')
     Dependencies=[ordered]@{
