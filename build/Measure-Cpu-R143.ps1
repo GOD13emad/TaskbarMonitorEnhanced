@@ -43,8 +43,29 @@ try{
  $exe=Join-Path $app 'TaskbarMonitorEnhanced.exe'
  $state=Join-Path $app 'install_state.json'
  $config=Join-Path $app 'config.json'
- if(!(Test-Path $state -PathType Leaf) -or
-   (Get-FileHash $exe -Algorithm SHA256).Hash -cne $mainSHA){throw 'R143_INSTALLED_MAIN_SHA_OR_STATE_DRIFT'}
+ # Second identical hosted failure: diagnose before any more fixture changes.
+ # Display exact state identity, even when it is absent; never guess another root.
+ $existsMain=Test-Path -LiteralPath $exe -PathType Leaf
+ $existsState=Test-Path -LiteralPath $state -PathType Leaf
+ $installedSHA=if($existsMain){(Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash}else{'MISSING'}
+ $knownRoot=[IO.Path]::Combine(
+   [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData),
+   'TaskbarMonitorEnhanced')
+ $installedRegistry=Get-ItemProperty $reg -ErrorAction SilentlyContinue
+ $regVersion=if($null -ne $installedRegistry){[string]$installedRegistry.DisplayVersion}else{'MISSING'}
+ $regRoot=if($null -ne $installedRegistry){[string]$installedRegistry.InstallLocation}else{'MISSING'}
+ Write-Output ('R143_HOST_INSTALL_FORENSICS MAIN_EXISTS='+$existsMain+
+   ' MAIN_SHA='+$installedSHA+' STATE_EXISTS='+$existsState+
+   ' SCRIPT_ROOT='+$app+' SETUP_SPECIAL_FOLDER_ROOT='+$knownRoot+
+   ' REG_VERSION='+$regVersion+
+   ' REG_INSTALL_PATH='+$regRoot+
+   ' MAIN_SIZE='+$(if($existsMain){(Get-Item $exe).Length}else{0}))
+ if(!$existsMain -or !$existsState -or $installedSHA -cne $mainSHA){
+   throw ('R143_HOSTED_INSTALL_UNRECOGNIZED_MAIN_OR_STATE MAIN_EXISTS='+$existsMain+
+    ' MAIN_SHA='+$installedSHA+' STATE_EXISTS='+$existsState+
+    ' REG_VERSION='+$regVersion+
+    ' ROOTS_EQUAL='+($knownRoot -ceq $app))
+ }
  $s=Get-Content $state -Raw|ConvertFrom-Json
  if($s.Version -cne '1.7.1' -or $s.ProductIdentity -cne 'LOCKED'){throw 'R143_WRONG_INSTALLED_VERSION'}
  # Fresh official Setup intentionally does not create config until Main starts.
