@@ -112,13 +112,27 @@ try{
   $pct=if($mode -ceq 'plain1'){0.01}elseif($mode -ceq 'plain10'){0.10}elseif($mode -ceq 'glass0'){0.0}else{1.0}
   $fixture=@{Theme='Retro Terminal';Opacity=$pct;GlassMode=($mode -ceq 'glass0');OpacityWhenGlassOff=0.10;ConfigSchemaVersion=8;StartWithWindows=$false;ShowSparklines=$true;UpdateIntervalMs=1000}
   [IO.File]::WriteAllText($config,($fixture|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
-  $process=Start-Process -FilePath $main -WorkingDirectory $app -PassThru;Pump 5000
+  $process=Start-Process -FilePath $main -WorkingDirectory $app -PassThru
+  $readyClock=[Diagnostics.Stopwatch]::StartNew();$readyObservations=@()
+  Pump 5000 # Minimum warm-up remains; a single elapsed delay is NOT readiness.
   $monitor=[IntPtr]::Zero
-  foreach($h in [R146Native]::Owned([uint32]$process.Id,$taskbar)){
-   if(![R146Native]::IsWindowVisible($h)){continue};$r=Box $h
-   if($r.Width -ge 80 -and $r.Height -ge 16 -and $r.Height -lt 100 -and (Box $taskbar).Contains($r)){$monitor=$h;break}
-  }
-  if($monitor -eq [IntPtr]::Zero){throw ('R146_NATIVE_MONITOR_NOT_FOUND '+$mode)}
+  do{
+   $process.Refresh()
+   if($process.HasExited){throw ('R158_MAIN_EXITED_BEFORE_READY '+$mode+' CODE='+$process.ExitCode)}
+   $observed=@()
+   foreach($h in [R146Native]::Owned([uint32]$process.Id,$taskbar)){
+    $visible=[R146Native]::IsWindowVisible($h);$r=Box $h
+    $observed+=@{Handle=$h.ToInt64();Visible=$visible;Rect=@($r.X,$r.Y,$r.Width,$r.Height)}
+    if($visible -and $r.Width -ge 80 -and $r.Height -ge 16 -and $r.Height -lt 100 -and (Box $taskbar).Contains($r)){$monitor=$h;break}
+   }
+   if($readyObservations.Count -lt 12){$readyObservations+=@{ElapsedMs=$readyClock.ElapsedMilliseconds;Windows=$observed}}
+   if($monitor -eq [IntPtr]::Zero){Pump 200}
+  }while($monitor -eq [IntPtr]::Zero -and $readyClock.ElapsedMilliseconds -lt 20000)
+  $readyClock.Stop()
+  $ready=@{Mode=$mode;Pid=$process.Id;Ready=($monitor -ne [IntPtr]::Zero);ElapsedMilliseconds=$readyClock.ElapsedMilliseconds;HardDeadlineMs=20000;Observations=$readyObservations;ProductSourceChanged=$false}
+  [IO.File]::WriteAllText((Join-Path $out ('R158_READY_'+$mode+'.json')),($ready|ConvertTo-Json -Depth 9),[Text.UTF8Encoding]::new($false))
+  if($monitor -eq [IntPtr]::Zero){throw ('R158_NATIVE_WINDOW_NOT_READY_WITHIN_20_SECONDS '+$mode)}
+  Write-Output ('R158_NATIVE_READY MODE='+$mode+' PID='+$process.Id+' ELAPSED_MS='+$readyClock.ElapsedMilliseconds)
   $original=Box $monitor;$top=$true
   $evidence+=Capture $monitor ($mode+'_NORMAL')
   # Real right-click and invoke the actual installed product's Settings menu item.
