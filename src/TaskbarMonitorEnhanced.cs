@@ -33,18 +33,18 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Live system monitor integrated into the Windows taskbar")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.7.1+r126")]
+[assembly: AssemblyInformationalVersion("1.7.2+r155")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.7.1.0")]
-[assembly: AssemblyFileVersion("1.7.1.0")]
+[assembly: AssemblyVersion("1.7.2.0")]
+[assembly: AssemblyFileVersion("1.7.2.0")]
 
 namespace TaskbarMonitorEnhanced
 {
     internal static class BuildInfo
     {
-        public const string Version = "V1_7_1_R126_GLASS_FIX";
+        public const string Version = "V1_7_2_R155_TASKBAR_FIX";
         public const string Product = "Taskbar Monitor Enhanced";
-        public const string PublicVersion = "1.7.1";
+        public const string PublicVersion = "1.7.2";
         public const string ShortcutName = "Taskbar Monitor Enhanced";
         public const string ProductDescription = "Live system monitor integrated into the Windows taskbar";
         public const string Author = "Dr. Ali-Akbar Emadeddin";
@@ -3560,22 +3560,45 @@ namespace TaskbarMonitorEnhanced
             s=DeviceId(s);
             return Regex.IsMatch(s,@"^DISPLAY\d+$",RegexOptions.CultureInvariant)?s:PrimaryId;
         }
+        [DllImport("user32.dll",EntryPoint="FindWindowExW",CharSet=CharSet.Unicode,SetLastError=true)]
+        private static extern IntPtr FindTaskbarAfter(IntPtr parent,IntPtr after,string cls,string title);
+
+        private static void AddTaskbarIfValid(List<TaskbarTargetInfo> list,IntPtr h)
+        {
+            if(h==IntPtr.Zero||!Native.IsWindow(h)||list.Any(t=>t.Handle==h))return;
+            StringBuilder name=new StringBuilder(128);
+            Native.GetClassName(h,name,name.Capacity);string cls=name.ToString();
+            if(cls!="Shell_TrayWnd"&&cls!="Shell_SecondaryTrayWnd")return;
+            Native.RECT nr;if(!Native.GetWindowRect(h,out nr))return;
+            Rectangle r=nr.ToRectangle();if(r.Width<=0||r.Height<=0)return;
+            Screen screen=Screen.FromRectangle(r);
+            list.Add(new TaskbarTargetInfo{Handle=h,ClassName=cls,DeviceId=DeviceId(screen.DeviceName),Primary=screen.Primary,Bounds=r});
+        }
         public static List<TaskbarTargetInfo> Enumerate()
         {
             List<TaskbarTargetInfo> list=new List<TaskbarTargetInfo>();
             try
             {
-                Native.EnumWindows(delegate(IntPtr h,IntPtr l)
-                {
-                    StringBuilder b=new StringBuilder(128);Native.GetClassName(h,b,b.Capacity);string cls=b.ToString();
-                    if(!String.Equals(cls,"Shell_TrayWnd",StringComparison.Ordinal)&&!String.Equals(cls,"Shell_SecondaryTrayWnd",StringComparison.Ordinal))return true;
-                    Native.RECT nr;if(!Native.GetWindowRect(h,out nr))return true;Rectangle r=nr.ToRectangle();if(r.Width<=0||r.Height<=0)return true;
-                    Screen screen=Screen.FromRectangle(r);
-                    list.Add(new TaskbarTargetInfo{Handle=h,ClassName=cls,DeviceId=DeviceId(screen.DeviceName),Primary=screen.Primary,Bounds=r});
-                    return true;
-                },IntPtr.Zero);
+                Native.EnumWindows(delegate(IntPtr h,IntPtr l){AddTaskbarIfValid(list,h);return true;},IntPtr.Zero);
             }
             catch(Exception ex){Log.Write("WARN","TASKBAR_ENUM_FAIL "+ex.Message);}
+            // R152: EnumWindows is not an authoritative inventory of all shell
+            // surfaces on current Windows. A missing enumerated taskbar during
+            // Start must not destroy/reparent our valid owner relationship.
+            // Query the two known taskbar classes directly, validating class,
+            // native geometry and uniqueness. Visibility policy is separate.
+            try
+            {
+                AddTaskbarIfValid(list,Native.FindWindow("Shell_TrayWnd",null));
+                IntPtr after=IntPtr.Zero;
+                for(int i=0;i<16;i++)
+                {
+                    IntPtr next=FindTaskbarAfter(IntPtr.Zero,after,"Shell_SecondaryTrayWnd",null);
+                    if(next==IntPtr.Zero||next==after)break;
+                    AddTaskbarIfValid(list,next);after=next;
+                }
+            }
+            catch(Exception ex){Log.Write("WARN","TASKBAR_DIRECT_DISCOVERY_FAIL "+ex.Message);}
             return list.OrderByDescending(t=>t.Primary).ThenBy(t=>t.DeviceId,StringComparer.OrdinalIgnoreCase).ToList();
         }
         internal static TaskbarTargetInfo Select(string requested,IList<TaskbarTargetInfo> items)
@@ -4392,6 +4415,8 @@ namespace TaskbarMonitorEnhanced
         private ContextMenuStrip BuildMenu()
         {
             ContextMenuStrip m=new ContextMenuStrip();
+            m.Opened+=delegate{RefreshTaskbarPresentation(true);};
+            m.Closed+=delegate{RefreshTaskbarPresentation(true);};
             AddWorkspaceMenu(m);
             ToolStripMenuItem themes=new ToolStripMenuItem("Themes");
             foreach(string n in ThemeCatalog.Names)
@@ -4444,6 +4469,7 @@ namespace TaskbarMonitorEnhanced
                     settingsForm.Show();
                     settingsForm.BringToFront();
                     settingsForm.Activate();
+                    RefreshTaskbarPresentation(true);
 
                     Log.Write(
                         "INFO",
@@ -4506,6 +4532,7 @@ namespace TaskbarMonitorEnhanced
                 f.Show();
                 f.BringToFront();
                 f.Activate();
+                RefreshTaskbarPresentation(true);
 
                 Log.Write(
                     "INFO",
@@ -4776,7 +4803,9 @@ namespace TaskbarMonitorEnhanced
 
         private Bitmap RenderThemeDefinition(ThemeDefinition theme,int width,int height)
         {
-            width=Math.Max(320,width);height=Math.Max(32,height);
+            // R150: full, glyph and halo surfaces must share the exact native size.
+            // A preview-only 320px minimum here broke compact 279px taskbar rendering.
+            width=Math.Max(1,width);height=Math.Max(1,height);
             Bitmap bmp=new Bitmap(width,height,System.Drawing.Imaging.PixelFormat.Format32bppArgb);
             using(Graphics g=Graphics.FromImage(bmp))
             {
@@ -5288,6 +5317,7 @@ namespace TaskbarMonitorEnhanced
                 ScheduleRecovery("GLASS_TASKBAR_NOT_FOUND",500);
                 return;
             }
+            if(RefreshTaskbarPresentation(false))return;
             trayNotify=Native.FindDescendantByClass(taskbar,"TrayNotifyWnd");
             ResetPlacementStability("TOPLEVEL_GLASS_ATTACH");
             try
@@ -5316,6 +5346,7 @@ namespace TaskbarMonitorEnhanced
                         " previousLegacy="+priorLegacyAttributes);
                 }
                 TopMost=true;
+                EnsureTaskbarOwner(); // R151: stable owned popup, no late SetParent while Start is open.
                 PositionOverlay(true); // Taskbar-safe geometry, screen-relative (not child-relative).
                 if(expectedRect.Width<80)
                     throw new InvalidOperationException("No taskbar-safe placement for transparent overlay.");
@@ -5429,6 +5460,7 @@ namespace TaskbarMonitorEnhanced
             string resolvedTarget;IntPtr currentTaskbar=TaskbarTargetPolicy.Resolve(config,out resolvedTarget);
             if(currentTaskbar==IntPtr.Zero)return;
             taskbar=currentTaskbar;
+            if(RefreshTaskbarPresentation(false))return;
 
             if(expectedRect.Width>0 && IsTransientShellSurfaceActive())
                 return;
@@ -5525,8 +5557,6 @@ namespace TaskbarMonitorEnhanced
         // native ink visible again without recreating the whole OverlayForm.
         private bool startGlassTemporarilyFloating;
         private bool startGlassPinnedDuringShell;
-        private IntPtr lastGlassForeground=IntPtr.Zero;
-        private DateTime nextGlassForegroundRefreshAt=DateTime.MinValue;
         private Rectangle startGlassTemporaryBounds=Rectangle.Empty;
         private int startGlassLiftTransitions;
         private int startGlassReturnTransitions;
@@ -5694,127 +5724,10 @@ namespace TaskbarMonitorEnhanced
         {
             try
             {
-                // R118: exact v1.6 default UX: keep taskbar glass pinned under
-                // genuine Start/Search. Freeze transient shell placement scans,
-                // then re-show/recompose the original alpha-zero HWND only
-                // after Start has closed, without any 60px upward movement.
-                if(RequiresGlassTopLevel && !config.FloatAboveStartMenu &&
-                   !recoveryPending && taskbar!=IntPtr.Zero &&
-                   IsHandleCreated && Native.IsWindow(taskbar) &&
-                   expectedRect.Width>=AdaptiveProbeGeometry.MinSafeWidth)
-                {
-                    string startProc="",startClass="";
-                    IntPtr startWindow=IntPtr.Zero;
-                    bool shellIsOpen=ShellUi.IsStartShellForeground(
-                        out startProc,out startClass,out startWindow);
-                    if(!shellIsOpen)
-                    {
-                        Rectangle surfaceRect=Rectangle.Empty;
-                        shellIsOpen=ShellUi.IsStartSurfacePresent(
-                            out startProc,out startClass,out surfaceRect,out startWindow);
-                    }
-                    if(shellIsOpen)
-                    {
-                        if(!startGlassPinnedDuringShell)
-                            Log.Write("INFO","START_PINNED_NATIVE_PASS rect="+expectedRect+
-                                " shell="+startProc);
-                        startGlassPinnedDuringShell=true;
-                        return;
-                    }
-                    if(startGlassPinnedDuringShell)
-                    {
-                        startGlassPinnedDuringShell=false;
-                        lastUpstreamPositionAt=DateTime.UtcNow;
-                        lastPositionAt=DateTime.UtcNow;
-                        if(settingsForm==null || settingsForm.IsDisposed ||
-                           !settingsForm.Visible)
-                        {
-                            Hide();
-                            Show(); // restore physical alpha ink after Start.
-                            Native.SetWindowPos(Handle,Native.HWND_TOPMOST,
-                                expectedRect.X,expectedRect.Y,
-                                expectedRect.Width,expectedRect.Height,
-                                Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW);
-                            if(!PaintPerPixelLayer())
-                                Log.Write("WARN","START_PINNED_RESTORE_INK_UNAVAILABLE");
-                        }
-                        Log.Write("INFO","START_PINNED_RETURN_NATIVE_PASS rect="+expectedRect);
-                    }
-                }
-                // R113: the 500ms Windows Forms watchdog is UI-thread based.
-                // Under real Start foreground, prioritize the existing pinned
-                // native Shell_TrayWnd HWND before sensor self-heal and costly
-                // target enumeration. Retain strict PID/class/rect/native style
-                // checks in StartGuardTick; no arbitrary popup can trigger lift.
-                if(RequiresGlassTopLevel && !startGlassTemporarilyFloating &&
-                   !recoveryPending && taskbar!=IntPtr.Zero &&
-                   IsHandleCreated && Native.IsWindow(taskbar))
-                {
-                    StringBuilder pinnedClass=new StringBuilder(128);
-                    Native.GetClassName(taskbar,pinnedClass,pinnedClass.Capacity);
-                    if(String.Equals(pinnedClass.ToString(),"Shell_TrayWnd",StringComparison.Ordinal))
-                    {
-                        string fgProcess="",fgClass="";
-                        IntPtr fgHwnd=IntPtr.Zero;
-                        if(ShellUi.IsStartShellForeground(out fgProcess,out fgClass,out fgHwnd))
-                        {
-                            Native.RECT pinnedBounds=new Native.RECT();
-                            if(Native.GetWindowRect(taskbar,out pinnedBounds) &&
-                                pinnedBounds.ToRectangle().Contains(expectedRect))
-                            {
-                                StartGuardTick(taskbar);
-                                if(startGlassTemporarilyFloating)return;
-                            }
-                        }
-                    }
-                }
-                // R133: R125 reused the 420px G14 WIDESCREEN test minimum.
-                // A genuine 1024x768 taskbar monitor can be only 279px wide,
-                // so R125's reassert NEVER executed when normal windows focused.
-                // Use bounded native compact geometry (>=180px, height 25..70),
-                // and retain the separate strict actual-taskbar.Contains rect gate.
-                // Never activate the overlay; never lift during Start/Search;
-                // Settings remains independently above this topmost monitor.
-                if(RequiresGlassTopLevel && !startGlassPinnedDuringShell &&
-                   !startGlassTemporarilyFloating && !recoveryPending &&
-                   IsHandleCreated && taskbar!=IntPtr.Zero && Native.IsWindow(taskbar) &&
-                   (settingsForm==null || settingsForm.IsDisposed || !settingsForm.Visible) &&
-                   expectedRect.Width>=180 && expectedRect.Height>=25 &&
-                   expectedRect.Height<=70 && Native.IsWindow(Handle))
-                {
-                    IntPtr foregroundNow=Native.GetForegroundWindow();
-                    DateTime now=DateTime.UtcNow;
-                    if(foregroundNow!=IntPtr.Zero &&
-                       (foregroundNow!=lastGlassForeground || now>=nextGlassForegroundRefreshAt))
-                    {
-                        string startProc="",startClass="";
-                        IntPtr startHwnd=IntPtr.Zero;
-                        Rectangle startRect=Rectangle.Empty;
-                        bool start=ShellUi.IsStartShellForeground(out startProc,out startClass,out startHwnd);
-                        if(!start)start=ShellUi.IsStartSurfacePresent(
-                            out startProc,out startClass,out startRect,out startHwnd);
-                        Native.RECT trayRect;
-                        if(!start && Native.GetWindowRect(taskbar,out trayRect) &&
-                           trayRect.ToRectangle().Contains(expectedRect))
-                        {
-                            lastGlassForeground=foregroundNow;
-                            nextGlassForegroundRefreshAt=now.AddSeconds(3);
-                            bool restacked=Native.SetWindowPos(
-                                Handle,Native.HWND_TOPMOST,
-                                expectedRect.X,expectedRect.Y,expectedRect.Width,expectedRect.Height,
-                                Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW|Native.SWP_NOOWNERZORDER);
-                            if(!restacked)
-                                Log.Write("WARN","GLASS_FOREGROUND_ZORDER_REASSERT_FAILED win32="+Marshal.GetLastWin32Error());
-                            else if(!PaintPerPixelLayer())
-                                Log.Write("WARN","GLASS_FOREGROUND_REUPLOAD_FAILED");
-                            else
-                                Log.Write("INFO","GLASS_FOREGROUND_REASSERT_FIXED_RECT hwnd="+
-                                    Handle.ToInt64()+" fg="+foregroundNow.ToInt64()+" rect="+expectedRect);
-                        }
-                    }
-                }
+                // R146: presentation follows the real taskbar, not a perpetual TOPMOST timer.
+                if(RefreshTaskbarPresentation(true))return;
                 SensorSupervisorSelfHealWatchdog();
-                string probeTargetNow;IntPtr currentTaskbar=TaskbarTargetPolicy.Resolve(AppConfig.Load(),out probeTargetNow);
+                string probeTargetNow;IntPtr currentTaskbar=TaskbarTargetPolicy.Resolve(config,out probeTargetNow);
 
                 if(currentTaskbar==IntPtr.Zero)
                 {
@@ -5872,6 +5785,7 @@ namespace TaskbarMonitorEnhanced
 
         protected override void OnPaint(PaintEventArgs e)
         {
+            if(presentationSuppressed)return;
             if(PaintPerPixelLayer())return;
             base.OnPaint(e); e.Graphics.SmoothingMode=SmoothingMode.AntiAlias; e.Graphics.TextRenderingHint=System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             ThemeDefinition theme=WindowsThemePolicy.Resolve(config);
@@ -7250,7 +7164,7 @@ namespace TaskbarMonitorEnhanced
         private readonly AppConfig c; private readonly MetricsSnapshot snapshot; private readonly Func<string,int,int,Bitmap> themePreviewRenderer;
         private ComboBox theme,windowsLightTheme,windowsDarkTheme,position,taskbarDisplay,cpuMode,gpuMode,diskMode,netMode,multiLayout,memoryUnit,storageUnit,networkUnit,diskRateUnit;
         private NumericUpDown opacity,interval,width,cpuWarn,gpuWarn,diskWarn,batteryInterval,historyLength;
-        private TrackBar glassModeToggle;
+        private GlassToggleSwitch glassModeToggle;
         private int lastOpacityPercent;
         private CheckBox cpu,ram,disk,gpu,vram,net,temp,spark,startup,safe,floatAboveStart,ramNumeric,diskNumeric,flyout,hoverAll,autoCheckUpdates,tempAlerts,tempNotifications,adaptiveBattery,followWindowsTheme;
         private CheckedListBox cpuList,gpuList,diskList,netList;
@@ -7296,6 +7210,13 @@ namespace TaskbarMonitorEnhanced
             // must not be covered by its taskbar z-band and must be Alt+Tab-able.
             ShowInTaskbar=true;
             TopMost=true;
+            Shown+=delegate{
+                Rectangle work=Screen.FromControl(this).WorkingArea;
+                int w=Math.Min(Width,Math.Max(200,work.Width-16));
+                int h=Math.Min(Height,Math.Max(200,work.Height-16));
+                MinimumSize=new Size(Math.Min(MinimumSize.Width,w),Math.Min(MinimumSize.Height,h));
+                Bounds=new Rectangle(work.Left+(work.Width-w)/2,work.Top+(work.Height-h)/2,w,h);
+            };
             BackColor=SettingsWindow;ForeColor=SettingsText;Font=new Font("Segoe UI",9.4f,FontStyle.Regular);DoubleBuffered=true;
 
             TableLayoutPanel root=new TableLayoutPanel();root.Dock=DockStyle.Fill;root.BackColor=SettingsWindow;root.ColumnCount=2;root.RowCount=1;root.Margin=Padding.Empty;root.Padding=Padding.Empty;root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,214f));root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100f));root.RowStyles.Add(new RowStyle(SizeType.Percent,100f));Controls.Add(root);
@@ -7334,16 +7255,15 @@ namespace TaskbarMonitorEnhanced
             // R124: a separate binary slider/switch for glass, not a second opacity control.
             Label glassLabel=new Label{Text="Glass mode",Location=new Point(24,164),Size=new Size(145,26)};
             display.Controls.Add(glassLabel);
-            glassModeToggle=new TrackBar{Minimum=0,Maximum=1,TickStyle=TickStyle.None,
-                SmallChange=1,LargeChange=1,Location=new Point(180,156),Size=new Size(108,38),
-                Value=c.GlassMode?1:0};
-            SetA11y(glassModeToggle,"Glass mode switch","Slide right ON for 0% background and locked opacity; left OFF to restore your previous 1–100% value.");
+            glassModeToggle=new GlassToggleSwitch{Location=new Point(180,158),
+                Size=new Size(112,34),Checked=c.GlassMode};
+            SetA11y(glassModeToggle,"Glass mode switch","Click or press Space to switch Glass on or off. On: zero background; Off: your saved 1-100% opacity.");
             display.Controls.Add(glassModeToggle);
             lastOpacityPercent=Math.Max(1,Math.Min(100,(int)Math.Round(c.OpacityWhenGlassOff*100)));
-            opacity=Number(display,"Background opacity %",c.GlassMode?0:(decimal)(c.Opacity*100),0,100,216);
+            opacity=Number(display,"Background opacity %",c.GlassMode?0:(decimal)(c.Opacity*100),c.GlassMode?0:1,100,216);
             opacity.Enabled=!c.GlassMode;
             opacity.ValueChanged+=delegate{if(opacity.Enabled&&opacity.Value>=1)lastOpacityPercent=(int)opacity.Value;};
-            glassModeToggle.ValueChanged+=delegate{SyncGlassOpacityUi();};
+            glassModeToggle.CheckedChanged+=delegate{SyncGlassOpacityUi();};
             width=Number(display,"Locked width px",c.MinWidthLogicalPx,900,1500,266);
             followWindowsTheme=Check(display,"Follow Windows app light/dark mode",c.FollowWindowsTheme,314);
             windowsLightTheme=Combo(display,"Windows light theme",ThemeCatalog.Names,c.WindowsLightTheme,352);
@@ -7602,17 +7522,19 @@ namespace TaskbarMonitorEnhanced
         private void SyncGlassOpacityUi()
         {
             if(glassModeToggle==null || opacity==null)return;
-            if(glassModeToggle.Value==1)
+            if(glassModeToggle.Checked)
             {
                 if(opacity.Enabled && opacity.Value>0)lastOpacityPercent=(int)opacity.Value;
                 opacity.Enabled=false;
+                opacity.Minimum=0;
                 opacity.Value=0;
             }
             else
             {
+                bool restore=!opacity.Enabled || opacity.Value<1;
+                opacity.Minimum=1;
+                if(restore)opacity.Value=Math.Max(1,Math.Min(100,lastOpacityPercent));
                 opacity.Enabled=true;
-                if(opacity.Value==0)
-                    opacity.Value=Math.Max(1,Math.Min(100,lastOpacityPercent));
             }
         }
         private void UpdateThemeModeUi()
@@ -7866,8 +7788,8 @@ namespace TaskbarMonitorEnhanced
                 AppConfig d=new AppConfig();d.Normalize();
                 theme.SelectedItem=d.Theme;position.SelectedItem=d.Position;
                 lastOpacityPercent=Math.Max(1,Math.Min(100,(int)Math.Round(d.OpacityWhenGlassOff*100)));
-                glassModeToggle.Value=0;opacity.Enabled=true;opacity.Value=lastOpacityPercent;
-                glassModeToggle.Value=d.GlassMode?1:0;SyncGlassOpacityUi();
+                glassModeToggle.Checked=false;opacity.Enabled=true;opacity.Minimum=1;opacity.Value=lastOpacityPercent;
+                glassModeToggle.Checked=d.GlassMode;SyncGlassOpacityUi();
                 width.Value=d.MinWidthLogicalPx;
                 cpu.Checked=d.ShowCpu;ram.Checked=d.ShowRam;disk.Checked=d.ShowDisk;gpu.Checked=d.ShowGpu;vram.Checked=d.ShowVram;net.Checked=d.ShowNetwork;temp.Checked=d.ShowTemperatures;spark.Checked=d.ShowSparklines;
                 cpuMode.SelectedItem=d.CpuDisplayMode;gpuMode.SelectedItem=d.GpuDisplayMode;diskMode.SelectedItem=d.DiskDisplayMode;netMode.SelectedItem=d.NetworkDisplayMode;multiLayout.SelectedItem=d.MultipleDeviceLayout;
@@ -7942,7 +7864,7 @@ namespace TaskbarMonitorEnhanced
         private void Apply()
         {
             c.Theme=(string)theme.SelectedItem;c.Position=(string)position.SelectedItem;
-            c.GlassMode=glassModeToggle.Value==1;
+            c.GlassMode=glassModeToggle.Checked;
             c.OpacityWhenGlassOff=Math.Max(0.01,lastOpacityPercent/100.0);
             c.Opacity=c.GlassMode?0.0:(double)opacity.Value/100.0;
             c.MinWidthLogicalPx=(int)width.Value;c.UpdateIntervalMs=(int)interval.Value;c.ShowCpu=cpu.Checked;c.ShowRam=ram.Checked;c.ShowDisk=disk.Checked;c.ShowGpu=gpu.Checked;c.ShowVram=vram.Checked;c.ShowNetwork=net.Checked;c.ShowTemperatures=temp.Checked;c.ShowSparklines=spark.Checked;c.StartWithWindows=startup.Checked;c.SafePlacement=safe.Checked;c.FloatAboveStartMenu=floatAboveStart.Checked;

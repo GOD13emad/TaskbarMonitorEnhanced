@@ -1,0 +1,32 @@
+{
+  "Revision": "R157",
+  "Objective": "One versioned acceptance workflow and non-stale public download guidance",
+  "PreviousCommit": "dcea27be57b805f8b0e3944e6c8cdde908df9e0b",
+  "ActiveWorkflows": [
+    "ci.yml",
+    "release-v172-acceptance.yml"
+  ],
+  "Retired": [
+    {
+      "Path": ".github/workflows/release-v171-acceptance.yml",
+      "SHA256": "61EBEDC9A94E52F77A875C1ABEFA5B753B0934B2E6781DB96E8D242C9417371F",
+      "Recovery": "git show dcea27be57b805f8b0e3944e6c8cdde908df9e0b:.github/workflows/release-v171-acceptance.yml",
+      "Classification": "SUPERSEDED_DO_NOT_RUN_ON_172"
+    },
+    {
+      "Path": ".github/workflows/r146-presentation.yml",
+      "SHA256": "A72305A448B9BAE623F320242C4B0C194903F41ABEA2960180D361CB9AE9CDD6",
+      "Recovery": "git show dcea27be57b805f8b0e3944e6c8cdde908df9e0b:.github/workflows/r146-presentation.yml",
+      "Classification": "SUPERSEDED_DO_NOT_RUN_ON_172"
+    },
+    {
+      "Path": ".github/workflows/r155-v172-acceptance.yml",
+      "SHA256": "3DF539CCA2D39E74E13C5964ACDC9D238127B6FB9D96FE4D02CC0179B0D7D1B1",
+      "Recovery": "git show dcea27be57b805f8b0e3944e6c8cdde908df9e0b:.github/workflows/r155-v172-acceptance.yml",
+      "Classification": "SUPERSEDED_DO_NOT_RUN_ON_172"
+    }
+  ],
+  "ProductAndInstallerSourceUnchanged": true,
+  "ImmutablePublic171Unchanged": true,
+  "PersonalInstallationUnchanged": true
+}

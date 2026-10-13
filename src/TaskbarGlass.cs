@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.IO;
 using System.Web.Script.Serialization;
 // R41: per-pixel taskbar background translucency with independent, contrast-safe glyphs.
@@ -15,6 +15,52 @@ using Microsoft.Win32;
 
 namespace TaskbarMonitorEnhanced
 {
+    // R145: actual binary pill switch, with native CheckBox keyboard/accessibility semantics.
+    // No TrackBar and no continuous-position state. Only the thumb position changes.
+    internal sealed class GlassToggleSwitch : CheckBox
+    {
+        internal GlassToggleSwitch()
+        {
+            AutoSize=false;Size=new Size(112,34);TabStop=true;Text="";
+            AccessibleRole=AccessibleRole.CheckButton;
+            SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|
+                ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw|
+                ControlStyles.SupportsTransparentBackColor,true);
+            BackColor=Color.Transparent;Cursor=Cursors.Hand;
+        }
+        protected override void OnCheckedChanged(EventArgs e)
+        {base.OnCheckedChanged(e);Invalidate();}
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            if(e.KeyCode==Keys.Left||e.KeyCode==Keys.Right)
+            {Checked=e.KeyCode==Keys.Right;e.Handled=true;e.SuppressKeyPress=true;return;}
+            base.OnKeyDown(e);
+        }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            float h=Math.Max(12,Math.Min(ClientSize.Height-6,26f*DeviceDpi/96f));
+            float w=h*1.9f,x=3,y=(ClientSize.Height-h)/2f;
+            Color track=SystemInformation.HighContrast?
+                (Checked?SystemColors.Highlight:SystemColors.ControlDark):
+                (Checked?Color.FromArgb(41,128,227):Color.FromArgb(96,106,121));
+            if(!Enabled)track=SystemColors.GrayText;
+            using(var path=new System.Drawing.Drawing2D.GraphicsPath())
+            {
+                path.AddArc(x,y,h,h,90,180);path.AddArc(x+w-h,y,h,h,270,180);path.CloseFigure();
+                using(var brush=new SolidBrush(track))e.Graphics.FillPath(brush,path);
+            }
+            bool right=Checked^(RightToLeft==RightToLeft.Yes);
+            float inset=Math.Max(2,h/9),d=h-2*inset;
+            using(var thumb=new SolidBrush(SystemInformation.HighContrast?SystemColors.HighlightText:Color.White))
+                e.Graphics.FillEllipse(thumb,right?x+w-inset-d:x+inset,y+inset,d,d);
+            TextRenderer.DrawText(e.Graphics,Checked?"On":"Off",Font,
+                new Rectangle((int)(x+w+8),0,Math.Max(1,ClientSize.Width-(int)(x+w+8)),ClientSize.Height),
+                Enabled?ForeColor:SystemColors.GrayText,TextFormatFlags.Left|TextFormatFlags.VerticalCenter);
+            if(Focused&&ShowFocusCues)ControlPaint.DrawFocusRectangle(e.Graphics,ClientRectangle);
+        }
+    }
+
     internal static class TaskbarGlassColor
     {
         internal static double Luminance(Color c)
@@ -101,7 +147,7 @@ namespace TaskbarMonitorEnhanced
     {
         internal static bool RequiresTopLevel(double backgroundOpacity,bool highContrast)
         {
-            return !highContrast && backgroundOpacity<0.999999;
+            return !highContrast; // R148: hit-testing host is independent of opacity/material, including fully opaque.
         }
     }
 
@@ -132,17 +178,17 @@ namespace TaskbarMonitorEnhanced
             finally{b.UnlockBits(d);}
         }
         private static byte Byte(double x){return (byte)Math.Max(0,Math.Min(255,(int)Math.Round(x)));}
-        internal static Bitmap Compose(Bitmap full,Bitmap glyph,Bitmap halo,int opacityPercent,Color taskbar,Color themeBackground)
+        internal static Bitmap Compose(Bitmap full,Bitmap glyph,Bitmap halo,int opacityPercent,Color taskbar,Color themeBackground,bool glassMode)
         {
             if(full==null)throw new ArgumentNullException("full");
             if(glyph!=null&&(glyph.Width!=full.Width||glyph.Height!=full.Height))throw new ArgumentException("glyph geometry");
             if(halo!=null&&(halo.Width!=full.Width||halo.Height!=full.Height))throw new ArgumentException("halo geometry");
-            int pct=Math.Max(0,Math.Min(100,opacityPercent));
+            int pct=glassMode?0:Math.Max(1,Math.Min(100,opacityPercent));
             byte[] basePixels=ReadPixels(full,PixelFormat.Format32bppArgb);
             byte[] inkPixels=glyph==null?null:ReadPixels(glyph,PixelFormat.Format32bppPArgb);
             byte[] haloPixels=halo==null?null:ReadPixels(halo,PixelFormat.Format32bppPArgb);
             byte[] pixels=new byte[basePixels.Length];
-            bool adaptInk=pct<=30;
+            bool adaptInk=glassMode; // R145: NEVER infer material or recolor ink from an opacity threshold.
             Color chosen=TaskbarGlassColor.ReadableText(TaskbarGlassColor.EffectiveBackground(taskbar,themeBackground,pct/100d));
             Color outline=chosen.ToArgb()==Color.White.ToArgb()?Color.Black:Color.White;
             double backgroundScale=pct/100d;
@@ -310,7 +356,7 @@ namespace TaskbarMonitorEnhanced
         internal int GlassDirectMetricRefreshCountForProof {get{return glassDirectMetricRefreshCount;}}
         private void RefreshGlassAfterMetricCommit()
         {
-            if(!IsHandleCreated||!RequiresGlassTopLevel||glassLegacyFallback)return;
+            if(presentationSuppressed||!IsHandleCreated||!RequiresGlassTopLevel||glassLegacyFallback)return;
             if(proofMode&&!glassNativeVisualProofMode)return;
             if(PaintPerPixelLayer())glassDirectMetricRefreshCount++;
             // On failure PaintPerPixelLayer already records native error and applies
@@ -376,10 +422,14 @@ namespace TaskbarMonitorEnhanced
             }
         }
         internal Bitmap RenderGlassPixelsForProof(string theme,int width,int height,int percent,Color taskbar)
-        {return RenderGlassBitmap(ThemeCatalog.Get(theme),width,height,percent,taskbar);}
-        private Bitmap RenderGlassBitmap(ThemeDefinition theme,int width,int height,int percent,Color taskbar)
+        {return RenderGlassBitmap(ThemeCatalog.Get(theme),width,height,percent,taskbar,percent==0);}
+        // Explicit test seam; production always supplies config.GlassMode, not inferred alpha.
+        internal Bitmap RenderAppearanceForProof(string theme,int width,int height,int percent,Color taskbar,bool glassMode)
+        {return RenderGlassBitmap(ThemeCatalog.Get(theme),width,height,percent,taskbar,glassMode);}
+        private Bitmap RenderGlassBitmap(ThemeDefinition theme,int width,int height,int percent,Color taskbar,bool glassMode)
         {
-            width=Math.Max(320,width);height=Math.Max(32,height);
+            percent=glassMode?0:Math.Max(1,Math.Min(100,percent));
+            width=Math.Max(1,width);height=Math.Max(1,height); // Preserve the exact native taskbar footprint, including compact 279px hosts.
             Bitmap ink=null,halo=null,full=null;
             try
             {
@@ -390,7 +440,7 @@ namespace TaskbarMonitorEnhanced
                     glassInkCanvas.TextRenderingHint=System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
                     glassInkCanvas.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                     glassInkCanvas.Clear(Color.Transparent);
-                    if(percent<=30)
+                    if(glassMode)
                     {
                         halo=new Bitmap(width,height,PixelFormat.Format32bppPArgb);
                         glassHaloCanvas=Graphics.FromImage(halo);
@@ -400,7 +450,7 @@ namespace TaskbarMonitorEnhanced
                     }
                 }
                 full=RenderThemeDefinition(theme,width,height);
-                Bitmap output=TaskbarGlassPixels.Compose(full,ink,halo,percent,taskbar,theme.Background);
+                Bitmap output=TaskbarGlassPixels.Compose(full,ink,halo,percent,taskbar,theme.Background,glassMode);
                 if(diagnosticBeacon&&!proofMode)
                     using(Graphics beacon=Graphics.FromImage(output))PaintDiagnosticBeacon(beacon);
                 return output;
@@ -416,15 +466,16 @@ namespace TaskbarMonitorEnhanced
         }
         private bool PaintPerPixelLayer()
         {
-            if((proofMode&&!glassNativeVisualProofMode)||glassLegacyFallback||!IsHandleCreated||taskbar==IntPtr.Zero)return false;
+            if(presentationSuppressed||(proofMode&&!glassNativeVisualProofMode)||glassLegacyFallback||!IsHandleCreated||taskbar==IntPtr.Zero)return false;
             Rectangle r=ClientRectangle;
             if(r.Width<80||r.Height<16)return false;
             int alpha=SystemInformation.HighContrast?100:Math.Max(0,Math.Min(100,(int)Math.Round(config.Opacity*100)));
             ThemeDefinition theme=WindowsThemePolicy.Resolve(config);
             try
             {
-                Color sampled=GlassTaskbarSample();
-                using(Bitmap pixels=RenderGlassBitmap(theme,r.Width,r.Height,alpha,sampled))
+                // Plain translucency retains theme ink and never reads desktop pixels.
+                Color sampled=config.GlassMode?GlassTaskbarSample():theme.Background;
+                using(Bitmap pixels=RenderGlassBitmap(theme,r.Width,r.Height,alpha,sampled,config.GlassMode&&!SystemInformation.HighContrast))
                 {
                     int win32;
                     if(TaskbarGlassNative.Upload(Handle,pixels,PointToScreen(Point.Empty),out win32))
@@ -515,7 +566,7 @@ namespace TaskbarMonitorEnhanced
                 Require(TaskbarGlassHostMode.RequiresTopLevel(0,false),"zero alpha top-level required");
                 Require(TaskbarGlassHostMode.RequiresTopLevel(0.29,false),"29% alpha top-level required");
                 Require(TaskbarGlassHostMode.RequiresTopLevel(.97,false),"97% alpha top-level required");
-                Require(!TaskbarGlassHostMode.RequiresTopLevel(1.0,false),"100% previous child preserved");
+                Require(TaskbarGlassHostMode.RequiresTopLevel(1.0,false),"100% opacity retains the same interactive native host");
                 Require(!TaskbarGlassHostMode.RequiresTopLevel(.15,true),"High Contrast forced opaque child");
                 foreach(Color bg in new[]{Color.Black,Color.White,Color.FromArgb(127,127,127),Color.FromArgb(220,190,20)})
                     Require(TaskbarGlassColor.Contrast(TaskbarGlassColor.ReadableText(bg),bg)>=4.5,"contrast target");
@@ -571,7 +622,7 @@ namespace TaskbarMonitorEnhanced
             }
             Check(chartPixels>=16,"missing separate chart pixels for "+theme+" alpha="+opacity+" chart="+chartPixels);
             Check(solidChart>=7,"chart ink too faint for "+theme+" alpha="+opacity+" strong="+solidChart);
-            if(opacity<=30)
+            if(opacity==0)
             {
                 Check(inkContrast>=6,"adapted chart ink wrong for "+theme+" alpha="+opacity+" count="+inkContrast);
                 Check(TaskbarGlassColor.Contrast(expected,
@@ -1528,6 +1579,199 @@ namespace TaskbarMonitorEnhanced
                 return 54;
             }
             finally{if(sentWin)try{Native.KeybdTap(0x1B);}catch{}}
+        }
+    }
+}
+
+
+namespace TaskbarMonitorEnhanced
+{
+    internal enum TaskbarPresentationState { Visible, Missing, Hidden, AutoHidden, Fullscreen }
+    internal static class TaskbarPresentationPolicy
+    {
+        internal static bool CoversMonitor(Rectangle window,Rectangle monitor)
+        {
+            return monitor.Width>0 && monitor.Height>0 && window.Width>0 && window.Height>0 &&
+                window.Left<=monitor.Left+1 && window.Top<=monitor.Top+1 &&
+                window.Right>=monitor.Right-1 && window.Bottom>=monitor.Bottom-1;
+        }
+        internal static TaskbarPresentationState Decide(bool exists,bool visible,bool cloaked,
+            Rectangle bar,Rectangle monitor,bool fullscreen,bool revealed)
+        {
+            if(!exists)return TaskbarPresentationState.Missing;
+            if(!visible||cloaked)return TaskbarPresentationState.Hidden;
+            Rectangle intersection=Rectangle.Intersect(bar,monitor);
+            bool horizontal=bar.Width>=bar.Height;
+            int thickness=horizontal?intersection.Height:intersection.Width;
+            int original=horizontal?bar.Height:bar.Width;
+            // Auto-hide leaves a 1-2px activation edge; that is not a visible taskbar.
+            if(original<=0||intersection.Width<=0||intersection.Height<=0||
+                thickness<Math.Min(12,Math.Max(3,original/2)))
+                return TaskbarPresentationState.AutoHidden;
+            if(fullscreen&&!revealed)return TaskbarPresentationState.Fullscreen;
+            return TaskbarPresentationState.Visible;
+        }
+    }
+    internal static class TaskbarPresentationNative
+    {
+        [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr h,uint command);
+        [DllImport("user32.dll")] private static extern IntPtr GetAncestor(IntPtr h,uint flags);
+        [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr h);
+        [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr h,int attr,out int value,int size);
+        internal static bool Cloaked(IntPtr h)
+        {
+            try{int c;return h!=IntPtr.Zero && DwmGetWindowAttribute(h,14,out c,4)==0 && c!=0;}
+            catch(DllNotFoundException){return false;}catch(EntryPointNotFoundException){return false;}
+        }
+        internal static bool Above(IntPtr upper,IntPtr lower)
+        {
+            if(upper==IntPtr.Zero||lower==IntPtr.Zero||upper==lower)return false;
+            IntPtr h=GetWindow(lower,3); // GW_HWNDPREV, higher in this desktop's z-order.
+            for(int i=0;i<512 && h!=IntPtr.Zero;i++,h=GetWindow(h,3))
+                if(h==upper)return true;
+            return false;
+        }
+        internal static bool Fullscreen(IntPtr foreground,IntPtr overlay,Rectangle monitor,bool shell)
+        {
+            if(shell||foreground==IntPtr.Zero||foreground==overlay||IsIconic(foreground)||Cloaked(foreground))return false;
+            uint fp=0,op=0;Native.GetWindowThreadProcessId(foreground,out fp);Native.GetWindowThreadProcessId(overlay,out op);
+            if(fp!=0&&fp==op)return false; // Own Settings/workspace is never a game/video fullscreen signal.
+            var name=new StringBuilder(128);Native.GetClassName(foreground,name,name.Capacity);
+            string cls=name.ToString();
+            if(cls=="Progman"||cls=="WorkerW"||cls=="Shell_TrayWnd"||cls=="Shell_SecondaryTrayWnd")return false;
+            Native.RECT r;
+            return Native.IsWindowVisible(foreground)&&Native.GetWindowRect(foreground,out r)&&
+                TaskbarPresentationPolicy.CoversMonitor(r.ToRectangle(),monitor);
+        }
+        internal static bool TaskbarRevealed(IntPtr taskbar,Rectangle bar,Rectangle overlay,IntPtr foreground)
+        {
+            // IsWindowVisible alone stays true for a taskbar covered by a fullscreen app.
+            // Test real hit targets OUTSIDE our own monitor, without capturing any pixels.
+            bool horizontal=bar.Width>=bar.Height;
+            for(int i=1;i<=9;i++)
+            {
+                Point p=horizontal?new Point(bar.Left+bar.Width*i/10,bar.Top+bar.Height/2):
+                    new Point(bar.Left+bar.Width/2,bar.Top+bar.Height*i/10);
+                if(overlay.Contains(p))continue;
+                Native.POINT np=new Native.POINT();np.X=p.X;np.Y=p.Y;
+                IntPtr h=Native.WindowFromPoint(np);
+                if(h==taskbar||GetAncestor(h,2)==taskbar)return true;
+            }
+            return false;
+        }
+    }
+    internal sealed partial class OverlayForm
+    {
+        private bool presentationSuppressed;
+        private bool EnsureTaskbarOwner()
+        {
+            // R151: a popup OWNER is not a WS_CHILD parent. Windows keeps an
+            // owned popup above its owner. Do not reparent during Start (known
+            // to be rejected); never alter Explorer styles, UIAccess or z-bands.
+            if(!IsHandleCreated||taskbar==IntPtr.Zero||!Native.IsWindow(taskbar))
+                throw new InvalidOperationException("Taskbar owner is unavailable");
+            if((Native.GetWindowLongPtr(Handle,Native.GWL_STYLE).ToInt64()&Native.WS_CHILD)!=0)
+                throw new InvalidOperationException("Taskbar-owned popup must not be WS_CHILD");
+            const int ownerIndex=-8; // GWLP_HWNDPARENT for an overlapped/popup window.
+            IntPtr before=Native.GetWindowLongPtr(Handle,ownerIndex);
+            if(before==taskbar)return false; // No steady-state reorder or repaint.
+            Native.SetWindowLongPtr(Handle,ownerIndex,taskbar);
+            int error=Marshal.GetLastWin32Error();
+            if(Native.GetWindowLongPtr(Handle,ownerIndex)!=taskbar)
+            {
+                // Ownership is changed on OUR HWND only; rollback on failure.
+                Native.SetWindowLongPtr(Handle,ownerIndex,before);
+                bool restored=Native.GetWindowLongPtr(Handle,ownerIndex)==before;
+                throw new InvalidOperationException("Taskbar owner rejected win32="+error+" rollback="+restored);
+            }
+            Log.Write("INFO","TASKBAR_OWNER_ESTABLISHED owner="+taskbar.ToInt64()+" hwnd="+Handle.ToInt64());
+            return true;
+        }
+
+        private bool presentationSyncing;
+        private TaskbarPresentationState presentationState=TaskbarPresentationState.Visible;
+        private IntPtr presentationForeground=IntPtr.Zero;
+        private bool presentationShellOpen;
+        private DateTime presentationNextShellCheck=DateTime.MinValue;
+        private int presentationTransitions;
+        internal bool PresentationSuppressedForProof {get{return presentationSuppressed;}}
+        internal int PresentationTransitionsForProof {get{return presentationTransitions;}}
+        internal void RefreshPresentationForProof(){RefreshTaskbarPresentation(true);}
+        private bool RefreshTaskbarPresentation(bool repairOrder)
+        {
+            if((proofMode&&!glassNativeVisualProofMode)||IsDisposed||Disposing||!IsHandleCreated)
+                return false;
+            if(presentationSyncing)return presentationSuppressed;
+            presentationSyncing=true;
+            try
+            {
+                IntPtr fg=Native.GetForegroundWindow();
+                bool exists=taskbar!=IntPtr.Zero&&Native.IsWindow(taskbar);
+                Native.RECT raw;Rectangle bar=Rectangle.Empty;
+                if(exists&&Native.GetWindowRect(taskbar,out raw))bar=raw.ToRectangle();
+                Rectangle screen=Screen.FromHandle(exists?taskbar:Handle).Bounds;
+                bool fgChanged=fg!=presentationForeground;
+                DateTime now=DateTime.UtcNow;
+                if(fgChanged||now>=presentationNextShellCheck)
+                {
+                    string processName,windowClass;IntPtr shell;
+                    presentationShellOpen=ShellUi.IsStartShellForeground(out processName,out windowClass,out shell);
+                    // Foreground may temporarily leave a still-open Start surface. Do not rescan every paint.
+                    if(!presentationShellOpen)
+                    {Rectangle sr;presentationShellOpen=ShellUi.IsStartSurfacePresent(out processName,out windowClass,out sr,out shell);}
+                    presentationNextShellCheck=now.AddSeconds(1);
+                }
+                bool full=exists&&TaskbarPresentationNative.Fullscreen(fg,Handle,screen,presentationShellOpen);
+                bool revealed=full&&TaskbarPresentationNative.TaskbarRevealed(taskbar,bar,expectedRect,fg);
+                TaskbarPresentationState next=TaskbarPresentationPolicy.Decide(exists,
+                    exists&&Native.IsWindowVisible(taskbar),exists&&TaskbarPresentationNative.Cloaked(taskbar),
+                    bar,screen,full,revealed);
+                bool changed=next!=presentationState;
+                if(changed){presentationState=next;presentationTransitions++;Log.Write("INFO","TASKBAR_PRESENTATION_STATE "+next);}
+                if(next!=TaskbarPresentationState.Visible)
+                {
+                    presentationSuppressed=true;
+                    if(next==TaskbarPresentationState.Missing&&!recoveryPending)
+                        ScheduleRecovery("TASKBAR_PRESENTATION_MISSING",750);
+                    if(Visible)Hide();
+                    if(hardwareFlyout!=null&&hardwareFlyout.Visible)hardwareFlyout.Hide();
+                    presentationForeground=fg;
+                    return true;
+                }
+                bool restore=presentationSuppressed||!Visible;
+                presentationSuppressed=false;
+                startGlassPinnedDuringShell=presentationShellOpen; // Freeze layout, NOT visibility/z-order repair.
+                if(restore)Show(); // ShowWithoutActivation=true is retained.
+                // The owner relationship is permanent across Start; geometry never changes host type.
+                if(repairOrder&&RequiresGlassTopLevel&&expectedRect.Width>=80&&expectedRect.Height>=16&&
+                    bar.Contains(expectedRect)&&!recoveryPending)
+                {
+                    bool ownerChanged=EnsureTaskbarOwner();
+                    if(restore||changed||ownerChanged)
+                    {
+                        const uint flags=Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW|Native.SWP_NOOWNERZORDER;
+                        if(!Native.SetWindowPos(Handle,Native.HWND_TOPMOST,expectedRect.X,expectedRect.Y,
+                            expectedRect.Width,expectedRect.Height,flags))
+                            Log.Write("WARN","TASKBAR_PRESENTATION_RESTACK_FAILED "+Marshal.GetLastWin32Error());
+                        // Only genuine attach/restore transitions reseat the native surface.
+                        PaintPerPixelLayer();
+                    }
+                    if(fgChanged||restore||ownerChanged)
+                    {
+                        // Only OUR dialogs/menu. No steady-state taskbar cluster reassert.
+                        if(settingsForm!=null&&!settingsForm.IsDisposed&&settingsForm.Visible&&settingsForm.IsHandleCreated)
+                            Native.SetWindowPos(settingsForm.Handle,Native.HWND_TOPMOST,0,0,0,0,
+                                Native.SWP_NOMOVE|Native.SWP_NOSIZE|Native.SWP_NOACTIVATE|Native.SWP_NOOWNERZORDER);
+                        if(menu!=null&&!menu.IsDisposed&&menu.Visible&&menu.IsHandleCreated)
+                            Native.SetWindowPos(menu.Handle,Native.HWND_TOPMOST,0,0,0,0,
+                                Native.SWP_NOMOVE|Native.SWP_NOSIZE|Native.SWP_NOACTIVATE|Native.SWP_NOOWNERZORDER);
+                        // Do not repaint/reassert the monitor merely because focus changed.
+                    }
+                }
+                presentationForeground=fg;
+                return false;
+            }
+            finally{presentationSyncing=false;}
         }
     }
 }

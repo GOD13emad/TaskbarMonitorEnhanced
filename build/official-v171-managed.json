@@ -1,0 +1,172 @@
+{
+    "Revision":  "R155",
+    "SourceVersion":  "1.7.1",
+    "PublicSetupSHA256":  "ABD106630F7BAB3471CAF3F5BD4313DFCF2D61DDE1DF79E72EFE91933C8F2F89",
+    "PublicMainSHA256":  "D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420",
+    "ResourceCount":  25,
+    "ManagedCount":  23,
+    "ReadMethod":  "Reflection resource stream only; installer entry point never invoked",
+    "Rows":  [
+                 {
+                     "Path":  "TaskbarMonitorEnhanced.cs",
+                     "Resource":  "Payload.TaskbarMonitorEnhanced.cs",
+                     "SHA256":  "8754E313DF92478D649918D82E303E48AF8FEA5FEB5B876E9820CB2679CCB06C",
+                     "Bytes":  599655,
+                     "OptionalWhenMissing":  true
+                 },
+                 {
+                     "Path":  "TaskbarMonitorEnhanced.exe",
+                     "Resource":  "Payload.TaskbarMonitorEnhanced.exe",
+                     "SHA256":  "D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420",
+                     "Bytes":  605696,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "TaskbarMonitorEnhanced.exe.config",
+                     "Resource":  "Payload.TaskbarMonitorEnhanced.exe.config",
+                     "SHA256":  "D2E51872D93F0793C02AD07DCBF8C2802F59708C666548372A4FDDDA5C7C5E4F",
+                     "Bytes":  456,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "TaskbarMonitorEnhanced.ico",
+                     "Resource":  "Payload.TaskbarMonitorEnhanced.ico",
+                     "SHA256":  "0AD07C8E5DB434EE0403FCC92557C89D6E8EDF6A61FABD285C45518DF73A8EEF",
+                     "Bytes":  22172,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Source/TaskbarMonitorEnhanced.cs",
+                     "Resource":  "Payload.TaskbarMonitorEnhanced.cs",
+                     "SHA256":  "8754E313DF92478D649918D82E303E48AF8FEA5FEB5B876E9820CB2679CCB06C",
+                     "Bytes":  599655,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Source/StudioThemes.cs",
+                     "Resource":  "Payload.StudioThemes.cs",
+                     "SHA256":  "7872BBDDC6DFD95FD8943CD5B714E47A9AB44D40AC15CBD8DA35F643768808CD",
+                     "Bytes":  15378,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Source/WallpaperStudio.cs",
+                     "Resource":  "Payload.WallpaperStudio.cs",
+                     "SHA256":  "14DF1E87A49D6D791D4B9501E757E5E2EE466BCEF9618523CF0D1FCE584E461D",
+                     "Bytes":  26913,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Source/TaskbarGlass.cs",
+                     "Resource":  "Payload.TaskbarGlass.cs",
+                     "SHA256":  "E0BDAD9347EB91B149B99D45040F3CABF1AC6E698FD95EEB4361A416C2D65697",
+                     "Bytes":  85809,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Source/WorkspaceModels.cs",
+                     "Resource":  "Payload.WorkspaceModels.cs",
+                     "SHA256":  "2146D1F369A89A684F504BAB71D6686A381E79260980F7E0ACBCBAC2B3484D19",
+                     "Bytes":  22796,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Source/MonitorWorkspace.cs",
+                     "Resource":  "Payload.MonitorWorkspace.cs",
+                     "SHA256":  "BA512B04F326DF09B6F9051E34D5CF0C6D24C9DC12DF03B948624DA7F5941F65",
+                     "Bytes":  55753,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Source/WorkspaceSelfTest.cs",
+                     "Resource":  "Payload.WorkspaceSelfTest.cs",
+                     "SHA256":  "90F177F3091DEC6FD670A085616D5635FDE8144D098EC2922DC3673C3A817B99",
+                     "Bytes":  21949,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Source/TaskbarMonitorSensorBroker.cs",
+                     "Resource":  "Payload.TaskbarMonitorSensorBroker.cs",
+                     "SHA256":  "D650CBC8861027F4A8EC3B48B71769840D2E6CB5F89DDBEBA949EE0CB6A72C0B",
+                     "Bytes":  28046,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Source/TaskbarMonitorSensorSupervisor.cs",
+                     "Resource":  "Payload.TaskbarMonitorSensorSupervisor.cs",
+                     "SHA256":  "DEDF15076D4908A96B0791AC46DAE8F773D4256D9961EE44625F701D5770C60B",
+                     "Bytes":  51057,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Source/TaskbarMonitorEnhanced_Setup.cs",
+                     "Resource":  "Payload.TaskbarMonitorEnhanced_Setup.cs",
+                     "SHA256":  "14BE5D92B31F60B2441862AAC5B51C6B151820FE93AB82D7BCD6DE6E07AE017C",
+                     "Bytes":  81177,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Docs/LICENSE",
+                     "Resource":  "Payload.LICENSE",
+                     "SHA256":  "3972DC9744F6499F0F9B2DBF76696F2AE7AD8AF9B23DDE66D6AF86C9DFB36986",
+                     "Bytes":  35149,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Docs/README.md",
+                     "Resource":  "Payload.README.md",
+                     "SHA256":  "8B392B6F0B174C2A58F67A8B7CB9760FA4DC14291C3E0D33AAF51F42FA0295EB",
+                     "Bytes":  3519,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Docs/AUTHORS.md",
+                     "Resource":  "Payload.AUTHORS.md",
+                     "SHA256":  "0005B1D25E43C9CB1AF6C6428D7662F0F6E383D295CE66E5E7768ED8965BFA40",
+                     "Bytes":  803,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Docs/COPYRIGHT_AND_ATTRIBUTION.md",
+                     "Resource":  "Payload.COPYRIGHT_AND_ATTRIBUTION.md",
+                     "SHA256":  "503CF0194431F8FFE884014165111702061BB16B57C4BA118CE334489DBF4153",
+                     "Bytes":  1174,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Docs/AI_ASSISTED_DEVELOPMENT.md",
+                     "Resource":  "Payload.AI_ASSISTED_DEVELOPMENT.md",
+                     "SHA256":  "7793264C5E9256888B069E88BD9ABAE692193CFEB6C28E21ECC8F69F3E3172EB",
+                     "Bytes":  674,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Docs/THIRD_PARTY_NOTICES.md",
+                     "Resource":  "Payload.THIRD_PARTY_NOTICES.md",
+                     "SHA256":  "7A8F14410B0B934447FB952E7AB0248B8D3342F88358F0F6B0D4332833D3F559",
+                     "Bytes":  2224,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Docs/RELEASE_NOTES_v1.7.1.md",
+                     "Resource":  "Payload.RELEASE_NOTES_v1.7.1.md",
+                     "SHA256":  "BAB1450B20C2E1336E5059A1072B7F34107A5529BE397A936CBC1FDD94143D8F",
+                     "Bytes":  3156,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Docs/UPSTREAM_REFERENCE_GPL_NOTICE.md",
+                     "Resource":  "Payload.UPSTREAM_REFERENCE_GPL_NOTICE.md",
+                     "SHA256":  "14B86621663CDFB7A6750D9E5ABFE7BE8AA72433A56AA08382698BA09261A293",
+                     "Bytes":  811,
+                     "OptionalWhenMissing":  false
+                 },
+                 {
+                     "Path":  "Uninstall.exe",
+                     "Resource":  "@SELF",
+                     "SHA256":  "ABD106630F7BAB3471CAF3F5BD4313DFCF2D61DDE1DF79E72EFE91933C8F2F89",
+                     "Bytes":  8465920,
+                     "OptionalWhenMissing":  false
+                 }
+             ]
+}

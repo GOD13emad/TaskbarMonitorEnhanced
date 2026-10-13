@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.7.2 — Taskbar presentation and protected 1.7.1 upgrade
+
+- Separate pill-shaped Glass control from ordinary 1–100% translucency; restore the saved percentage after Glass OFF.
+- Keep the monitor anchored above its taskbar owner through Start, Settings and menus; hide with absent/covered taskbar in fullscreen.
+- Preserve exact compact native geometry and avoid unnecessary periodic z-order changes.
+- Recognize immutable public 1.7.1 Main/Setup and all managed payload hashes for a safe one-root in-place update.
+- Test direct 1.7.1 and inherited 1.7.0→1.7.1 update paths, user-data preservation, rollback after simulated partial commit, idempotence and downgrade refusal.
+- Validate four native appearance modes on two independent Windows hosts. Same-hardware sustained CPU remains a separate acceptance gate.
+
 ## 1.7.1 — Official Stable: Glass, Start, and safe versioned update (2026-10-13)
 
 - add a separate Glass ON/OFF slider: ON makes background opacity 0% and locks numeric control; OFF restores previous 1–100%

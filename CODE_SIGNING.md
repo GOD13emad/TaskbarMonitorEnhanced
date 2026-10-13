@@ -4,11 +4,11 @@ Taskbar Monitor Enhanced is an open-source Windows project distributed under **G
 
 https://github.com/GOD13emad/TaskbarMonitorEnhanced
 
-## Current v1.7.1 Stable: owner-authorized unsigned distribution
+## Owner-authorized unsigned distribution
 
-The project owner explicitly approved **official v1.7.1 without Authenticode signing**. Its one Setup is **NotSigned**; no SignPath or other trusted publisher signature is claimed. Windows can show Unknown publisher. Verify the SHA256 ABD106630F7BAB3471CAF3F5BD4313DFCF2D61DDE1DF79E72EFE91933C8F2F89 against the [official immutable v1.7.1 release](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.7.1). Official v1.7.0 was also historically unsigned.
+The owner explicitly accepted official unsigned distribution. The current release channel has no claimed SignPath or other public-trust publisher signature. Check the actual installer signature and versioned hashes on [the official latest Release](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/latest). `NotSigned` is disclosed rather than treated as a trusted signature. Previously published 1.7.0 and 1.7.1 remain immutable unsigned historical releases.
 
-Provider signing may be introduced in a future independently versioned release, but provider acceptance, signed-laboratory evidence, and a public-trust signature are not proven here. Do not rewrite already immutable historical binaries to add a signature.
+Any future trusted signing must use a new independently versioned release. Hash verification and GitHub artifact attestations establish file provenance, not antivirus clearance or publisher Authenticode signing.
 
 ## Provider and current status
 
