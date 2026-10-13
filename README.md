@@ -2,7 +2,7 @@
 
 **Live Windows taskbar monitoring, an eight-page Performance Workspace, and 49 built-in themes.**
 
-**Stable / Latest: [v1.7.1](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.7.1)** — official Windows x64 Stable, **unsigned**. [Use the one installer and protected in-place updater](DOWNLOAD.md). Older [v1.7.0](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.7.0) and [v1.6.0](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.6.0) remain immutable.
+**Stable / Latest:** [official immutable GitHub release](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/latest). Use the **one versioned Windows x64 installer** for a fresh install or supported in-place update; see [Download and verification](DOWNLOAD.md). Historical releases are preserved unchanged.
 
 Monitor CPU, RAM, disk, network, GPU, VRAM and available temperatures without putting privileged sensor collection inside the desktop UI. Version 1.6.0 adds 20 original Studio designs, local analysis, hardware inventory and practical alert controls.
 
@@ -44,9 +44,9 @@ The non-elevated main UI retains process-isolated sensors, Explorer/taskbar reco
 
 ## One installation and in-place updates
 
-**Exactly one installation per Windows user:** the official v1.7.1 Setup targets the canonical per-user LocalAppData TaskbarMonitorEnhanced root. Recognized public v1.6.0, v1.7 Preview1 and official v1.7.0 Stable installations update **in place**, without uninstalling, preserving settings, backup, sensor backend, Startup and Wallpaper. Close the running monitor normally before a manual update. Edited or unknown managed files are refused and running the exact same v1.7.1 Setup again is idempotent.
+**Exactly one installation per Windows user:** use the official versioned Setup in the current Release. It targets the canonical per-user LocalAppData TaskbarMonitorEnhanced root. **Do not uninstall first.** Close the running monitor normally before a manual update. Supported predecessors are recognized by both exact official Main and Setup hashes, preserving configuration, backup, sensor backend, Startup and Wallpaper. Unknown or edited managed files are refused; repeating the identical current installer is a no-op.
 
-The current official **v1.7.1 is unsigned by owner decision**. Windows may show **Unknown publisher**. Verify SHA256 ABD106630F7BAB3471CAF3F5BD4313DFCF2D61DDE1DF79E72EFE91933C8F2F89 against the immutable official GitHub Release. Separately licensed protected PawnIO is not silently bundled.
+Official distribution is **unsigned by explicit owner decision**. Windows may show **Unknown publisher**. Verify the matching versioned SHA256SUMS and manifest from the same immutable GitHub Release. A file hash is not a publisher signature or antivirus clearance. Separately licensed protected PawnIO is never silently bundled.
 
 ## Installation and release integrity
 

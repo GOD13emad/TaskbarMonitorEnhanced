@@ -1,7 +1,7 @@
-name: R155 v1.7.2 Exact Upgrade and Native Acceptance
+name: v1.7.2 - Exact Upgrade and Native Acceptance
 on:
   push:
-    branches: [release/r155-v172-upgrade]
+    branches: [release/r155-v172-upgrade, main]
   workflow_dispatch:
 permissions:
   contents: read
