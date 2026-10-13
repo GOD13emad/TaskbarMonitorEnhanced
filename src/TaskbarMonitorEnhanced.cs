@@ -5699,7 +5699,7 @@ namespace TaskbarMonitorEnhanced
             try
             {
                 // R146: presentation follows the real taskbar, not a perpetual TOPMOST timer.
-                if(RefreshTaskbarPresentation(true))return;
+                if(RefreshTaskbarPresentation(true)||startShellChildHost)return;
                 SensorSupervisorSelfHealWatchdog();
                 string probeTargetNow;IntPtr currentTaskbar=TaskbarTargetPolicy.Resolve(config,out probeTargetNow);
 

@@ -287,7 +287,7 @@ namespace TaskbarMonitorEnhanced
     {
         private bool glassNativeVisualProofMode;
         internal bool RequiresGlassTopLevel
-        {get{return config!=null && (!proofMode||glassNativeVisualProofMode) &&
+        {get{return !startShellChildHost && config!=null && (!proofMode||glassNativeVisualProofMode) &&
                      TaskbarGlassHostMode.RequiresTopLevel(config.Opacity,SystemInformation.HighContrast);}}
         internal void StartGlassGuardTickForProof()
         {
@@ -356,7 +356,7 @@ namespace TaskbarMonitorEnhanced
         internal int GlassDirectMetricRefreshCountForProof {get{return glassDirectMetricRefreshCount;}}
         private void RefreshGlassAfterMetricCommit()
         {
-            if(presentationSuppressed||!IsHandleCreated||!RequiresGlassTopLevel||glassLegacyFallback)return;
+            if(presentationSuppressed||!IsHandleCreated||(!RequiresGlassTopLevel&&!startShellChildHost)||glassLegacyFallback)return;
             if(proofMode&&!glassNativeVisualProofMode)return;
             if(PaintPerPixelLayer())glassDirectMetricRefreshCount++;
             // On failure PaintPerPixelLayer already records native error and applies
@@ -1662,7 +1662,48 @@ namespace TaskbarMonitorEnhanced
     }
     internal sealed partial class OverlayForm
     {
+        private bool startShellChildHost;
         private bool presentationSuppressed;
+        private void SwitchStartShellHost(bool child,Rectangle bar)
+        {
+            if(child==startShellChildHost)return;
+            // Start may place its taskbar in a compositor band above ordinary popups.
+            // Use the v1.6 taskbar-child relationship while Start is open; never lift,
+            // request UIAccess, manipulate shell z-bands or change another app's styles.
+            Rectangle saved=expectedRect;
+            if(saved.Width<80||saved.Height<16||!bar.Contains(saved))return;
+            Hide();
+            startShellChildHost=child;
+            long style=Native.GetWindowLongPtr(Handle,Native.GWL_STYLE).ToInt64();
+            long ex=Native.GetWindowLongPtr(Handle,Native.GWL_EXSTYLE).ToInt64();
+            if(child)
+            {
+                Native.SetWindowLongPtr(Handle,Native.GWL_STYLE,new IntPtr((style&~Native.WS_POPUP)|Native.WS_CHILD));
+                Native.SetParent(Handle,taskbar);
+                if(Native.GetParent(Handle)!=taskbar)throw new InvalidOperationException("Start child parent verification failed");
+                ex=(ex|Native.WS_EX_LAYERED|Native.WS_EX_TOOLWINDOW|Native.WS_EX_NOACTIVATE)&
+                    ~(long)(Native.WS_EX_COMPOSITED|Native.WS_EX_TRANSPARENT|Native.WS_EX_TOPMOST);
+            }
+            else
+            {
+                Native.SetParent(Handle,IntPtr.Zero);
+                Native.SetWindowLongPtr(Handle,Native.GWL_STYLE,new IntPtr((style&~Native.WS_CHILD)|Native.WS_POPUP));
+                ex=(ex|Native.WS_EX_LAYERED|Native.WS_EX_TOOLWINDOW|Native.WS_EX_NOACTIVATE)&
+                    ~(long)(Native.WS_EX_COMPOSITED|Native.WS_EX_TRANSPARENT);
+            }
+            // A prior legacy SetLayeredWindowAttributes cannot contaminate the new ULW frame.
+            Native.SetWindowLongPtr(Handle,Native.GWL_EXSTYLE,new IntPtr(ex&~(long)Native.WS_EX_LAYERED));
+            Native.SetWindowLongPtr(Handle,Native.GWL_EXSTYLE,new IntPtr(ex));
+            glassLegacyFallback=false;glassLegacyFallbackReady=false;
+            Show();
+            Native.SetWindowPos(Handle,child?Native.HWND_TOP:Native.HWND_TOPMOST,
+                child?saved.X-bar.Left:saved.X,child?saved.Y-bar.Top:saved.Y,
+                saved.Width,saved.Height,Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW|
+                Native.SWP_FRAMECHANGED|Native.SWP_NOOWNERZORDER);
+            if(!PaintPerPixelLayer())throw new InvalidOperationException("Start host compositor did not upload");
+            Log.Write("INFO","START_CHILD_PRESENTATION child="+child+" rect="+saved);
+        }
+
         private bool presentationSyncing;
         private TaskbarPresentationState presentationState=TaskbarPresentationState.Visible;
         private IntPtr presentationForeground=IntPtr.Zero;
@@ -1706,6 +1747,8 @@ namespace TaskbarMonitorEnhanced
                 if(next!=TaskbarPresentationState.Visible)
                 {
                     presentationSuppressed=true;
+                    if(next==TaskbarPresentationState.Missing&&!recoveryPending)
+                        ScheduleRecovery("TASKBAR_PRESENTATION_MISSING",750);
                     if(Visible)Hide();
                     if(hardwareFlyout!=null&&hardwareFlyout.Visible)hardwareFlyout.Hide();
                     presentationForeground=fg;
@@ -1715,6 +1758,9 @@ namespace TaskbarMonitorEnhanced
                 presentationSuppressed=false;
                 startGlassPinnedDuringShell=presentationShellOpen; // Freeze layout, NOT visibility/z-order repair.
                 if(restore)Show(); // ShowWithoutActivation=true is retained.
+                bool useStartChild=presentationShellOpen&&!SystemInformation.HighContrast&&config.Opacity<0.999999;
+                if(!recoveryPending&&useStartChild!=startShellChildHost)
+                    SwitchStartShellHost(useStartChild,bar);
                 if(repairOrder&&RequiresGlassTopLevel&&expectedRect.Width>=80&&expectedRect.Height>=16&&
                     bar.Contains(expectedRect)&&!recoveryPending)
                 {

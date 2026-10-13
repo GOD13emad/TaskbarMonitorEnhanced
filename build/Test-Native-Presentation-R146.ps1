@@ -52,6 +52,7 @@ $reg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEn
 $out=Join-Path $env:RUNNER_TEMP ('TBME_R146_'+$HostLabel)
 if((Test-Path $out) -or (Test-Path $app) -or (Test-Path $reg) -or @(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){throw 'R146_FRESH_HOST_REQUIRED'}
 New-Item -ItemType Directory -Path $out|Out-Null
+$visualFailures=New-Object 'Collections.Generic.List[string]'
 $phase='INSTALL';$status='FAIL';$failure='';$process=$null;$full=$null;$taskbar=[IntPtr]::Zero;$hidTaskbar=$false;$evidence=@()
 function Box([IntPtr]$h){$r=New-Object R146Native+Rect;if(![R146Native]::GetWindowRect($h,[ref]$r)){throw 'R146_RECT_FAILED'};return New-Object Drawing.Rectangle($r.L,$r.T,($r.R-$r.L),($r.B-$r.T))}
 function Pump([int]$ms){$stop=[Diagnostics.Stopwatch]::StartNew();while($stop.ElapsedMilliseconds -lt $ms){[Windows.Forms.Application]::DoEvents();Start-Sleep -Milliseconds 25}}
@@ -64,7 +65,7 @@ function Capture([IntPtr]$h,[string]$label){
    if([Math]::Abs(([int]$a.R+$a.G+$a.B)-([int]$z.R+$z.G+$z.B)) -ge 120){$edges++}
   }}
   $b.Save((Join-Path $out $file),[Drawing.Imaging.ImageFormat]::Png)
-  if($edges -lt 60){throw ('R146_PHYSICAL_GLYPHS_MISSING '+$label+' EDGES='+$edges)}
+  if($edges -lt 60){$visualFailures.Add(('R146_PHYSICAL_GLYPHS_MISSING '+$label+' EDGES='+$edges))}
   return @{State=$label;File=$file;SHA256=(Get-FileHash (Join-Path $out $file) -Algorithm SHA256).Hash;Edges=$edges;Rect=@($r.X,$r.Y,$r.Width,$r.Height);Foreground=[R146Native]::GetForegroundWindow().ToInt64()}
  }finally{$b.Dispose()}
 }
@@ -145,6 +146,7 @@ try{
   [void][R146Native]::SendMessage($monitor,0x0010,[IntPtr]::Zero,[IntPtr]::Zero)
   if(!$process.WaitForExit(10000)){throw 'R146_OWN_TEST_PROCESS_DID_NOT_EXIT'};$process.Dispose();$process=$null
  }
+ if($visualFailures.Count){throw ($visualFailures -join ';')}
  $status='PASS_REAL_MENU_SETTINGS_START_FULLSCREEN_TASKBAR_VISIBILITY_THREE_MODES'
 }catch{$failure=$_.Exception.ToString().Substring(0,[Math]::Min(3500,$_.Exception.ToString().Length))}
 finally{
