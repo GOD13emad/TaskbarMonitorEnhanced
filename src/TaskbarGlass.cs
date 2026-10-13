@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.IO;
 using System.Web.Script.Serialization;
 // R41: per-pixel taskbar background translucency with independent, contrast-safe glyphs.
@@ -147,7 +147,7 @@ namespace TaskbarMonitorEnhanced
     {
         internal static bool RequiresTopLevel(double backgroundOpacity,bool highContrast)
         {
-            return !highContrast && backgroundOpacity<0.999999;
+            return !highContrast; // R148: hit-testing host is independent of opacity/material, including fully opaque.
         }
     }
 
@@ -566,7 +566,7 @@ namespace TaskbarMonitorEnhanced
                 Require(TaskbarGlassHostMode.RequiresTopLevel(0,false),"zero alpha top-level required");
                 Require(TaskbarGlassHostMode.RequiresTopLevel(0.29,false),"29% alpha top-level required");
                 Require(TaskbarGlassHostMode.RequiresTopLevel(.97,false),"97% alpha top-level required");
-                Require(!TaskbarGlassHostMode.RequiresTopLevel(1.0,false),"100% previous child preserved");
+                Require(TaskbarGlassHostMode.RequiresTopLevel(1.0,false),"100% opacity retains the same interactive native host");
                 Require(!TaskbarGlassHostMode.RequiresTopLevel(.15,true),"High Contrast forced opaque child");
                 foreach(Color bg in new[]{Color.Black,Color.White,Color.FromArgb(127,127,127),Color.FromArgb(220,190,20)})
                     Require(TaskbarGlassColor.Contrast(TaskbarGlassColor.ReadableText(bg),bg)>=4.5,"contrast target");
@@ -1758,7 +1758,7 @@ namespace TaskbarMonitorEnhanced
                 presentationSuppressed=false;
                 startGlassPinnedDuringShell=presentationShellOpen; // Freeze layout, NOT visibility/z-order repair.
                 if(restore)Show(); // ShowWithoutActivation=true is retained.
-                bool useStartChild=presentationShellOpen&&!SystemInformation.HighContrast&&config.Opacity<0.999999;
+                bool useStartChild=presentationShellOpen&&!SystemInformation.HighContrast;
                 if(!recoveryPending&&useStartChild!=startShellChildHost)
                     SwitchStartShellHost(useStartChild,bar);
                 if(repairOrder&&RequiresGlassTopLevel&&expectedRect.Width>=80&&expectedRect.Height>=16&&

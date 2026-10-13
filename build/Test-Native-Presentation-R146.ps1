@@ -23,6 +23,7 @@ public static class R146Native {
  [DllImport("user32.dll")] public static extern IntPtr GetWindowLongPtr(IntPtr h,int n);
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
  [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h,uint n);
+ [DllImport("user32.dll")] public static extern IntPtr GetParent(IntPtr h);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h,StringBuilder s,int n);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string c,string t);
  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int s);
@@ -66,7 +67,7 @@ function Capture([IntPtr]$h,[string]$label){
   }}
   $b.Save((Join-Path $out $file),[Drawing.Imaging.ImageFormat]::Png)
   if($edges -lt 60){$visualFailures.Add(('R146_PHYSICAL_GLYPHS_MISSING '+$label+' EDGES='+$edges))}
-  return @{State=$label;File=$file;SHA256=(Get-FileHash (Join-Path $out $file) -Algorithm SHA256).Hash;Edges=$edges;Rect=@($r.X,$r.Y,$r.Width,$r.Height);Foreground=[R146Native]::GetForegroundWindow().ToInt64()}
+  return @{State=$label;File=$file;SHA256=(Get-FileHash (Join-Path $out $file) -Algorithm SHA256).Hash;Edges=$edges;Rect=@($r.X,$r.Y,$r.Width,$r.Height);Parent=[R146Native]::GetParent($h).ToInt64();PreviousSibling=[R146Native]::GetWindow($h,3).ToInt64();ExStyle=[R146Native]::GetWindowLongPtr($h,-20).ToInt64();Style=[R146Native]::GetWindowLongPtr($h,-16).ToInt64();Foreground=[R146Native]::GetForegroundWindow().ToInt64()}
  }finally{$b.Dispose()}
 }
 function Assert-Visible([IntPtr]$h,[Drawing.Rectangle]$original,[string]$label,[bool]$top){
@@ -154,6 +155,12 @@ finally{
  [R146Native]::Key(0x1B)
  if($null -ne $full){$full.Close();$full.Dispose()}
  if($null -ne $process){try{if(!$process.HasExited){$process.Kill()}}catch{}}
+ try{
+  $logs=@(Get-ChildItem (Join-Path $app 'Logs') -Filter 'tbme_csharp_*.log' -File -ErrorAction Stop)
+  foreach($log in $logs){
+   Get-Content -LiteralPath $log.FullName -Tail 1600 | Select-String -Pattern 'PRESENTATION|GLASS_NATIVE|GLASS_COMPOSITION|VISIBILITY_WATCHDOG|LOW_PRESSURE|CONTEXT_MENU|SETTINGS|START_|RECOVERY' | ForEach-Object Line | Set-Content -LiteralPath (Join-Path $out ('DIAG_'+$log.Name)) -Encoding UTF8
+  }
+ }catch{Write-Output ('R148_LOG_COLLECTION_WARNING '+$_.Exception.Message)}
  $r=[ordered]@{Revision='R146';Status=$status;Phase=$phase;Failure=$failure;Host=$HostLabel;EventCommit=$env:GITHUB_SHA;MainSHA256=$manifest.MainSHA256;SetupSHA256=$manifest.SetupSHA256;Evidence=$evidence;PersonalComputerTouched=$false;Proof='Installed candidate + native HWND + real screenshots + real input; not synthetic taskbar paint'}
  [IO.File]::WriteAllText((Join-Path $out 'R146_NATIVE.json'),($r|ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
  Write-Output ($r|ConvertTo-Json -Depth 12 -Compress)
