@@ -75,6 +75,49 @@ function Capture([IntPtr]$h,[string]$label){
   return @{State=$label;File=$file;SHA256=(Get-FileHash (Join-Path $out $file) -Algorithm SHA256).Hash;Edges=$edges;Rect=@($r.X,$r.Y,$r.Width,$r.Height);Parent=[R146Native]::GetParent($h).ToInt64();Owner=[R146Native]::GetWindow($h,4).ToInt64();OwnerMemory=[R146Native]::GetWindowLongPtr($h,-8).ToInt64();PreviousSibling=[R146Native]::GetWindow($h,3).ToInt64();ExStyle=[R146Native]::GetWindowLongPtr($h,-20).ToInt64();Style=[R146Native]::GetWindowLongPtr($h,-16).ToInt64();Foreground=[R146Native]::GetForegroundWindow().ToInt64()}
  }finally{$b.Dispose()}
 }
+# R163 fork-only paint readiness. WS_VISIBLE is not proof of actual text ink.
+# Same RGB edge definition as Capture(): adjacent channel-sum delta >=120.
+# ZERO edges must NEVER satisfy 60-edge native acceptance. No product code change.
+function Probe-R163PhysicalInk([IntPtr]$h,[string]$label,[bool]$saveFrame){
+ $rect=Box $h
+ if($rect.Width -lt 80 -or $rect.Height -lt 16 -or $rect.Height -ge 100){
+  return @{Edges=0;Colors=0;Bytes=0;SHA256='';Error='R163_INVALID_WINDOW_GEOMETRY'}
+ }
+ $bitmap=New-Object Drawing.Bitmap($rect.Width,$rect.Height)
+ try{
+  try{
+   $g=[Drawing.Graphics]::FromImage($bitmap)
+   try{$g.CopyFromScreen($rect.Location,[Drawing.Point]::Empty,$rect.Size)}
+   finally{$g.Dispose()}
+  }catch{
+   return @{Edges=0;Colors=0;Bytes=0;SHA256='';Error=('R163_COPY_FROM_SCREEN_FAILED '+$_.Exception.Message)}
+  }
+  $ink=0
+  $colors=New-Object 'System.Collections.Generic.HashSet[int]'
+  for($y=0;$y -lt $bitmap.Height;$y++){
+   for($x=0;$x -lt $bitmap.Width;$x++){
+    $a=$bitmap.GetPixel($x,$y)
+    $rgb=([int]$a.R -shl 16) -bor ([int]$a.G -shl 8) -bor [int]$a.B
+    [void]$colors.Add($rgb)
+    if($x -ge 1){
+     $z=$bitmap.GetPixel(($x-1),$y)
+     if([Math]::Abs(([int]$a.R+$a.G+$a.B)-([int]$z.R+$z.G+$z.B)) -ge 120){$ink++}
+    }
+   }
+  }
+  $file='';$sha='';$bytes=0
+  if($saveFrame){
+   $file=$label+'.png'
+   $full=Join-Path $out $file
+   if(Test-Path $full){throw ('R163_PROBE_IMAGE_OVERWRITE_REFUSED '+$file)}
+   $bitmap.Save($full,[Drawing.Imaging.ImageFormat]::Png)
+   $sha=(Get-FileHash $full -Algorithm SHA256).Hash
+   $bytes=(Get-Item $full).Length
+  }
+  return @{Edges=$ink;Colors=$colors.Count;Bytes=$bytes;File=$file;SHA256=$sha;Error='';Rect=@($rect.X,$rect.Y,$rect.Width,$rect.Height)}
+ }finally{$bitmap.Dispose()}
+}
+
 function Assert-Visible([IntPtr]$h,[Drawing.Rectangle]$original,[string]$label,[bool]$top){
  if(![R146Native]::IsWindowVisible($h)){throw ('R146_MONITOR_HIDDEN '+$label)}
  $r=Box $h
@@ -114,26 +157,63 @@ try{
   [IO.File]::WriteAllText($config,($fixture|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
   $process=Start-Process -FilePath $main -WorkingDirectory $app -PassThru
   $readyClock=[Diagnostics.Stopwatch]::StartNew();$readyObservations=@()
-  Pump 5000 # Minimum warm-up remains; a single elapsed delay is NOT readiness.
-  $monitor=[IntPtr]::Zero
+  Pump 5000 # Keep original warm-up and strict 20s total readiness deadline.
+  $monitor=[IntPtr]::Zero;$paintFirst=$false;$paintLast=$null
+  $lastEligible=[IntPtr]::Zero
   do{
    $process.Refresh()
    if($process.HasExited){throw ('R158_MAIN_EXITED_BEFORE_READY '+$mode+' CODE='+$process.ExitCode)}
    $observed=@()
    foreach($h in [R146Native]::Owned([uint32]$process.Id,$taskbar)){
     $visible=[R146Native]::IsWindowVisible($h);$r=Box $h
-    $observed+=@{Handle=$h.ToInt64();Visible=$visible;Rect=@($r.X,$r.Y,$r.Width,$r.Height)}
-    if($visible -and $r.Width -ge 80 -and $r.Height -ge 16 -and $r.Height -lt 100 -and (Box $taskbar).Contains($r)){$monitor=$h;break}
+    $one=@{Handle=$h.ToInt64();Visible=$visible;Rect=@($r.X,$r.Y,$r.Width,$r.Height)}
+    if($visible -and $r.Width -ge 80 -and $r.Height -ge 16 -and $r.Height -lt 100 -and (Box $taskbar).Contains($r)){
+     $lastEligible=$h
+     # Persist FIRST physical frame, whether ink is present or missing.
+     $paint=Probe-R163PhysicalInk $h ($mode+'_R163_FIRST_PAINT') (!$paintFirst)
+     $paintFirst=$true
+     $paintLast=$paint
+     $one.PaintEdges=$paint.Edges;$one.PaintColors=$paint.Colors;$one.PaintError=$paint.Error
+     if($paint.Edges -ge 60 -and [string]$paint.Error -ceq ''){
+      $monitor=$h;$observed+=@($one);break
+     }
+    }
+    $observed+=@($one)
    }
-   if($readyObservations.Count -lt 12){$readyObservations+=@{ElapsedMs=$readyClock.ElapsedMilliseconds;Windows=$observed}}
+   if($readyObservations.Count -lt 24){
+    $readyObservations+=@{ElapsedMs=$readyClock.ElapsedMilliseconds;Windows=$observed}
+   }
    if($monitor -eq [IntPtr]::Zero){Pump 200}
   }while($monitor -eq [IntPtr]::Zero -and $readyClock.ElapsedMilliseconds -lt 20000)
   $readyClock.Stop()
-  $ready=@{Mode=$mode;Pid=$process.Id;Ready=($monitor -ne [IntPtr]::Zero);ElapsedMilliseconds=$readyClock.ElapsedMilliseconds;HardDeadlineMs=20000;Observations=$readyObservations;ProductSourceChanged=$false}
-  [IO.File]::WriteAllText((Join-Path $out ('R158_READY_'+$mode+'.json')),($ready|ConvertTo-Json -Depth 9),[Text.UTF8Encoding]::new($false))
-  if($monitor -eq [IntPtr]::Zero){throw ('R158_NATIVE_WINDOW_NOT_READY_WITHIN_20_SECONDS '+$mode)}
-  Write-Output ('R158_NATIVE_READY MODE='+$mode+' PID='+$process.Id+' ELAPSED_MS='+$readyClock.ElapsedMilliseconds)
+  $timeoutProbe=$null
+  if($monitor -eq [IntPtr]::Zero -and $lastEligible -ne [IntPtr]::Zero){
+   $timeoutProbe=Probe-R163PhysicalInk $lastEligible ($mode+'_R163_TIMEOUT_PAINT') $true
+  }
+  $ready=[ordered]@{Mode=$mode;Pid=$process.Id;Ready=($monitor -ne [IntPtr]::Zero);
+   PaintReady=($monitor -ne [IntPtr]::Zero -and $null -ne $paintLast -and $paintLast.Edges -ge 60);
+   PaintThresholdEdges=60;OriginalRgbDelta=120;
+   LastMeasuredEdges=if($null -eq $paintLast){-1}else{$paintLast.Edges};
+   LastMeasuredColors=if($null -eq $paintLast){0}else{$paintLast.Colors};
+   TimeoutFrame=$timeoutProbe;
+   ElapsedMilliseconds=$readyClock.ElapsedMilliseconds;HardDeadlineMs=20000;
+   Observations=$readyObservations;ProductSourceChanged=$false;
+   NoThresholdWeakening=$true;SeparateTaskbarHideInvariantRequired=$true}
+  [IO.File]::WriteAllText((Join-Path $out ('R158_READY_'+$mode+'.json')),($ready|ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
+  if($monitor -eq [IntPtr]::Zero){
+   if($lastEligible -ne [IntPtr]::Zero){
+    throw ('R163_PHYSICAL_PAINT_NOT_READY_WITHIN_20_SECONDS '+$mode+
+     ' EDGES='+$ready.LastMeasuredEdges+' COLORS='+$ready.LastMeasuredColors)
+   }
+   throw ('R158_NATIVE_WINDOW_NOT_READY_WITHIN_20_SECONDS '+$mode)
+  }
+  if(!$ready.PaintReady -or $ready.LastMeasuredEdges -lt 60){
+   throw ('R163_UNPROVEN_NATIVE_PAINT '+$mode)
+  }
+  Write-Output ('R163_NATIVE_AND_ACTUAL_INK_READY MODE='+$mode+' PID='+$process.Id+
+   ' ELAPSED_MS='+$readyClock.ElapsedMilliseconds+' EDGES='+$ready.LastMeasuredEdges)
   $original=Box $monitor;$top=$true
+  # Original Capture() remains the separate final pixel threshold acceptance.
   $evidence+=Capture $monitor ($mode+'_NORMAL')
   # Real right-click and invoke the actual installed product's Settings menu item.
   [R146Native]::Click(($original.X+40),($original.Y+($original.Height/2)),$true);Pump 650
@@ -174,7 +254,24 @@ try{
   $evidence+=Capture $monitor ($mode+'_RETURN_FULLSCREEN')
   # Simulate taskbar visibility notification, only on disposable runner; always restore.
   [void][R146Native]::ShowWindow($taskbar,0);$hidTaskbar=$true;Pump 1100
-  if([R146Native]::IsWindowVisible($monitor)){throw 'R146_MONITOR_IGNORES_TASKBAR_HIDE'}
+  if([R146Native]::IsWindowVisible($monitor)){
+   # Do not suppress this independent FAIL gate. Collect the real HWND/shell
+   # visibility and optional screen-pixel evidence before the existing throw.
+   $forkHide=[ordered]@{
+    Mode=$mode;MainPid=$process.Id;
+    TaskbarVisible=[R146Native]::IsWindowVisible($taskbar)
+    MonitorVisible=[R146Native]::IsWindowVisible($monitor)
+    TaskbarRect=@( (Box $taskbar).X,(Box $taskbar).Y,(Box $taskbar).Width,(Box $taskbar).Height )
+    MonitorRect=@( (Box $monitor).X,(Box $monitor).Y,(Box $monitor).Width,(Box $monitor).Height )
+    PopupOwner=[R146Native]::GetParent($monitor).ToInt64()
+    MemoryOwner=[R146Native]::GetWindowLongPtr($monitor,-8).ToInt64()
+    ProductSourceChanged=$false
+    OriginalHideInvariantRetained=$true
+   }
+   [IO.File]::WriteAllText((Join-Path $out ($mode+'_R163_TASKBAR_HIDE_FAILURE.json')),
+     ($forkHide|ConvertTo-Json -Depth 9),[Text.UTF8Encoding]::new($false))
+   throw 'R146_MONITOR_IGNORES_TASKBAR_HIDE'
+  }
   [void][R146Native]::ShowWindow($taskbar,4);$hidTaskbar=$false;Pump 1100
   Assert-Visible $monitor $original ($mode+'_TASKBAR_REAPPEARS') $top
   $process.Refresh();$cpu0=$process.CPU;$clock=[Diagnostics.Stopwatch]::StartNew();Pump 5000;$clock.Stop();$process.Refresh()
