@@ -1417,11 +1417,16 @@ internal static partial class SetupProgram
             WritePhase("COMMITTED");
             CleanOwnedStage(entries);
             return ExistingSensorOutcome();
-        }catch{
+        }catch(Exception firstFailure){
             if(Directory.Exists(UpgradeRoot)){
                 try{RecoverUpgradeStageIfAny();}
                 catch(Exception rollback){
-                    throw new IOException("Upgrade failed and rollback is UNRESOLVED. Preserve stage and do not uninstall. "+rollback.Message,rollback);
+                    // Preserve first observed cause and rollback exception together;
+                    // never delete an unrecognized or incomplete transaction journal.
+                    throw new IOException("Upgrade failed; rollback UNRESOLVED. Preserve stage and do not uninstall. FIRST="+
+                        firstFailure.GetType().FullName+": "+firstFailure.Message+
+                        "; ROLLBACK="+rollback.GetType().FullName+": "+rollback.Message,
+                        new AggregateException(firstFailure,rollback));
                 }
             }
             throw;

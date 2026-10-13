@@ -24,7 +24,7 @@ $newMain=Join-Path $PSScriptRoot '_out\App\TaskbarMonitorEnhanced.exe'
 $oldSetupSha='148827212B716238DDB270309F393140EBE3CB935CD0E80D36233220A4BE611E'
 $oldMainSha='B56E322826A86927999A00FB933C17979213798A68C8BB71C2176E68962E30EA'
 $newMainSha='C79064C6A284F2D6537D28D500D07621BEEF050BDCEA794495DB5B2AAE8A0AC1'
-$newSetupSha='24C39688ACD2353D3D23ECBAEA920462629A167CC6D004A3CDB3D8622CE5920F'
+$newSetupSha='A9A0B446A2781D29D97571468C72860566535DB345B783A375EDEB882A4A6552'
 $state=Join-Path $app 'install_state.json'
 $main=Join-Path $app 'TaskbarMonitorEnhanced.exe'
 $config=Join-Path $app 'config.json'
@@ -155,7 +155,35 @@ try{
  $after=@{Main=SHA $main;Uninstaller=SHA (Join-Path $app 'Uninstall.exe');State=SHA $state;Config=SHA $config;Backup=SHA $configBak;Backend=SHA $backend;Sentinel=SHA $sentinel;Startup=StartupValue;Wallpaper=WallpaperValue}
  $phase='ACCEPTED'
  $status='PASS_REAL_PUBLIC_STABLE_V170_TO_PATCH_V171_SINGLE_ROOT'
-}catch{$status='FAIL_CLOSED';$errorDetail=$_.Exception.ToString()}
+}catch{
+ $status='FAIL_CLOSED';$errorDetail=$_.Exception.ToString()
+ # Immutable stage inventory for AFTER-the-failure diagnosis. Read-only from
+ # a known disposable CI root; unknown/partial stage is always preserved.
+ try{
+  $snapshot=[ordered]@{Revision='R130';Phase=$phase;StageExists=(Test-Path -LiteralPath $stage);
+    OwnerPresent=$false;PhasePresent=$false;IndexPresent=$false;Files=@()}
+  if(Test-Path -LiteralPath $stage -PathType Container){
+   $ownerPath=Join-Path $stage 'owner.txt'
+   $phasePath=Join-Path $stage 'phase.txt'
+   $indexPath=Join-Path $stage 'index.txt'
+   $snapshot.OwnerPresent=Test-Path -LiteralPath $ownerPath -PathType Leaf
+   $snapshot.PhasePresent=Test-Path -LiteralPath $phasePath -PathType Leaf
+   $snapshot.IndexPresent=Test-Path -LiteralPath $indexPath -PathType Leaf
+   if($snapshot.PhasePresent){$snapshot.PhaseText=(Get-Content $phasePath -Raw).Substring(0,[Math]::Min(180,(Get-Item $phasePath).Length))}
+   $items=@(Get-ChildItem -LiteralPath $stage -File -Recurse -ErrorAction Stop | Sort-Object FullName)
+   $details=foreach($item in ($items|Select-Object -First 100)){
+    $relative=$item.FullName.Substring($stage.Length).TrimStart([char]'\')
+    [ordered]@{Rel=$relative;Bytes=$item.Length;SHA256=if(($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $item.Length -gt 20971520){'SKIPPED'}else{SHA $item.FullName}}
+   }
+   $snapshot.Files=@($details)
+   $snapshot.TotalFileCount=$items.Count
+  }
+  $dest=Join-Path $dir 'R130_STAGE_INVENTORY.json'
+  if(!(Test-Path -LiteralPath $dest)){
+   [IO.File]::WriteAllText($dest,($snapshot|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+  }
+ }catch{$errorDetail+=' STAGE_DIAG_ERROR='+$_.Exception.Message}
+}
 finally{
  $out=[ordered]@{
   Schema=1;Revision='R126';EventCommit=$env:GITHUB_SHA
