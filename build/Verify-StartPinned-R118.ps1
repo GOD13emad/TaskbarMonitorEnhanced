@@ -31,8 +31,8 @@ function Check-R118($a,$receipt) {
     $bad.Add('SOURCE_NATIVE_START_FORMAL_CONTRACT')
  }
  if($receipt.EventCommit -cne $ExpectedCommit -or
-    $receipt.CandidateMainSHA256 -cne '1CC12BBA541C28800371DC674422FF4947711EADFC7FC9B9E75EAAFA121F1728' -or
-    $receipt.CandidateSetupSHA256 -cne '05FC03EA5EC2636005D8401685D102766DAB83CA9F6DEECD42DD90EF04CC627F' -or
+    $receipt.CandidateMainSHA256 -cne 'FB77754C337441F1A87CD38DCEF45FE8C4DC66A2ACAC3E27CFE388417549CFD9' -or
+    $receipt.CandidateSetupSHA256 -cne '05D17828EBB78D81C0BB84B2ABE14E6081FBDC1E1C21CBCD26E93CEE74963F4F' -or
     $receipt.MainProcessPid -ne $a.MainPid -or
     $receipt.FormalG14Accepted -ne $false -or
     $receipt.DiagnosticPasses -ne 8){

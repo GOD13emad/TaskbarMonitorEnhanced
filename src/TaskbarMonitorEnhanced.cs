@@ -8302,6 +8302,56 @@ namespace TaskbarMonitorEnhanced
     internal static class SettingsProof
     {
 
+        // Disposable test-only mouse input; actual Windows input events, NOT f.Focus() or
+        // f.Activate() treated as proof. Signatures mirror Win32 INPUT/MOUSEINPUT x64.
+        [StructLayout(LayoutKind.Sequential)]
+        private struct R121MouseData
+        {
+            public int dx,dy;
+            public uint mouseData,flags,time;
+            public UIntPtr extraInfo;
+        }
+        [StructLayout(LayoutKind.Explicit)]
+        private struct R121Union
+        {
+            [FieldOffset(0)] public R121MouseData mouse;
+        }
+        [StructLayout(LayoutKind.Sequential)]
+        private struct R121Input
+        {
+            public uint type;
+            public R121Union data;
+        }
+        [DllImport("user32.dll",SetLastError=true)]
+        private static extern uint SendInput(uint count,[In] R121Input[] events,int size);
+
+        private static int PhysicalTitleClick(Point at)
+        {
+            if(IntPtr.Size!=8 || Marshal.SizeOf(typeof(R121Input))!=40)
+                throw new InvalidOperationException("R121_UNVERIFIED_NATIVE_INPUT_LAYOUT");
+            R121Input down=new R121Input{
+                type=0,data=new R121Union{mouse=new R121MouseData{flags=0x0002}}
+            };
+            R121Input up=new R121Input{
+                type=0,data=new R121Union{mouse=new R121MouseData{flags=0x0004}}
+            };
+            Point before=Cursor.Position;
+            try
+            {
+                Cursor.Position=at;
+                if(Cursor.Position!=at)
+                    throw new InvalidOperationException("R121_NATIVE_CURSOR_MOVE_NOT_OBSERVED");
+                R121Input[] clicks=new R121Input[]{down,up};
+                int inserted=(int)SendInput(2,clicks,Marshal.SizeOf(typeof(R121Input)));
+                if(inserted!=2)
+                    throw new InvalidOperationException("R121_NATIVE_SENDINPUT_NOT_TWO_EVENTS "+
+                        inserted+" WIN32="+Marshal.GetLastWin32Error());
+                return inserted;
+            }
+            finally { Cursor.Position=before; }
+        }
+
+
         // R120 disposable-VM native screen acceptance. Unlike --settingsproof,
         // this shows Settings ON SCREEN above a real WS_EX_NOACTIVATE, layered,
         // TopMost obstruction; Win32 foreground + CopyFromScreen are authoritative.
@@ -8381,6 +8431,10 @@ namespace TaskbarMonitorEnhanced
                 long settingsEx=0,obstructionEx=0;
                 uint settingsPid=0,obstructionPid=0;
                 bool foreground=false,noOwner=false,aboveTopmost=false,visible=false;
+                bool titleHit=false;
+                int inputEvents=0,clickAttempts=0;
+                long foregroundBeforeClick=0;
+                Point clickPoint=Point.Empty;
                 string png="SETTINGS_REAL_FOREGROUND.png";
                 string obstaclePng="TOPMOST_GLASS_OBSTRUCTION_BEFORE.png";
                 AppConfig cfg=AppConfig.Load();cfg.Normalize();
@@ -8426,6 +8480,23 @@ namespace TaskbarMonitorEnhanced
                             Thread.Sleep(140);
                             if(Native.GetForegroundWindow()==f.Handle)break;
                         }
+                        // Foreground activation via Show/Activate is intentionally NOT sufficient:
+                        // Windows foreground-lock policy can deny background activation. Use a
+                        // real title-bar click as a human user would on the disposable host.
+                        foregroundBeforeClick=Native.GetForegroundWindow().ToInt64();
+                        clickPoint=new Point(f.Left+120,f.Top+15);
+                        Native.POINT hit=new Native.POINT{X=clickPoint.X,Y=clickPoint.Y};
+                        titleHit=Native.WindowFromPoint(hit)==f.Handle;
+                        if(!titleHit)throw new InvalidOperationException(
+                            "R121_TITLE_NOT_PHYSICALLY_HITTABLE_WITH_TOPMOST_GLASS");
+                        for(int attempt=0;attempt<3;attempt++)
+                        {
+                            inputEvents+=PhysicalTitleClick(clickPoint);
+                            clickAttempts++;
+                            Thread.Sleep(200);
+                            Application.DoEvents();
+                            if(Native.GetForegroundWindow()==f.Handle)break;
+                        }
                         settingsHandle=f.Handle.ToInt64();
                         foregroundHandle=Native.GetForegroundWindow().ToInt64();
                         settingsEx=Native.GetWindowLongPtr(f.Handle,Native.GWL_EXSTYLE).ToInt64();
@@ -8452,18 +8523,22 @@ namespace TaskbarMonitorEnhanced
                         }
                     }
                 }
-                bool pass=foreground&&visible&&noOwner&&aboveTopmost&&
+                bool pass=foreground&&titleHit&&inputEvents==2*clickAttempts&&
+                    clickAttempts>=1&&clickAttempts<=3&&visible&&noOwner&&aboveTopmost&&
                     settingsPid==(uint)Process.GetCurrentProcess().Id&&
                     obstructionPid==settingsPid&&settingSaturated>=150&&
                     distinct>=24&&obstructionCovered<100&&obstructionBefore>=2000;
                 string real=Path.Combine(outputDirectory,png);
                 string witness=Path.Combine(outputDirectory,obstaclePng);
                 Dictionary<string,object> result=new Dictionary<string,object>{
-                    {"Schema",1},{"Revision","R120"},{"EventCommit",commit},
-                    {"Status",pass?"PASS":"FAIL"},{"Test","NATIVE_SETTINGS_FOREGROUND_ABOVE_LAYERED_NOACTIVATE_TOPMOST"},
+                    {"Schema",1},{"Revision","R121"},{"EventCommit",commit},
+                    {"Status",pass?"PASS":"FAIL"},{"Test","R121_USER_CLICK_SETTINGS_NATIVE_FOREGROUND_OVER_GLASS"},
                     {"MainPid",Process.GetCurrentProcess().Id},{"SettingsPid",settingsPid},
                     {"ObstaclePid",obstructionPid},{"SettingsHwnd",settingsHandle},{"ForegroundHwnd",foregroundHandle},
-                    {"ObstacleHwnd",obstructionHandle},{"SettingsNativeExStyle",settingsEx},
+                    {"ObstacleHwnd",obstructionHandle},{"ForegroundBeforeClick",foregroundBeforeClick},
+                    {"ClickPoint",new int[]{clickPoint.X,clickPoint.Y}},{"SettingsTitleHit",titleHit},
+                    {"RealMouseInputEvents",inputEvents},{"RealMouseClickAttempts",clickAttempts},
+                    {"SettingsNativeExStyle",settingsEx},
                     {"ObstacleNativeExStyle",obstructionEx},{"ForegroundIsSettings",foreground},
                     {"SettingsVisibleUncloaked",visible},{"SettingsHasNoOwner",noOwner},
                     {"SettingsTopMostAndActivatable",aboveTopmost},
@@ -8476,10 +8551,12 @@ namespace TaskbarMonitorEnhanced
                     {"ObstacleScreenshotSha256",Sha256R120(witness)},
                     {"FormalExternalLabAccepted",false}
                 };
-                File.WriteAllText(Path.Combine(outputDirectory,"SETTINGS_NATIVE_FOREGROUND_R120.json"),
+                File.WriteAllText(Path.Combine(outputDirectory,"SETTINGS_NATIVE_FOREGROUND_R121.json"),
                     new JavaScriptSerializer().Serialize(result),Encoding.UTF8);
-                Console.WriteLine("TBME_R120_SETTINGS_NATIVE_FOREGROUND="+(pass?"PASS":"FAIL")+
-                    " FOREGROUND="+foreground+" ABOVE_TOPMOST="+aboveTopmost+
+                Console.WriteLine("TBME_R121_SETTINGS_NATIVE_FOREGROUND="+(pass?"PASS":"FAIL")+
+                    " FOREGROUND="+foreground+" TITLE_HIT="+titleHit+" MOUSE_EVENTS="+inputEvents+
+                    " FG_BEFORE="+foregroundBeforeClick+" FG_AFTER="+foregroundHandle+
+                    " ABOVE_TOPMOST="+aboveTopmost+
                     " REAL_SAT="+settingSaturated+" OBSTACLE_BEFORE="+obstructionBefore+
                     " LEAK="+obstructionCovered);
                 return pass?0:120;
@@ -8489,12 +8566,12 @@ namespace TaskbarMonitorEnhanced
                 try
                 {
                     if(Directory.Exists(outputDirectory))
-                        File.WriteAllText(Path.Combine(outputDirectory,"SETTINGS_NATIVE_FOREGROUND_R120.json"),
+                        File.WriteAllText(Path.Combine(outputDirectory,"SETTINGS_NATIVE_FOREGROUND_R121.json"),
                             new JavaScriptSerializer().Serialize(
-                                new Dictionary<string,object>{{"Revision","R120"},{"EventCommit",commit},
+                                new Dictionary<string,object>{{"Revision","R121"},{"EventCommit",commit},
                                 {"Status","FAIL_EXCEPTION"},{"Error",ex.ToString()}}),Encoding.UTF8);
                 }catch{}
-                Console.Error.WriteLine("TBME_R120_SETTINGS_NATIVE_FOREGROUND=FAIL "+ex);
+                Console.Error.WriteLine("TBME_R121_SETTINGS_NATIVE_FOREGROUND=FAIL "+ex);
                 return 121;
             }
         }
