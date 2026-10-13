@@ -24,7 +24,7 @@ $newMain=Join-Path $PSScriptRoot '_out\App\TaskbarMonitorEnhanced.exe'
 $oldSetupSha='148827212B716238DDB270309F393140EBE3CB935CD0E80D36233220A4BE611E'
 $oldMainSha='B56E322826A86927999A00FB933C17979213798A68C8BB71C2176E68962E30EA'
 $newMainSha='C79064C6A284F2D6537D28D500D07621BEEF050BDCEA794495DB5B2AAE8A0AC1'
-$newSetupSha='EFFFB272BB6255983F84451CBF18F631447D92754D8D89CBFC911110AEC167DC'
+$newSetupSha='24C39688ACD2353D3D23ECBAEA920462629A167CC6D004A3CDB3D8622CE5920F'
 $state=Join-Path $app 'install_state.json'
 $main=Join-Path $app 'TaskbarMonitorEnhanced.exe'
 $config=Join-Path $app 'config.json'
@@ -102,7 +102,9 @@ try{
  try{
   [IO.File]::AppendAllText($doc,[Environment]::NewLine+'OWNER_EDIT_MUST_SURVIVE',[Text.UTF8Encoding]::new($false))
   $editedSha=SHA $doc
+  $env:TBME_UPDATE_DIAGNOSTIC_PHASE='NEGATIVE_USER_EDIT'
   $rc=RunExe $newSetup @('/update','/quiet') 80000
+  $env:TBME_UPDATE_DIAGNOSTIC_PHASE=''
   if($rc -ne 34 -or (SHA $doc) -cne $editedSha -or
      (SHA $main) -cne $oldMainSha -or (Test-Path $stage)){
     throw ('R126_USER_EDIT_NOT_REFUSED '+$rc)
@@ -111,7 +113,9 @@ try{
  }finally{[IO.File]::WriteAllBytes($doc,$docOriginal)}
  if((SHA $doc) -cne $before.Doc){throw 'R126_MANAGED_DOC_TEST_NOT_RESTORED'}
  $phase='REAL_SAME_ROOT_UPDATE'
+ $env:TBME_UPDATE_DIAGNOSTIC_PHASE='POSITIVE_OFFICIAL_STABLE'
  $rc=RunExe $newSetup @('/update','/quiet') 190000
+ $env:TBME_UPDATE_DIAGNOSTIC_PHASE=''
  if($rc -ne 0){throw ('R126_UPDATE_FAILED '+$rc)}
  $actual=Get-Content $state -Raw|ConvertFrom-Json
  if($actual.Version -cne '1.7.1' -or $actual.PublicVersion -cne '1.7.1' -or
@@ -128,13 +132,17 @@ try{
  $upgraded='PASS_OFFICIAL_V170_TO_V171_SAME_ROOT_EXACT_USER_SHAS'
  $phase='NOOP_IDEMPOTENCE'
  $stateSHA=SHA $state
+ $env:TBME_UPDATE_DIAGNOSTIC_PHASE='IDEMPOTENT'
  $rc=RunExe $newSetup @('/update','/quiet') 80000
+ $env:TBME_UPDATE_DIAGNOSTIC_PHASE=''
  if($rc -ne 0 -or (SHA $state) -cne $stateSHA -or (SHA $main) -cne $newMainSha -or (Test-Path $stage)){
   throw 'R126_SAME_INSTALL_REPEAT_NOT_NOOP'
  }
  $repeat='PASS_IDEMPOTENT_NO_USER_CHANGE'
  $phase='NO_DOWNGRADE'
+ $env:TBME_UPDATE_DIAGNOSTIC_PHASE='DOWNGRADE'
  $rc=RunExe $oldSetup @('/update','/quiet') 80000
+ $env:TBME_UPDATE_DIAGNOSTIC_PHASE=''
  if($rc -ne 34 -or (SHA $state) -cne $stateSHA -or (SHA $main) -cne $newMainSha){
   throw ('R126_OLD_SETUP_DOWNGRADE_NOT_REFUSED '+$rc)
  }

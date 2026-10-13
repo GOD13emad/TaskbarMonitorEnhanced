@@ -728,6 +728,39 @@ internal static partial class SetupProgram
         }
     }
 
+    // R129: diagnostic-only, strictly on short-lived GitHub-hosted Windows.
+    // No user PC logging, no fallback writes, no overwrite, no installer bypass.
+    static void WriteHostedUpgradeFailure(Exception ex)
+    {
+        try
+        {
+            if(Environment.GetEnvironmentVariable("GITHUB_ACTIONS")!="true" ||
+               Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT")!="github-hosted" ||
+               Environment.GetEnvironmentVariable("RUNNER_OS")!="Windows" ||
+               !Regex.IsMatch(Environment.GetEnvironmentVariable("GITHUB_SHA")??"","^[0-9a-f]{40}$"))
+                return;
+            string phase=Environment.GetEnvironmentVariable("TBME_UPDATE_DIAGNOSTIC_PHASE")??"";
+            if(phase!="NEGATIVE_USER_EDIT" && phase!="POSITIVE_OFFICIAL_STABLE" &&
+               phase!="IDEMPOTENT" && phase!="DOWNGRADE")return;
+            string temp=Environment.GetEnvironmentVariable("RUNNER_TEMP")??"";
+            if(String.IsNullOrWhiteSpace(temp))return;
+            string evidence=Path.Combine(Path.GetFullPath(temp),"TBME_R126_STABLE_UPDATE");
+            if(!Directory.Exists(evidence))return;
+            string file=Path.Combine(evidence,"R129_DIAG_"+phase+".txt");
+            using(FileStream output=new FileStream(file,FileMode.CreateNew,FileAccess.Write,FileShare.None))
+            using(StreamWriter writer=new StreamWriter(output,new UTF8Encoding(false)))
+            {
+                writer.WriteLine("R129_FAIL_CLOSED_DIAGNOSTIC");
+                writer.WriteLine("TEST_PHASE="+phase);
+                writer.WriteLine("GIT_SHA="+Environment.GetEnvironmentVariable("GITHUB_SHA"));
+                writer.WriteLine("EXCEPTION="+ex.GetType().FullName);
+                writer.WriteLine(ex.ToString().Substring(0,Math.Min(12000,ex.ToString().Length)));
+                writer.Flush();
+            }
+        }
+        catch{} // Diagnostic must never change Setup's failure/rollback behavior.
+    }
+
     static int RunMain(string[] args)
     {
         if(Has(args,"/verify"))
@@ -739,6 +772,7 @@ internal static partial class SetupProgram
                 UpgradeExisting(); // never fresh-install; rollback journal required
                 return 0;
             }catch(Exception ex){
+                WriteHostedUpgradeFailure(ex);
                 if(!quiet)MessageBox.Show(ex.Message,"In-place update declined",MessageBoxButtons.OK,MessageBoxIcon.Error);
                 return 34;
             }
