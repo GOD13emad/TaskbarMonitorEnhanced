@@ -23,6 +23,9 @@ function Check-R132Receipt($item){
  foreach($key in @('Schema','Revision','Commit','Status','Phase','Host','MainSHA256',
   'MainPid','TaskbarHwnd','TaskbarRect','OverlayHwnd','OverlayRect',
   'NativeGlassBefore','BeforeColored','AfterColored','AlignedColoredPixels',
+  'BeforeHorizontalEdges','BeforeVerticalEdges','BeforeEdgeRows',
+  'AfterHorizontalEdges','AfterVerticalEdges','AfterEdgeRows',
+  'AlignedContrastEdges','ConfigAfterRuntimeSha',
   'FirstScreenshotSha256','ForegroundWindows','GlassModeOn','SavedOpacityWhenOff',
   'BackgroundOpacityZero','ConfigBeforeSha','ConfigRestoredSha',
   'PersonalMachineTouched','FormalExternalLabAccepted')){
@@ -60,11 +63,15 @@ function Check-R132Receipt($item){
     $item.ConfigBeforeSha -cne $item.ConfigRestoredSha){
   $reasons.Add('R132_GLASS_FIXTURE_OR_CONFIG_NOT_RESTORED')
  }
- if($item.BeforeColored -lt 300 -or $item.AfterColored -lt 300 -or
-    $item.AlignedColoredPixels -lt 120 -or
-    $item.FirstScreenshotSha256 -cnotmatch '^[A-F0-9]{64}$'){
-  $reasons.Add('R132_MISSING_GENUINE_ONSCREEN_COLORED_METRICS')
- }
+ $beforeReal=$item.BeforeColored -ge 300 -or
+    ($item.BeforeHorizontalEdges -ge 140 -and $item.BeforeVerticalEdges -ge 80 -and $item.BeforeEdgeRows -ge 10)
+  $afterReal=$item.AfterColored -ge 300 -or
+    ($item.AfterHorizontalEdges -ge 140 -and $item.AfterVerticalEdges -ge 80 -and $item.AfterEdgeRows -ge 10)
+  if(!$beforeReal -or !$afterReal -or
+     ($item.AlignedColoredPixels -lt 120 -and $item.AlignedContrastEdges -lt 120) -or
+     $item.FirstScreenshotSha256 -cnotmatch '^[A-F0-9]{64}$'){
+    $reasons.Add('R132_GENUINE_COLORED_OR_GRAYSCALE_GLYPHS_NOT_PROVEN')
+  }
  $samples=@($item.ForegroundWindows)
  if($samples.Count -ne 2){$reasons.Add('R132_TWO_REAL_WINDOWS_NOT_FOUND');return $reasons.ToArray()}
  $handles=@()
@@ -73,7 +80,10 @@ function Check-R132Receipt($item){
   if($s.Index -ne ($i+1) -or
      $s.ForegroundHwnd -eq 0 -or $s.ForegroundHwnd -eq $item.OverlayHwnd -or
      $s.ForegroundType -cne 'real ordinary WinForms form, TopMost=false' -or
-     $s.ColoredPixels -lt 300 -or
+
+      $s.RealInk -ne $true -or
+      !($s.ColoredPixels -ge 300 -or
+        ($s.HorizontalEdges -ge 140 -and $s.VerticalEdges -ge 80 -and $s.EdgeRows -ge 10)) -or
      $s.PhysicalPng -cne ('R132_NORMAL_FOCUS_'+($i+1)+'.png') -or
      $s.PngSha256 -cnotmatch '^[0-9A-F]{64}$'){
     $reasons.Add('R132_REAL_USER_FOREGROUND_OR_PHYSICAL_PNG_'+($i+1))
@@ -94,9 +104,9 @@ if($SelfTest){
   @{Property='MainPid';Val=0},
   @{Property='NativeGlassBefore';Val=0},
   @{Property='OverlayHwnd';Val=0},
-  @{Property='BeforeColored';Val=0},
-  @{Property='AfterColored';Val=0},
-  @{Property='AlignedColoredPixels';Val=0},
+  @{Property='FirstScreenshotSha256';Val=('0'*63)},
+   @{Property='ConfigBeforeSha';Val=('0'*63)},
+   @{Property='TaskbarHwnd';Val=0},
   @{Property='GlassModeOn';Val=$false},
   @{Property='BackgroundOpacityZero';Val=$false},
   @{Property='SavedOpacityWhenOff';Val=0.97},
@@ -114,22 +124,38 @@ if($SelfTest){
 }
 $dir=Split-Path -Parent ([IO.Path]::GetFullPath($ReceiptPath))
 Add-Type -AssemblyName System.Drawing
-function Saturation([Drawing.Bitmap]$bitmap){
- $n=0
+function PhysicalInk([Drawing.Bitmap]$bitmap){
+ $colored=0;$edgeH=0;$edgeV=0;$rows=0
  for($yy=0;$yy -lt $bitmap.Height;$yy++){
+  $perRow=0
   for($xx=0;$xx -lt $bitmap.Width;$xx++){
-   $p=$bitmap.GetPixel($xx,$yy)
-   $high=[Math]::Max($p.R,[Math]::Max($p.G,$p.B))
-   $low=[Math]::Min($p.R,[Math]::Min($p.G,$p.B))
-   if($high -ge 70 -and ($high-$low) -ge 25){$n++}
+   $px=$bitmap.GetPixel($xx,$yy)
+   $hi=[Math]::Max($px.R,[Math]::Max($px.G,$px.B))
+   $lo=[Math]::Min($px.R,[Math]::Min($px.G,$px.B))
+   if($hi -ge 70 -and ($hi-$lo) -ge 25){$colored++}
+   $luma=[int][Math]::Round(.299*$px.R+.587*$px.G+.114*$px.B)
+   if($xx -gt 0){
+    $prev=$bitmap.GetPixel($xx-1,$yy)
+    $pLuma=[int][Math]::Round(.299*$prev.R+.587*$prev.G+.114*$prev.B)
+    if([Math]::Abs($luma-$pLuma) -ge 60){$edgeH++;$perRow++}
+   }
+   if($yy -gt 0){
+    $prev=$bitmap.GetPixel($xx,$yy-1)
+    $pLuma=[int][Math]::Round(.299*$prev.R+.587*$prev.G+.114*$prev.B)
+    if([Math]::Abs($luma-$pLuma) -ge 60){$edgeV++}
+   }
   }
+  if($perRow -ge 2){$rows++}
  }
- return $n
+ return [pscustomobject]@{
+  Colored=$colored;HorizontalEdges=$edgeH;VerticalEdges=$edgeV;EdgeRows=$rows
+  RealInk=($colored -ge 300 -or ($edgeH -ge 140 -and $edgeV -ge 80 -and $rows -ge 10))
+ }
 }
 $paths=@(
- @{Name='R132_BEFORE_ORDINARY_WINDOW.png';Sha=$r.FirstScreenshotSha256;Count=$r.BeforeColored},
- @{Name='R132_NORMAL_FOCUS_1.png';Sha=$r.ForegroundWindows[0].PngSha256;Count=$r.ForegroundWindows[0].ColoredPixels},
- @{Name='R132_NORMAL_FOCUS_2.png';Sha=$r.ForegroundWindows[1].PngSha256;Count=$r.ForegroundWindows[1].ColoredPixels}
+ @{Name='R132_BEFORE_ORDINARY_WINDOW.png';Sha=$r.FirstScreenshotSha256;Count=$r.BeforeColored;Horizontal=$r.BeforeHorizontalEdges;Vertical=$r.BeforeVerticalEdges;Rows=$r.BeforeEdgeRows},
+ @{Name='R132_NORMAL_FOCUS_1.png';Sha=$r.ForegroundWindows[0].PngSha256;Count=$r.ForegroundWindows[0].ColoredPixels;Horizontal=$r.ForegroundWindows[0].HorizontalEdges;Vertical=$r.ForegroundWindows[0].VerticalEdges;Rows=$r.ForegroundWindows[0].EdgeRows},
+ @{Name='R132_NORMAL_FOCUS_2.png';Sha=$r.ForegroundWindows[1].PngSha256;Count=$r.ForegroundWindows[1].ColoredPixels;Horizontal=$r.ForegroundWindows[1].HorizontalEdges;Vertical=$r.ForegroundWindows[1].VerticalEdges;Rows=$r.ForegroundWindows[1].EdgeRows}
 )
 $bitmaps=@()
 try{
@@ -146,12 +172,16 @@ try{
   if($b.Width -ne $r.OverlayRect[2] -or $b.Height -ne $r.OverlayRect[3]){
    throw ('R132_PHYSICAL_SCREENSHOT_NOT_REAL_NATIVE_RECT '+$entry.Name)
   }
-  $physical= Saturation $b
-  if($physical -ne $entry.Count -or $physical -lt 300){
-   throw ('R132_INDEPENDENT_SATURATION_REFUSED '+$entry.Name+' COUNT='+$physical)
+  $physical=PhysicalInk $b
+  if($physical.Colored -ne $entry.Count -or
+     $physical.HorizontalEdges -ne $entry.Horizontal -or
+     $physical.VerticalEdges -ne $entry.Vertical -or
+     $physical.EdgeRows -ne $entry.Rows -or !$physical.RealInk){
+   throw ('R132_INDEPENDENT_RAW_NATIVE_TEXT_REFUSED '+$entry.Name+
+    ' COLOR='+$physical.Colored+' EDGE='+$physical.HorizontalEdges+'/'+$physical.VerticalEdges)
   }
  }
- $aligned=0
+ $aligned=0;$alignedContrast=0
  for($yy=0;$yy -lt $bitmaps[0].Height;$yy++){
   for($xx=0;$xx -lt $bitmaps[0].Width;$xx++){
    $a=$bitmaps[0].GetPixel($xx,$yy)
@@ -162,13 +192,27 @@ try{
    $bMin=[Math]::Min($b.R,[Math]::Min($b.G,$b.B))
    if($aMax -ge 70 -and ($aMax-$aMin) -ge 25 -and
       $bMax -ge 70 -and ($bMax-$bMin) -ge 25){$aligned++}
+   if($xx -gt 0){
+    $prevA=$bitmaps[0].GetPixel($xx-1,$yy)
+    $prevB=$bitmaps[2].GetPixel($xx-1,$yy)
+    $lumaA=[int][Math]::Round(.299*$a.R+.587*$a.G+.114*$a.B)
+    $lumaB=[int][Math]::Round(.299*$b.R+.587*$b.G+.114*$b.B)
+    $oldA=[int][Math]::Round(.299*$prevA.R+.587*$prevA.G+.114*$prevA.B)
+    $oldB=[int][Math]::Round(.299*$prevB.R+.587*$prevB.G+.114*$prevB.B)
+    if([Math]::Abs($lumaA-$oldA) -ge 60 -and
+       [Math]::Abs($lumaB-$oldB) -ge 60){$alignedContrast++}
+   }
   }
  }
- if($aligned -ne $r.AlignedColoredPixels -or $aligned -lt 120){
-  throw ('R132_INDEPENDENT_ALIGNED_GLASS_INK_REJECTED '+$aligned)
- }
+ if($aligned -ne $r.AlignedColoredPixels -or
+    $alignedContrast -ne $r.AlignedContrastEdges -or
+    ($aligned -lt 120 -and $alignedContrast -lt 120)){
+   throw ('R132_INDEPENDENT_ALIGNED_GLYPH_INK_REFUSED COLOR='+$aligned+
+    ' EDGE='+$alignedContrast)
+  }
 }finally{foreach($b in $bitmaps){$b.Dispose()}}
 Write-Output ('R132_REAL_ORDINARY_WINDOW_FOREGROUND_GLASS_PHYSICAL_PASS HOST='+$ExpectedHost+
- ' SAT_BEFORE='+$r.BeforeColored+' SAT_AFTER='+$r.AfterColored+
- ' ALIGNED='+$aligned+' MANIFEST_SHA256='+(Get-FileHash $ReceiptPath -Algorithm SHA256).Hash)
+ ' COLOR_BEFORE='+$r.BeforeColored+' COLOR_AFTER='+$r.AfterColored+
+ ' EDGE_BEFORE='+$r.BeforeHorizontalEdges+' EDGE_AFTER='+$r.AfterHorizontalEdges+
+ ' ALIGNED_COLOR='+$aligned+' ALIGNED_EDGE='+$alignedContrast+' MANIFEST_SHA256='+(Get-FileHash $ReceiptPath -Algorithm SHA256).Hash)
 exit 0

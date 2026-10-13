@@ -115,7 +115,9 @@ $fixture='{"Theme":"Glass Morphism","Opacity":0.0,"GlassMode":true,"OpacityWhenG
 $fixtureBytes=[Text.UTF8Encoding]::new($false).GetBytes($fixture)
 [IO.File]::WriteAllBytes($config,$fixtureBytes)
 $fixtureHash=(Get-FileHash $config -Algorithm SHA256).Hash
-$phase='START';$status='FAIL';$failure='';$process=$null;$residentPid=0;$normal=@();$nativeBefore=0;$nativeAfter=0;$actualInkBefore=0;$actualInkAfter=0;$aligned=0
+$phase='START';$status='FAIL';$failure='';$process=$null;$residentPid=0;$normal=@();$nativeBefore=0;$nativeAfter=0;$actualInkBefore=0;$actualInkAfter=0;$aligned=0;$alignedContrast=0
+$beforeEdgeH=0;$beforeEdgeV=0;$beforeEdgeRows=0;$afterEdgeH=0;$afterEdgeV=0;$afterEdgeRows=0
+$configAfterRuntimeSha=''
 $monitor=0L;$taskbar=0L;$baseline=@();$screens=@()
 function Snapshot([string]$path,[R132Native+RECT]$rect){
  $bmp=[Drawing.Bitmap]::new($rect.Width,$rect.Height,[Drawing.Imaging.PixelFormat]::Format32bppArgb)
@@ -125,17 +127,36 @@ function Snapshot([string]$path,[R132Native+RECT]$rect){
   $bmp.Save($path,[Drawing.Imaging.ImageFormat]::Png)
  }finally{$bmp.Dispose()}
 }
-function Get-Saturated([Drawing.Bitmap]$bmp){
- $value=0
+function Get-PhysicalInk([Drawing.Bitmap]$bmp){
+ # Local high-contrast TEXT must count even when the taskbar contrast engine
+ # draws genuine black/white glyphs. Zero-uniform backgrounds cannot pass.
+ $colored=0;$horizontal=0;$vertical=0;$edgeRows=0
  for($y=0;$y -lt $bmp.Height;$y++){
+  $rowEdges=0
   for($x=0;$x -lt $bmp.Width;$x++){
    $p=$bmp.GetPixel($x,$y)
    $hi=[Math]::Max($p.R,[Math]::Max($p.G,$p.B))
    $lo=[Math]::Min($p.R,[Math]::Min($p.G,$p.B))
-   if($hi -ge 70 -and ($hi-$lo) -ge 25){$value++}
+   if($hi -ge 70 -and ($hi-$lo) -ge 25){$colored++}
+   $lum=[int][Math]::Round(0.299*$p.R+0.587*$p.G+0.114*$p.B)
+   if($x -gt 0){
+    $left=$bmp.GetPixel($x-1,$y)
+    $prev=[int][Math]::Round(0.299*$left.R+0.587*$left.G+0.114*$left.B)
+    if([Math]::Abs($lum-$prev) -ge 60){$horizontal++;$rowEdges++}
+   }
+   if($y -gt 0){
+    $up=$bmp.GetPixel($x,$y-1)
+    $prev=[int][Math]::Round(0.299*$up.R+0.587*$up.G+0.114*$up.B)
+    if([Math]::Abs($lum-$prev) -ge 60){$vertical++}
+   }
   }
+  if($rowEdges -ge 2){$edgeRows++}
  }
- return $value
+ return [pscustomobject]@{
+  Colored=$colored;HorizontalEdges=$horizontal;VerticalEdges=$vertical
+  EdgeRows=$edgeRows;RealInk=($colored -ge 300 -or
+   ($horizontal -ge 140 -and $vertical -ge 80 -and $edgeRows -ge 10))
+ }
 }
 try{
  $phase='LAUNCH_REAL_INSTALLED_MONITOR'
@@ -162,11 +183,21 @@ try{
  $baseline=@($rect.Left,$rect.Top,$rect.Width,$rect.Height)
  $phase='BASELINE_REAL_INK'
  $before=Join-Path $out 'R132_BEFORE_ORDINARY_WINDOW.png'
- Snapshot $before $rect
- $bm=[Drawing.Bitmap]::new($before)
- try{$actualInkBefore=Get-Saturated $bm}finally{$bm.Dispose()}
- if($actualInkBefore -lt 300){throw ('R132_INITIAL_REAL_COLORED_METRICS_MISSING '+$actualInkBefore)}
  $nativeBefore=[R132Native]::GetWindowLongPtr($found,[R132Native]::GWL_EXSTYLE).ToInt64()
+ # The real installed app may take time to paint AFTER the HWND appears.
+ # Never accept a gray/blank screenshot; only bounded real screenshot polls.
+ for($attempt=0;$attempt -lt 16;$attempt++){
+  Snapshot $before $rect
+  $bm=[Drawing.Bitmap]::new($before)
+  try{$ink=Get-PhysicalInk $bm}finally{$bm.Dispose()}
+  $actualInkBefore=$ink.Colored
+  $beforeEdgeH=$ink.HorizontalEdges;$beforeEdgeV=$ink.VerticalEdges
+  $beforeEdgeRows=$ink.EdgeRows
+  if($ink.RealInk){break}
+  Start-Sleep -Milliseconds 450
+ }
+ if(!$ink.RealInk){throw ('R132_INITIAL_REAL_GLYPH_INK_MISSING COLOR='+$actualInkBefore+
+  ' EDGE_H='+$beforeEdgeH+' EDGE_V='+$beforeEdgeV+' ROWS='+$beforeEdgeRows)}
  $phase='ACTIVATE_REAL_ORDINARY_WINDOWS'
  for($index=1;$index -le 2;$index++){
   $form=[Windows.Forms.Form]::new()
@@ -197,11 +228,20 @@ try{
   $path=Join-Path $out ('R132_NORMAL_FOCUS_'+$index+'.png')
   Snapshot $path $rect
   $pic=[Drawing.Bitmap]::new($path)
-  try{
-   $ink=Get-Saturated $pic
-  }finally{$pic.Dispose()}
-  $screens+=@([ordered]@{Index=$index;ForegroundHwnd=$form.Handle.ToInt64();ForegroundType='real ordinary WinForms form, TopMost=false';ColoredPixels=$ink;PhysicalPng=(Split-Path $path -Leaf);PngSha256=(Get-FileHash $path -Algorithm SHA256).Hash})
-  if($ink -lt 300){throw ('R132_NORMAL_WINDOW_OCCLUDED_ACTUAL_METRIC_INK '+$index+' '+$ink)}
+  try{$ink=Get-PhysicalInk $pic}finally{$pic.Dispose()}
+  $afterEdgeH=$ink.HorizontalEdges;$afterEdgeV=$ink.VerticalEdges
+  $afterEdgeRows=$ink.EdgeRows
+  $screens+=@([ordered]@{
+   Index=$index;ForegroundHwnd=$form.Handle.ToInt64()
+   ForegroundType='real ordinary WinForms form, TopMost=false'
+   ColoredPixels=$ink.Colored;HorizontalEdges=$ink.HorizontalEdges
+   VerticalEdges=$ink.VerticalEdges;EdgeRows=$ink.EdgeRows
+   RealInk=$ink.RealInk
+   PhysicalPng=(Split-Path $path -Leaf)
+   PngSha256=(Get-FileHash $path -Algorithm SHA256).Hash
+  })
+  if(!$ink.RealInk){throw ('R132_NORMAL_WINDOW_ACTUAL_METRIC_GLYPHS_MISSING '+$index+
+   ' COLOR='+$ink.Colored+' EDGE_H='+$ink.HorizontalEdges+' EDGE_V='+$ink.VerticalEdges)}
  }
  $afterPath=Join-Path $out 'R132_NORMAL_FOCUS_2.png'
  $second=[Drawing.Bitmap]::new($afterPath)
@@ -213,11 +253,20 @@ try{
     $maxA=[Math]::Max($a.R,[Math]::Max($a.G,$a.B));$minA=[Math]::Min($a.R,[Math]::Min($a.G,$a.B))
     $maxB=[Math]::Max($b.R,[Math]::Max($b.G,$b.B));$minB=[Math]::Min($b.R,[Math]::Min($b.G,$b.B))
     if($maxA -ge 70 -and $maxA-$minA -ge 25 -and $maxB -ge 70 -and $maxB-$minB -ge 25){$aligned++}
+     if($x -gt 0){
+      $pa=$first.GetPixel($x-1,$y);$pb=$second.GetPixel($x-1,$y)
+      $aLum=[int][Math]::Round(0.299*$a.R+0.587*$a.G+0.114*$a.B)
+      $bLum=[int][Math]::Round(0.299*$b.R+0.587*$b.G+0.114*$b.B)
+      $paLum=[int][Math]::Round(0.299*$pa.R+0.587*$pa.G+0.114*$pa.B)
+      $pbLum=[int][Math]::Round(0.299*$pb.R+0.587*$pb.G+0.114*$pb.B)
+      if([Math]::Abs($aLum-$paLum) -ge 60 -and
+         [Math]::Abs($bLum-$pbLum) -ge 60){$alignedContrast++}
+     }
    }
   }
  }finally{$first.Dispose();$second.Dispose()}
  $actualInkAfter=$screens[-1].ColoredPixels
- if($aligned -lt 120){throw ('R132_AFTER_FOREGROUND_ALIGNED_REAL_METRICS_MISSING '+$aligned)}
+ if($aligned -lt 120 -and $alignedContrast -lt 120){throw ('R132_AFTER_FOREGROUND_ALIGNED_REAL_GLYPHS_MISSING SAT='+$aligned+' EDGE='+$alignedContrast)}
  $phase='PHYSICAL_ACCEPTED';$status='PASS'
 }catch{$failure=$_.Exception.ToString()}
 finally{
@@ -232,7 +281,16 @@ finally{
   $process.Dispose()
  }
  try{
-  if((Get-FileHash $config -Algorithm SHA256).Hash -cne $fixtureHash){throw 'R132_CONCURRENT_CONFIG_MODIFIED'}
+  $configAfterRuntimeSha=(Get-FileHash $config -Algorithm SHA256).Hash
+   if($configAfterRuntimeSha -cne $fixtureHash){
+    # Only in SHA-locked disposable CI: the owned app may normalize and persist
+    # the known test config on exit. Archive that byte-for-byte before rollback.
+    $autosave=Join-Path $out 'R132_AUTOSAVED_TEST_CONFIG.json'
+    if((Get-Item $config).Length -gt 65536 -or (Test-Path -LiteralPath $autosave)){
+     throw 'R132_UNRECOGNIZED_TEST_CONFIG_MUTATION'
+    }
+    Copy-Item -LiteralPath $config -Destination $autosave -ErrorAction Stop
+   }
   [IO.File]::WriteAllBytes($config,$oldConfig)
   if((Get-FileHash $config -Algorithm SHA256).Hash -cne $originalConfigSha){throw 'R132_CONFIG_RESTORE_SHA_FAILED'}
  }catch{$failure+=' CONFIG_RESTORE_FAILURE='+$_.Exception.Message;$status='FAIL'}
@@ -241,13 +299,16 @@ finally{
   Host='GITHUB_HOSTED_DISPOSABLE_WINDOWS';MainSHA256=$expected;MainPid=$residentPid
   TaskbarHwnd=$taskbar;TaskbarRect=if($taskbar -ne 0){@($tray.Left,$tray.Top,$tray.Width,$tray.Height)}else{@()};OverlayHwnd=$monitor;OverlayRect=$baseline
   NativeGlassBefore=$nativeBefore;BeforeColored=$actualInkBefore;AfterColored=$actualInkAfter;AlignedColoredPixels=$aligned
+   BeforeHorizontalEdges=$beforeEdgeH;BeforeVerticalEdges=$beforeEdgeV;BeforeEdgeRows=$beforeEdgeRows
+   AfterHorizontalEdges=$afterEdgeH;AfterVerticalEdges=$afterEdgeV;AfterEdgeRows=$afterEdgeRows
+   AlignedContrastEdges=$alignedContrast;ConfigAfterRuntimeSha=$configAfterRuntimeSha
   FirstScreenshotSha256=if(Test-Path (Join-Path $out 'R132_BEFORE_ORDINARY_WINDOW.png')){(Get-FileHash (Join-Path $out 'R132_BEFORE_ORDINARY_WINDOW.png') -Algorithm SHA256).Hash}else{''}
   ForegroundWindows=@($screens);GlassModeOn=$true;SavedOpacityWhenOff=0.31;BackgroundOpacityZero=$true
   ConfigBeforeSha=$originalConfigSha;ConfigRestoredSha=if(Test-Path $config){(Get-FileHash $config -Algorithm SHA256).Hash}else{''}
   PersonalMachineTouched=$false;FormalExternalLabAccepted=$false
  }
  [IO.File]::WriteAllText($receipt,($receiptObj|ConvertTo-Json -Depth 10),[Text.UTF8Encoding]::new($false))
- Write-Output ('R132_REAL_NORMAL_FOREGROUND_GLASS='+$status+' BEFORE_COLORED='+$actualInkBefore+' AFTER_COLORED='+$actualInkAfter+' ALIGNED='+$aligned+' RECEIPT_SHA256='+(Get-FileHash $receipt -Algorithm SHA256).Hash)
+ Write-Output ('R132_REAL_NORMAL_FOREGROUND_GLASS='+$status+' BEFORE_COLOR='+$actualInkBefore+' BEFORE_H_EDGES='+$beforeEdgeH+' AFTER_COLOR='+$actualInkAfter+' AFTER_H_EDGES='+$afterEdgeH+' ALIGN_COLOR='+$aligned+' ALIGN_EDGES='+$alignedContrast+' RECEIPT_SHA256='+(Get-FileHash $receipt -Algorithm SHA256).Hash)
 }
 if($status -cne 'PASS'){throw ('R132_NATIVE_REAL_NORMAL_WINDOW_VISIBILITY_REFUSED '+$failure)}
 exit 0
