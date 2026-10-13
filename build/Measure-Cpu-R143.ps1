@@ -38,8 +38,21 @@ try{
  if($LASTEXITCODE -ne 0 -or !(Test-Path $setup -PathType Leaf) -or
    (Get-FileHash $setup -Algorithm SHA256).Hash -cne $setupSHA){throw 'R143_NOT_OFFICIAL_RELEASE_SETUP_BYTES'}
  $phase='INSTALL_ONLY_DISPOSABLE_WINDOWS'
- & $setup /install /quiet /desktop=0 /startup=0
- if($LASTEXITCODE -ne 0){throw ('R143_OFFICIAL_SETUP_FAILED '+$LASTEXITCODE)}
+ # R144 FIRST CAUSE: GUI-subsystem Setup launched via & returned to pwsh
+ # before installer completion; LASTEXITCODE carried previous gh=0.
+ # Historical R126 native test already uses Process.WaitForExit.
+ # Wait for EXACT launched Setup PID (not descendants) with a 190s cap;
+ # only then validate actual root, state, registry and immutable Main SHA.
+ $setupProcess=Start-Process -FilePath $setup -ArgumentList @(
+  '/install','/quiet','/desktop=0','/startup=0') -PassThru -ErrorAction Stop
+ if($null -eq $setupProcess -or $setupProcess.Id -le 0){throw 'R144_GUI_SETUP_PROCESS_NOT_OBSERVED'}
+ if(!$setupProcess.WaitForExit(190000)){throw ('R144_GUI_SETUP_EXIT_TIMEOUT PID='+$setupProcess.Id)}
+ $setupProcess.Refresh()
+ if($setupProcess.ExitCode -ne 0){
+  throw ('R144_OFFICIAL_SETUP_PROCESS_EXIT_NONZERO CODE='+$setupProcess.ExitCode+
+   ' PID='+$setupProcess.Id)
+ }
+ Write-Output ('R144_GUI_SETUP_BOUND_TO_EXIT PID='+$setupProcess.Id+' CODE='+$setupProcess.ExitCode)
  $exe=Join-Path $app 'TaskbarMonitorEnhanced.exe'
  $state=Join-Path $app 'install_state.json'
  $config=Join-Path $app 'config.json'
