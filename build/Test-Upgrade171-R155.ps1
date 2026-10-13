@@ -5,6 +5,8 @@ $ErrorActionPreference='Stop'
 # Genuine product install/update is permitted ONLY on a fresh disposable hosted VM.
 if($PSVersionTable.PSEdition -eq 'Core' -or $env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or $env:COMPUTERNAME -match 'EMAD-PC' -or ![Environment]::UserInteractive){throw 'R155_REFUSE_PERSONAL_OR_NONINTERACTIVE_HOST'}
 Add-Type -AssemblyName System.Windows.Forms
+# R156: keep genuine CLR null; PS5.1 string binder converts $null to empty string.
+Add-Type -TypeDefinition 'using System.IO; public static class R156FileBridge { public static void ReplaceWithoutBackup(string source,string destination){File.Replace(source,destination,null);} }'
 $repo='GOD13emad/TaskbarMonitorEnhanced'
 $app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
 $reg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
@@ -102,7 +104,7 @@ try{
  [void]$t.GetMethod('WritePhase',$f).Invoke($null,[object[]]@('COMMITTING'))
  foreach($rel in @('TaskbarMonitorEnhanced.exe','Source/TaskbarGlass.cs')){
   $staged=Join-Path (Join-Path $stage 'new') $rel;$live=Join-Path $app $rel
-  [IO.File]::Replace($staged,$live,$null)
+  [R156FileBridge]::ReplaceWithoutBackup($staged,$live)
  }
  if((Hash (Join-Path $app 'TaskbarMonitorEnhanced.exe')) -cne $manifest.MainSHA256){throw 'R155_PARTIAL_COMMIT_NOT_REAL'}
  [void]$t.GetMethod('RecoverUpgradeStageIfAny',$f).Invoke($null,[object[]]@())
