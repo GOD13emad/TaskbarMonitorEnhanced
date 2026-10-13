@@ -1031,7 +1031,7 @@ internal static partial class SetupProgram
             Regex.Escape(previous)+"(\\\")";
         if(Regex.Matches(state,rx).Count!=1)
             throw new InvalidDataException("Old version field ambiguous: "+field);
-        return Regex.Replace(state,rx,"1"+Version+"2");
+        return Regex.Replace(state,rx,delegate(Match m){return m.Groups[1].Value+Version+m.Groups[2].Value;});
     }
     static string NewInstallState(string source)
     {
