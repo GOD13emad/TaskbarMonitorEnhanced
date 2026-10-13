@@ -469,6 +469,8 @@ namespace TaskbarMonitorEnhanced
             if (String.IsNullOrWhiteSpace(Theme) || String.Equals(Theme, "Auto", StringComparison.OrdinalIgnoreCase)) Theme = "Dark Minimal Pro";
             if (!ThemeCatalog.Names.Contains(Theme)) Theme = "Dark Minimal Pro";
             if (String.IsNullOrWhiteSpace(Position) || (Position != "Left" && Position != "Center" && Position != "Right")) Position = "Left";
+            // R125: owner explicitly requires the v1.6 fixed taskbar UX; no Start/Search lift, ever.
+            FloatAboveStartMenu=false;
             if (!MetricStatistics.Finite(Opacity)) Opacity = 0.97;
             else Opacity = Math.Max(0.0,Math.Min(1.0,Opacity));
             if (UpdateIntervalMs < 1000 || UpdateIntervalMs > 5000) UpdateIntervalMs = 1000;
@@ -4138,7 +4140,8 @@ namespace TaskbarMonitorEnhanced
                 // GetParent returns the hidden WinForms OWNER of a popup when
                 // ShowInTaskbar=false. It is not a child parent; check WS_CHILD.
                 bool healthy=(style&Native.WS_CHILD)==0 && (style&Native.WS_POPUP)!=0 &&
-                    (ex&extra)==extra && (ex&Native.WS_EX_COMPOSITED)==0 &&
+                    (ex&extra)==extra && (ex&Native.WS_EX_TOPMOST)!=0 &&
+                    (ex&Native.WS_EX_COMPOSITED)==0 &&
                     (ex&Native.WS_EX_TRANSPARENT)==0;
                 if(healthy)return true;
                 if(!repair)
@@ -4161,7 +4164,8 @@ namespace TaskbarMonitorEnhanced
                 long after=Native.GetWindowLongPtr(hwnd,Native.GWL_STYLE).ToInt64();
                 long afterEx=Native.GetWindowLongPtr(hwnd,Native.GWL_EXSTYLE).ToInt64();
                 bool pass=(after&Native.WS_CHILD)==0 && (after&Native.WS_POPUP)!=0 &&
-                    (afterEx&extra)==extra && (afterEx&Native.WS_EX_COMPOSITED)==0;
+                    (afterEx&extra)==extra && (afterEx&Native.WS_EX_TOPMOST)!=0 &&
+                    (afterEx&Native.WS_EX_COMPOSITED)==0;
                 Log.Write(pass?"INFO":"ERROR","TOPLEVEL_GLASS_STYLE_REPAIR reason="+reason+" pass="+pass+" hwnd="+hwnd.ToInt64()+" parent="+Native.GetParent(hwnd).ToInt64()+" styleBefore=0x"+style.ToString("X8")+" styleAfter=0x"+after.ToString("X8")+" exBefore=0x"+ex.ToString("X8")+" exAfter=0x"+afterEx.ToString("X8")+" required=0x"+extra.ToString("X8"));
                 return pass;
             }
@@ -5521,6 +5525,8 @@ namespace TaskbarMonitorEnhanced
         // native ink visible again without recreating the whole OverlayForm.
         private bool startGlassTemporarilyFloating;
         private bool startGlassPinnedDuringShell;
+        private IntPtr lastGlassForeground=IntPtr.Zero;
+        private DateTime nextGlassForegroundRefreshAt=DateTime.MinValue;
         private Rectangle startGlassTemporaryBounds=Rectangle.Empty;
         private int startGlassLiftTransitions;
         private int startGlassReturnTransitions;
@@ -5759,6 +5765,47 @@ namespace TaskbarMonitorEnhanced
                                 StartGuardTick(taskbar);
                                 if(startGlassTemporarilyFloating)return;
                             }
+                        }
+                    }
+                }
+                // R125: Windows can re-stack Shell_TrayWnd when another application becomes
+                // foreground. TopMost=true is not a permanent z-order guarantee. Re-assert
+                // at the SAME taskbar rectangle, without activation and without Start lift.
+                // Keep Settings above the overlay and do not disturb genuine Start/Search.
+                if(RequiresGlassTopLevel && !startGlassPinnedDuringShell &&
+                   !startGlassTemporarilyFloating && !recoveryPending &&
+                   IsHandleCreated && taskbar!=IntPtr.Zero && Native.IsWindow(taskbar) &&
+                   (settingsForm==null || settingsForm.IsDisposed || !settingsForm.Visible) &&
+                   expectedRect.Width>=AdaptiveProbeGeometry.MinSafeWidth)
+                {
+                    IntPtr foregroundNow=Native.GetForegroundWindow();
+                    DateTime now=DateTime.UtcNow;
+                    if(foregroundNow!=IntPtr.Zero &&
+                       (foregroundNow!=lastGlassForeground || now>=nextGlassForegroundRefreshAt))
+                    {
+                        string startProc="",startClass="";
+                        IntPtr startHwnd=IntPtr.Zero;
+                        Rectangle startRect=Rectangle.Empty;
+                        bool start=ShellUi.IsStartShellForeground(out startProc,out startClass,out startHwnd);
+                        if(!start)start=ShellUi.IsStartSurfacePresent(
+                            out startProc,out startClass,out startRect,out startHwnd);
+                        Native.RECT trayRect;
+                        if(!start && Native.GetWindowRect(taskbar,out trayRect) &&
+                           trayRect.ToRectangle().Contains(expectedRect))
+                        {
+                            lastGlassForeground=foregroundNow;
+                            nextGlassForegroundRefreshAt=now.AddSeconds(3);
+                            bool restacked=Native.SetWindowPos(
+                                Handle,Native.HWND_TOPMOST,
+                                expectedRect.X,expectedRect.Y,expectedRect.Width,expectedRect.Height,
+                                Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW|Native.SWP_NOOWNERZORDER);
+                            if(!restacked)
+                                Log.Write("WARN","GLASS_FOREGROUND_ZORDER_REASSERT_FAILED win32="+Marshal.GetLastWin32Error());
+                            else if(!PaintPerPixelLayer())
+                                Log.Write("WARN","GLASS_FOREGROUND_REUPLOAD_FAILED");
+                            else
+                                Log.Write("INFO","GLASS_FOREGROUND_REASSERT_FIXED_RECT hwnd="+
+                                    Handle.ToInt64()+" fg="+foregroundNow.ToInt64()+" rect="+expectedRect);
                         }
                     }
                 }
@@ -7326,7 +7373,9 @@ namespace TaskbarMonitorEnhanced
             batteryInterval=Number(behavior,"Battery interval ms",c.BatteryUpdateIntervalMs,2000,10000,236);
             historyLength=Number(behavior,"Sparkline history samples",c.SparklineHistoryLength,30,300,286);
             Label behaviorNote=new Label();behaviorNote.Location=new Point(24,338);behaviorNote.Size=new Size(690,90);behaviorNote.Text="Adaptive battery mode never polls faster than your normal interval. Session Pause/Resume is available from the taskbar context menu and does not get cancelled by suspend/resume events.";behavior.Controls.Add(behaviorNote);
-            floatAboveStart=Check(behavior,"Optional: move monitor above Start/Search (default OFF)",c.FloatAboveStartMenu,444);
+            // The owner rejected Start lift; never offer a UI option that can re-enable it.
+            floatAboveStart=Check(behavior,"Taskbar anchored during Start (always ON)",false,444);
+            floatAboveStart.Visible=false;floatAboveStart.Enabled=false;
 
             updateCurrent=new Label();updateCurrent.Location=new Point(24,28);updateCurrent.Size=new Size(650,24);updateCurrent.Text="Installed version: "+BuildInfo.PublicVersion;updates.Controls.Add(updateCurrent);
             updateLatest=new Label();updateLatest.Location=new Point(24,62);updateLatest.Size=new Size(650,24);updateLatest.Text="Latest public release: Not checked";updates.Controls.Add(updateLatest);
