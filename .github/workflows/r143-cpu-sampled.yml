@@ -1,0 +1,56 @@
+name: R143 Read-Only Disposable CPU Kernel Trace
+on:
+  push:
+    branches:
+      - audit/r143-kernel-cpu-probe
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-official-release-cpu:
+    name: Exact public 1.7.1 CPU - ${{ matrix.mode }}
+    runs-on: windows-latest
+    timeout-minutes: 22
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [glass31, glass0, opaque100]
+    steps:
+      - name: Checkout only reproducible source and diagnostic
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Host identity and diagnostic parser preflight
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows'){throw 'R143 personal or unknown host refused'}
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R143 unpinned source'}
+          if((Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue) -or
+             (Test-Path (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'))){
+             throw 'R143 reused Windows runner refused'
+          }
+          $t=$null;$e=$null
+          [void][Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path './build/Measure-Cpu-R143.ps1').Path,[ref]$t,[ref]$e)
+          if(@($e).Count){throw 'R143 PowerShell parser does not accept script'}
+          Write-Output ('R143_PROFILER_SCRIPT_SHA256='+(Get-FileHash ./build/Measure-Cpu-R143.ps1 -Algorithm SHA256).Hash)
+      - name: Record CPU with official immutable release binary only; no personal Windows
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          pwsh.exe -NoProfile -NonInteractive -STA -File ./build/Measure-Cpu-R143.ps1 -Mode '${{ matrix.mode }}'
+          if($LASTEXITCODE -ne 0){throw 'R143 official Windows sample not accepted'}
+      - name: Preserve native sampled CPU ETL and exact receipt even on failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: R143-cpu-${{ matrix.mode }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/TBME_R143_CPU_${{ matrix.mode }}/R143_CPU.json
+            ${{ runner.temp }}/TBME_R143_CPU_${{ matrix.mode }}/*.etl

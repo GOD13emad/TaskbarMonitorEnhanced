@@ -1,0 +1,134 @@
+# R143: ONE objective — gather sampled CPU stack evidence from exact official
+# v1.7.1 binary on disposable GitHub Windows, never mutate personal PC.
+[CmdletBinding()]
+param([Parameter(Mandatory=$true)][ValidateSet('glass31','glass0','opaque100')][string]$Mode)
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+   $env:RUNNER_OS -cne 'Windows' -or $env:COMPUTERNAME -match 'EMAD-PC' -or
+   $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}$' -or ![Environment]::UserInteractive){
+ throw 'R143_REFUSED_NON_DISPOSABLE_OR_NON_INTERACTIVE_HOST'
+}
+$mainSHA='D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420'
+$setupSHA='ABD106630F7BAB3471CAF3F5BD4313DFCF2D61DDE1DF79E72EFE91933C8F2F89'
+$app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
+$reg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
+$dir=Join-Path $env:RUNNER_TEMP ('TBME_R143_CPU_'+$Mode)
+if((Test-Path $dir) -or (Test-Path $app) -or (Test-Path $reg) -or
+  @(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count -gt 0){
+ throw 'R143_FRESH_HOST_OR_OUTPUT_PRESTATE_FAILED'
+}
+New-Item -ItemType Directory -Path $dir -ErrorAction Stop|Out-Null
+$receipt=Join-Path $dir 'R143_CPU.json'
+$trace=Join-Path $dir ('R143_CPU_'+$Mode+'.etl')
+$phase='PRECHECK';$status='FAIL';$errorText='';$proc=$null;$traceStarted=$false
+$wprSession='TBME_R143_CPU_'+$Mode
+$cpu=0;$kernel=0;$user=0;$mainTid=0;$elapsed=0
+$traceSha='';$traceSize=0;$startWpr='';$stopWpr=''
+$modeMeta=([ordered]@{
+ glass31=@{GlassMode=$false;Opacity=0.31}
+ glass0=@{GlassMode=$true;Opacity=0.0}
+ opaque100=@{GlassMode=$false;Opacity=1.0}
+})[$Mode]
+try{
+ $phase='OFFICIAL_IMMUTABLE_SETUP_SOURCE'
+ if(!(Get-Command gh -ErrorAction SilentlyContinue)){throw 'R143_GH_CLI_UNAVAILABLE'}
+ $setup=Join-Path $dir 'TaskbarMonitorEnhanced_Setup_1.7.1.exe'
+ & gh release download v1.7.1 --repo GOD13emad/TaskbarMonitorEnhanced --pattern 'TaskbarMonitorEnhanced_Setup_1.7.1.exe' --dir $dir
+ if($LASTEXITCODE -ne 0 -or !(Test-Path $setup -PathType Leaf) -or
+   (Get-FileHash $setup -Algorithm SHA256).Hash -cne $setupSHA){throw 'R143_NOT_OFFICIAL_RELEASE_SETUP_BYTES'}
+ $phase='INSTALL_ONLY_DISPOSABLE_WINDOWS'
+ & $setup /install /quiet /desktop=0 /startup=0
+ if($LASTEXITCODE -ne 0){throw ('R143_OFFICIAL_SETUP_FAILED '+$LASTEXITCODE)}
+ $exe=Join-Path $app 'TaskbarMonitorEnhanced.exe'
+ $state=Join-Path $app 'install_state.json'
+ $config=Join-Path $app 'config.json'
+ if(!(Test-Path $config -PathType Leaf) -or !(Test-Path $state -PathType Leaf) -or
+   (Get-FileHash $exe -Algorithm SHA256).Hash -cne $mainSHA){throw 'R143_INSTALLED_MAIN_SHA_OR_STATE_DRIFT'}
+ $s=Get-Content $state -Raw|ConvertFrom-Json
+ if($s.Version -cne '1.7.1' -or $s.ProductIdentity -cne 'LOCKED'){throw 'R143_WRONG_INSTALLED_VERSION'}
+ $phase='KNOWN_FIXTURE_ONLY_DISPOSABLE'
+ $cfg=Get-Content $config -Raw|ConvertFrom-Json
+ $cfg.Theme='Retro Terminal'
+ $cfg.GlassMode=[bool]$modeMeta.GlassMode
+ $cfg.Opacity=[double]$modeMeta.Opacity
+ $cfg.OpacityWhenGlassOff=0.31
+ $cfg.ConfigSchemaVersion=8
+ $cfg.UpdateIntervalMs=1000
+ $cfg.StartWithWindows=$false
+ $cfg.ShowSparklines=$true
+ $cfg|ConvertTo-Json -Depth 40|Set-Content -LiteralPath $config -Encoding utf8
+ $fixtureSha=(Get-FileHash $config -Algorithm SHA256).Hash
+ $phase='RUN_EXACT_PUBLIC_MAIN'
+ $proc=Start-Process -FilePath $exe -WorkingDirectory $app -PassThru
+ Start-Sleep -Seconds 6
+ $processes=@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue)
+ if($processes.Count -ne 1 -or $processes[0].Id -ne $proc.Id -or $proc.HasExited){
+  throw 'R143_REAL_APPLICATION_DID_NOT_RUN'
+ }
+ $proc=$processes[0]
+ $threads=@($proc.Threads|Sort-Object StartTime)
+ if($threads.Count -lt 1){throw 'R143_NO_PROCESS_THREADS'}
+ $mainTid=[int]$threads[0].Id
+ $t=$threads[0]
+ $priorKernel=$t.PrivilegedProcessorTime.TotalSeconds
+ $priorUser=$t.UserProcessorTime.TotalSeconds
+ $priorCpu=$proc.CPU
+ $watch=[Diagnostics.Stopwatch]::StartNew()
+ $phase='NATIVE_SAMPLED_CPU_WPR'
+ $wprStatus=(& wpr -status 2>&1|Out-String)
+ if($LASTEXITCODE -ne 0 -or $wprStatus -notmatch 'WPR is not recording'){
+  throw 'R143_UNKNOWN_ETW_TRACE_ALREADY_RUNNING'
+ }
+ $startWpr=(& wpr -start CPU -instancename $wprSession 2>&1|Out-String)
+ if($LASTEXITCODE -ne 0){throw ('R143_WPR_NOT_AUTHORIZED_OR_NOT_AVAILABLE '+$startWpr.Trim())}
+ $traceStarted=$true
+ Start-Sleep -Seconds 6
+ $stopWpr=(& wpr -stop $trace -instancename $wprSession 2>&1|Out-String)
+ if($LASTEXITCODE -ne 0){throw ('R143_STOP_ETW_TRACE_FAILED '+$stopWpr.Trim())}
+ $traceStarted=$false
+ $watch.Stop()
+ $elapsed=[Math]::Round($watch.Elapsed.TotalSeconds,3)
+ $proc.Refresh()
+ $target=@($proc.Threads|Where-Object Id -eq $mainTid)
+ if($target.Count -ne 1){throw 'R143_HOT_THREAD_DISAPPEARED'}
+ $cpu=[Math]::Round($proc.CPU-$priorCpu,3)
+ $kernel=[Math]::Round($target[0].PrivilegedProcessorTime.TotalSeconds-$priorKernel,3)
+ $user=[Math]::Round($target[0].UserProcessorTime.TotalSeconds-$priorUser,3)
+ if(!(Test-Path $trace -PathType Leaf) -or (Get-Item $trace).Length -lt 16384){throw 'R143_ETL_TRACE_TOO_SMALL'}
+ $traceSha=(Get-FileHash $trace -Algorithm SHA256).Hash
+ $traceSize=(Get-Item $trace).Length
+ $phase='CAPTURED_NATIVE_CPU_STACK_ETL'
+ $status='PASS_TRACE_CAPTURE_NOT_PRODUCT_PERFORMANCE_ACCEPTANCE'
+} catch{
+ $errorText=$_.Exception.ToString().Substring(0,[Math]::Min(2800,$_.Exception.ToString().Length))
+} finally {
+ if($traceStarted){
+  $rescue=(& wpr -stop $trace -instancename $wprSession 2>&1|Out-String)
+  if($LASTEXITCODE -eq 0){$traceStarted=$false}
+  else{$errorText+=' R143_WPR_SESSION_UNRESOLVED='+$rescue}
+ }
+ if($null -ne $proc){
+  try{
+   if(!$proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction Stop}
+  }catch{$errorText+=' R143_DISPOSABLE_PROCESS_CLEANUP='+$_.Exception.Message}
+ }
+ $report=[ordered]@{
+  Revision='R143';Objective='Independently sample exact official v1.7.1 product CPU stack on disposable Windows'
+  SourceCommit=$env:GITHUB_SHA;Host='GITHUB_HOSTED_DISPOSABLE_WINDOWS';Mode=$Mode
+  Phase=$phase;Status=$status;Error=$errorText;OfficialSetupSHA256=$setupSHA
+  OfficialMainSHA256=$mainSHA;ProductPid=if($null -eq $proc){0}else{$proc.Id}
+  InitialThreadId=$mainTid;WallTraceSeconds=$elapsed;AppTotalCpuSeconds=$cpu
+  MainThreadKernelCpuSeconds=$kernel;MainThreadUserCpuSeconds=$user
+  TraceSha256=$traceSha;TraceBytes=$traceSize
+  EtwSessionClosed=(-not $traceStarted);PersonalPcTouched=$false
+  PerformancePassClaimed=$false;ExternalPhysicalLabAccepted=$false
+ }
+ [IO.File]::WriteAllText($receipt,($report|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+ Write-Output ('R143_DISPOSABLE_CPU_TRACE='+$status+' MODE='+$Mode+
+  ' KERNEL='+$kernel+' USER='+$user+' CPU='+$cpu+
+  ' ETL='+$traceSha+' RECEIPT_SHA='+ (Get-FileHash $receipt -Algorithm SHA256).Hash)
+}
+if($status -cne 'PASS_TRACE_CAPTURE_NOT_PRODUCT_PERFORMANCE_ACCEPTANCE' -or $traceStarted){
+ throw ('R143_HOSTED_CPU_TRACE_FAIL_CLOSED '+$errorText)
+}
