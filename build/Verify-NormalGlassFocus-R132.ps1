@@ -148,7 +148,7 @@ if($SelfTest){
  $h.ForegroundWindows[0].OverlayRectAfter[1]=[int]$h.ForegroundWindows[0].OverlayRectAfter[1]+10
  $extra['VERTICAL_TASKBAR_LIFT']=$h
  $h=($r|ConvertTo-Json -Depth 14|ConvertFrom-Json)
- $h.ForegroundWindows[1].FullOverlaySha256=('0'*64)
+ $h.ForegroundWindows[1].FullOverlaySha256=('0'*63)
  $extra['FORGED_FULL_HWND_IMAGE_SHA']=$h
  foreach($item in $extra.GetEnumerator()){
   if(@(Check-R132Receipt $item.Value).Count -eq 0){
