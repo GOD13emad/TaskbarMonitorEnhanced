@@ -5323,6 +5323,7 @@ namespace TaskbarMonitorEnhanced
                         " previousLegacy="+priorLegacyAttributes);
                 }
                 TopMost=true;
+                EnsureTaskbarOwner(); // R151: stable owned popup, no late SetParent while Start is open.
                 PositionOverlay(true); // Taskbar-safe geometry, screen-relative (not child-relative).
                 if(expectedRect.Width<80)
                     throw new InvalidOperationException("No taskbar-safe placement for transparent overlay.");
@@ -5701,7 +5702,7 @@ namespace TaskbarMonitorEnhanced
             try
             {
                 // R146: presentation follows the real taskbar, not a perpetual TOPMOST timer.
-                if(RefreshTaskbarPresentation(true)||startShellChildHost)return;
+                if(RefreshTaskbarPresentation(true))return;
                 SensorSupervisorSelfHealWatchdog();
                 string probeTargetNow;IntPtr currentTaskbar=TaskbarTargetPolicy.Resolve(config,out probeTargetNow);
 

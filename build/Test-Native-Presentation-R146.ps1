@@ -67,13 +67,15 @@ function Capture([IntPtr]$h,[string]$label){
   }}
   $b.Save((Join-Path $out $file),[Drawing.Imaging.ImageFormat]::Png)
   if($edges -lt 60){$visualFailures.Add(('R146_PHYSICAL_GLYPHS_MISSING '+$label+' EDGES='+$edges))}
-  return @{State=$label;File=$file;SHA256=(Get-FileHash (Join-Path $out $file) -Algorithm SHA256).Hash;Edges=$edges;Rect=@($r.X,$r.Y,$r.Width,$r.Height);Parent=[R146Native]::GetParent($h).ToInt64();PreviousSibling=[R146Native]::GetWindow($h,3).ToInt64();ExStyle=[R146Native]::GetWindowLongPtr($h,-20).ToInt64();Style=[R146Native]::GetWindowLongPtr($h,-16).ToInt64();Foreground=[R146Native]::GetForegroundWindow().ToInt64()}
+  return @{State=$label;File=$file;SHA256=(Get-FileHash (Join-Path $out $file) -Algorithm SHA256).Hash;Edges=$edges;Rect=@($r.X,$r.Y,$r.Width,$r.Height);Parent=[R146Native]::GetParent($h).ToInt64();Owner=[R146Native]::GetWindow($h,4).ToInt64();PreviousSibling=[R146Native]::GetWindow($h,3).ToInt64();ExStyle=[R146Native]::GetWindowLongPtr($h,-20).ToInt64();Style=[R146Native]::GetWindowLongPtr($h,-16).ToInt64();Foreground=[R146Native]::GetForegroundWindow().ToInt64()}
  }finally{$b.Dispose()}
 }
 function Assert-Visible([IntPtr]$h,[Drawing.Rectangle]$original,[string]$label,[bool]$top){
  if(![R146Native]::IsWindowVisible($h)){throw ('R146_MONITOR_HIDDEN '+$label)}
  $r=Box $h
  if($r.X -ne $original.X -or $r.Y -ne $original.Y -or $r.Height -ne $original.Height -or [Math]::Abs($r.Width-$original.Width) -gt 96){throw ('R146_UNEXPECTED_MOVEMENT '+$label)}
+ if([R146Native]::GetWindow($h,4) -ne $taskbar){throw ('R151_MONITOR_TASKBAR_OWNER_MISSING '+$label)}
+ if(([R146Native]::GetWindowLongPtr($h,-16).ToInt64() -band 0x40000000) -ne 0){throw ('R151_MONITOR_BECAME_CHILD '+$label)}
  if($top -and [R146Native]::Above($taskbar,$h)){throw ('R146_MONITOR_UNDER_TASKBAR '+$label)}
 }
 try{
@@ -86,9 +88,9 @@ try{
  $assembly=[Reflection.Assembly]::LoadFrom($main)
  $shell=$assembly.GetType('TaskbarMonitorEnhanced.ShellUi',$true)
  $shellMethod=$shell.GetMethod('IsStartShellForeground',[Reflection.BindingFlags]'Static,Public,NonPublic')
- foreach($mode in @('plain10','glass0','opaque100')){
+ foreach($mode in @('plain1','plain10','glass0','opaque100')){
   $phase=$mode
-  $pct=if($mode -ceq 'plain10'){0.10}elseif($mode -ceq 'glass0'){0.0}else{1.0}
+  $pct=if($mode -ceq 'plain1'){0.01}elseif($mode -ceq 'plain10'){0.10}elseif($mode -ceq 'glass0'){0.0}else{1.0}
   $fixture=@{Theme='Retro Terminal';Opacity=$pct;GlassMode=($mode -ceq 'glass0');OpacityWhenGlassOff=0.10;ConfigSchemaVersion=8;StartWithWindows=$false;ShowSparklines=$true;UpdateIntervalMs=1000}
   [IO.File]::WriteAllText($config,($fixture|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
   $process=Start-Process -FilePath $main -WorkingDirectory $app -PassThru;Pump 5000
@@ -98,7 +100,7 @@ try{
    if($r.Width -ge 80 -and $r.Height -ge 16 -and $r.Height -lt 100 -and (Box $taskbar).Contains($r)){$monitor=$h;break}
   }
   if($monitor -eq [IntPtr]::Zero){throw ('R146_NATIVE_MONITOR_NOT_FOUND '+$mode)}
-  $original=Box $monitor;$top=$mode -cne 'opaque100'
+  $original=Box $monitor;$top=$true
   $evidence+=Capture $monitor ($mode+'_NORMAL')
   # Real right-click and invoke the actual installed product's Settings menu item.
   [R146Native]::Click(($original.X+40),($original.Y+($original.Height/2)),$true);Pump 650
@@ -161,7 +163,7 @@ finally{
    Get-Content -LiteralPath $log.FullName -Tail 1600 | Select-String -Pattern 'PRESENTATION|GLASS_NATIVE|GLASS_COMPOSITION|VISIBILITY_WATCHDOG|LOW_PRESSURE|CONTEXT_MENU|SETTINGS|START_|RECOVERY' | ForEach-Object Line | Set-Content -LiteralPath (Join-Path $out ('DIAG_'+$log.Name)) -Encoding UTF8
   }
  }catch{Write-Output ('R148_LOG_COLLECTION_WARNING '+$_.Exception.Message)}
- $r=[ordered]@{Revision='R146';Status=$status;Phase=$phase;Failure=$failure;Host=$HostLabel;EventCommit=$env:GITHUB_SHA;MainSHA256=$manifest.MainSHA256;SetupSHA256=$manifest.SetupSHA256;Evidence=$evidence;PersonalComputerTouched=$false;Proof='Installed candidate + native HWND + real screenshots + real input; not synthetic taskbar paint'}
+ $r=[ordered]@{Revision='R146';Status=$status;Phase=$phase;Failure=$failure;Host=$HostLabel;EventCommit=$env:GITHUB_SHA;MainSHA256=$manifest.MainSHA256;SetupSHA256=$manifest.SetupSHA256;Evidence=$evidence;TestedModes=@('plain1','plain10','glass0','opaque100');ExpectedTaskbarOwner=$taskbar.ToInt64();PersonalComputerTouched=$false;Proof='Installed candidate + native HWND + real screenshots + real input; not synthetic taskbar paint'}
  [IO.File]::WriteAllText((Join-Path $out 'R146_NATIVE.json'),($r|ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
  Write-Output ($r|ConvertTo-Json -Depth 12 -Compress)
 }

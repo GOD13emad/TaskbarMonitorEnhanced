@@ -287,7 +287,7 @@ namespace TaskbarMonitorEnhanced
     {
         private bool glassNativeVisualProofMode;
         internal bool RequiresGlassTopLevel
-        {get{return !startShellChildHost && config!=null && (!proofMode||glassNativeVisualProofMode) &&
+        {get{return config!=null && (!proofMode||glassNativeVisualProofMode) &&
                      TaskbarGlassHostMode.RequiresTopLevel(config.Opacity,SystemInformation.HighContrast);}}
         internal void StartGlassGuardTickForProof()
         {
@@ -356,7 +356,7 @@ namespace TaskbarMonitorEnhanced
         internal int GlassDirectMetricRefreshCountForProof {get{return glassDirectMetricRefreshCount;}}
         private void RefreshGlassAfterMetricCommit()
         {
-            if(presentationSuppressed||!IsHandleCreated||(!RequiresGlassTopLevel&&!startShellChildHost)||glassLegacyFallback)return;
+            if(presentationSuppressed||!IsHandleCreated||!RequiresGlassTopLevel||glassLegacyFallback)return;
             if(proofMode&&!glassNativeVisualProofMode)return;
             if(PaintPerPixelLayer())glassDirectMetricRefreshCount++;
             // On failure PaintPerPixelLayer already records native error and applies
@@ -1662,46 +1662,30 @@ namespace TaskbarMonitorEnhanced
     }
     internal sealed partial class OverlayForm
     {
-        private bool startShellChildHost;
         private bool presentationSuppressed;
-        private void SwitchStartShellHost(bool child,Rectangle bar)
+        private bool EnsureTaskbarOwner()
         {
-            if(child==startShellChildHost)return;
-            // Start may place its taskbar in a compositor band above ordinary popups.
-            // Use the v1.6 taskbar-child relationship while Start is open; never lift,
-            // request UIAccess, manipulate shell z-bands or change another app's styles.
-            Rectangle saved=expectedRect;
-            if(saved.Width<80||saved.Height<16||!bar.Contains(saved))return;
-            Hide();
-            startShellChildHost=child;
-            long style=Native.GetWindowLongPtr(Handle,Native.GWL_STYLE).ToInt64();
-            long ex=Native.GetWindowLongPtr(Handle,Native.GWL_EXSTYLE).ToInt64();
-            if(child)
+            // R151: a popup OWNER is not a WS_CHILD parent. Windows keeps an
+            // owned popup above its owner. Do not reparent during Start (known
+            // to be rejected); never alter Explorer styles, UIAccess or z-bands.
+            if(!IsHandleCreated||taskbar==IntPtr.Zero||!Native.IsWindow(taskbar))
+                throw new InvalidOperationException("Taskbar owner is unavailable");
+            if((Native.GetWindowLongPtr(Handle,Native.GWL_STYLE).ToInt64()&Native.WS_CHILD)!=0)
+                throw new InvalidOperationException("Taskbar-owned popup must not be WS_CHILD");
+            const int ownerIndex=-8; // GWLP_HWNDPARENT for an overlapped/popup window.
+            IntPtr before=Native.GetWindowLongPtr(Handle,ownerIndex);
+            if(before==taskbar)return false; // No steady-state reorder or repaint.
+            Native.SetWindowLongPtr(Handle,ownerIndex,taskbar);
+            int error=Marshal.GetLastWin32Error();
+            if(Native.GetWindowLongPtr(Handle,ownerIndex)!=taskbar)
             {
-                Native.SetWindowLongPtr(Handle,Native.GWL_STYLE,new IntPtr((style&~Native.WS_POPUP)|Native.WS_CHILD));
-                Native.SetParent(Handle,taskbar);
-                if(Native.GetParent(Handle)!=taskbar)throw new InvalidOperationException("Start child parent verification failed");
-                ex=(ex|Native.WS_EX_LAYERED|Native.WS_EX_TOOLWINDOW|Native.WS_EX_NOACTIVATE)&
-                    ~(long)(Native.WS_EX_COMPOSITED|Native.WS_EX_TRANSPARENT|Native.WS_EX_TOPMOST);
+                // Ownership is changed on OUR HWND only; rollback on failure.
+                Native.SetWindowLongPtr(Handle,ownerIndex,before);
+                bool restored=Native.GetWindowLongPtr(Handle,ownerIndex)==before;
+                throw new InvalidOperationException("Taskbar owner rejected win32="+error+" rollback="+restored);
             }
-            else
-            {
-                Native.SetParent(Handle,IntPtr.Zero);
-                Native.SetWindowLongPtr(Handle,Native.GWL_STYLE,new IntPtr((style&~Native.WS_CHILD)|Native.WS_POPUP));
-                ex=(ex|Native.WS_EX_LAYERED|Native.WS_EX_TOOLWINDOW|Native.WS_EX_NOACTIVATE)&
-                    ~(long)(Native.WS_EX_COMPOSITED|Native.WS_EX_TRANSPARENT);
-            }
-            // A prior legacy SetLayeredWindowAttributes cannot contaminate the new ULW frame.
-            Native.SetWindowLongPtr(Handle,Native.GWL_EXSTYLE,new IntPtr(ex&~(long)Native.WS_EX_LAYERED));
-            Native.SetWindowLongPtr(Handle,Native.GWL_EXSTYLE,new IntPtr(ex));
-            glassLegacyFallback=false;glassLegacyFallbackReady=false;
-            Show();
-            Native.SetWindowPos(Handle,child?Native.HWND_TOP:Native.HWND_TOPMOST,
-                child?saved.X-bar.Left:saved.X,child?saved.Y-bar.Top:saved.Y,
-                saved.Width,saved.Height,Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW|
-                Native.SWP_FRAMECHANGED|Native.SWP_NOOWNERZORDER);
-            if(!PaintPerPixelLayer())throw new InvalidOperationException("Start host compositor did not upload");
-            Log.Write("INFO","START_CHILD_PRESENTATION child="+child+" rect="+saved);
+            Log.Write("INFO","TASKBAR_OWNER_ESTABLISHED owner="+taskbar.ToInt64()+" hwnd="+Handle.ToInt64());
+            return true;
         }
 
         private bool presentationSyncing;
@@ -1758,28 +1742,30 @@ namespace TaskbarMonitorEnhanced
                 presentationSuppressed=false;
                 startGlassPinnedDuringShell=presentationShellOpen; // Freeze layout, NOT visibility/z-order repair.
                 if(restore)Show(); // ShowWithoutActivation=true is retained.
-                bool useStartChild=presentationShellOpen&&!SystemInformation.HighContrast;
-                if(!recoveryPending&&useStartChild!=startShellChildHost)
-                    SwitchStartShellHost(useStartChild,bar);
+                // The owner relationship is permanent across Start; geometry never changes host type.
                 if(repairOrder&&RequiresGlassTopLevel&&expectedRect.Width>=80&&expectedRect.Height>=16&&
                     bar.Contains(expectedRect)&&!recoveryPending)
                 {
-                    bool behindTaskbar=TaskbarPresentationNative.Above(taskbar,Handle);
-                    if(restore||changed||fgChanged||behindTaskbar)
+                    bool ownerChanged=EnsureTaskbarOwner();
+                    if(restore||changed||ownerChanged)
                     {
                         const uint flags=Native.SWP_NOACTIVATE|Native.SWP_SHOWWINDOW|Native.SWP_NOOWNERZORDER;
                         if(!Native.SetWindowPos(Handle,Native.HWND_TOPMOST,expectedRect.X,expectedRect.Y,
                             expectedRect.Width,expectedRect.Height,flags))
                             Log.Write("WARN","TASKBAR_PRESENTATION_RESTACK_FAILED "+Marshal.GetLastWin32Error());
-                        // Only OUR windows are reordered. Never activate or change Explorer/Start windows.
+                        // Only genuine attach/restore transitions reseat the native surface.
+                        PaintPerPixelLayer();
+                    }
+                    if(fgChanged||restore||ownerChanged)
+                    {
+                        // Only OUR dialogs/menu. No steady-state taskbar cluster reassert.
                         if(settingsForm!=null&&!settingsForm.IsDisposed&&settingsForm.Visible&&settingsForm.IsHandleCreated)
                             Native.SetWindowPos(settingsForm.Handle,Native.HWND_TOPMOST,0,0,0,0,
                                 Native.SWP_NOMOVE|Native.SWP_NOSIZE|Native.SWP_NOACTIVATE|Native.SWP_NOOWNERZORDER);
                         if(menu!=null&&!menu.IsDisposed&&menu.Visible&&menu.IsHandleCreated)
                             Native.SetWindowPos(menu.Handle,Native.HWND_TOPMOST,0,0,0,0,
                                 Native.SWP_NOMOVE|Native.SWP_NOSIZE|Native.SWP_NOACTIVATE|Native.SWP_NOOWNERZORDER);
-                        // Recompose only on a real state/order/foreground transition, never every 3 seconds.
-                        PaintPerPixelLayer();
+                        // Do not repaint/reassert the monitor merely because focus changed.
                     }
                 }
                 presentationForeground=fg;
