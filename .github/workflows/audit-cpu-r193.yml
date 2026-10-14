@@ -20,14 +20,22 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+          fetch-depth: 3
 
       - name: Reject source, runner or original R190 baseline drift
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $parent=(git rev-parse HEAD^).Trim()
-          if($parent -cne '1b2bf5b6b58313706556d10efd242270583b5f0d'){throw 'R193_PARENT_NOT_EXACT_R190_TRIAL'}
-          if((git diff --name-only HEAD^ HEAD | Sort-Object) -join '|' -cne '.github/workflows/audit-cpu-r193.yml|build/Test-HostedCpu-R193.ps1'){throw 'R193_MORE_THAN_TWO_TEST_FILES_CHANGED'}
+          # R193-F01: shallow depth-1 checkout had no HEAD^; explicitly fetch 3 commits.
+          git cat-file -e 'HEAD~2^{commit}'
+          if($LASTEXITCODE -ne 0){throw 'R194_REQUIRED_THREE_COMMITS_NOT_FETCHED'}
+          $parent=(git rev-parse 'HEAD^').Trim()
+          $grandparent=(git rev-parse 'HEAD~2').Trim()
+          if($parent -cne 'fc84b29bd8bb910cb595da1a46cd0002c3222219' -or
+             $grandparent -cne '1b2bf5b6b58313706556d10efd242270583b5f0d'){
+             throw 'R194_CHAIN_R190_R193_R194_NOT_EXACT'
+          }
+          if((git diff --name-only 'HEAD~2' HEAD | Sort-Object) -join '|' -cne '.github/workflows/audit-cpu-r193.yml|build/Test-HostedCpu-R193.ps1'){throw 'R193_MORE_THAN_TWO_TEST_FILES_CHANGED'}
           $script=Resolve-Path 'build/Test-HostedCpu-R193.ps1'
           if((Get-FileHash $script -Algorithm SHA256).Hash -cne 'C10478DB1FD2A19C8FC369AD258BF49AE4C84195C54AAE38DFB4AA9E7F7611DE'){throw 'R193_TEST_HARNESS_SHA'}
           $tokens=$null;$errors=$null
