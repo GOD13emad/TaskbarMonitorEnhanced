@@ -1,0 +1,71 @@
+name: R193 - Hosted Same-Host Whole-App CPU A/B
+on:
+  push:
+    branches:
+      - audit/r193-hosted-full-app-cpu
+permissions:
+  contents: read
+
+jobs:
+  full-app-cpu-ab:
+    runs-on: windows-latest
+    timeout-minutes: 22
+    name: Disposable Windows actual whole-program CPU A/B (${{ matrix.host }})
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [A, B]
+    steps:
+      - name: Exact test-only source checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Reject source, runner or original R190 baseline drift
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $parent=(git rev-parse HEAD^).Trim()
+          if($parent -cne '1b2bf5b6b58313706556d10efd242270583b5f0d'){throw 'R193_PARENT_NOT_EXACT_R190_TRIAL'}
+          if((git diff --name-only HEAD^ HEAD | Sort-Object) -join '|' -cne '.github/workflows/audit-cpu-r193.yml|build/Test-HostedCpu-R193.ps1'){throw 'R193_MORE_THAN_TWO_TEST_FILES_CHANGED'}
+          $script=Resolve-Path 'build/Test-HostedCpu-R193.ps1'
+          if((Get-FileHash $script -Algorithm SHA256).Hash -cne 'C10478DB1FD2A19C8FC369AD258BF49AE4C84195C54AAE38DFB4AA9E7F7611DE'){throw 'R193_TEST_HARNESS_SHA'}
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($script.Path,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw 'R193_TEST_HARNESS_PARSER_FAIL'}
+          if($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows'){throw 'R193_NOT_DISPOSABLE_WINDOWS'}
+          'R193_SOURCE_AND_SCRIPT_PREFLIGHT=PASS'
+
+      - name: Build unchanged R190 candidate with deterministic SHA
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Build.ps1
+          $main='./build/_out/App/TaskbarMonitorEnhanced.exe'
+          if((Get-FileHash $main -Algorithm SHA256).Hash -cne '3448552CA6711D861BAD3739BEA77FC04626477DF64D5E30227BC95AF00771AF'){throw 'R193_CANDIDATE_BINARY_NOT_EXACT_R190'}
+          'R193_CANDIDATE_SAME_BINARY_AS_R190=PASS'
+
+      - name: Real full-application ABBA four sustained 60-second blocks
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Test-HostedCpu-R193.ps1 -HostLabel '${{ matrix.host }}'
+          $receipt=Join-Path $env:RUNNER_TEMP 'TBME_R193_CPU_${{ matrix.host }}/R193_CPU_AB.json'
+          if(!(Test-Path $receipt -PathType Leaf)){throw 'R193_CPU_RECEIPT_MISSING'}
+          $r=Get-Content $receipt -Raw|ConvertFrom-Json
+          if($r.Status -cne 'PASS_4_SUSTAINED_FULL_APP_BLOCKS_TWO_VERSIONS_SAME_HOST' -or
+             @($r.ActualBlocks).Count -ne 4 -or !$r.AllBlocksCompleted -or
+             !$r.RestoredBaselineExeOnSacrificialHost -or
+             $r.OwnerPersonalComputerTouched -ne $false){throw 'R193_FULL_PROGRAM_CPU_AB_NOT_ACCEPTED'}
+          'R193_HOSTED_FULL_PROGRAM_CPU_AB_DONE'
+
+      - name: Keep sanitized CPU measurement receipt on success or failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R193-fullapp-cpu-${{ matrix.host }}
+          if-no-files-found: warn
+          retention-days: 21
+          path: ${{ runner.temp }}/TBME_R193_CPU_${{ matrix.host }}/R193_CPU_AB.json

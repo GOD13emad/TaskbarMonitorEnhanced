@@ -1,0 +1,299 @@
+[CmdletBinding()]
+param([Parameter(Mandatory=$true)][ValidateSet('A','B')][string]$HostLabel)
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+
+# R193 is a GitHub disposable Windows-only test. Never run on the owner's computer.
+if($PSVersionTable.PSEdition -eq 'Core' -or $env:GITHUB_ACTIONS -cne 'true' -or
+   $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or
+   $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+   ![Environment]::UserInteractive -or $env:COMPUTERNAME -match 'EMAD|ALI'){
+    throw 'R193_REFUSE_NON_DISPOSABLE_PERSONAL_OR_NONINTERACTIVE_HOST'
+}
+$trialSource='1b2bf5b6b58313706556d10efd242270583b5f0d'
+$expectedBase='84D5DBF6F2E6D1D2E2B3E6D9C9DA523E564A7F5240C08D34A456D934026B829F'
+$expectedTrial='3448552CA6711D861BAD3739BEA77FC04626477DF64D5E30227BC95AF00771AF'
+$expectedSetup='225BCC259C392DA04F3E0157CAF22F96C4052282AAF02555E6F6E777F4CB8AF4'
+$repo='GOD13emad/TaskbarMonitorEnhanced'
+$root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$out=Join-Path $env:RUNNER_TEMP ('TBME_R193_CPU_'+$HostLabel)
+$app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
+$unreg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
+$reg=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced\install_state.json'
+$main=Join-Path $app 'TaskbarMonitorEnhanced.exe'
+$candidate=Join-Path $root 'build\_out\App\TaskbarMonitorEnhanced.exe'
+$source=Join-Path $out 'VERIFIED_BASELINE_MAIN.exe'
+$trial=Join-Path $out 'VERIFIED_TRIAL_MAIN.exe'
+$installer=Join-Path $out 'TaskbarMonitorEnhanced_Setup_1.7.2.exe'
+$config=Join-Path $app 'config.json'
+$backup=Join-Path $app 'config.json.bak'
+$sentinel=Join-Path $app 'R193_DISPOSABLE_ONLY.txt'
+$receipt=Join-Path $out 'R193_CPU_AB.json'
+$started=[DateTime]::UtcNow.ToString('o')
+$phase='PRECONDITION'
+$status='FAIL'
+$failure=''
+$results=@()
+$proc=$null
+$expectedConfigSha=$null
+$testFixture='{"Theme":"Retro Terminal","Opacity":0.10,"GlassMode":false,"OpacityWhenGlassOff":0.10,"ConfigSchemaVersion":8,"StartWithWindows":false,"UpdateIntervalMs":1000,"ShowSparklines":true,"AutoCheckUpdates":false}'
+if((Test-Path $out) -or (Test-Path $app) -or (Test-Path $unreg) -or
+   @((Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue)).Count){
+    throw 'R193_NOT_FRESH_DISPOSABLE_VM_OR_ALREADY_RAN'
+}
+New-Item -ItemType Directory -Path $out -ErrorAction Stop|Out-Null
+function Hash([string]$path) {
+    if(!(Test-Path $path -PathType Leaf)){return 'MISSING'}
+    return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+}
+function ExactProcess([string]$exe,[string]$args,[int]$timeoutMs) {
+    $info=New-Object Diagnostics.ProcessStartInfo
+    $info.FileName=$exe
+    $info.Arguments=$args
+    $info.UseShellExecute=$false
+    $info.WorkingDirectory=(Split-Path $exe -Parent)
+    $p=[Diagnostics.Process]::Start($info)
+    if($null -eq $p){throw 'R193_INSTALLER_PROCESS_FAILED_TO_START'}
+    try {
+        if(!$p.WaitForExit($timeoutMs)){throw 'R193_INSTALLER_TIMEOUT'}
+        if($p.ExitCode -ne 0){throw ('R193_INSTALLER_EXIT_'+$p.ExitCode)}
+    }finally{$p.Dispose()}
+}
+$native=@'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+public static class R193Win {
+    [StructLayout(LayoutKind.Sequential)]public struct Rect {public int L,T,R,B;}
+    public delegate bool EnumFn(IntPtr h,IntPtr d);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode)]public static extern IntPtr FindWindow(string c,string n);
+    [DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint pid);
+    [DllImport("user32.dll")]public static extern bool EnumWindows(EnumFn f,IntPtr d);
+    [DllImport("user32.dll")]public static extern bool EnumChildWindows(IntPtr p,EnumFn f,IntPtr d);
+    [DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);
+    [DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr h,out Rect r);
+    [DllImport("user32.dll")]public static extern IntPtr SendMessage(IntPtr h,uint msg,IntPtr w,IntPtr l);
+    public static IntPtr[] Owned(uint process,IntPtr tray){
+        var list=new List<IntPtr>();
+        EnumFn f=(h,d)=>{uint p;GetWindowThreadProcessId(h,out p);
+          if(p==process&&!list.Contains(h))list.Add(h);return true;};
+        EnumWindows(f,IntPtr.Zero);
+        EnumChildWindows(tray,f,IntPtr.Zero);
+        return list.ToArray();
+    }
+}
+'@
+Add-Type -TypeDefinition $native -Language CSharp
+Add-Type -AssemblyName System.Drawing,System.Windows.Forms
+
+function RequireFixture(){
+    if((Hash $config) -cne $script:expectedConfigSha -or
+       (Hash $backup) -cne $script:expectedConfigSha -or
+       !(Test-Path $sentinel -PathType Leaf) -or
+       [IO.File]::ReadAllText($sentinel) -cne 'R193 sacrificial Windows only'){
+        throw 'R193_CONFIG_OR_PROTECTED_FIXTURE_CHANGED'
+    }
+}
+function MonitorWindow([uint32]$pid) {
+    $tray=[R193Win]::FindWindow('Shell_TrayWnd',$null)
+    if($tray -eq [IntPtr]::Zero){return [IntPtr]::Zero}
+    $trayRect=New-Object R193Win+Rect
+    if(![R193Win]::GetWindowRect($tray,[ref]$trayRect)){return [IntPtr]::Zero}
+    foreach($hwnd in [R193Win]::Owned($pid,$tray)) {
+        if(![R193Win]::IsWindowVisible($hwnd)){continue}
+        $r=New-Object R193Win+Rect
+        if(![R193Win]::GetWindowRect($hwnd,[ref]$r)){continue}
+        $width=$r.R-$r.L
+        $height=$r.B-$r.T
+        if($width -ge 80 -and $width -le 500 -and $height -ge 16 -and $height -lt 100 -and
+           $r.L -ge $trayRect.L -and $r.R -le $trayRect.R -and
+           $r.T -ge $trayRect.T -and $r.B -le $trayRect.B){
+            return $hwnd
+        }
+    }
+    return [IntPtr]::Zero
+}
+function StopExactOwnedProcess([Diagnostics.Process]$p,[IntPtr]$hwnd) {
+    $p.Refresh()
+    if($p.HasExited){return}
+    if($hwnd -ne [IntPtr]::Zero) {
+        [void][R193Win]::SendMessage($hwnd,0x10,[IntPtr]::Zero,[IntPtr]::Zero)
+    }
+    if(!$p.WaitForExit(12000)) {
+        # Only our own sacrificial test process on verified ephemeral GitHub Windows.
+        if([IO.Path]::GetFullPath($p.MainModule.FileName) -cne [IO.Path]::GetFullPath($main)){
+            throw 'R193_REFUSE_TERMINATE_OTHER_PROCESS'
+        }
+        $p.Kill()
+        if(!$p.WaitForExit(12000)){throw 'R193_TEST_PROCESS_STILL_RUNNING'}
+    }
+}
+function RunBlock([string]$kind,[int]$block){
+    if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){
+        throw 'R193_DUPLICATE_PROCESS_BEFORE_BLOCK'
+    }
+    $want=if($kind -ceq 'BASE'){$expectedBase}else{$expectedTrial}
+    if((Hash $main) -cne $want){throw ('R193_WRONG_BINARY_BEFORE_BLOCK_'+$kind)}
+    RequireFixture
+    $process=Start-Process -FilePath $main -WorkingDirectory $app -PassThru -ErrorAction Stop
+    $script:proc=$process
+    $handle=[IntPtr]::Zero
+    try {
+        $clock=[Diagnostics.Stopwatch]::StartNew()
+        do{
+            $process.Refresh()
+            if($process.HasExited){throw ('R193_APP_EXITED_EARLY_'+$kind)}
+            $handle=MonitorWindow ([uint32]$process.Id)
+            if($handle -ne [IntPtr]::Zero){break}
+            Start-Sleep -Milliseconds 400
+        }while($clock.Elapsed.TotalSeconds -lt 28)
+        if($handle -eq [IntPtr]::Zero){throw ('R193_NO_GENUINE_VISIBLE_TASKBAR_MONITOR_'+$kind)}
+        Start-Sleep -Seconds 7
+        $process.Refresh()
+        if($process.HasExited){throw 'R193_PRE_MEASUREMENT_APP_EXIT'}
+        $before=$process.TotalProcessorTime.TotalSeconds
+        $watch=[Diagnostics.Stopwatch]::StartNew()
+        $ticks=0
+        while($watch.Elapsed.TotalSeconds -lt 60){
+            Start-Sleep -Seconds 1
+            $ticks++
+            $process.Refresh()
+            if($process.HasExited){throw ('R193_APP_EXITED_IN_MEASUREMENT_'+$kind)}
+        }
+        $watch.Stop()
+        $after=$process.TotalProcessorTime.TotalSeconds
+        $cpu=$after-$before
+        $duration=$watch.Elapsed.TotalSeconds
+        if($duration -lt 60 -or $duration -gt 67 -or $cpu -lt 0){
+            throw 'R193_INVALID_SUSTAINED_CPU_TIMING'
+        }
+        $bar=MonitorWindow ([uint32]$process.Id)
+        if($bar -eq [IntPtr]::Zero){throw 'R193_MONITOR_NOT_VISIBLE_AFTER_60S'}
+        $rec=[ordered]@{
+            Kind=$kind
+            Block=$block
+            DurationSeconds=[math]::Round($duration,4)
+            CpuSeconds=[math]::Round($cpu,5)
+            CpuPercentOfOneCore=[math]::Round(100*$cpu/$duration,5)
+            WarmupSeconds=7
+            MonitoringTicks=$ticks
+            NativeMonitorVisibleAtStartAndEnd=$true
+            SingleProcess=$true
+            BinarySHA256=$want
+            ConfigSHA256=$expectedConfigSha
+            TestMode='real full application running taskbar monitor; no method reflection'
+        }
+        return $rec
+    }finally {
+        try {StopExactOwnedProcess $process $handle}
+        finally {
+            $process.Dispose()
+            $script:proc=$null
+        }
+    }
+}
+try {
+    $phase='VERIFY_GITHUB_CANDIDATE'
+    if((Hash $candidate) -cne $expectedTrial -or
+       (& git -C $root rev-parse HEAD).Trim() -cne $env:GITHUB_SHA -or
+       (& git -C $root rev-parse HEAD^).Trim() -cne $trialSource){
+        throw 'R193_CANDIDATE_SOURCE_OR_BINARY_DRIFT'
+    }
+    $phase='FETCH_OFFICIAL_IMMUTABLE_SETUP'
+    & gh release download v1.7.2 --repo $repo --pattern 'TaskbarMonitorEnhanced_Setup_1.7.2.exe' --dir $out --clobber
+    if($LASTEXITCODE -ne 0 -or (Hash $installer) -cne $expectedSetup){
+        throw 'R193_OFFICIAL_172_SETUP_SHA_DRIFT'
+    }
+    $phase='ONE_CANONICAL_INSTALL_ON_SACRIFICIAL_HOST'
+    ExactProcess $installer '/install /quiet /desktop=0 /startup=0' 195000
+    if((Hash $main) -cne $expectedBase -or !(Test-Path $unreg) -or !(Test-Path $reg)){
+        throw 'R193_CANONICAL_BASELINE_INSTALL_IDENTITY_FAILED'
+    }
+    $appLocation=[string](Get-ItemProperty $unreg).InstallLocation
+    if($appLocation -cne $app -or (Get-ItemProperty $unreg).DisplayVersion -cne '1.7.2'){
+        throw 'R193_CANONICAL_ONE_ROOT_OR_VERSION'
+    }
+    Copy-Item -LiteralPath $main -Destination $source -ErrorAction Stop
+    Copy-Item -LiteralPath $candidate -Destination $trial -ErrorAction Stop
+    if((Hash $source) -cne $expectedBase -or (Hash $trial) -cne $expectedTrial){
+        throw 'R193_STAGED_BYTES_NOT_PINNED'
+    }
+    [IO.File]::WriteAllText($config,$testFixture,[Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($backup,$testFixture,[Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($sentinel,'R193 sacrificial Windows only',[Text.UTF8Encoding]::new($false))
+    $expectedConfigSha=Hash $config
+    RequireFixture
+    $phase='SUSTAINED_ABBA_CPU_60_SECONDS_EACH'
+    $modes=@('BASE','TRIAL','TRIAL','BASE')
+    for($i=0;$i -lt $modes.Count;$i++){
+        $mode=$modes[$i]
+        $want=$source
+        if($mode -ceq 'TRIAL'){$want=$trial}
+        if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){
+            throw 'R193_DUPLICATE_PROCESS_ON_TRANSITION'
+        }
+        Copy-Item -LiteralPath $want -Destination $main -Force -ErrorAction Stop
+        $wantSHA=if($mode -ceq 'BASE'){$expectedBase}else{$expectedTrial}
+        if((Hash $main) -cne $wantSHA){throw 'R193_TRANSITION_BINARY_SHA_MISMATCH'}
+        $results+=RunBlock $mode ($i+1)
+        RequireFixture
+    }
+    $phase='REAL_FULL_APP_ABBA_ACCEPTANCE'
+    if($results.Count -ne 4 -or @($results|Where-Object Kind -eq BASE).Count -ne 2 -or
+       @($results|Where-Object Kind -eq TRIAL).Count -ne 2){
+        throw 'R193_NOT_EXACT_FOUR_60S_BLOCKS'
+    }
+    $status='PASS_4_SUSTAINED_FULL_APP_BLOCKS_TWO_VERSIONS_SAME_HOST'
+}catch {
+    $failure=$_.Exception.GetType().Name+': '+$_.Exception.Message
+}finally {
+    if($null -ne $proc) {
+        try {StopExactOwnedProcess $proc [IntPtr]::Zero}catch {}
+    }
+    # Restore the immutable baseline bytes in sacrificial test install root if safe.
+    $restored=$false
+    try {
+        if((Hash $source) -ceq $expectedBase -and
+           @((Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue)).Count -eq 0) {
+            Copy-Item -LiteralPath $source -Destination $main -Force -ErrorAction Stop
+            $restored=((Hash $main) -ceq $expectedBase)
+        }
+    }catch {}
+    $baseValues=@($results|Where-Object Kind -eq BASE|ForEach-Object {$_.CpuPercentOfOneCore})
+    $trialValues=@($results|Where-Object Kind -eq TRIAL|ForEach-Object {$_.CpuPercentOfOneCore})
+    $meanBase=if($baseValues.Count){[math]::Round(($baseValues|Measure-Object -Average).Average,5)}else{$null}
+    $meanTrial=if($trialValues.Count){[math]::Round(($trialValues|Measure-Object -Average).Average,5)}else{$null}
+    $effect=if($meanBase -gt 0 -and $null -ne $meanTrial){[math]::Round(100*(1-$meanTrial/$meanBase),3)}else{$null}
+    $evidence=[ordered]@{
+        Revision='R193'
+        Objective='Actual full program same-host ABBA sustained 60s per block hosted disposable Windows'
+        Status=$status
+        Phase=$phase
+        Failure=$failure
+        Host=$HostLabel
+        ExactTrialSourceParentSHA256=$trialSource
+        GithubTestCommit=$env:GITHUB_SHA
+        BaselineMainSHA256=$expectedBase
+        TrialMainSHA256=$expectedTrial
+        OfficialSetupSHA256=$expectedSetup
+        EntireMeasuredProgram='TaskbarMonitorEnhanced.exe'
+        CanonicalSingleInstallRoot=$app
+        ActualBlocks=@($results)
+        BaselineMeanOneCorePercent=$meanBase
+        TrialMeanOneCorePercent=$meanTrial
+        ObservedReductionPercent=$effect
+        AllBlocksCompleted=($results.Count -eq 4)
+        RestoredBaselineExeOnSacrificialHost=$restored
+        OwnerPersonalComputerTouched=$false
+        NoPublicReleaseMutation=$true
+        NoPhysicalPowerInterruptionClaimed=$true
+        DoesNotProvePersonalOwnersCpuAfterUpgrade=$true
+        StartedUTC=$started
+        FinishedUTC=[DateTime]::UtcNow.ToString('o')
+    }
+    [IO.File]::WriteAllText($receipt,($evidence|ConvertTo-Json -Depth 10),[Text.UTF8Encoding]::new($false))
+    Write-Output ($evidence|ConvertTo-Json -Depth 10 -Compress)
+}
+if($status -cne 'PASS_4_SUSTAINED_FULL_APP_BLOCKS_TWO_VERSIONS_SAME_HOST' -or !$restored) {
+    throw ('R193_FAIL_CLOSED_'+$phase+' '+$failure+' RestoreBaseline='+$restored)
+}
