@@ -1,4 +1,4 @@
-name: R201 - Separated-Build Fresh-Windows Full-App CPU A/B
+name: R202 - Separated-Build Fresh-Windows Full-App CPU A/B (Git ancestry corrected)
 on:
   push:
     branches:
@@ -35,7 +35,11 @@ jobs:
           $lf=$code.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
           $hash=[Security.Cryptography.SHA256]::Create()
           try{$actual=[Convert]::ToHexString($hash.ComputeHash([Text.Encoding]::UTF8.GetBytes($lf)))}finally{$hash.Dispose()}
-          if($actual -cne 'FC11672E4647E6F237281E626AA2BF3CD05597CC0EDE7CBADA6F8B7032D8EDCE'){throw 'R201_TEST_SCRIPT_CANONICAL_HASH_DRIFT'}
+          if($actual -cne 'CCB1FD297F675B1F61CAC324477DD3159CD45FD5551FC6EAF2D0299B0A0F05EB'){throw 'R201_TEST_SCRIPT_CANONICAL_HASH_DRIFT'}
+          # Prevent recurrence of R193-F01 and R201-F01: never require HEAD^
+          # as the accepted R190 product commit after multiple audit-only commits.
+          if($lf -match 'rev-parse\s+HEAD\^'){throw 'R202_STALE_PARENT_GIT_GUARD_NOT_REMOVED'}
+          if($lf -notmatch 'merge-base --is-ancestor \$trialSource HEAD'){throw 'R202_ACCEPTED_SOURCE_ANCESTRY_GUARD_MISSING'}
           'R201_ONLY_TEST_FILES_SOURCE=PASS'
       - name: Exact R190 Build and deterministic output SHA
         shell: pwsh

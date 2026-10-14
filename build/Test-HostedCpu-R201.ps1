@@ -206,10 +206,23 @@ function RunBlock([string]$kind,[int]$block){
 }
 try {
     $phase='VERIFY_GITHUB_CANDIDATE'
-    if((Hash $candidate) -cne $expectedTrial -or
-       (& git -C $root rev-parse HEAD).Trim() -cne $env:GITHUB_SHA -or
-       (& git -C $root rev-parse HEAD^).Trim() -cne $trialSource){
-        throw 'R193_CANDIDATE_SOURCE_OR_BINARY_DRIFT'
+    # R202: R201-F01 inherited stale HEAD^ from historical R193 script.
+    # The real R190 product commit is an ANCESTOR, not the latest test commit parent.
+    # Prove actual candidate SHA, exact CI commit, full ancestry, unchanged source.
+    if((Hash $candidate) -cne $expectedTrial){
+        throw 'R202_CANDIDATE_BINARY_SHA_DRIFT'
+    }
+    $head=(& git -C $root rev-parse HEAD).Trim()
+    if($LASTEXITCODE -ne 0 -or $head -cne $env:GITHUB_SHA){
+        throw 'R202_CHECKED_OUT_TEST_COMMIT_DRIFT'
+    }
+    & git -C $root cat-file -e ($trialSource+'^{commit}')
+    if($LASTEXITCODE -ne 0){throw 'R202_ACCEPTED_PRODUCT_COMMIT_NOT_FETCHED'}
+    & git -C $root merge-base --is-ancestor $trialSource HEAD
+    if($LASTEXITCODE -ne 0){throw 'R202_PRODUCT_COMMIT_NOT_ANCESTOR'}
+    $changedSource=@(& git -C $root diff --name-only $trialSource HEAD -- src)
+    if($LASTEXITCODE -ne 0 -or $changedSource.Count -ne 0){
+        throw 'R202_PRODUCT_SOURCE_CHANGED_FROM_ACCEPTED_R190'
     }
     $phase='FETCH_EXACT_TWO_OFFICIAL_IMMUTABLE_SETUPS'
     & gh release download v1.7.1 --repo $repo --pattern 'TaskbarMonitorEnhanced_Setup_1.7.1.exe' --dir $out --clobber
