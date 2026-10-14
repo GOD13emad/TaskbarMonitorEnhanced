@@ -195,10 +195,13 @@ function RunBlock([string]$kind,[int]$block){
 try {
     $phase='VERIFY_GITHUB_CANDIDATE'
     if((Hash $candidate) -cne $expectedTrial -or
-       (& git -C $root rev-parse HEAD).Trim() -cne $env:GITHUB_SHA -or
-       (& git -C $root rev-parse HEAD^).Trim() -cne $trialSource){
-        throw 'R193_CANDIDATE_SOURCE_OR_BINARY_DRIFT'
+       (& git -C $root rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){
+        throw 'R195_CANDIDATE_MAIN_OR_RUN_SHA_DRIFT'
     }
+    & git -C $root merge-base --is-ancestor $trialSource HEAD
+    if($LASTEXITCODE -ne 0){throw 'R195_BASE_TRIAL_COMMIT_NOT_ANCESTOR'}
+    $productChanges=@(& git -C $root diff --name-only $trialSource HEAD -- src)
+    if($productChanges.Count -ne 0){throw 'R195_PRODUCT_SOURCE_CHANGED_FROM_TRIAL'}
     $phase='FETCH_OFFICIAL_IMMUTABLE_SETUP'
     & gh release download v1.7.2 --repo $repo --pattern 'TaskbarMonitorEnhanced_Setup_1.7.2.exe' --dir $out --clobber
     if($LASTEXITCODE -ne 0 -or (Hash $installer) -cne $expectedSetup){
