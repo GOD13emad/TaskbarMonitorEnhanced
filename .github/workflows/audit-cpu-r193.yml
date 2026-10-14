@@ -1,93 +1,83 @@
-name: R193 - Hosted Same-Host Whole-App CPU A/B
+name: R197 - Disposable CPU Prestate Diagnosis
 on:
   push:
     branches:
       - audit/r193-hosted-full-app-cpu
 permissions:
   contents: read
-
 jobs:
-  full-app-cpu-ab:
+  prestate-only:
     runs-on: windows-latest
-    timeout-minutes: 22
-    name: Disposable Windows actual whole-program CPU A/B (${{ matrix.host }})
+    timeout-minutes: 17
+    name: Read-only R195 prestate diagnosis - ${{ matrix.host }}
     strategy:
       fail-fast: false
       matrix:
         host: [A, B]
     steps:
-      - name: Exact test-only source checkout
+      - name: Checkout exact test-only branch history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
           fetch-depth: 0
-
-      - name: Verify exact ancestor and Git-normalized SHA (R193/R194 failure prevention)
+      - name: Classify four R195 guards BEFORE and AFTER Build; no install
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          # R193-F01 shallow checkout: fetch-depth 0, verify ancestry by SHA not HEAD^.
-          # R194-F01 CRLF conversion: normalize working-tree text before SHA.
-          $baseline='1b2bf5b6b58313706556d10efd242270583b5f0d'
-          & git cat-file -e ($baseline+'^{commit}')
-          if($LASTEXITCODE -ne 0){throw 'R195_BASELINE_ANCESTOR_NOT_FETCHED'}
-          & git merge-base --is-ancestor $baseline HEAD
-          if($LASTEXITCODE -ne 0){throw 'R195_TRIAL_BASE_NOT_ANCESTOR'}
-          $changed=@(& git diff --name-only $baseline HEAD | Sort-Object)
-          if(($changed -join '|') -cne '.github/workflows/audit-cpu-r193.yml|build/Test-HostedCpu-R193.ps1'){
-             throw 'R195_CHANGED_FILES_NOT_EXACT_TWO_TEST_SOURCES'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced'){throw 'R197_DISPOSABLE_HOST_IDENTITY'}
+          $base='1b2bf5b6b58313706556d10efd242270583b5f0d'
+          & git merge-base --is-ancestor $base HEAD
+          if($LASTEXITCODE -ne 0){throw 'R197_NOT_EXACT_ANCESTRY'}
+          if(@(& git diff --name-only $base HEAD -- src).Count){throw 'R197_PRODUCT_SOURCE_CHANGED'}
+          $out=Join-Path $env:RUNNER_TEMP 'TBME_R193_CPU_${{ matrix.host }}'
+          $app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
+          $unreg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
+          $snapshot={
+            return [ordered]@{
+              R195OutputFolderExists=[bool](Test-Path $out)
+              R195AppRootExists=[bool](Test-Path $app)
+              R195CurrentUserUninstallKeyExists=[bool](Test-Path $unreg)
+              R195AppProcessCount=[int]@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count
+            }
           }
-          $productChanges=@(& git diff --name-only $baseline HEAD -- src)
-          if($productChanges.Count -ne 0){throw 'R195_PRODUCT_SOURCE_MUTATED'}
-          $script=(Resolve-Path 'build/Test-HostedCpu-R193.ps1').Path
-          $raw=[IO.File]::ReadAllText($script,[Text.Encoding]::UTF8)
-          $lf=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
-          $bytes=[Text.Encoding]::UTF8.GetBytes($lf)
-          $hash=[Security.Cryptography.SHA256]::Create()
-          try{$actual=[Convert]::ToHexString($hash.ComputeHash($bytes))}finally{$hash.Dispose()}
-          if($actual -cne 'AE3FF54F0CDABFA24AA17962D8E2AC954AAE865BCF4753EA85F7DED01D182984'){
-             throw 'R195_CANONICAL_LF_TEST_HARNESS_SHA_NOT_PINNED'
+          $before=(& $snapshot)
+          $dir=Join-Path $env:RUNNER_TEMP 'R197_PRESTATE_${{ matrix.host }}'
+          if(Test-Path $dir){throw 'R197_NOT_FRESH_DIAGNOSTIC_DIRECTORY'}
+          New-Item -ItemType Directory -Path $dir -ErrorAction Stop|Out-Null
+          $buildStatus='UNPROVEN'
+          try {
+            ./build/Build.ps1
+            $candidate='./build/_out/App/TaskbarMonitorEnhanced.exe'
+            if((Get-FileHash $candidate -Algorithm SHA256).Hash -cne '3448552CA6711D861BAD3739BEA77FC04626477DF64D5E30227BC95AF00771AF'){throw 'R197_EXACT_R190_BINARY_SHA_MISMATCH'}
+            $buildStatus='PASS_EXACT_R190_BINARY'
+          }catch{$buildStatus='FAIL_NO_CPU_MEASUREMENT_'+$_.Exception.GetType().Name}
+          $after=(& $snapshot)
+          $flags=@()
+          if($after.R195OutputFolderExists){$flags+=@('OUTPUT_FOLDER')}
+          if($after.R195AppRootExists){$flags+=@('APP_DATA_ROOT')}
+          if($after.R195CurrentUserUninstallKeyExists){$flags+=@('HKCU_UNINSTALL')}
+          if($after.R195AppProcessCount -gt 0){$flags+=@('APP_PROCESS')}
+          $receipt=[ordered]@{
+            Revision='R197'; Host='${{ matrix.host }}'; Commit=$env:GITHUB_SHA;
+            BeforeBuild=$before; AfterBuild=$after; BuildStatus=$buildStatus;
+            TriggeredAfterBuild=@($flags);
+            AppRootNewlyCreated=(!$before.R195AppRootExists -and $after.R195AppRootExists);
+            LogsDirectoryPresent=[bool](Test-Path (Join-Path $app 'Logs'));
+            ConfigFilePresent=[bool](Test-Path (Join-Path $app 'config.json'));
+            RunnerImageOS=$env:ImageOS;RunnerImageVersion=$env:ImageVersion;
+            NoInstallerExecuted=$true;NoCpuTestExecuted=$true;
+            NoPersonalComputerTouched=$true;NoRawUserPathsOrFilesExported=$true;
+            Status=if($flags.Count -gt 0){'R195_FAILING_GUARD_REPRODUCED'}else{'R195_INITIAL_STATE_NOT_REPRODUCED'}
           }
-          $tokens=$null;$errors=$null
-          [void][Management.Automation.Language.Parser]::ParseFile($script,[ref]$tokens,[ref]$errors)
-          if(@($errors).Count){throw 'R195_TEST_HARNESS_PARSER_FAIL'}
-          if($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
-             $env:RUNNER_OS -cne 'Windows' -or
-             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced'){
-             throw 'R195_REFUSE_NON_DISPOSABLE_HOST'
-          }
-          'R195_STRICT_GIT_ANCESTRY_AND_CANONICAL_BYTE_PREFLIGHT=PASS'
-
-      - name: Build unchanged R190 candidate with deterministic SHA
-        shell: pwsh
-        run: |
-          $ErrorActionPreference='Stop'
-          ./build/Build.ps1
-          $main='./build/_out/App/TaskbarMonitorEnhanced.exe'
-          if((Get-FileHash $main -Algorithm SHA256).Hash -cne '3448552CA6711D861BAD3739BEA77FC04626477DF64D5E30227BC95AF00771AF'){throw 'R193_CANDIDATE_BINARY_NOT_EXACT_R190'}
-          'R193_CANDIDATE_SAME_BINARY_AS_R190=PASS'
-
-      - name: Real full-application ABBA four sustained 60-second blocks
-        shell: powershell
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $ErrorActionPreference='Stop'
-          ./build/Test-HostedCpu-R193.ps1 -HostLabel '${{ matrix.host }}'
-          $receipt=Join-Path $env:RUNNER_TEMP 'TBME_R193_CPU_${{ matrix.host }}/R193_CPU_AB.json'
-          if(!(Test-Path $receipt -PathType Leaf)){throw 'R193_CPU_RECEIPT_MISSING'}
-          $r=Get-Content $receipt -Raw|ConvertFrom-Json
-          if($r.Status -cne 'PASS_4_SUSTAINED_FULL_APP_BLOCKS_TWO_VERSIONS_SAME_HOST' -or
-             @($r.ActualBlocks).Count -ne 4 -or !$r.AllBlocksCompleted -or
-             !$r.RestoredBaselineExeOnSacrificialHost -or
-             $r.OwnerPersonalComputerTouched -ne $false){throw 'R193_FULL_PROGRAM_CPU_AB_NOT_ACCEPTED'}
-          'R193_HOSTED_FULL_PROGRAM_CPU_AB_DONE'
-
-      - name: Keep sanitized CPU measurement receipt on success or failure
+          [IO.File]::WriteAllText((Join-Path $dir 'RESULT_R197.json'),($receipt|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
+          "R197_HOST_DIAG_BUILD="+$buildStatus
+          "R197_TRIGGERED_GUARDS="+($flags -join ',')
+          if($buildStatus -cne 'PASS_EXACT_R190_BINARY'){throw 'R197_BUILD_FAILED_DIAGNOSTIC_STILL_RETAINED'}
+      - name: Retain only sanitized diagnostic result
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: R193-fullapp-cpu-${{ matrix.host }}
-          if-no-files-found: warn
+          name: R197-prestate-${{ matrix.host }}
           retention-days: 21
-          path: ${{ runner.temp }}/TBME_R193_CPU_${{ matrix.host }}/R193_CPU_AB.json
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/R197_PRESTATE_${{ matrix.host }}/RESULT_R197.json
