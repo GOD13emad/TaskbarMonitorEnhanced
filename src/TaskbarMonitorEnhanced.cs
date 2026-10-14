@@ -3477,6 +3477,11 @@ namespace TaskbarMonitorEnhanced
                     Native.RECT wr;
                     if(!Native.GetWindowRect(h,out wr))return true;
                     Rectangle r=wr.ToRectangle();
+                    // R190: reject irrelevant window geometry before expensive
+                    // per-HWND .NET process table/name queries.
+                    if(r.Width<300 || r.Height<250)return true;
+                    if(r.Width>=screen.Width-20 && r.Height>=screen.Height-20)return true;
+                    if(r.Bottom < screen.Top + screen.Height/2)return true;
 
                     uint pid=0;
                     Native.GetWindowThreadProcessId(h,out pid);
@@ -3491,9 +3496,6 @@ namespace TaskbarMonitorEnhanced
                         String.Equals(pn,"SearchApp",StringComparison.OrdinalIgnoreCase);
 
                     if(!realStartHost)return true;
-                    if(r.Width<300 || r.Height<250)return true;
-                    if(r.Width>=screen.Width-20 && r.Height>=screen.Height-20)return true;
-                    if(r.Bottom < screen.Top + screen.Height/2)return true;
 
                     StringBuilder sb=new StringBuilder(256);
                     Native.GetClassName(h,sb,sb.Capacity);
