@@ -16,7 +16,7 @@ $manifest=Get-Content (Join-Path $CandidateDir 'CANDIDATE.json') -Raw|ConvertFro
 $setup=Join-Path $CandidateDir 'Setup\TaskbarMonitorEnhanced_Setup_1.7.2.exe'
 if($manifest.Commit -cne $env:GITHUB_SHA -or $manifest.Version -cne '1.7.2' -or $manifest.Private -ne $true -or (Get-FileHash $setup -Algorithm SHA256).Hash -cne $manifest.SetupSHA256){throw 'R155_NOT_EXACT_VERSIONED_CANDIDATE'}
 New-Item -ItemType Directory -Path $out|Out-Null
-$phase='SOURCE_DOWNLOAD';$status='FAIL';$errorText='';$negative=0;$rollback=$false;$preserved=$false;$idempotent=$false;$downgrade=$false;$chain=@();$beforeProtected=@{};$evidence=@()
+$phase='SOURCE_DOWNLOAD';$status='FAIL';$errorText='';$negative=0;$rollback=$false;$preserved=$false;$idempotent=$false;$downgrade=$false;$chain=@();$beforeProtected=@{};$evidence=@();$oldCpuR170=$null;$newCpuR170=$null
 function Hash([string]$p){if(Test-Path -LiteralPath $p -PathType Leaf){return (Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash};return 'MISSING'}
 function Run-Exact([string]$path,[string]$Arguments,[int]$timeout=190000){
  $si=New-Object Diagnostics.ProcessStartInfo
@@ -42,6 +42,80 @@ function Snapshot(){
 function Equal-Snapshot($a,$b,[string]$reason){
  if($a.Count -ne $b.Count){throw ('R155_SNAPSHOT_COUNT_CHANGED '+$reason)}
  foreach($k in $a.Keys){if(!$b.ContainsKey($k) -or $a[$k] -cne $b[$k]){throw ('R155_SNAPSHOT_CHANGED '+$reason+' '+$k)}}
+}
+# R170: identical owner-independent CPU sampling on BOTH versions on the SAME disposable
+# GitHub-hosted Windows worker. Never invoked on personal/unknown hosts.
+function Measure-InstalledCpuR170([string]$version,[string]$expectedSha){
+ if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+    $env:RUNNER_OS -cne 'Windows' -or ![Environment]::UserInteractive){
+    throw 'R170_CPU_PROBE_REFUSES_NON_DISPOSABLE_MACHINE'
+ }
+ $bin=Join-Path $app 'TaskbarMonitorEnhanced.exe'
+ $configFile=Join-Path $app 'config.json'
+ $backupFile=Join-Path $app 'config.json.bak'
+ if((Hash $bin) -cne $expectedSha){throw 'R170_CANDIDATE_EXE_SHA_MISMATCH'}
+ if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){
+    throw 'R170_BEFORE_SAMPLE_PRODUCT_PROCESS_ALREADY_RUNNING'
+ }
+ $cfgBytes=[IO.File]::ReadAllBytes($configFile)
+ $bakBytes=[IO.File]::ReadAllBytes($backupFile)
+ $cfgSha=Hash $configFile;$bakSha=Hash $backupFile
+ $probe=$null;$sample=$null;$forcedStop=$false
+ try{
+   $probe=Start-Process -FilePath $bin -WorkingDirectory $app -PassThru -ErrorAction Stop
+   Start-Sleep -Seconds 8
+   $probe.Refresh()
+   if($probe.HasExited){throw ('R170_PROCESS_EXITED_DURING_WARMUP_'+$version)}
+   $cpu0=$probe.TotalProcessorTime.TotalSeconds
+   $timer=[Diagnostics.Stopwatch]::StartNew()
+   Start-Sleep -Seconds 8
+   $timer.Stop()
+   $probe.Refresh()
+   if($probe.HasExited){throw ('R170_PROCESS_EXITED_DURING_SAMPLE_'+$version)}
+   $cpuSeconds=$probe.TotalProcessorTime.TotalSeconds-$cpu0
+   $elapsed=$timer.Elapsed.TotalSeconds
+   $pct=100.0*$cpuSeconds/$elapsed
+   if($elapsed -lt 7.5 -or $elapsed -gt 12.5 -or $cpuSeconds -lt 0 -or
+      $pct -gt 500 -or [Double]::IsNaN($pct)){
+     throw ('R170_INVALID_CPU_SAMPLE_'+$version)
+   }
+   $sample=[ordered]@{Version=$version;Host=$HostLabel;MainSHA256=$expectedSha;
+     CpuSeconds=$cpuSeconds;ElapsedSeconds=$elapsed;PercentOfOneCore=$pct;
+     ProcessId=$probe.Id;WarmupSeconds=8;Source='HOSTED_PROCESS_CPU_NOT_PERSONAL';
+     ConfigurationBeforeSHA=$cfgSha;BackupBeforeSHA=$bakSha}
+ }
+ finally{
+   if($null -ne $probe){
+     try{
+       $probe.Refresh()
+       if(!$probe.HasExited){
+         try{[void]$probe.CloseMainWindow()}catch{}
+         if(!$probe.WaitForExit(3500)){
+            $forcedStop=$true # CI-only process launched above, on disposable runner.
+            $probe.Kill()
+            if(!$probe.WaitForExit(12000)){throw 'R170_DISPOSABLE_PROCESS_NOT_STOPPED'}
+         }
+       }
+     }finally{$probe.Dispose()}
+   }
+   # Restore the exact isolated test fixture if application startup normalizes it.
+   if((Hash $configFile) -cne $cfgSha){
+      [IO.File]::WriteAllBytes($configFile,$cfgBytes)
+      if((Hash $configFile) -cne $cfgSha){throw 'R170_TEST_CONFIG_RESTORE_FAILED'}
+   }
+   if((Hash $backupFile) -cne $bakSha){
+      [IO.File]::WriteAllBytes($backupFile,$bakBytes)
+      if((Hash $backupFile) -cne $bakSha){throw 'R170_TEST_BACKUP_RESTORE_FAILED'}
+   }
+ }
+ if($null -eq $sample){throw 'R170_NO_HOSTED_CPU_SAMPLE'}
+ if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){
+    throw 'R170_LEFT_TEST_PROCESS_RUNNING'
+ }
+ $sample['DisposableOnlyForcedStop']=$forcedStop
+ $sample['ConfigRestoredToOriginalSHA']=((Hash $configFile) -ceq $cfgSha)
+ $sample['BackupRestoredToOriginalSHA']=((Hash $backupFile) -ceq $bakSha)
+ return $sample
 }
 try{
  & gh release download v1.7.1 --repo $repo --pattern TaskbarMonitorEnhanced_Setup_1.7.1.exe --dir $out
@@ -73,6 +147,9 @@ try{
  if($expectedState -ceq $sourceText){throw 'R155_ACTUAL_STATE_FORMAT_NOT_RECOGNIZED'}
  foreach($path in @($config,$backup,$userFile,(Join-Path $app 'SensorBackend\LibreHardwareMonitor-0.9.6\LibreHardwareMonitorLib.dll'))){if((Hash $path) -ceq 'MISSING'){throw ('R155_PROTECTED_INPUT_MISSING '+$path)};$beforeProtected[$path]=Hash $path}
  $startupBefore=StartupValue
+ $phase='SAME_HOST_171_CPU_BASELINE'
+ $oldCpuR170=Measure-InstalledCpuR170 '1.7.1' 'D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420'
+ if($null -eq $oldCpuR170){throw 'R170_MISSING_OLD_BASELINE'}
  $phase='REJECT_EDITED_MANAGED_SOURCE'
  $managed=Join-Path $app 'Source\TaskbarGlass.cs';$original=[IO.File]::ReadAllBytes($managed)
  $changed=[byte[]]($original+[Text.Encoding]::UTF8.GetBytes("`n// deliberate owner edit: updater must refuse`n"))
@@ -122,6 +199,9 @@ try{
  $registrations=@(Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'|Where-Object PSChildName -ceq 'TaskbarMonitorEnhanced')
  if($registrations.Count -ne 1 -or (Get-ItemProperty $reg).InstallLocation -cne $app){throw 'R155_DUPLICATE_OR_WRONG_ROOT'}
  $preserved=$true;$chain+=@('1.7.2')
+ $phase='SAME_HOST_172_CPU_COMPARATOR'
+ $newCpuR170=Measure-InstalledCpuR170 '1.7.2' $manifest.MainSHA256
+ if($null -eq $newCpuR170 -or $oldCpuR170.Host -cne $newCpuR170.Host){throw 'R170_SAME_HOST_CPU_NOT_VERIFIED'}
  $phase='IDEMPOTENCE_AND_DOWNGRADE_REFUSAL'
  $after=Snapshot
  if((Run-Exact $setup '/update /quiet') -ne 0){throw 'R155_REPEATED_IDENTICAL_UPGRADE_FAILED'}
@@ -131,7 +211,7 @@ try{
  $status='PASS_GENUINE_171_TO_172_SINGLE_ROOT_PRESERVATION_ROLLBACK_IDEMPOTENCE'
 }catch{$errorText=$_.Exception.ToString()}
 finally{
- $r=[ordered]@{Revision='R155';Status=$status;Phase=$phase;Failure=$errorText;Host=$HostLabel;Commit=$env:GITHUB_SHA;SourceChain=$chain;MainSHA256=$manifest.MainSHA256;SetupSHA256=$manifest.SetupSHA256;RejectedUnsafeUpdates=$negative;RealProductionRollbackAfterSimulatedPartialCommit=$rollback;PhysicalPowerCutClaimed=$false;RealProcessKillClaimed=$false;ProtectedUserFilesPreserved=$preserved;IdenticalSetupIdempotent=$idempotent;DowngradeRefused=$downgrade;PersonalComputerTouched=$false;ProtectedSHA256=$beforeProtected}
+ $r=[ordered]@{Revision='R155';Status=$status;Phase=$phase;Failure=$errorText;Host=$HostLabel;Commit=$env:GITHUB_SHA;SourceChain=$chain;MainSHA256=$manifest.MainSHA256;SetupSHA256=$manifest.SetupSHA256;RejectedUnsafeUpdates=$negative;RealProductionRollbackAfterSimulatedPartialCommit=$rollback;PhysicalPowerCutClaimed=$false;RealProcessKillClaimed=$false;ProtectedUserFilesPreserved=$preserved;IdenticalSetupIdempotent=$idempotent;DowngradeRefused=$downgrade;PersonalComputerTouched=$false;ProtectedSHA256=$beforeProtected;R170SameHostedWindowsOldCpu=$oldCpuR170;R170SameHostedWindowsNewCpu=$newCpuR170;R170SameHostCpuMeasured=($null -ne $oldCpuR170 -and $null -ne $newCpuR170);R170PersonalCpuAcceptance=$false}
  [IO.File]::WriteAllText((Join-Path $out 'R155_UPGRADE.json'),($r|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
  Write-Output ($r|ConvertTo-Json -Depth 8 -Compress)
 }
