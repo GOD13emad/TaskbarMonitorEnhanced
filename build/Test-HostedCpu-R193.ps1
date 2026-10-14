@@ -37,9 +37,29 @@ $results=@()
 $proc=$null
 $expectedConfigSha=$null
 $testFixture='{"Theme":"Retro Terminal","Opacity":0.10,"GlassMode":false,"OpacityWhenGlassOff":0.10,"ConfigSchemaVersion":8,"StartWithWindows":false,"UpdateIntervalMs":1000,"ShowSparklines":true,"AutoCheckUpdates":false}'
-if((Test-Path $out) -or (Test-Path $app) -or (Test-Path $unreg) -or
+# R198: R197 two-host proven Build side effect creates ONLY the LocalAppData/Logs
+# directory. Assert fresh VM BEFORE Build from a SHA-captured owned receipt.
+# Preserve all Build logs and reject any unexpected config, executable, registry,
+# process or user-owned data. NO blanket deletion/cleanup.
+$beforeFile=Join-Path $env:RUNNER_TEMP ('R198_BEFORE_BUILD_'+$HostLabel+'.json')
+if(!(Test-Path $beforeFile -PathType Leaf)){throw 'R198_PREBUILD_ORIGIN_RECEIPT_MISSING'}
+$pre=Get-Content -LiteralPath $beforeFile -Raw|ConvertFrom-Json
+if($pre.Revision -cne 'R198' -or $pre.Host -cne $HostLabel -or
+   $pre.OutputRootExisted -ne $false -or $pre.AppDataRootExisted -ne $false -or
+   $pre.UninstallKeyExisted -ne $false -or $pre.MatchingAppProcessCount -ne 0){
+    throw 'R198_NOT_FRESH_BEFORE_BUILD_REFUSE_INSTALL'
+}
+if((Test-Path $out) -or (Test-Path $unreg) -or
    @((Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue)).Count){
-    throw 'R193_NOT_FRESH_DISPOSABLE_VM_OR_ALREADY_RAN'
+    throw 'R198_UNEXPECTED_INSTALL_OR_PROCESS_AFTER_BUILD'
+}
+if(Test-Path $app){
+    $children=@(Get-ChildItem -LiteralPath $app -Force -ErrorAction Stop)
+    if($children.Count -ne 1 -or $children[0].Name -cne 'Logs' -or
+       !$children[0].PSIsContainer -or
+       (Test-Path $config) -or (Test-Path $backup) -or (Test-Path $main)){
+        throw 'R198_UNEXPECTED_PREEXISTING_USER_DATA_NOT_OWNED'
+    }
 }
 New-Item -ItemType Directory -Path $out -ErrorAction Stop|Out-Null
 function Hash([string]$path) {
