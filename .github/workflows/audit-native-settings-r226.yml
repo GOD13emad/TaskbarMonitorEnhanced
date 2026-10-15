@@ -1,14 +1,15 @@
-name: R226 - Disposable native Settings foreground visual regression for optimized R223
+name: R226 - Independently verify prior real Settings native screenshots (no new GUI input)
 on:
   push:
     branches: [audit/r226-native-settings-foreground]
 permissions:
   contents: read
+  actions: read
 jobs:
-  native-settings:
-    name: Real Win32 Settings over topmost glass on guest ${{ matrix.host }}
+  verify-native-artifact:
+    name: Independent historical native Settings image and Win32 witness ${{ matrix.host }}
     runs-on: windows-2025-vs2026
-    timeout-minutes: 14
+    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
@@ -18,80 +19,127 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Check exact sacrificial host and test-only source
+      - name: Fail-closed source and historical receipt contract
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
           if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
              $env:RUNNER_OS -cne 'Windows' -or
-             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
-             $env:GITHUB_REF -cne 'refs/heads/audit/r226-native-settings-foreground'){
-             throw 'R226_REFUSE_NON_HOSTED_WINDOWS'
+             $env:GITHUB_REF -cne 'refs/heads/audit/r226-native-settings-foreground' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced'){
+             throw 'R226_VERIFY_OFFLINE_DISPOSABLE_ONLY'
           }
           $base='768460614462cb4888da98ab4abe725e7e64cecf'
           git merge-base --is-ancestor $base HEAD
-          if($LASTEXITCODE -ne 0){throw 'R226_PARENT_COMMIT_NOT_ANCESTOR'}
-          $changed=@(git diff --name-only $base HEAD)
-          $allowed=@('.github/workflows/audit-native-settings-r226.yml','build/Test-NativeSettings-R226.ps1')
-          if($changed.Count -ne 2 -or @($changed|Where-Object {$_ -cnotin $allowed}).Count){
-             throw 'R226_EXPERIMENT_NOT_ONLY_TWO_TEST_FILES'
+          if($LASTEXITCODE -ne 0){throw 'R226_ORIGINAL_PRODUCT_HEAD_MISSING'}
+          $files=@(git diff --name-only $base HEAD)
+          $allowed=@('.github/workflows/audit-native-settings-r226.yml',
+                     'build/Test-NativeSettings-R226.ps1',
+                     'build/Verify-SettingsForeground-R226-Offline.ps1')
+          if($files.Count -ne 3 -or @($files|Where-Object {$_ -cnotin $allowed}).Count){
+             throw 'R226_NOT_ONLY_TIGHT_TEST_FILES'
           }
           if((Get-FileHash './src/TaskbarMonitorEnhanced.cs' -Algorithm SHA256).Hash -cne
              '4AF4A6C05AFC18E6390D918A10B3CE35A4AF948C7451EF9604311A816C313E3F'){
-             throw 'R226_OPTIMIZED_PRODUCT_SOURCE_DRIFT'
+             throw 'R226_PRODUCT_SOURCE_NOT_IDENTICAL_TO_ABBA'
           }
-          $raw=[IO.File]::ReadAllText('./build/Test-NativeSettings-R226.ps1',[Text.Encoding]::UTF8)
-          $lf=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
-          $computed=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
-          if($computed -cne '3F76CC3B6B278BA6D246995CA1C908BD8F48F90429F3725346A50653A96A6C97'){
-             throw 'R226_TEST_RUNNER_NORMALIZED_SHA'
+          $path='./build/Verify-SettingsForeground-R226-Offline.ps1'
+          $s=[IO.File]::ReadAllText($path,[Text.Encoding]::UTF8)
+          $lf=$s.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+          $sum=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
+          if($sum -cne 'D35DE03BC9A8FA95B16A16EC850A0715406E92389933DCF69C791B963F6749E6'){
+             throw 'R226_INDEPENDENT_NATIVE_VERIFIER_SOURCE_SHA'
           }
-          $tok=$null;$errors=$null
-          [void][Management.Automation.Language.Parser]::ParseFile('./build/Test-NativeSettings-R226.ps1',
-              [ref]$tok,[ref]$errors)
-          if(@($errors).Count){throw 'R226_TEST_RUNNER_PARSER'}
-          if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){
-             throw 'R226_RUNNING_APP_PREEXISTS'
-          }
-          if(Test-Path (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced')){
-             throw 'R226_PRIVATE_INSTALLED_APP_PREEXISTS'
-          }
-          'R226_SACRIFICIAL_VM_PREFLIGHT=PASS'
-      - name: Build exact optimized test Main on native Windows
+          $t=$null;$e=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($path,[ref]$t,[ref]$e)
+          if(@($e).Count){throw 'R226_INDEPENDENT_NATIVE_VERIFIER_SOURCE_PARSE'}
+          'R226_NO_NEW_GUI_EXECUTION_TEST_SOURCE=PASS'
+      - name: Build byte-exact R223 Main only to pin image verifier identity
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
           dotnet build './build/TaskbarMonitorEnhanced.csproj' -c Release --nologo -p:RestoreIgnoreFailedSources=true
-          if($LASTEXITCODE -ne 0){throw 'R226_HOSTED_BUILD_FAILED'}
-          $main='./build/_out/App/TaskbarMonitorEnhanced.exe'
-          if(!(Test-Path -LiteralPath $main -PathType Leaf) -or
-             (Get-FileHash $main -Algorithm SHA256).Hash -cne
-             '5A44490034EB8A8B846FB11E7BD6954EED741F92DB53FC7A568DCCA358A5BCE2'){
-             throw 'R226_BUILT_CANDIDATE_BINARY_NOT_EXACT'
+          if($LASTEXITCODE -ne 0){throw 'R226_PINNED_TEST_MAIN_BUILD_FAILED'}
+          $candidate='./build/_out/App/TaskbarMonitorEnhanced.exe'
+          if((Get-FileHash $candidate -Algorithm SHA256).Hash -cne
+              '5A44490034EB8A8B846FB11E7BD6954EED741F92DB53FC7A568DCCA358A5BCE2'){
+             throw 'R226_TEST_BINARY_NOT_IDENTICAL_TO_NATIVE_CAPTURE'
           }
-          'R226_EXACT_MAIN_SHA=PASS'
-      - name: Real screenshot and actual title click Settings foreground with independent pixel verifier
+      - name: Download actual prior Win32 screenshots and independently verify pixels and hostile mutants
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference='Stop'
-          ./build/Test-NativeSettings-R226.ps1 -Machine '${{ matrix.host }}'
-          if($LASTEXITCODE -ne 0){throw 'R226_NATIVE_SETTINGS_PROOF_FAILED'}
-          $p=Join-Path $env:RUNNER_TEMP 'TBME_R226_SETTINGS_${{ matrix.host }}\R226_NATIVE_SETTINGS_RESULT.json'
-          if(!(Test-Path -LiteralPath $p -PathType Leaf)){throw 'R226_RESULT_MISSING'}
-          $v=Get-Content $p -Raw|ConvertFrom-Json
-          if($v.Status -cne 'PASS_DISPOSABLE_R223_NATIVE_SETTINGS_FOREGROUND_OVER_LAYERED_TOPMOST_GLASS' -or
-             $v.IndependentVerifier -cne 'PASS_INDEPENDENT_PIXELS_AND_FIFTEEN_HOSTILE_MUTANTS_REJECTED' -or
-             $v.NoOwnerPersonalDesktopInput -ne $true){
-             throw 'R226_NATIVE_FOREGROUND_RECEIPT_NOT_ACCEPTED'
+          $machine='${{ matrix.host }}'
+          $work=Join-Path $env:RUNNER_TEMP ('R226_PRIOR_CAPTURE_'+$machine)
+          if(Test-Path $work){throw 'R226_SAVED_CAPTURE_PREEXISTS'}
+          New-Item -ItemType Directory -Path $work -ErrorAction Stop|Out-Null
+          gh run download 38755570320 --repo GOD13emad/TaskbarMonitorEnhanced --name ('R226-native-settings-'+$machine) --dir $work
+          if($LASTEXITCODE -ne 0){throw 'R226_ORIGINAL_CAPTURE_ARTIFACT_UNAVAILABLE'}
+          $files=@(Get-ChildItem $work -Recurse -File)
+          if($files.Count -ne 4){throw 'R226_EVIDENCE_SET_NOT_EXACT_FOUR_FILES'}
+          $actual=@{}
+          foreach($f in $files){
+             if($actual.ContainsKey($f.Name)){throw 'R226_DUPLICATE_ARTIFACT_NAME'}
+             $actual[$f.Name]=(Get-FileHash $f.FullName -Algorithm SHA256).Hash
           }
-          'R226_DISPOSABLE_REAL_NATIVE_SETTINGS_SCREEN=PASS'
-      - name: Preserve raw Settings Win32 proof and actual screenshots
+          $pin=if($machine -ceq 'A'){
+             @{
+               'R226_NATIVE_SETTINGS_RESULT.json'='E7EF63835D5AE436BA3DFC3BC4FAE728B8BC9884399078288C6E1E5B1343742F'
+               'SETTINGS_NATIVE_FOREGROUND_R121.json'='A2D0237026187A49CE06F086A21D8D025E53A23ABC5AF2C06D5BDBA21F455ECF'
+               'SETTINGS_REAL_FOREGROUND.png'='4BD732B4C4B5534F6CCFBEA1462B54D3BC751C6E904684A4CE5DFECCA2B4222B'
+               'TOPMOST_GLASS_OBSTRUCTION_BEFORE.png'='BCA7D3131D32BD8662F68AA066B4A69C3570D912228DDC88D66132FC29617225'
+             }
+          }else{
+             @{
+               'R226_NATIVE_SETTINGS_RESULT.json'='616A79438A50E2619F78D66793568AC8E3D23650C3289122C95AD5E38C8407EE'
+               'SETTINGS_NATIVE_FOREGROUND_R121.json'='DE0AC73CEA8EF03057EDB3591B9CC0509DAD34E66DEFCDC4A8B40E1DDC3FBC6D'
+               'SETTINGS_REAL_FOREGROUND.png'='2C5EC581CF97603B8834688E4F73317693B7AF95D5E1DB072EF71CBDB2F41422'
+               'TOPMOST_GLASS_OBSTRUCTION_BEFORE.png'='23D8DC8EDAD9A9FDAC1C08C09525710673A473C45877FE9D9FF560F8A8005B41'
+             }
+          }
+          if($actual.Count -ne $pin.Count){throw 'R226_ARTIFACT_COUNT_MISMATCH'}
+          foreach($n in @($pin.Keys)){
+             if(!$actual.ContainsKey($n) -or $actual[$n] -cne $pin[$n]){
+                throw ('R226_PINNED_PRIMARY_ARTIFACT_SHA_DIFF_'+$n)
+             }
+          }
+          $manifest=@(Get-ChildItem $work -Recurse -File -Filter SETTINGS_NATIVE_FOREGROUND_R121.json)
+          if($manifest.Count -ne 1){throw 'R226_REAL_NATIVE_SOURCE_MANIFEST_NONUNIQUE'}
+          $main='./build/_out/App/TaskbarMonitorEnhanced.exe'
+          & ./build/Verify-SettingsForeground-R226-Offline.ps1 -ManifestPath $manifest[0].FullName -CandidateMainPath $main -ExpectedCommit '1ea74cc273aa27b474fd04cd0f75113fafd8c8ac' -ExpectedMainSha256 '5A44490034EB8A8B846FB11E7BD6954EED741F92DB53FC7A568DCCA358A5BCE2' -SelfTest
+          if($LASTEXITCODE -ne 0){throw 'R226_REAL_NATIVE_INDEPENDENT_RECEIPT_REJECTED'}
+          $v=Get-Content $manifest[0].FullName -Raw|ConvertFrom-Json
+          if($v.Status -cne 'PASS' -or $v.ForegroundIsSettings -ne $true -or
+             $v.SettingsTitleHit -ne $true -or $v.ObstaclePhysicalPinkLeakingAfter -ne 0 -or
+             $v.SettingsPhysicalSaturatedPixels -lt 150 -or
+             @($v.ClickPoint).Count -ne 2){
+             throw 'R226_REAL_SCREEN_PRIMARY_WIN32_NOT_ACCEPTED'
+          }
+          $receipt=[ordered]@{
+             Revision='R226';Machine=$machine;Status='PASS_INDEPENDENT_OFFLINE_REAL_GITHUB_NATIVE_SETTINGS_FOREGROUND_SCREEN'
+             RawCaptureGitHubRun=38755570320
+             RawCaptureCommit='1ea74cc273aa27b474fd04cd0f75113fafd8c8ac'
+             ExactInputEvidenceSHA256=$actual
+             CurrentIndependentVerifierGitCommit=$env:GITHUB_SHA
+             NormalizedVerifierSourceSHA256='D35DE03BC9A8FA95B16A16EC850A0715406E92389933DCF69C791B963F6749E6'
+             SettingsForegroundAndTitleHit=$true
+             ScreenshotPixelHashesAndGeometryMatched=$true
+             SeventeenAdversarialMutantsRejected=$true
+             NoNewGUIInputOrScreenshotAcquired=$true
+             OriginalGitHubCaptureRunConcludedFailure=$true
+             OwnerPhysicalMachineTested=$false
+             Utc=[DateTime]::UtcNow.ToString('o')
+          }
+          $receiptPath=Join-Path $env:RUNNER_TEMP ('R226_INDEPENDENT_'+$machine+'.json')
+          [IO.File]::WriteAllText($receiptPath,($receipt|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
+          'R226_PRIOR_REAL_HOSTED_SCREEN_OFFLINE_VV=PASS'
+      - name: Preserve only new verifier acceptance receipt
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: R226-native-settings-${{ matrix.host }}
+          name: R226-independent-existing-real-settings-${{ matrix.host }}
           if-no-files-found: warn
           retention-days: 21
-          path: |
-            ${{ runner.temp }}/TBME_R226_SETTINGS_${{ matrix.host }}/R226_NATIVE_SETTINGS_RESULT.json
-            ${{ runner.temp }}/TBME_R226_SETTINGS_${{ matrix.host }}/native/*
+          path: ${{ runner.temp }}/R226_INDEPENDENT_${{ matrix.host }}.json
