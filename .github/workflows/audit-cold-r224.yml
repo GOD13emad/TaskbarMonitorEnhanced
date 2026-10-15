@@ -52,13 +52,24 @@ jobs:
           $new=[IO.File]::ReadAllText('./build/Test-HostedRegistry-R225.ps1',[Text.Encoding]::UTF8)
           $canonical=$new.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
           $newSha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($canonical)))
-          if($newSha -cne 'E849750B37357DBC9A924C3CC9CAD9E2F10D6427F18B8612F6CC40EA3542A3D8'){
+          if($newSha -cne 'BD7AF648BF2EDB6218835ACD896B841912179975FD235DDDE9864C15A074473B'){
               throw 'R225_NEW_REGISTRY_RUNNER_NORMALIZED_SHA_DRIFT'
           }
           $t=$null;$errors=$null
           [void][Management.Automation.Language.Parser]::ParseFile('./build/Test-HostedRegistry-R225.ps1',
                  [ref]$t,[ref]$errors)
           if(@($errors).Count){throw 'R225_NEW_RUNNER_PS_PARSER_FAILED'}
+          # Unit regression from real failed run R225-F01: $args is a reserved
+          # PowerShell automatic variable and cannot serve as named input.
+          function R225-BadArgs([string]$file,[string]$args){return [string]$args}
+          function R225-GoodArgs([string]$file,[string]$installerArguments){return [string]$installerArguments}
+          $want='/install /quiet /desktop=0 /startup=0'
+          if((R225-BadArgs 'dummy.exe' $want) -cne '' -or
+             (R225-GoodArgs 'dummy.exe' $want) -cne $want -or
+             !$new.Contains('function Install([string]$setup,[string]$installerArguments)') -or
+             !$new.Contains('SILENT_INSTALL_ARGS_NOT_BOUND_EXACTLY')){
+              throw 'R225_F01_AUTOMATIC_ARGS_NEGATIVE_AND_POSITIVE_REGRESSION'
+          }
           if(Test-Path (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced')){
               throw 'R225_NOT_FRESH_OR_USER_DATA_PRESENT'
           }

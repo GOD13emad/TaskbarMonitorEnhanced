@@ -129,9 +129,14 @@ function RestoreValues($original){
     $r.Flush()
   }finally{$r.Dispose()}
 }
-function Install([string]$setup,[string]$args){
+function Install([string]$setup,[string]$installerArguments){
+  # Reject GUI defaults: PowerShell's built-in $args is always empty here if
+  # it is incorrectly used as a declared named function parameter.
+  if($installerArguments -cnotmatch '^/install /quiet /desktop=0 /startup=[01]$'){
+    Fail 'SILENT_INSTALL_ARGS_NOT_BOUND_EXACTLY'
+  }
   $si=[Diagnostics.ProcessStartInfo]::new()
-  $si.FileName=$setup;$si.Arguments=$args;$si.UseShellExecute=$false
+  $si.FileName=$setup;$si.Arguments=$installerArguments;$si.UseShellExecute=$false;$si.CreateNoWindow=$true
   $si.WorkingDirectory=Split-Path $setup -Parent
   $proc=[Diagnostics.Process]::Start($si)
   if($null -eq $proc){Fail 'NO_SETUP_CHILD'}
