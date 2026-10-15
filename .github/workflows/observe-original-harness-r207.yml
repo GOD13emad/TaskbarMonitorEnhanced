@@ -1,0 +1,171 @@
+name: R207 - Inspect original whole-app CPU harness installer hang
+on:
+  push:
+    branches: [audit/r207-original-harness-observe]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect-original-harness:
+    name: Instrument R205 frozen CPU harness on one fresh disposable host
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 18
+    steps:
+      - name: Full history, exact source checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Prove isolated branch, exact unchanged CPU harness, and parser
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or $env:GITHUB_REF -cne 'refs/heads/audit/r207-original-harness-observe'){throw 'R207_DISPOSABLE_HOST_ONLY'}
+          $base='b9c74179f028b12216574d27823978140c5726c4'
+          $product='1b2bf5b6b58313706556d10efd242270583b5f0d'
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R207_HEAD_MISMATCH'}
+          git merge-base --is-ancestor $base HEAD
+          if($LASTEXITCODE -ne 0){throw 'R207_BASE_NOT_ANCESTOR'}
+          $changed=@(git diff --name-only $base HEAD)
+          if($changed.Count -ne 1 -or $changed[0] -cne '.github/workflows/observe-original-harness-r207.yml'){throw 'R207_CHANGED_UNEXPECTED_FILES'}
+          if(@(git diff --name-only $product HEAD -- src).Count){throw 'R207_PRODUCT_SOURCE_CHANGED'}
+          $f=(Resolve-Path 'build/Test-HostedCpu-R201.ps1').Path
+          $raw=[IO.File]::ReadAllText($f,[Text.Encoding]::UTF8)
+          $norm=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+          $h=[Security.Cryptography.SHA256]::Create()
+          try{$digest=[Convert]::ToHexString($h.ComputeHash([Text.Encoding]::UTF8.GetBytes($norm)))}finally{$h.Dispose()}
+          if($digest -cne 'CCB1FD297F675B1F61CAC324477DD3159CD45FD5551FC6EAF2D0299B0A0F05EB'){throw 'R207_FROZEN_CPU_HARNESS_SHA_DRIFT'}
+          $tok=$null;$errs=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($f,[ref]$tok,[ref]$errs)
+          if(@($errs).Count){throw 'R207_FROZEN_CPU_SCRIPT_PARSE_FAILED'}
+          if(@(git status --porcelain).Count){throw 'R207_CHECKOUT_DIRTY'}
+          'R207_HARNESS_AND_SOURCE_UNCHANGED=PASS'
+      - name: Import exact independent compiled Main and write fresh-host proof
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $out=Join-Path $env:RUNNER_TEMP 'TBME_R201_CANDIDATE'
+          if(Test-Path $out){throw 'R207_CANDIDATE_PATH_NOT_FRESH'}
+          New-Item -ItemType Directory -Path $out -ErrorAction Stop|Out-Null
+          & gh run download 38638445612 --repo GOD13emad/TaskbarMonitorEnhanced --name R201-only-candidate-main --dir $out
+          if($LASTEXITCODE -ne 0){throw 'R207_CANDIDATE_FETCH_FAILED'}
+          $exe=Join-Path $out 'TaskbarMonitorEnhanced.exe'
+          $expected='3448552CA6711D861BAD3739BEA77FC04626477DF64D5E30227BC95AF00771AF'
+          if((Get-FileHash $exe -Algorithm SHA256).Hash -cne $expected){throw 'R207_CANDIDATE_SHA_FAILED'}
+          $app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
+          $reg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
+          $testOut=Join-Path $env:RUNNER_TEMP 'TBME_R193_CPU_A'
+          $proof=Join-Path $env:RUNNER_TEMP 'R201_PREINSTALL_A.json'
+          if(Test-Path $proof){throw 'R207_PROOF_ALREADY_EXISTS'}
+          $pre=[ordered]@{
+            Revision='R201';Host='A';GitCommit=$env:GITHUB_SHA
+            OutputExists=[bool](Test-Path $testOut)
+            AppRootExists=[bool](Test-Path $app)
+            UninstallKeyExists=[bool](Test-Path $reg)
+            ProcessCount=[int]@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count
+            DownloadedBinarySHA256=$expected;NoBuildExecutedInCpuJob=$true;NoPersonalMachineTouched=$true
+            SourceArtifactRun=38638445612;ImageOS=$env:ImageOS;ImageVersion=$env:ImageVersion
+          }
+          [IO.File]::WriteAllText($proof,($pre|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
+          if($pre.OutputExists -or $pre.AppRootExists -or $pre.UninstallKeyExists -or $pre.ProcessCount -ne 0){throw 'R207_NOT_FRESH_BEFORE_INSTALL'}
+          'R207_PRESTATE_EXACTLY_R205=PASS'
+      - name: Observe original CPU harness in parallel with bounded read-only snapshots
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_REF -cne 'refs/heads/audit/r207-original-harness-observe'){throw 'R207_TEST_HOST_REF_DRIFT'}
+          $out=Join-Path $env:RUNNER_TEMP 'TBME_R207_OBSERVER_A'
+          if(Test-Path $out){throw 'R207_OBSERVER_PREEXISTS'}
+          New-Item -ItemType Directory -Path $out -ErrorAction Stop|Out-Null
+          $stop=Join-Path $out 'STOP.flag'
+          $receipt=Join-Path $out 'R207_INSTALL_TIMELINE.json'
+          $job=Start-Job -ArgumentList @($stop,$receipt,$env:LOCALAPPDATA) -ScriptBlock {
+            param([string]$stop,[string]$receipt,[string]$local)
+            $ErrorActionPreference='Stop'
+            $app=Join-Path $local 'TaskbarMonitorEnhanced'
+            $reg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
+            $samples=New-Object 'System.Collections.Generic.List[object]'
+            $stamp=[DateTime]::UtcNow
+            for($i=0;$i -lt 64;$i++){
+              if(Test-Path $stop){break}
+              $found=@();$errorClass=''
+              try{
+                $all=@(Get-CimInstance Win32_Process -ErrorAction Stop)
+                $watched=@('TaskbarMonitorEnhanced_Setup_1.7.1.exe','TaskbarMonitorEnhanced_Setup_1.7.2.exe','powershell.exe','pwsh.exe','consent.exe','conhost.exe','TaskbarMonitorSensorBroker.exe','TaskbarMonitorSensorSupervisor.exe')
+                foreach($v in @($all|Where-Object {$_.Name -in $watched})){
+                  $found+=([ordered]@{
+                    Name=[string]$v.Name;PID=[int]$v.ProcessId;ParentPID=[int]$v.ParentProcessId
+                    SessionId=[int]$v.SessionId;ThreadCount=[int]$v.ThreadCount
+                    KernelTicks=[string]$v.KernelModeTime;UserTicks=[string]$v.UserModeTime
+                    IsProtectedHelper=[bool]([string]$v.CommandLine -match 'TBME_Setup_Elevated_Helper[.]ps1')
+                  })
+                }
+              }catch{$errorClass=$_.Exception.GetType().Name}
+              $log=Join-Path $app 'Logs\sensor_install.log'
+              $state=Join-Path $app 'install_state.json'
+              $status=Join-Path $app 'Logs\sensor_install_result.json'
+              $tempDirs=@(Get-ChildItem $env:TEMP -Directory -Filter 'tbme_setup_*' -ErrorAction SilentlyContinue)
+              $samples.Add(([ordered]@{
+                ElapsedMs=[int]([DateTime]::UtcNow-$stamp).TotalMilliseconds
+                ObservedProcesses=$found;CimErrorClass=$errorClass
+                MainExists=[bool](Test-Path (Join-Path $app 'TaskbarMonitorEnhanced.exe'))
+                Registered=[bool](Test-Path $reg);InstallStateExists=[bool](Test-Path $state)
+                SensorLogExists=[bool](Test-Path $log)
+                SensorLogBytes=if(Test-Path $log){[long](Get-Item $log).Length}else{0}
+                SensorResultExists=[bool](Test-Path $status)
+                SensorPayloadDirs=[int]$tempDirs.Count
+              }))
+              $data=[ordered]@{Revision='R207';Objective='Sidecar only read-only original R205 CPU harness installer phase'
+                Status='SNAPSHOT_IN_PROGRESS';Host='A';SourceRun=38638445612
+                FrozenHarnessSHA256='CCB1FD297F675B1F61CAC324477DD3159CD45FD5551FC6EAF2D0299B0A0F05EB'
+                OwnerComputerTouched=$false;NoProductMutation=$true;StartedUTC=$stamp.ToString('o')
+                Samples=@($samples.ToArray());UpdatedUTC=[DateTime]::UtcNow.ToString('o')}
+              [IO.File]::WriteAllText($receipt,($data|ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
+              Start-Sleep -Seconds 4
+            }
+            if(Test-Path $receipt){
+              $data.Status='PASS_DIAGNOSTIC_RECORD_CAPTURED'
+              $data.UpdatedUTC=[DateTime]::UtcNow.ToString('o')
+              [IO.File]::WriteAllText($receipt,($data|ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
+            }
+          }
+          $errorText=''
+          try{
+            .\build\Test-HostedCpu-R201.ps1 -HostLabel A
+          }catch{$errorText=$_.Exception.GetType().Name+': '+$_.Exception.Message}
+          finally{
+            [IO.File]::WriteAllText($stop,'R207_FROZEN_HARNESS_FINISHED',[Text.UTF8Encoding]::new($false))
+            if(!(Wait-Job $job -Timeout 20)){
+              Stop-Job $job -ErrorAction SilentlyContinue
+            }
+            $jobState=$job.State
+            $jobErrors= @($job.ChildJobs | ForEach-Object {$_.Error} | ForEach-Object {$_.ToString()})
+            Remove-Job $job -Force -ErrorAction SilentlyContinue
+            $result=[ordered]@{
+              Revision='R207';Host='A';FrozenOriginalHarness= 'build/Test-HostedCpu-R201.ps1'
+              OriginalHarnessError=$errorText;SidecarFinalState=[string]$jobState
+              SidecarErrors=$jobErrors;TimelineFileExists=[bool](Test-Path $receipt)
+              OwnerComputerTouched=$false;NoPublicProductPromotion=$true
+              CapturedUTC=[DateTime]::UtcNow.ToString('o')
+            }
+            [IO.File]::WriteAllText((Join-Path $out 'R207_RUN_RESULT.json'),($result|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+            Write-Output ($result|ConvertTo-Json -Depth 5 -Compress)
+          }
+          if($errorText){throw ('R207_ORIGINAL_HARNESS_FAILURE_AS_OBSERVED '+$errorText)}
+          if(!(Test-Path $receipt)){throw 'R207_SIDECAR_TIMELINE_MISSING'}
+      - name: Save bounded original-harness witness and CPU receipt even on failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R207-one-host-original-harness-witness
+          if-no-files-found: warn
+          retention-days: 21
+          path: |
+            ${{ runner.temp }}/TBME_R207_OBSERVER_A/R207_INSTALL_TIMELINE.json
+            ${{ runner.temp }}/TBME_R207_OBSERVER_A/R207_RUN_RESULT.json
+            ${{ runner.temp }}/TBME_R193_CPU_A/R201_CPU_AB.json
+            ${{ runner.temp }}/R201_PREINSTALL_A.json
