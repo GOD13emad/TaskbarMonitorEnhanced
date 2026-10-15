@@ -107,12 +107,12 @@ function RequireFixture(){
         throw 'R193_CONFIG_OR_PROTECTED_FIXTURE_CHANGED'
     }
 }
-function MonitorWindow([uint32]$pid) {
+function MonitorWindow([uint32]$targetPid) {
     $tray=[R193Win]::FindWindow('Shell_TrayWnd',$null)
     if($tray -eq [IntPtr]::Zero){return [IntPtr]::Zero}
     $trayRect=New-Object R193Win+Rect
     if(![R193Win]::GetWindowRect($tray,[ref]$trayRect)){return [IntPtr]::Zero}
-    foreach($hwnd in [R193Win]::Owned($pid,$tray)) {
+    foreach($hwnd in [R193Win]::Owned($targetPid,$tray)) {
         if(![R193Win]::IsWindowVisible($hwnd)){continue}
         $r=New-Object R193Win+Rect
         if(![R193Win]::GetWindowRect($hwnd,[ref]$r)){continue}
