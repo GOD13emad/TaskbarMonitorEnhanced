@@ -1,0 +1,95 @@
+name: R254 - Genuine official v1.7.3 legacy Program Files collision refusal
+on:
+  push:
+    branches:
+      - audit/r254-disposable-programfiles-collision
+permissions:
+  contents: read
+jobs:
+  collision-refusal:
+    name: "R254 hosted negative: ${{ matrix.guest }} (${{ matrix.system }})"
+    runs-on: ${{ matrix.system }}
+    timeout-minutes: 17
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - guest: A
+            system: windows-2025
+          - guest: B
+            system: windows-2022
+    steps:
+      - name: Checkout exact source (no stored credentials)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Fail-closed disposable host, scope, and code identity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $baseline='6001fce0e7900f2a1ec5172224f4c75224f3ac69'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/audit/r254-disposable-programfiles-collision' -or
+             $env:COMPUTERNAME -match '(?i)EMAD|ALI|LAPTOP') {
+              throw 'R254_REFUSE_NON_DISPOSABLE_WINDOWS'
+          }
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA) {
+              throw 'R254_HEAD_MISMATCH'
+          }
+          git merge-base --is-ancestor $baseline HEAD
+          if($LASTEXITCODE -ne 0){throw 'R254_PUBLISHED_SOURCE_NOT_PARENT'}
+          $changed=@(git diff --name-only $baseline HEAD)
+          $allowed=@('.github/workflows/audit-r254-disposable-programfiles-collision.yml',
+                     'build/Test-R254-DisposableLegacyCollision.ps1')
+          if($changed.Count -ne 2 -or @($changed|Where-Object {$_ -cnotin $allowed}).Count) {
+              throw 'R254_TEST_FILES_SCOPE_NOT_EXACTLY_TWO'
+          }
+          $path=Join-Path $pwd 'build/Test-R254-DisposableLegacyCollision.ps1'
+          $raw=[IO.File]::ReadAllText($path,[Text.Encoding]::UTF8)
+          $lf=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+          $actual=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
+          if($actual -cne '7D203B5EBCDDA69261156D267376419998866AF7740E8645B12AB6F7EBB1ED7A') {
+              throw 'R254_TEST_HARNESS_HASH_CHANGED'
+          }
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw 'R254_SCRIPT_PARSE_ERROR'}
+          if((Test-Path (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced')) -or
+             @(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count) {
+              throw 'R254_GUEST_NOT_FRESH'
+          }
+          'R254_HOSTED_GUEST_PRECONDITION=PASS'
+      - name: Install one exact official Setup, inject inert duplicate, reject update and recover
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Test-R254-DisposableLegacyCollision.ps1 -HostLabel '${{ matrix.guest }}'
+          if($LASTEXITCODE -ne 0){throw 'R254_NEGATIVE_REAL_INSTALLER_FAILED'}
+          $json=Join-Path $env:RUNNER_TEMP 'TBME_R254_${{ matrix.guest }}/R254_COLLISION.json'
+          $receipt=Get-Content -LiteralPath $json -Raw | ConvertFrom-Json
+          if($receipt.Status -cne 'PASS_GENUINE_DISPOSABLE_PROGRAMFILES_DUPLICATE_REJECTED_AND_SAME_ROOT_RESTORED' -or
+             $receipt.DuplicateExecutableConflictRefused -ne $true -or
+             $receipt.NoUnmanagedOwnerFilesDeleted -ne $true -or
+             $receipt.SyntheticFixtureRemoved -ne $true -or
+             $receipt.OriginalLocalHKCUInstallationPreserved -ne $true -or
+             $receipt.AfterCleanupUpdateExit -ne 0 -or
+             $receipt.PersonalOwnerComputerTouched -ne $false -or
+             $receipt.DoesNotProveCrossUserOrHKLMRegistryCollision -ne $true) {
+               throw 'R254_RECEIPT_STATUS_SCOPE_OR_RECOVERY_INVALID'
+          }
+          'R254_REAL_OFFICIAL_PROGRAMFILES_CONFLICT_REFUSED=PASS'
+      - name: Retain bounded disposable receipts even if a gate fails
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R254-legacy-collision-${{ matrix.guest }}
+          retention-days: 21
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/TBME_R254_${{ matrix.guest }}/R254_COLLISION.json
