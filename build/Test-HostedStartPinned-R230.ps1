@@ -1,0 +1,303 @@
+[CmdletBinding()]
+param([Parameter(Mandatory=$true)][ValidateSet('A','B')][string]$Machine)
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+# REAL keyboard Start key, window observation and screenshots ONLY in fresh disposable hosted Windows.
+if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+   $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+   $env:GITHUB_REF -cne 'refs/heads/audit/r230-guest-taskbar-space' -or
+   $env:GITHUB_SHA -cnotmatch '^[0-9a-f]{40}$' -or
+   [string]::IsNullOrWhiteSpace($env:RUNNER_TEMP) -or $env:COMPUTERNAME -match '(?i)EMAD|ALI|LAPTOP'){
+    throw 'R228_DISPOSABLE_WINDOWS_ONLY_NO_OWNER_DESKTOP'
+}
+$mainSha='5A44490034EB8A8B846FB11E7BD6954EED741F92DB53FC7A568DCCA358A5BCE2'
+$officialSha='84D5DBF6F2E6D1D2E2B3E6D9C9DA523E564A7F5240C08D34A456D934026B829F'
+$setupSha='225BCC259C392DA04F3E0157CAF22F96C4052282AAF02555E6F6E777F4CB8AF4'
+$repo='GOD13emad/TaskbarMonitorEnhanced'
+$app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
+$installedMain=Join-Path $app 'TaskbarMonitorEnhanced.exe'
+$config=Join-Path $app 'config.json'
+$backup=Join-Path $app 'config.json.bak'
+$work=Join-Path $env:RUNNER_TEMP ('TBME_R230_START_'+$Machine)
+$native=Join-Path $work 'start'
+$proof=Join-Path $native 'START_PINNED_PROOF.json'
+$receipt=Join-Path $work 'R230_REAL_NATIVE_START_GUEST.json'
+$status='FAIL';$stage='PREFLIGHT';$failure=''
+$nativeResult='UNPROVEN';$nativeVerifier='UNPROVEN';$nativeExit=-1
+$mainOriginalBytes=$null;$configOriginalBytes=$null;$backupOriginalBytes=$null
+$installed=$false;$glassSet=$false;$restored=$false;$owned=$null
+$sourcePid=0;$guestAppRootOriginalHasConfig=$false
+function Fail([string]$s){throw ('R228_'+$s)}
+function Hash([string]$file){
+  if(!(Test-Path -LiteralPath $file -PathType Leaf)){return 'MISSING'}
+  return (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
+}
+function AppProcesses{
+  return @(Get-Process -Name TaskbarMonitorEnhanced -ErrorAction SilentlyContinue)
+}
+function Child([string]$exe,[string[]]$arglist,[int]$maxMillis,[string]$label){
+    $si=[Diagnostics.ProcessStartInfo]::new()
+    $si.FileName=$exe
+    $si.WorkingDirectory=Split-Path $exe -Parent
+    $si.UseShellExecute=$false
+    $si.CreateNoWindow=$true
+    foreach($arg in $arglist){[void]$si.ArgumentList.Add([string]$arg)}
+    $proc=[Diagnostics.Process]::Start($si)
+    if(!$proc){Fail ('PROCESS_START_NULL_'+$label)}
+    try{
+        if(!$proc.WaitForExit($maxMillis)){
+           try{$proc.Kill($true);$proc.WaitForExit(7000)|Out-Null}catch{}
+           Fail ('PROCESS_TIMEOUT_'+$label)
+        }
+        return [int]$proc.ExitCode
+    }finally{$proc.Dispose()}
+}
+function Capture-GuestNativeFailure {
+  if($sourcePid -le 0 -or !$installed){return}
+  $folder=Join-Path $work 'native-diagnostics'
+  New-Item -ItemType Directory -Path $folder -Force|Out-Null
+  $dest=Join-Path $folder 'R228_GUEST_NATIVE_WINDOW_CENSUS.json'
+  try{
+    $nativeCode=@'
+using System;
+using System.Runtime.InteropServices;
+public static class R228WindowReadOnly {
+    [StructLayout(LayoutKind.Sequential)]public struct RECT { public int L,T,R,B; }
+    public delegate bool EnumCallback(IntPtr hwnd,IntPtr arg);
+    [DllImport("user32.dll")]public static extern bool EnumWindows(EnumCallback callback,IntPtr arg);
+    [DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr hwnd,out uint pid);
+    [DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr hwnd);
+    [DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr hwnd,out RECT rect);
+    [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")]static extern IntPtr Style64(IntPtr hwnd,int index);
+    [DllImport("user32.dll",EntryPoint="GetWindowLongW")]static extern int Style32(IntPtr hwnd,int index);
+    public static long Style(IntPtr hwnd,int index) {
+        return IntPtr.Size==8?Style64(hwnd,index).ToInt64():Style32(hwnd,index);
+    }
+    [DllImport("user32.dll",CharSet=CharSet.Unicode)]public static extern IntPtr FindWindow(string cls,string title);
+}
+'@
+    Add-Type -TypeDefinition $nativeCode -Language CSharp -ErrorAction Stop
+    $tray=[R228WindowReadOnly]::FindWindow('Shell_TrayWnd',$null)
+    $trayRect=[R228WindowReadOnly+RECT]::new()
+    $known=$tray -ne [IntPtr]::Zero -and [R228WindowReadOnly]::GetWindowRect($tray,[ref]$trayRect)
+    $items=[Collections.Generic.List[object]]::new()
+    $callback=[R228WindowReadOnly+EnumCallback]{
+       param([IntPtr]$hwnd,[IntPtr]$arg)
+       [uint32]$ownerProcessId=[uint32]0
+       [void][R228WindowReadOnly]::GetWindowThreadProcessId($hwnd,[ref]$ownerProcessId)
+       if($ownerProcessId -eq [uint32]$sourcePid){
+          $rect=[R228WindowReadOnly+RECT]::new()
+          $valid=[R228WindowReadOnly]::GetWindowRect($hwnd,[ref]$rect)
+          $style=[R228WindowReadOnly]::Style($hwnd,-16)
+          $exstyle=[R228WindowReadOnly]::Style($hwnd,-20)
+          $within=$known -and $valid -and $rect.L -ge $trayRect.L -and
+            $rect.T -ge $trayRect.T -and $rect.R -le $trayRect.R -and $rect.B -le $trayRect.B
+          $items.Add([ordered]@{
+              Hwnd=$hwnd.ToInt64();PID=$ownerProcessId;Visible=[R228WindowReadOnly]::IsWindowVisible($hwnd)
+              Rect=@($rect.L,$rect.T,($rect.R-$rect.L),($rect.B-$rect.T))
+              GetRect=$valid;Style=$style;ExStyle=$exstyle
+              IsPopup=(($style -band 0x80000000L) -ne 0)
+              IsChild=(($style -band 0x40000000L) -ne 0)
+              Layered=(($exstyle -band 0x00080000L) -ne 0)
+              NoActivate=(($exstyle -band 0x08000000L) -ne 0)
+              Composited=(($exstyle -band 0x02000000L) -ne 0)
+              WithinTaskbar=$within
+          })
+       }
+       return $true
+    }
+    $logLines=[Collections.Generic.List[string]]::new()
+    $logs=Join-Path $app 'Logs'
+    if(Test-Path $logs){
+        foreach($f in @(Get-ChildItem $logs -File -Filter 'tbme_csharp_*.log'|Sort-Object LastWriteTimeUtc -Descending|Select-Object -First 2)){
+            $stream=[IO.FileStream]::new($f.FullName,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+            try{
+                $reader=[IO.StreamReader]::new($stream,[Text.Encoding]::UTF8)
+                $raw=$reader.ReadToEnd()
+                foreach($line in @($raw -split '[\r\n]+'|Where-Object {$_ -match 'TOPLEVEL_GLASS|ATTACH|GLASS|POSITION|TASKBAR|OVERLAY|RECOVERY|ERROR'}|Select-Object -Last 70)){
+                    if($line.Length -le 400){$logLines.Add($line)}
+                }
+            }finally{$stream.Dispose()}
+        }
+    }
+    [void][R228WindowReadOnly]::EnumWindows($callback,[IntPtr]::Zero)
+    $data=[ordered]@{
+        Revision='R228';Category='READONLY_SACRIFICIAL_GUEST_HWNDS_AND_ATTACHEVENTS'
+        GuestPID=$sourcePid
+        MainExeSHA256=(Hash $installedMain)
+        GlassConfigOpacity=0.0
+        GlassModeTrue=$glassSet
+        TaskbarHwnd=$tray.ToInt64();TaskbarKnown=$known
+        TaskbarRect=if($known){@($trayRect.L,$trayRect.T,($trayRect.R-$trayRect.L),($trayRect.B-$trayRect.T))}else{@()}
+        TopLevelOwnedWindows=@($items.ToArray())
+        ProgramAttachmentEventLines=@($logLines.ToArray())
+        NoUserComputerOrDesktopTouched=$true
+    }
+    [IO.File]::WriteAllText($dest,($data|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+  }catch{
+     $e=$_.Exception.Message
+     $lines=if($null -ne (Get-Variable logLines -ValueOnly -ErrorAction SilentlyContinue)){
+         @($logLines.ToArray())
+     }else{@()}
+     [IO.File]::WriteAllText($dest,([ordered]@{
+         Status='PARTIAL_DIAGNOSTIC_NONBLOCKING'
+         Error=$e
+         AttachmentLogLines=$lines
+         HostSourcePID=$sourcePid
+         NoOwnerDesktopInput=$true
+     }|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
+  }
+}
+function RestoreGuest(){
+   # No personal user content is ever touched; this cleanup operates ONLY on the
+   # exact new disposable guest files created by the official installer.
+   if($null -ne $owned){
+      try{
+         $owned.Refresh()
+         if(!$owned.HasExited){
+             if($owned.Id -ne $sourcePid -or
+                (Get-Process -Id $sourcePid -ErrorAction SilentlyContinue).Path -cne $installedMain){
+                 Fail 'OWNED_RESIDENT_IDENTITY_NOT_EXACT'
+             }
+             $owned.Kill($true)
+             $owned.WaitForExit(9000)|Out-Null
+         }
+      }finally{$owned.Dispose()}
+   }
+   if(!$installed){return}
+   if(@(AppProcesses).Count -ne 0){Fail 'GUEST_APP_PROCESS_NOT_QUIESCENT_AFTER_STOP'}
+   if($null -eq $mainOriginalBytes){Fail 'BASE_MAIN_BACKUP_NEVER_READ'}
+   [IO.File]::WriteAllBytes($installedMain,$mainOriginalBytes)
+   if((Hash $installedMain) -cne $officialSha){Fail 'OFFICIAL_MAIN_RESTORE_SHA_DIFF'}
+   if($null -ne $configOriginalBytes){[IO.File]::WriteAllBytes($config,$configOriginalBytes)}
+   elseif(Test-Path $config){Remove-Item -LiteralPath $config -Force}
+   if($null -ne $backupOriginalBytes){[IO.File]::WriteAllBytes($backup,$backupOriginalBytes)}
+   elseif(Test-Path $backup){Remove-Item -LiteralPath $backup -Force}
+   if($null -ne $configOriginalBytes -and
+      ([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([IO.File]::ReadAllBytes($config))) -cne
+       [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($configOriginalBytes)))){
+       Fail 'GUEST_CONFIG_ORIGINAL_NOT_RESTORED'
+   }
+   $script:restored=$true
+}
+try{
+   if(Test-Path $work){Fail 'RUN_DIRECTORY_ALREADY_EXISTS'}
+   if((Test-Path $app) -or @(AppProcesses).Count -ne 0 -or
+      (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced')){
+      Fail 'GUEST_WINDOWS_NOT_FRESH_OR_USER_ROOT_PREEXISTS'
+   }
+   if(@(Get-Process explorer -ErrorAction SilentlyContinue|Where-Object {$_.SessionId -eq (Get-Process -Id $PID).SessionId}).Count -lt 1){
+      Fail 'NO_REAL_EXPLORER_IN_INTERACTIVE_HOSTED_DESKTOP'
+   }
+   $stage='OFFICIAL_V172_GUEST_INSTALL'
+   New-Item -ItemType Directory -Path $work -ErrorAction Stop|Out-Null
+   & gh release download v1.7.2 --repo $repo --pattern TaskbarMonitorEnhanced_Setup_1.7.2.exe --dir $work
+   if($LASTEXITCODE -ne 0){Fail 'PUBLIC_OFFICIAL_INSTALLER_UNAVAILABLE'}
+   $setup=Join-Path $work 'TaskbarMonitorEnhanced_Setup_1.7.2.exe'
+   if((Hash $setup) -cne $setupSha){Fail 'OFFICIAL_SETUP_SHA_DIFFERENT'}
+   $rc=Child $setup @('/install','/quiet','/desktop=0','/startup=0') 190000 'OFFICIAL_SETUP'
+   if($rc -ne 0){Fail ('OFFICIAL_INSTALLER_RETURNED_'+$rc)}
+   if((Hash $installedMain) -cne $officialSha -or @(AppProcesses).Count -ne 0){
+      Fail 'GUEST_OFFICIAL_MAIN_NOT_INSTALLED_QUIESCENT'
+   }
+   $mainOriginalBytes=[IO.File]::ReadAllBytes($installedMain)
+   $installed=$true
+   if(Test-Path $config){$configOriginalBytes=[IO.File]::ReadAllBytes($config);$guestAppRootOriginalHasConfig=$true}
+   if(Test-Path $backup){$backupOriginalBytes=[IO.File]::ReadAllBytes($backup)}
+   $stage='ENABLE_EXACT_DISPOSABLE_ALPHA_GLASS_START_PINNED'
+   Copy-Item -LiteralPath './build/_out/App/TaskbarMonitorEnhanced.exe' -Destination $installedMain -Force
+   if((Hash $installedMain) -cne $mainSha){Fail 'EXACT_OPTIMIZED_BINARY_NOT_INSTALLED_ON_GUEST'}
+   $fixture=@{
+      Theme='Retro Terminal'
+      Position='Left'
+      ConfigSchemaVersion=8
+      Opacity=0.0
+      GlassMode=$true
+      OpacityWhenGlassOff=0.10
+      FloatAboveStartMenu=$false
+      StartWithWindows=$false
+      UpdateIntervalMs=1000
+      ShowSparklines=$true
+      AutoCheckUpdates=$false
+      ShowCpu=$true
+      ShowRam=$true
+      ShowDisk=$true
+      ShowGpu=$true
+      ShowNetwork=$true
+      ShowTemperatures=$false
+      SafePlacement=$true
+      MinWidthLogicalPx=1100
+   }|ConvertTo-Json -Compress
+   [IO.File]::WriteAllText($config,$fixture,[Text.UTF8Encoding]::new($false))
+   [IO.File]::WriteAllText($backup,$fixture,[Text.UTF8Encoding]::new($false))
+   if((Hash $config) -cne (Hash $backup)){Fail 'GLASS_CONFIG_AND_BACKUP_NOT_IDENTICAL'}
+   $glassSet=$true
+   $checkCfg=Get-Content -LiteralPath $config -Raw|ConvertFrom-Json
+   $expectedPos='Left'
+   if($checkCfg.Position -cne $expectedPos -or $checkCfg.FloatAboveStartMenu -ne $false -or
+      $checkCfg.GlassMode -ne $true -or $checkCfg.Opacity -ne 0.0){Fail 'R229_CONFIGURATION_POSITION_OR_GLASS_NOT_PINNED'}
+   $stage='LAUNCH_REAL_HOSTED_RESIDENT'
+   $si=[Diagnostics.ProcessStartInfo]::new()
+   $si.FileName=$installedMain
+   $si.WorkingDirectory=$app
+   $si.UseShellExecute=$false
+   $si.CreateNoWindow=$true
+   $owned=[Diagnostics.Process]::Start($si)
+   if(!$owned){Fail 'GUEST_RESIDENT_NOT_LAUNCHED'}
+   $sourcePid=[int]$owned.Id
+   Start-Sleep -Seconds 8
+   $owned.Refresh()
+   if($owned.HasExited -or @(AppProcesses).Count -ne 1 -or (Get-Process -Id $sourcePid).Path -cne $installedMain){
+       Fail 'EXACT_SINGLE_GUEST_RESIDENT_NOT_VISIBLE'
+   }
+   $stage='REAL_START_KEY_24_SAMPLE_NATIVE_SCREEN_PROOF'
+   if(Test-Path $native){Fail 'SACRIFICIAL_NATIVE_OUTPUT_PREEXISTS'}
+   $rc=Child $installedMain @('--startpinnedprobe',$native) 105000 'ACTUAL_WIN_KEY_START_PROOF'
+   $nativeExit=$rc
+   if(!(Test-Path $proof -PathType Leaf)){Fail 'ACTUAL_NATIVE_START_SOURCE_MANIFEST_MISSING'}
+   $source=Get-Content $proof -Raw|ConvertFrom-Json
+   $nativeResult=[string]$source.Status
+   if($rc -ne 0 -or $source.Status -cne 'PASS'){
+      Fail ('NATIVE_START_REAL_PHYSICAL_SOURCE_NOT_PASS_EXIT_'+$rc+'_SOURCE_'+$nativeResult)
+   }
+   $stage='INDEPENDENT_FOURTEEN_HOSTILE_AND_FIVE_ACTUAL_BITMAPS'
+   $pre=[ordered]@{
+       Revision='R230';Host=$Machine;GitHubTestCommit=$env:GITHUB_SHA
+       CandidateMainSHA256=$mainSha;OfficialMainSHA256=$officialSha;OfficialSetupSHA256=$setupSha
+       ResidentProcessId=$sourcePid;HostedGlassAndPinnedConfigured=$glassSet
+       NoOwnerComputerTouched=$true;NativeSourceResult=$nativeResult
+   }
+   [IO.File]::WriteAllText($receipt,($pre|ConvertTo-Json -Depth 7),[Text.UTF8Encoding]::new($false))
+   & ./build/Verify-StartPinned-R228.ps1 -ManifestPath $proof -CandidateReceiptPath $receipt -ExpectedCommit $env:GITHUB_SHA -SelfTest
+   if($LASTEXITCODE -ne 0){Fail 'INDEPENDENT_NATIVE_PINNED_AND_SCREEN_PIXEL_VERIFIER_NOT_ACCEPTED'}
+   $nativeVerifier='PASS_24_PINNED_SAMPLES_AND_14_HOSTILE_AND_FIVE_BITMAPS'
+   $stage='ACCEPTED'
+   $status='PASS_REAL_DISPOSABLE_OPTIMIZED_GLASS_START_STAYS_PINNED_AND_INK_RECOVERS'
+}catch{
+   $failure=$_.Exception.GetType().Name+': '+$_.Exception.Message
+   Capture-GuestNativeFailure
+}finally{
+   try{RestoreGuest}catch{$failure+='; CLEANUP='+$_.Exception.Message;$status='FAIL'}
+   if(Test-Path $work){
+      $receiptValue=[ordered]@{
+         Revision='R230';Host=$Machine;Status=$status;Phase=$stage;Failure=$failure
+         GitHubTestCommit=$env:GITHUB_SHA
+         CandidateMainSHA256=$mainSha;OfficialMainSHA256=$officialSha;OfficialSetupSHA256=$setupSha
+         RealOfficialV172FreshGuestInstall=$installed
+         ResidentProcessId=$sourcePid;HostedGlassAndPinnedConfigured=$glassSet
+         GuestPosition='Left'
+         GlassAlphaZeroAndNonGlassOpacityTenPercent=$glassSet
+         PinnedStartProofExitCode=$nativeExit
+         NativeSourceResult=$nativeResult;IndependentVerifier=$nativeVerifier
+         GuestOwnerOriginalMainConfigBackupRestored=$restored
+         NoOwnerComputerTouched=$true;NoPublicReleaseMutation=$true
+         FormalPhysicalLabAccepted=$false
+         GuestUtc=[DateTime]::UtcNow.ToString('o')
+      }
+      [IO.File]::WriteAllText($receipt,($receiptValue|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+      Write-Output ($receiptValue|ConvertTo-Json -Depth 8 -Compress)
+   }
+}
+if($status -cne 'PASS_REAL_DISPOSABLE_OPTIMIZED_GLASS_START_STAYS_PINNED_AND_INK_RECOVERS' -or !$restored){
+   throw ('R228_REAL_GUEST_START_NOT_ACCEPTED_'+$stage+' '+$failure)
+}

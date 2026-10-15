@@ -1,0 +1,108 @@
+name: R230 - Real Glass Start with Microsoft-supported sparse taskbar on disposable Windows
+on:
+  push:
+    branches: [audit/r230-guest-taskbar-space]
+permissions:
+  contents: read
+jobs:
+  real-start-glass:
+    name: R223 real Start stays pinned on hosted Windows ${{ matrix.host }}
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 16
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [A]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Refuse non-disposable host and exact source/script identity preflight
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/audit/r230-guest-taskbar-space'){
+              throw 'R228_WINDOWS_OWNER_DESKTOP_REFUSED'
+          }
+          $parent='dc1cf3b0b5a322febecd20c5d791dec5b428fcc0'
+          git merge-base --is-ancestor $parent HEAD
+          if($LASTEXITCODE -ne 0){throw 'R228_PARENT_NOT_R226'}
+          $changed=@(git diff --name-only $parent HEAD)
+          $allowed=@('.github/workflows/audit-taskbar-space-r230.yml',
+                     'build/Test-HostedStartPinned-R230.ps1',
+                     'build/Test-GuestTaskbarItems-R230.ps1')
+          if($changed.Count -ne 3 -or @($changed|Where-Object {$_ -cnotin $allowed}).Count){
+              throw 'R228_MORE_THAN_THREE_TEST_FILES'
+          }
+          if((Get-FileHash './src/TaskbarMonitorEnhanced.cs' -Algorithm SHA256).Hash -cne
+             '4AF4A6C05AFC18E6390D918A10B3CE35A4AF948C7451EF9604311A816C313E3F'){
+              throw 'R228_PRODUCT_CODE_NOT_EXACT_FROZEN_R223'
+          }
+          $scripts=@{
+             'Test-HostedStartPinned-R230.ps1'='8BCA360DB7784D1A7C5DC6C7B8FAA57B3BCB0DB1A78EEB823C07627B33A9F08B'
+              'Test-GuestTaskbarItems-R230.ps1'='3F6E5CC59B416CFA7FB63DE3358B44DAADEA7DBA047A086630441B1BB7C204BE'
+             'Verify-StartPinned-R228.ps1'='221391108E55B263DA9A1F068EC682D97DA62630B34EB2ABAAC68B246DEF6E2E'
+          }
+          foreach($name in $scripts.Keys){
+              $p=Join-Path './build' $name
+              $raw=[IO.File]::ReadAllText($p,[Text.Encoding]::UTF8)
+              $lf=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+              $sum=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
+              if($sum -cne $scripts[$name]){throw ('R228_PINNED_TEST_SCRIPT_CHANGED_'+$name)}
+              $tokens=$null;$errors=$null
+              [void][Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)
+              if(@($errors).Count){throw ('R228_TEST_SCRIPT_PS_PARSE_'+$name)}
+          }
+          if((Test-Path (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced')) -or
+             @(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count -gt 0){
+              throw 'R228_WINDOWS_NOT_FRESH'
+          }
+          'R228_PINNED_SCRIPT_SOURCE_AND_GUEST_IDENTITY=PASS'
+      - name: Build exactly pinned optimized Main on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          dotnet build './build/TaskbarMonitorEnhanced.csproj' -c Release --nologo -p:RestoreIgnoreFailedSources=true
+          if($LASTEXITCODE -ne 0){throw 'R228_OPTIMIZED_MAIN_BUILD_FAILED'}
+          $main='./build/_out/App/TaskbarMonitorEnhanced.exe'
+          if(!(Test-Path $main -PathType Leaf) -or
+             (Get-FileHash $main -Algorithm SHA256).Hash -cne
+             '5A44490034EB8A8B846FB11E7BD6954EED741F92DB53FC7A568DCCA358A5BCE2'){
+              throw 'R228_BUILT_MAIN_NOT_IDENTICAL_TO_R223_CPU_AND_R226_SETTINGS'
+          }
+          'R228_BUILT_MAIN_IDENTITY=PASS'
+      - name: Install official v1.7.2 guest, run pinned glass Start real keyboard and verify screenshots
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Test-GuestTaskbarItems-R230.ps1 -Machine '${{ matrix.host }}'
+          if($LASTEXITCODE -ne 0){throw 'R228_START_PINNED_NATIVE_NOT_ACCEPTED'}
+          $report=Join-Path $env:RUNNER_TEMP 'TBME_R230_SHELL_${{ matrix.host }}\R230_SPARSE_TASKBAR_ACCEPTANCE.json'
+          if(!(Test-Path $report -PathType Leaf)){throw 'R230_SPARSE_TASKBAR_GUEST_RECEIPT_MISSING'}
+          $v=Get-Content -LiteralPath $report -Raw|ConvertFrom-Json
+          if($v.Status -cne 'PASS_REAL_GUEST_NATIVE_START_PINNED_WITH_SUPPORTED_SPARSE_TASKBAR' -or
+             $v.AllOriginalGuestTaskbarPreferencesRestored -ne $true -or
+             $v.RealPinnedStartSourceAndScreensAccepted -ne $true -or
+             $v.NoOwnerRegistryOrProductChange -ne $true){
+             throw 'R230_GUEST_OS_RESTORE_OR_NATIVE_SOURCE_NOT_ACCEPTED'
+          }
+          'R230_SPARSE_GUEST_START_NATIVELY_VERIFIED=PASS'
+      - name: Preserve source native Win32 manifest, real PNGs and outcome even on failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R230-guest-sparse-taskbar-start-${{ matrix.host }}
+          if-no-files-found: warn
+          retention-days: 21
+          path: |
+            ${{ runner.temp }}/TBME_R230_SHELL_${{ matrix.host }}/R230_SPARSE_TASKBAR_ACCEPTANCE.json
+            ${{ runner.temp }}/TBME_R230_SHELL_${{ matrix.host }}/R230_EXACT_HKCU_TASKBAR_PRESTATE.json
+            ${{ runner.temp }}/TBME_R230_START_${{ matrix.host }}/R230_REAL_NATIVE_START_GUEST.json
+            ${{ runner.temp }}/TBME_R230_START_${{ matrix.host }}/start/*
+            ${{ runner.temp }}/TBME_R230_START_${{ matrix.host }}/native-diagnostics/*
