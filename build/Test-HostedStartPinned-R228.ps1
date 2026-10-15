@@ -83,9 +83,9 @@ public static class R228WindowReadOnly {
     $items=[Collections.Generic.List[object]]::new()
     $callback=[R228WindowReadOnly+EnumCallback]{
        param([IntPtr]$hwnd,[IntPtr]$arg)
-       [uint32]$pid=[uint32]0
-       [void][R228WindowReadOnly]::GetWindowThreadProcessId($hwnd,[ref]$pid)
-       if($pid -eq [uint32]$sourcePid){
+       [uint32]$ownerProcessId=[uint32]0
+       [void][R228WindowReadOnly]::GetWindowThreadProcessId($hwnd,[ref]$ownerProcessId)
+       if($ownerProcessId -eq [uint32]$sourcePid){
           $rect=[R228WindowReadOnly+RECT]::new()
           $valid=[R228WindowReadOnly]::GetWindowRect($hwnd,[ref]$rect)
           $style=[R228WindowReadOnly]::Style($hwnd,-16)
@@ -93,7 +93,7 @@ public static class R228WindowReadOnly {
           $within=$known -and $valid -and $rect.L -ge $trayRect.L -and
             $rect.T -ge $trayRect.T -and $rect.R -le $trayRect.R -and $rect.B -le $trayRect.B
           $items.Add([ordered]@{
-              Hwnd=$hwnd.ToInt64();PID=$pid;Visible=[R228WindowReadOnly]::IsWindowVisible($hwnd)
+              Hwnd=$hwnd.ToInt64();PID=$ownerProcessId;Visible=[R228WindowReadOnly]::IsWindowVisible($hwnd)
               Rect=@($rect.L,$rect.T,($rect.R-$rect.L),($rect.B-$rect.T))
               GetRect=$valid;Style=$style;ExStyle=$exstyle
               IsPopup=(($style -band 0x80000000L) -ne 0)
@@ -106,7 +106,6 @@ public static class R228WindowReadOnly {
        }
        return $true
     }
-    [void][R228WindowReadOnly]::EnumWindows($callback,[IntPtr]::Zero)
     $logLines=[Collections.Generic.List[string]]::new()
     $logs=Join-Path $app 'Logs'
     if(Test-Path $logs){
@@ -121,6 +120,7 @@ public static class R228WindowReadOnly {
             }finally{$stream.Dispose()}
         }
     }
+    [void][R228WindowReadOnly]::EnumWindows($callback,[IntPtr]::Zero)
     $data=[ordered]@{
         Revision='R228';Category='READONLY_SACRIFICIAL_GUEST_HWNDS_AND_ATTACHEVENTS'
         GuestPID=$sourcePid
@@ -135,8 +135,17 @@ public static class R228WindowReadOnly {
     }
     [IO.File]::WriteAllText($dest,($data|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
   }catch{
-     [IO.File]::WriteAllText($dest,([ordered]@{Status='DIAGNOSTIC_NOT_EXECUTED';Error=$_.Exception.Message}|ConvertTo-Json),
-         [Text.UTF8Encoding]::new($false))
+     $e=$_.Exception.Message
+     $lines=if($null -ne (Get-Variable logLines -ValueOnly -ErrorAction SilentlyContinue)){
+         @($logLines.ToArray())
+     }else{@()}
+     [IO.File]::WriteAllText($dest,([ordered]@{
+         Status='PARTIAL_DIAGNOSTIC_NONBLOCKING'
+         Error=$e
+         AttachmentLogLines=$lines
+         HostSourcePID=$sourcePid
+         NoOwnerDesktopInput=$true
+     }|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
   }
 }
 function RestoreGuest(){

@@ -43,7 +43,7 @@ jobs:
               throw 'R228_PRODUCT_CODE_NOT_EXACT_FROZEN_R223'
           }
           $scripts=@{
-             'Test-HostedStartPinned-R228.ps1'='6DB0D8ABD052399F339A80359F5481452CFC08FE47BC92D3614DAE8751B360F2'
+             'Test-HostedStartPinned-R228.ps1'='242C6E3A4C3668764D3BBAC3487EC04853DD92E40D0D3983FE8635071D590BC2'
              'Verify-StartPinned-R228.ps1'='221391108E55B263DA9A1F068EC682D97DA62630B34EB2ABAAC68B246DEF6E2E'
           }
           foreach($name in $scripts.Keys){
