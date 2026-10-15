@@ -5464,6 +5464,22 @@ namespace TaskbarMonitorEnhanced
             taskbar=currentTaskbar;
             if(RefreshTaskbarPresentation(false))return;
 
+            // R223: In a visible, already-correct rectangle on an unchanged
+            // taskbar, no shell enumeration or process-name lookup is needed.
+            // Keep the existing shell guard for hidden, moved or forced layouts.
+            if(!force && expectedRect.Width>0 && expectedRect.Height>0 && Visible)
+            {
+                Native.RECT stableTray;
+                Native.RECT stableWindow;
+                if(Native.GetWindowRect(taskbar,out stableTray) &&
+                   stableTray.ToRectangle()==lastTaskbarScreenRect &&
+                   Native.GetWindowRect(Handle,out stableWindow) &&
+                   stableWindow.ToRectangle()==expectedRect)
+                {
+                    lastUpstreamPositionAt=DateTime.UtcNow;
+                    return;
+                }
+            }
             if(expectedRect.Width>0 && IsTransientShellSurfaceActive())
                 return;
 
