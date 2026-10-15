@@ -1,0 +1,166 @@
+name: R229 - Paired whole-app CPU R190 versus R223 on disposable Windows
+on:
+  push:
+    branches: [audit/r229-incremental-r190-r223-cpu]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  cpu-pair:
+    name: R190 versus R223 4x60s Windows ${{ matrix.host }}
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [A, B]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Refuse owner PC and validate exactly two test-only files
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/audit/r229-incremental-r190-r223-cpu' -or
+             $env:COMPUTERNAME -match '(?i)EMAD|ALI|LAPTOP'){
+             throw 'R229_REFUSE_PERSONAL_OR_NON_DISPOSABLE_WINDOWS'
+          }
+          $base='70d9fedfad5fedad0a87d66e4477800855601aab'
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R229_HEAD_NOT_EXACT'}
+          git merge-base --is-ancestor $base HEAD
+          if($LASTEXITCODE -ne 0){throw 'R229_EXPECTED_R223_NOT_ANCESTOR'}
+          $paths=@(git diff --name-only $base HEAD)
+          $allowed=@('build/Test-HostedCpu-R229.ps1','.github/workflows/audit-r229-incremental-cpu.yml')
+          if($paths.Count -ne 2 -or @($paths|Where-Object {$_ -cnotin $allowed}).Count){
+             throw 'R229_TEST_BRANCH_MODIFIED_OTHER_FILES'
+          }
+          if(@(git diff --name-only $base HEAD -- src).Count){
+             throw 'R229_PRODUCT_SOURCE_MUTATION_UNEXPECTED'
+          }
+          if((Get-FileHash './src/TaskbarMonitorEnhanced.cs' -Algorithm SHA256).Hash -cne
+             '4AF4A6C05AFC18E6390D918A10B3CE35A4AF948C7451EF9604311A816C313E3F'){
+             throw 'R229_FROZEN_R223_SOURCE_SHA_NOT_EXACT'
+          }
+          if((git rev-parse 'HEAD:build/Test-HostedCpu-R229.ps1').Trim() -cne
+             '52c838753d2b76b6cfeae721f752131da68dda82'){
+             throw 'R229_INHERITED_AND_LIMITED_HARNESS_GIT_BLOB_CHANGED'
+          }
+          $tok=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile('./build/Test-HostedCpu-R229.ps1',
+                 [ref]$tok,[ref]$errors)
+          if(@($errors).Count){throw 'R229_REAL_SCRIPT_PS_PARSER_FAILED'}
+          $app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
+          $key='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
+          if((Test-Path $app) -or (Test-Path $key) -or
+             @(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count -gt 0){
+             throw 'R229_GUEST_NOT_FRESH'
+          }
+          'R229_DISPOSABLE_SOURCE_AND_WORKTREE=PASS'
+      - name: Compile exact R223 trial and stage pinned SHA
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          dotnet build './build/TaskbarMonitorEnhanced.csproj' -c Release --nologo -p:RestoreIgnoreFailedSources=true
+          if($LASTEXITCODE -ne 0){throw 'R229_R223_BUILD_FAILED'}
+          $source='./build/_out/App/TaskbarMonitorEnhanced.exe'
+          if((Get-FileHash $source -Algorithm SHA256).Hash -cne '5A44490034EB8A8B846FB11E7BD6954EED741F92DB53FC7A568DCCA358A5BCE2'){
+             throw 'R229_TRIAL_SOURCE_BINARY_NOT_DETERMINISTIC'
+          }
+          $dir=Join-Path $env:RUNNER_TEMP 'TBME_R201_CANDIDATE'
+          if(Test-Path $dir){throw 'R229_STAGE_ALREADY_EXISTS'}
+          New-Item -ItemType Directory $dir -ErrorAction Stop|Out-Null
+          Copy-Item -LiteralPath $source -Destination (Join-Path $dir 'TaskbarMonitorEnhanced.exe') -ErrorAction Stop
+          'R229_R223_TRIAL_SHA=PASS'
+      - name: Fetch exact original R190 Main from accepted artifact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $dir=Join-Path $env:RUNNER_TEMP 'TBME_R229_R190'
+          if(Test-Path $dir){throw 'R229_OLD_ARTIFACT_PATH_EXISTS'}
+          New-Item -ItemType Directory $dir -ErrorAction Stop|Out-Null
+          gh run download 38638445612 --repo GOD13emad/TaskbarMonitorEnhanced --name R201-only-candidate-main --dir $dir
+          if($LASTEXITCODE -ne 0){throw 'R229_ACCEPTED_R190_ARTIFACT_UNAVAILABLE'}
+          $files=@(Get-ChildItem $dir -File -Recurse)
+          if($files.Count -ne 1 -or $files[0].Name -cne 'TaskbarMonitorEnhanced.exe'){
+             throw 'R229_ORIGINAL_R190_BINARY_MEMBER_SET_NOT_UNIQUE'
+          }
+          if((Get-FileHash $files[0].FullName -Algorithm SHA256).Hash -cne
+             '3448552CA6711D861BAD3739BEA77FC04626477DF64D5E30227BC95AF00771AF'){
+             throw 'R229_REAL_R190_BASELINE_SHA_DIFF'
+          }
+          'R229_R190_REAL_SNAPSHOT_SHA=PASS'
+      - name: Record fresh independent preinstall host fixture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
+          $reg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
+          $candidate=Join-Path $env:RUNNER_TEMP 'TBME_R201_CANDIDATE\TaskbarMonitorEnhanced.exe'
+          $old=Join-Path $env:RUNNER_TEMP 'TBME_R229_R190\TaskbarMonitorEnhanced.exe'
+          $proof=Join-Path $env:RUNNER_TEMP 'R201_PREINSTALL_${{ matrix.host }}.json'
+          $out=Join-Path $env:RUNNER_TEMP 'TBME_R193_CPU_${{ matrix.host }}'
+          if(Test-Path $proof){throw 'R229_PREINSTALL_PROOF_PREEXISTS'}
+          $data=[ordered]@{
+             Revision='R201';Host='${{ matrix.host }}';GitCommit=$env:GITHUB_SHA
+             OutputExists=[bool](Test-Path $out);AppRootExists=[bool](Test-Path $app)
+             UninstallKeyExists=[bool](Test-Path $reg)
+             ProcessCount=[int]@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count
+             DownloadedBinarySHA256=(Get-FileHash $candidate -Algorithm SHA256).Hash
+             HistoricalR190BaselineSHA256=(Get-FileHash $old -Algorithm SHA256).Hash
+             SourceArtifactRun=38638445612;NoBuildOnCPUHost=$false;NoPersonalPCMutation=$true
+          }
+          if($data.OutputExists -or $data.AppRootExists -or $data.UninstallKeyExists -or
+             $data.ProcessCount -ne 0){throw 'R229_GUEST_CONFIG_NOT_FRESH'}
+          [IO.File]::WriteAllText($proof,($data|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+          'R229_FRESH_PRESTATE=PASS'
+      - name: Real same-host four 60-second R190 versus R223 full-application ABBA
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          & ./build/Test-HostedCpu-R229.ps1 -HostLabel '${{ matrix.host }}'
+          if($LASTEXITCODE -ne 0){throw 'R229_REAL_FULL_APP_CPU_SCRIPT_FAILED'}
+          $file=Join-Path $env:RUNNER_TEMP 'TBME_R193_CPU_${{ matrix.host }}\R201_CPU_AB.json'
+          if(!(Test-Path $file -PathType Leaf)){throw 'R229_RAW_CPU_RECEIPT_NOT_CREATED'}
+          $a=Get-Content $file -Raw|ConvertFrom-Json
+          if($a.Revision -cne 'R229' -or
+             $a.Status -cne 'PASS_4_SUSTAINED_FULL_APP_BLOCKS_TWO_VERSIONS_SAME_HOST' -or
+             $a.AllBlocksCompleted -ne $true -or
+             $a.DeterministicFixtureResetAfterEveryBlock -ne $true -or
+             $a.RestoredOriginalOfficialExeOnSacrificialHost -ne $true -or
+             $a.FullProgramPairing -cne 'EXACT_R190_BASE_VS_R223_TRIAL' -or
+             $a.R190ArtifactRunID -ne 38638445612 -or
+             $a.BaselineMainSHA256 -cne '3448552CA6711D861BAD3739BEA77FC04626477DF64D5E30227BC95AF00771AF' -or
+             $a.TrialMainSHA256 -cne '5A44490034EB8A8B846FB11E7BD6954EED741F92DB53FC7A568DCCA358A5BCE2' -or
+             $a.OfficialOriginalMainSHA256 -cne '84D5DBF6F2E6D1D2E2B3E6D9C9DA523E564A7F5240C08D34A456D934026B829F' -or
+             @($a.ActualBlocks).Count -ne 4 -or @($a.PostBlockFixtureSHAEvidence).Count -ne 4){
+             throw 'R229_INDEPENDENT_RAW_CPU_AND_RESTORED_OFFICIAL_INVALID'
+          }
+          $order=(@($a.ActualBlocks|ForEach-Object {$_.Kind}) -join ',')
+          if($order -cne 'BASE,TRIAL,TRIAL,BASE'){throw 'R229_NOT_EXACT_ABBA'}
+          foreach($b in $a.ActualBlocks){
+             if($b.DurationSeconds -lt 60 -or $b.DurationSeconds -gt 67 -or
+                $b.MonitoringTicks -lt 60 -or
+                $b.NativeMonitorVisibleAtStartAndEnd -ne $true -or $b.SingleProcess -ne $true){
+                throw 'R229_SUSTAINED_ACTUAL_PROCESS_BLOCK_MISSING'
+             }
+          }
+          'R229_FOUR_SUSTAINED_WHOLE_APP_ABBA_BLOCKS=PASS'
+      - name: Preserve complete actual CPU and preinstall metadata per host
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R229-r190-r223-${{ matrix.host }}
+          if-no-files-found: warn
+          retention-days: 21
+          path: |
+            ${{ runner.temp }}/TBME_R193_CPU_${{ matrix.host }}/R201_CPU_AB.json
+            ${{ runner.temp }}/R201_PREINSTALL_${{ matrix.host }}.json
