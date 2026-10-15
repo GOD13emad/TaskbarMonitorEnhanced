@@ -118,6 +118,10 @@ jobs:
              throw 'R255_STATUS_SCOPE_OR_PROTECTION_NOT_ACCEPTED'
           }
           'R255_GUEST_REAL_FRESH_AND_MAINTENANCE_ACCEPTED=PASS'
+          # GitHub Windows PowerShell action exits with the most recent native
+          # LASTEXITCODE, even after successful scripted .NET child-process tests.
+          # Reset only *after* every receipt/status/identity assertion above passed.
+          $global:LASTEXITCODE=0
       - name: Retain guest test receipts on both success and failure
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
