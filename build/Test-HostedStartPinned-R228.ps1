@@ -35,6 +35,105 @@ function Hash([string]$file){
 function AppProcesses{
   return @(Get-Process -Name TaskbarMonitorEnhanced -ErrorAction SilentlyContinue)
 }
+# Real hosted Windows desktop is typically only 1024px wide. The app's correct
+# SAFE_PLACEMENT_ADAPT reduces 1100px to 279px, below its 420px native safe-min.
+# Use *only* graphics modes the virtual display driver exposes (Microsoft API);
+# never fake HWND sizes or weaken Start's native acceptance thresholds.
+$script:oldVideoMode=$null
+$script:changedGuestVideoMode=$false
+function Ensure-WideSacrificialDisplay {
+    $api=@'
+using System;
+using System.Runtime.InteropServices;
+public static class R228DisplayModes {
+    [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)]
+    public struct DEVMODE {
+        [MarshalAs(UnmanagedType.ByValTStr,SizeConst=32)]public string dmDeviceName;
+        public short dmSpecVersion,dmDriverVersion,dmSize,dmDriverExtra;
+        public int dmFields;
+        public int dmPositionX,dmPositionY,dmDisplayOrientation,dmDisplayFixedOutput;
+        public short dmColor,dmDuplex,dmYResolution,dmTTOption,dmCollate;
+        [MarshalAs(UnmanagedType.ByValTStr,SizeConst=32)]public string dmFormName;
+        public short dmLogPixels;
+        public int dmBitsPerPel,dmPelsWidth,dmPelsHeight,dmDisplayFlags,dmDisplayFrequency;
+        public int dmICMMethod,dmICMIntent,dmMediaType,dmDitherType,dmReserved1,dmReserved2,dmPanningWidth,dmPanningHeight;
+    }
+    [DllImport("user32.dll",CharSet=CharSet.Unicode,EntryPoint="EnumDisplaySettingsW")]
+    public static extern bool EnumDisplaySettings(string device,int mode,ref DEVMODE settings);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode,EntryPoint="ChangeDisplaySettingsW")]
+    public static extern int ChangeDisplaySettings(ref DEVMODE settings,int flags);
+}
+'@
+    Add-Type -TypeDefinition $api -Language CSharp -ErrorAction Stop
+    $size=[Runtime.InteropServices.Marshal]::SizeOf([type][R228DisplayModes+DEVMODE])
+    if($size -ne 220){Fail ('WIN32_DEVMODE_SIZE_WRONG_'+$size)}
+    $current=[R228DisplayModes+DEVMODE]::new()
+    $current.dmSize=[short]$size
+    if(![R228DisplayModes]::EnumDisplaySettings($null,-1,[ref]$current)){
+        Fail 'HOSTED_WINDOWS_DISPLAY_ENUM_CURRENT_NOT_SUPPORTED'
+    }
+    $script:oldVideoMode=$current
+    $modes=[Collections.Generic.List[object]]::new()
+    for($i=0;$i -lt 160;$i++){
+        $m=[R228DisplayModes+DEVMODE]::new()
+        $m.dmSize=[short]$size
+        if(![R228DisplayModes]::EnumDisplaySettings($null,$i,[ref]$m)){break}
+        if($m.dmBitsPerPel -ge 32){
+            $modes.Add([pscustomobject]@{
+               Width=[int]$m.dmPelsWidth;Height=[int]$m.dmPelsHeight
+               Frequency=[int]$m.dmDisplayFrequency;Mode=$m
+            })
+        }
+    }
+    $eligible=@($modes|Where-Object {$_.Width -ge 1600 -and $_.Height -ge 900}|
+      Sort-Object @{Expression={if($_.Width -ge 1920){0}else{1}}},
+                  @{Expression={$_.Width}},@{Expression={$_.Height}})
+    $selected=$null
+    if($current.dmPelsWidth -ge 1600 -and $current.dmPelsHeight -ge 900){
+        $selected=[pscustomobject]@{Width=$current.dmPelsWidth;Height=$current.dmPelsHeight;Mode=$current}
+    }elseif($eligible.Count -gt 0){
+        foreach($test in $eligible){
+            $candidate=$test.Mode
+            $check=[R228DisplayModes]::ChangeDisplaySettings([ref]$candidate,2) # CDS_TEST only
+            if($check -eq 0){$selected=$test;break}
+        }
+    }
+    $resultCode='NOT_ATTEMPTED'
+    if($null -ne $selected -and
+       ($current.dmPelsWidth -lt 1600 -or $current.dmPelsHeight -lt 900)){
+       $mode=$selected.Mode
+       $resultCode=[R228DisplayModes]::ChangeDisplaySettings([ref]$mode,0) # ephemeral; no registry update
+       if($resultCode -eq 0){$script:changedGuestVideoMode=$true}
+    }
+    $after=[R228DisplayModes+DEVMODE]::new()
+    $after.dmSize=[short]$size
+    $readback=[R228DisplayModes]::EnumDisplaySettings($null,-1,[ref]$after)
+    $info=[ordered]@{
+        Schema=1;Revision='R228'
+        Host=$Machine
+        Scope='GITHUB_HOSTED_ONLY'
+        DeviceDriverCurrentBefore=@($current.dmPelsWidth,$current.dmPelsHeight)
+        AvailableDriverModes=@($modes|ForEach-Object {@($_.Width,$_.Height,$_.Frequency)})
+        Selected=if($null -ne $selected){@($selected.Width,$selected.Height)}else{@()}
+        ChangeResult=$resultCode
+        ReadbackOk=$readback
+        DriverCurrentAfter=if($readback){@($after.dmPelsWidth,$after.dmPelsHeight)}else{@()}
+        NoUserDesktopTouched=$true
+    }
+    [IO.File]::WriteAllText((Join-Path $work 'R228_HOSTED_DISPLAY_MODES.json'),
+         ($info|ConvertTo-Json -Depth 7),[Text.UTF8Encoding]::new($false))
+    if(!$readback -or $after.dmPelsWidth -lt 1600 -or $after.dmPelsHeight -lt 900){
+        Fail 'NO_SUPPORTED_SACRIFICIAL_WIDE_DISPLAY_420PX_NATIVE_SAFE_GEOMETRY'
+    }
+    Start-Sleep -Milliseconds 1000
+}
+function Restore-GuestDisplay {
+    if($script:changedGuestVideoMode -and $null -ne $script:oldVideoMode){
+       $prior=$script:oldVideoMode
+       $code=[R228DisplayModes]::ChangeDisplaySettings([ref]$prior,0)
+       if($code -ne 0){Fail ('GUEST_DISPLAY_NOT_RETURNED_TO_BASELINE_'+$code)}
+    }
+}
 function Child([string]$exe,[string[]]$arglist,[int]$maxMillis,[string]$label){
     $si=[Diagnostics.ProcessStartInfo]::new()
     $si.FileName=$exe
@@ -189,8 +288,10 @@ try{
    if(@(Get-Process explorer -ErrorAction SilentlyContinue|Where-Object {$_.SessionId -eq (Get-Process -Id $PID).SessionId}).Count -lt 1){
       Fail 'NO_REAL_EXPLORER_IN_INTERACTIVE_HOSTED_DESKTOP'
    }
-   $stage='OFFICIAL_V172_GUEST_INSTALL'
+   $stage='SET_SUPPORTED_WIDE_SACRIFICIAL_DISPLAY'
    New-Item -ItemType Directory -Path $work -ErrorAction Stop|Out-Null
+   Ensure-WideSacrificialDisplay
+   $stage='OFFICIAL_V172_GUEST_INSTALL'
    & gh release download v1.7.2 --repo $repo --pattern TaskbarMonitorEnhanced_Setup_1.7.2.exe --dir $work
    if($LASTEXITCODE -ne 0){Fail 'PUBLIC_OFFICIAL_INSTALLER_UNAVAILABLE'}
    $setup=Join-Path $work 'TaskbarMonitorEnhanced_Setup_1.7.2.exe'
@@ -273,6 +374,7 @@ try{
    Capture-GuestNativeFailure
 }finally{
    try{RestoreGuest}catch{$failure+='; CLEANUP='+$_.Exception.Message;$status='FAIL'}
+   try{Restore-GuestDisplay}catch{$failure+='; DISPLAY_CLEANUP='+$_.Exception.Message;$status='FAIL'}
    if(Test-Path $work){
       $receiptValue=[ordered]@{
          Revision='R228';Host=$Machine;Status=$status;Phase=$stage;Failure=$failure
