@@ -1,0 +1,107 @@
+name: R229 - Real Glass Start pinned for center or right app placement on guest Windows
+on:
+  push:
+    branches: [audit/r229-safe-gap-position-guest]
+permissions:
+  contents: read
+jobs:
+  real-start-glass:
+    name: R223 real Start stays pinned on hosted Windows ${{ matrix.host }}
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 16
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [A, B]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Refuse non-disposable host and exact source/script identity preflight
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/audit/r229-safe-gap-position-guest'){
+              throw 'R228_WINDOWS_OWNER_DESKTOP_REFUSED'
+          }
+          $parent='4172367bd30cab2e314aaedf512c8eb9aba4f385'
+          git merge-base --is-ancestor $parent HEAD
+          if($LASTEXITCODE -ne 0){throw 'R228_PARENT_NOT_R226'}
+          $changed=@(git diff --name-only $parent HEAD)
+          $allowed=@('.github/workflows/audit-start-pinned-r229.yml',
+                     'build/Test-HostedStartPinned-R229.ps1')
+          if($changed.Count -ne 2 -or @($changed|Where-Object {$_ -cnotin $allowed}).Count){
+              throw 'R228_MORE_THAN_THREE_TEST_FILES'
+          }
+          if((Get-FileHash './src/TaskbarMonitorEnhanced.cs' -Algorithm SHA256).Hash -cne
+             '4AF4A6C05AFC18E6390D918A10B3CE35A4AF948C7451EF9604311A816C313E3F'){
+              throw 'R228_PRODUCT_CODE_NOT_EXACT_FROZEN_R223'
+          }
+          $scripts=@{
+             'Test-HostedStartPinned-R229.ps1'='34D842C0FFDBBF129655751D76C550BCACA0B9B8282AE301F40CC72A71335234'
+             'Verify-StartPinned-R228.ps1'='221391108E55B263DA9A1F068EC682D97DA62630B34EB2ABAAC68B246DEF6E2E'
+          }
+          foreach($name in $scripts.Keys){
+              $p=Join-Path './build' $name
+              $raw=[IO.File]::ReadAllText($p,[Text.Encoding]::UTF8)
+              $lf=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+              $sum=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
+              if($sum -cne $scripts[$name]){throw ('R228_PINNED_TEST_SCRIPT_CHANGED_'+$name)}
+              $tokens=$null;$errors=$null
+              [void][Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)
+              if(@($errors).Count){throw ('R228_TEST_SCRIPT_PS_PARSE_'+$name)}
+          }
+          if((Test-Path (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced')) -or
+             @(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count -gt 0){
+              throw 'R228_WINDOWS_NOT_FRESH'
+          }
+          'R228_PINNED_SCRIPT_SOURCE_AND_GUEST_IDENTITY=PASS'
+      - name: Build exactly pinned optimized Main on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          dotnet build './build/TaskbarMonitorEnhanced.csproj' -c Release --nologo -p:RestoreIgnoreFailedSources=true
+          if($LASTEXITCODE -ne 0){throw 'R228_OPTIMIZED_MAIN_BUILD_FAILED'}
+          $main='./build/_out/App/TaskbarMonitorEnhanced.exe'
+          if(!(Test-Path $main -PathType Leaf) -or
+             (Get-FileHash $main -Algorithm SHA256).Hash -cne
+             '5A44490034EB8A8B846FB11E7BD6954EED741F92DB53FC7A568DCCA358A5BCE2'){
+              throw 'R228_BUILT_MAIN_NOT_IDENTICAL_TO_R223_CPU_AND_R226_SETTINGS'
+          }
+          'R228_BUILT_MAIN_IDENTITY=PASS'
+      - name: Install official v1.7.2 guest, run pinned glass Start real keyboard and verify screenshots
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Test-HostedStartPinned-R229.ps1 -Machine '${{ matrix.host }}'
+          if($LASTEXITCODE -ne 0){throw 'R228_START_PINNED_NATIVE_NOT_ACCEPTED'}
+          $report=Join-Path $env:RUNNER_TEMP 'TBME_R229_START_${{ matrix.host }}\R229_REAL_NATIVE_START_GUEST.json'
+          if(!(Test-Path $report -PathType Leaf)){throw 'R228_GUEST_PRIMARY_RECEIPT_MISSING'}
+          $r=Get-Content $report -Raw|ConvertFrom-Json
+          $expectedPosition=if('${{ matrix.host }}' -ceq 'A'){'Center'}else{'Right'}
+          if($r.GuestPosition -cne $expectedPosition){throw 'R229_WRONG_CONFIG_POSITION_ON_GUEST'}
+          if($r.Status -cne 'PASS_REAL_DISPOSABLE_OPTIMIZED_GLASS_START_STAYS_PINNED_AND_INK_RECOVERS' -or
+             $r.GuestOwnerOriginalMainConfigBackupRestored -ne $true -or
+             $r.NoOwnerComputerTouched -ne $true -or
+             $r.NativeSourceResult -cne 'PASS' -or
+             $r.IndependentVerifier -cne 'PASS_24_PINNED_SAMPLES_AND_14_HOSTILE_AND_FIVE_BITMAPS'){
+             throw 'R228_GUEST_RECEIPT_NOT_COMPLETE_VV'
+          }
+          'R228_REAL_PINNED_START_GUEST_NATIVE=PASS'
+      - name: Preserve source native Win32 manifest, real PNGs and outcome even on failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R229-positioned-native-pinned-start-${{ matrix.host }}
+          if-no-files-found: warn
+          retention-days: 21
+          path: |
+            ${{ runner.temp }}/TBME_R229_START_${{ matrix.host }}/R229_REAL_NATIVE_START_GUEST.json
+            ${{ runner.temp }}/TBME_R229_START_${{ matrix.host }}/start/*
+            ${{ runner.temp }}/TBME_R229_START_${{ matrix.host }}/native-diagnostics/*
