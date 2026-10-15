@@ -1,0 +1,160 @@
+name: R223 - Real full-app CPU ABBA stable idle layout fast path Windows A/B
+on:
+  push:
+    branches: [audit/r223-position-fastpath-cpu]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  actual-cpu:
+    name: Original and optimized full app - host ${{ matrix.host }}
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [A, B]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Strict R223 test-only original frozen harness and candidate source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or $env:GITHUB_REF -cne 'refs/heads/audit/r223-position-fastpath-cpu'){throw 'R205_REFUSE_NON_DISPOSABLE'}
+          $base='1735dde739345f52b7d3ebb7a6bb6835da57c331'
+          $product='1b2bf5b6b58313706556d10efd242270583b5f0d'
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R205_TEST_HEAD_MISMATCH'}
+          git merge-base --is-ancestor $base HEAD
+          if($LASTEXITCODE -ne 0){throw 'R205_BASE_NOT_ANCESTOR'}
+          git merge-base --is-ancestor $product HEAD
+          if($LASTEXITCODE -ne 0){throw 'R205_PRODUCT_NOT_ANCESTOR'}
+          $diff=@(git diff --name-only $base HEAD)
+          $allowed=@('.github/workflows/audit-cpu-r223.yml','build/Test-HostedCpu-R201.ps1')
+          if($diff.Count -ne 2 -or @($diff|Where-Object {$_ -cnotin $allowed}).Count){throw 'R211_NOT_EXACT_TWO_DIAGNOSTIC_FILES_DELTA'}
+          $productDiff=@(git diff --name-only $product HEAD -- src)
+          if($productDiff.Count -ne 1 -or $productDiff[0] -cne 'src/TaskbarMonitorEnhanced.cs'){throw 'R223_PRODUCT_SOURCE_DIFF_NOT_ISOLATED'}
+          if((Get-FileHash './src/TaskbarMonitorEnhanced.cs' -Algorithm SHA256).Hash -cne '4AF4A6C05AFC18E6390D918A10B3CE35A4AF948C7451EF9604311A816C313E3F'){throw 'R223_SOURCE_SHA_WRONG'}
+          $p=(Resolve-Path './build/Test-HostedCpu-R201.ps1').Path
+          $raw=[IO.File]::ReadAllText($p,[Text.Encoding]::UTF8)
+          $lf=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+          $h=[Security.Cryptography.SHA256]::Create()
+          try{$digest=[Convert]::ToHexString($h.ComputeHash([Text.Encoding]::UTF8.GetBytes($lf)))}finally{$h.Dispose()}
+          if($digest -cne 'ECF832F1563593254E1305BF8C6766302760C3B524E2359E9D53F7CE0936C322'){throw 'R211_CORRECTED_CPU_HARNESS_SHA_DRIFT'}
+          if($lf -match 'function ExactProcess\(\[string\]\$exe,\[string\]\$args,' -or $lf -match '\$info\.Arguments=\$args'){throw 'R211_RESERVED_ARGS_ROOTCAUSE_RECURRED'}
+          if($lf -notmatch 'function ExactProcess\(\[string\]\$exe,\[string\]\$cliArgs,' -or $lf -notmatch '\$info\.Arguments=\$cliArgs'){throw 'R211_FIXED_ARGUMENT_BINDING_ANCHOR_MISSING'}
+          $sha171='D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420'
+          if($sha171 -cnotmatch '^[A-F0-9]{64}$' -or $lf -notmatch [regex]::Escape("$"+'expectedPriorMain='+"'"+$sha171+"'")){throw 'R213_OFFICIAL171_EXPECTED_MAIN_SHA_GUARD'}
+          function R211-ProbeArgs([string]$exe,[string]$cliArgs,[int]$timeout){return $cliArgs}
+          if((R211-ProbeArgs 'NONE' '/install /quiet /desktop=0 /startup=0' 195000) -cne '/install /quiet /desktop=0 /startup=0'){throw 'R211_POSITIVE_ARGUMENT_BINDING_REGRESSION'}
+          if($lf -notmatch [regex]::Escape('function ReconcileAndResetDisposableFixture([int]$block){') -or
+             $lf -notmatch [regex]::Escape('ReconcileAndResetDisposableFixture ($i+1)') -or
+             $lf -notmatch [regex]::Escape('NormalizedConfigSHA256=$normalizedSavedConfigSHA') -or
+             $lf -notmatch [regex]::Escape('PostBlockFixtureSHAEvidence=@($postRunFixtureHashes)')){
+             throw 'R216_NORMALIZED_CONFIG_SEMANTIC_GUARD_OR_RECEIPT_MISSING'
+          }
+          if($lf -notmatch [regex]::Escape('R216_USER_OWNED_CANARY_CHANGED_FAIL_CLOSED') -or
+             $lf -notmatch [regex]::Escape('R216_NORMALIZED_CONFIG_SHA_NOT_STABLE_ACROSS_ABBA') -or
+             $lf -notmatch [regex]::Escape('R216_FIXTURE_RESET_FAILED_ROLLBACK_UNRESOLVED')){
+             throw 'R216_PROTECTED_FIXTURE_CANARY_OR_ROLLBACK_GUARD_MISSING'
+          }
+          $tokens=$null;$errors=$null
+          $ast=[Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw 'R214_SCRIPT_PARSER_FAIL'}
+          $automatic=@('args','pid','input','error','home','host','matches','null','true','false','foreach','switch','this','profile','pwd','pshome')
+          $funcs=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst]},$true))
+          foreach($func in $funcs){
+            $reserved=@($func.Parameters|Where-Object {$null -ne $_ -and $_.Name.VariablePath.UserPath -in $automatic})
+            if($reserved.Count){throw ('R214_AUTOMATIC_RESERVED_PARAMETER_RECURRED_'+$func.Name)}
+          }
+          if($lf -notmatch [regex]::Escape('function MonitorWindow([uint32]$targetPid) {') -or
+             $lf -notmatch [regex]::Escape('foreach($hwnd in [R193Win]::Owned($targetPid,$tray)) {')){
+             throw 'R214_MONITOR_TARGET_PID_BINDING_NOT_CORRECT'
+          }
+          function R214-PidProbe([uint32]$targetPid){return $targetPid}
+          if((R214-PidProbe 12345) -ne 12345){throw 'R214_POSITIVE_PID_BINDING_REGRESSION_FAILED'}
+          'R214_AUTOMATIC_VARIABLE_AUDIT_AND_POSITIVE_PID=PASS'
+          if(@(git status --porcelain).Count){throw 'R205_CHECKOUT_DIRTY'}
+          'R205_SOURCE_AND_PARSER_PASS'
+      - name: Build isolated R223 test-only candidate from exact source on hosted Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/audit/r223-position-fastpath-cpu'){
+             throw 'R223_BUILD_HOST_NOT_DISPOSABLE'
+          }
+          $source=Resolve-Path './src/TaskbarMonitorEnhanced.cs'
+          if((Get-FileHash $source -Algorithm SHA256).Hash -cne '4AF4A6C05AFC18E6390D918A10B3CE35A4AF948C7451EF9604311A816C313E3F'){
+             throw 'R223_SOURCE_PREBUILD_SHA_CHANGED'
+          }
+          & dotnet --version
+          if($LASTEXITCODE -ne 0){throw 'R223_DOTNET_SDK_NOT_PRESENT'}
+          & dotnet build './build/TaskbarMonitorEnhanced.csproj' -c Release --nologo -p:RestoreIgnoreFailedSources=true
+          if($LASTEXITCODE -ne 0){throw 'R223_HOSTED_APP_COMPILE_FAIL'}
+          $built=Join-Path (Get-Location) 'build/_out/App/TaskbarMonitorEnhanced.exe'
+          if(!(Test-Path $built -PathType Leaf)){throw 'R223_BUILT_APP_MISSING'}
+          if((Get-FileHash $built -Algorithm SHA256).Hash -cne '5A44490034EB8A8B846FB11E7BD6954EED741F92DB53FC7A568DCCA358A5BCE2'){
+             throw 'R223_HOSTED_COMPILER_BINARY_NOT_EXACT_LOCAL_DETERMINISTIC_SHA'
+          }
+          $dest=Join-Path $env:RUNNER_TEMP 'TBME_R201_CANDIDATE'
+          if(Test-Path $dest){throw 'R223_CANDIDATE_STAGE_ALREADY_EXISTS'}
+          New-Item -ItemType Directory $dest -ErrorAction Stop|Out-Null
+          Copy-Item -LiteralPath $built -Destination (Join-Path $dest 'TaskbarMonitorEnhanced.exe') -ErrorAction Stop
+          if((Get-FileHash (Join-Path $dest 'TaskbarMonitorEnhanced.exe') -Algorithm SHA256).Hash -cne '5A44490034EB8A8B846FB11E7BD6954EED741F92DB53FC7A568DCCA358A5BCE2'){
+             throw 'R223_STAGE_COPY_SHA_MISMATCH'
+          }
+          'R223_EXACT_HOSTED_BUILD_SHA=PASS'
+      - name: Verify deterministically built R223 Main and fresh sacrificial host
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $d=Join-Path $env:RUNNER_TEMP 'TBME_R201_CANDIDATE'
+          $exe=Join-Path $d 'TaskbarMonitorEnhanced.exe'
+          if(!(Test-Path -LiteralPath $exe -PathType Leaf)){throw 'R223_CANDIDATE_NOT_BUILT_IN_CURRENT_HOST'}
+          if((Get-FileHash $exe -Algorithm SHA256).Hash -cne '5A44490034EB8A8B846FB11E7BD6954EED741F92DB53FC7A568DCCA358A5BCE2'){throw 'R223_CANDIDATE_SHA_FROM_BUILD_CHANGED'}
+          $app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
+          $reg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
+          $proof=Join-Path $env:RUNNER_TEMP 'R201_PREINSTALL_${{ matrix.host }}.json'
+          $out=Join-Path $env:RUNNER_TEMP 'TBME_R193_CPU_${{ matrix.host }}'
+          if(Test-Path $proof){throw 'R205_PRESTATE_PREEXISTS'}
+          $state=[ordered]@{
+            Revision='R201';Host='${{ matrix.host }}';GitCommit=$env:GITHUB_SHA
+            OutputExists=[bool](Test-Path $out);AppRootExists=[bool](Test-Path $app)
+            UninstallKeyExists=[bool](Test-Path $reg)
+            ProcessCount=[int]@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count
+            DownloadedBinarySHA256=(Get-FileHash $exe -Algorithm SHA256).Hash
+            SourceArtifactRun=38638445612;ImageVersion=$env:ImageVersion;ImageOS=$env:ImageOS
+            NoBuildOnCPUHost=$true;NoPersonalPCMutation=$true
+          }
+          [IO.File]::WriteAllText($proof,($state|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
+          if($state.OutputExists -or $state.AppRootExists -or $state.UninstallKeyExists -or $state.ProcessCount -ne 0){throw 'R205_HOST_NOT_FRESH'}
+          'R205_INDEPENDENT_BUILD_AND_FRESH_VM_PASS'
+      - name: 171 to 172 and full app original versus trial CPU 4x60s ABBA
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          .\build\Test-HostedCpu-R201.ps1 -HostLabel '${{ matrix.host }}'
+          $r=Join-Path $env:RUNNER_TEMP 'TBME_R193_CPU_${{ matrix.host }}\R201_CPU_AB.json'
+          if(!(Test-Path $r -PathType Leaf)){throw 'R205_MISSING_CPU_RECEIPT'}
+          $v=Get-Content $r -Raw|ConvertFrom-Json
+          if($v.Status -cne 'PASS_4_SUSTAINED_FULL_APP_BLOCKS_TWO_VERSIONS_SAME_HOST' -or @($v.ActualBlocks).Count -ne 4 -or !$v.AllBlocksCompleted -or !$v.RestoredBaselineExeOnSacrificialHost -or !$v.DeterministicFixtureResetAfterEveryBlock -or @($v.PostBlockFixtureSHAEvidence).Count -ne 4 -or $v.OwnerPersonalComputerTouched -ne $false){throw 'R223_FULL_APP_CPU_AND_FIXTURE_NOT_ACCEPTED'}
+          'R205_GENUINE_FULL_APP_CPU_ABBA_PASS'
+      - name: Preserve raw sanitized CPU and fresh-host receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R223-whole-app-${{ matrix.host }}
+          if-no-files-found: warn
+          retention-days: 21
+          path: |
+            ${{ runner.temp }}/TBME_R193_CPU_${{ matrix.host }}/R201_CPU_AB.json
+            ${{ runner.temp }}/R201_PREINSTALL_${{ matrix.host }}.json

@@ -12,10 +12,11 @@ if($PSVersionTable.PSEdition -eq 'Core' -or $env:GITHUB_ACTIONS -cne 'true' -or
 }
 $trialSource='1b2bf5b6b58313706556d10efd242270583b5f0d'
 $expectedBase='84D5DBF6F2E6D1D2E2B3E6D9C9DA523E564A7F5240C08D34A456D934026B829F'
-$expectedTrial='3448552CA6711D861BAD3739BEA77FC04626477DF64D5E30227BC95AF00771AF'
+$expectedTrial='5A44490034EB8A8B846FB11E7BD6954EED741F92DB53FC7A568DCCA358A5BCE2'
 $expectedSetup='225BCC259C392DA04F3E0157CAF22F96C4052282AAF02555E6F6E777F4CB8AF4'
 $expectedPriorSetup='ABD106630F7BAB3471CAF3F5BD4313DFCF2D61DDE1DF79E72EFE91933C8F2F89'
-$expectedPriorMain='D50A9D03190719B8385AB2F7F7DBB3129EC1C77ECBD8EF7F29832AEC26420'
+$expectedPriorMain='D50A9D03190719B8385AB2F7F7DBB3129EC7EC1C77ECBD8EF7F29832AEC26420'
+if($expectedPriorMain -cnotmatch '^[A-F0-9]{64}$'){throw 'R213_OFFICIAL_171_MAIN_EXPECTED_SHA_MALFORMED'}
 $repo='GOD13emad/TaskbarMonitorEnhanced'
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $out=Join-Path $env:RUNNER_TEMP ('TBME_R193_CPU_'+$HostLabel)
@@ -39,6 +40,8 @@ $failure=''
 $results=@()
 $proc=$null
 $expectedConfigSha=$null
+$normalizedSavedConfigSHA=$null
+$postRunFixtureHashes=@()
 $testFixture='{"Theme":"Retro Terminal","Opacity":0.10,"GlassMode":false,"OpacityWhenGlassOff":0.10,"ConfigSchemaVersion":8,"StartWithWindows":false,"UpdateIntervalMs":1000,"ShowSparklines":true,"AutoCheckUpdates":false}'
 $proof=Join-Path $env:RUNNER_TEMP ('R201_PREINSTALL_'+$HostLabel+'.json')
 if(!(Test-Path $proof -PathType Leaf)){throw 'R201_FRESH_HOST_PREINSTALL_PROOF_MISSING'}
@@ -58,10 +61,10 @@ function Hash([string]$path) {
     if(!(Test-Path $path -PathType Leaf)){return 'MISSING'}
     return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
 }
-function ExactProcess([string]$exe,[string]$args,[int]$timeoutMs) {
+function ExactProcess([string]$exe,[string]$cliArgs,[int]$timeoutMs) {
     $info=New-Object Diagnostics.ProcessStartInfo
     $info.FileName=$exe
-    $info.Arguments=$args
+    $info.Arguments=$cliArgs
     $info.UseShellExecute=$false
     $info.WorkingDirectory=(Split-Path $exe -Parent)
     $p=[Diagnostics.Process]::Start($info)
@@ -106,12 +109,78 @@ function RequireFixture(){
         throw 'R193_CONFIG_OR_PROTECTED_FIXTURE_CHANGED'
     }
 }
-function MonitorWindow([uint32]$pid) {
+# R216: only on disposable GitHub Windows. Real app normally persists its normalized
+# config on WM_CLOSE via CleanupRuntime -> AppConfig.Save. This is not a user-file mutation.
+# Require matching core preferences, intact immutable canary and stable normalized bytes;
+# then reset exact comparable fixture before the next real CPU block.
+function ReconcileAndResetDisposableFixture([int]$block){
+    if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){
+        throw 'R216_PROCESS_STILL_RUNNING_BEFORE_FIXTURE_RESET'
+    }
+    if(!(Test-Path $sentinel -PathType Leaf) -or
+       [IO.File]::ReadAllText($sentinel) -cne 'R201 sacrificial Windows only'){
+        throw 'R216_USER_OWNED_CANARY_CHANGED_FAIL_CLOSED'
+    }
+    $actualConfig=Hash $config
+    $actualBackup=Hash $backup
+    if($actualConfig -ceq 'MISSING' -or $actualBackup -ceq 'MISSING' -or
+       $actualConfig -cne $actualBackup){
+        throw 'R216_NORMALIZED_CONFIG_BACKUP_NOT_BYTE_IDENTICAL'
+    }
+    $cfgBytes=[IO.File]::ReadAllBytes($config)
+    $bakBytes=[IO.File]::ReadAllBytes($backup)
+    if($cfgBytes.Length -gt 65536 -or $bakBytes.Length -gt 65536){
+        throw 'R216_CONFIG_SIZE_BUDGET_EXCEEDED'
+    }
+    try{$saved=[IO.File]::ReadAllText($config,[Text.Encoding]::UTF8)|ConvertFrom-Json}
+    catch{throw 'R216_NORMALIZED_CONFIG_JSON_INVALID'}
+    if($saved.Theme -cne 'Retro Terminal' -or [bool]$saved.GlassMode -or
+       [math]::Abs([double]$saved.Opacity-0.10) -gt 0.00001 -or
+       [math]::Abs([double]$saved.OpacityWhenGlassOff-0.10) -gt 0.00001 -or
+       [int]$saved.ConfigSchemaVersion -ne 8 -or [bool]$saved.StartWithWindows -or
+       [int]$saved.UpdateIntervalMs -ne 1000 -or
+       ![bool]$saved.ShowSparklines -or [bool]$saved.AutoCheckUpdates){
+        throw 'R216_CONFIG_PROTECTED_PUBLIC_PREFERENCES_CHANGED'
+    }
+    if($null -eq $script:normalizedSavedConfigSHA){
+        $script:normalizedSavedConfigSHA=$actualConfig
+    }elseif($script:normalizedSavedConfigSHA -cne $actualConfig){
+        throw 'R216_NORMALIZED_CONFIG_SHA_NOT_STABLE_ACROSS_ABBA'
+    }
+    $script:postRunFixtureHashes+=([ordered]@{
+        Block=$block;ConfigSHA256=$actualConfig;BackupSHA256=$actualBackup
+        OriginalInputConfigSHA256=$script:expectedConfigSha
+        NormalizedKeyCount=@($saved.PSObject.Properties.Name).Count
+        ProtectedPreferencesUnchanged=$true;DisposableCanaryUnchanged=$true
+    })
+    # Exact same canary-free, deterministic prestate for each ABBA block.
+    # If either write fails, restore the captured normalized bytes and fail closed.
+    try{
+        if((Hash $config) -cne $actualConfig -or (Hash $backup) -cne $actualBackup){
+            throw 'R216_CONCURRENT_FIXTURE_EDIT_BEFORE_RESET'
+        }
+        [IO.File]::WriteAllText($config,$testFixture,[Text.UTF8Encoding]::new($false))
+        [IO.File]::WriteAllText($backup,$testFixture,[Text.UTF8Encoding]::new($false))
+        RequireFixture
+    }catch{
+        try{
+            [IO.File]::WriteAllBytes($config,$cfgBytes)
+            [IO.File]::WriteAllBytes($backup,$bakBytes)
+            if((Hash $config) -cne $actualConfig -or (Hash $backup) -cne $actualBackup){
+                throw 'R216_ROLLBACK_HASH_MISMATCH'
+            }
+        }catch{
+            throw 'R216_FIXTURE_RESET_FAILED_ROLLBACK_UNRESOLVED'
+        }
+        throw 'R216_FIXTURE_RESET_FAILED_RESTORED_NORMALIZED_INPUT'
+    }
+}
+function MonitorWindow([uint32]$targetPid) {
     $tray=[R193Win]::FindWindow('Shell_TrayWnd',$null)
     if($tray -eq [IntPtr]::Zero){return [IntPtr]::Zero}
     $trayRect=New-Object R193Win+Rect
     if(![R193Win]::GetWindowRect($tray,[ref]$trayRect)){return [IntPtr]::Zero}
-    foreach($hwnd in [R193Win]::Owned($pid,$tray)) {
+    foreach($hwnd in [R193Win]::Owned($targetPid,$tray)) {
         if(![R193Win]::IsWindowVisible($hwnd)){continue}
         $r=New-Object R193Win+Rect
         if(![R193Win]::GetWindowRect($hwnd,[ref]$r)){continue}
@@ -220,9 +289,18 @@ try {
     if($LASTEXITCODE -ne 0){throw 'R202_ACCEPTED_PRODUCT_COMMIT_NOT_FETCHED'}
     & git -C $root merge-base --is-ancestor $trialSource HEAD
     if($LASTEXITCODE -ne 0){throw 'R202_PRODUCT_COMMIT_NOT_ANCESTOR'}
-    $changedSource=@(& git -C $root diff --name-only $trialSource HEAD -- src)
-    if($LASTEXITCODE -ne 0 -or $changedSource.Count -ne 0){
-        throw 'R202_PRODUCT_SOURCE_CHANGED_FROM_ACCEPTED_R190'
+    # R223 only, exact 16-line stable-taskbar early return on frozen R202/R190 source.
+    $sourceBase='8f8514189ab966138d13260e5590c5df104634b4'
+    & git -C $root merge-base --is-ancestor $sourceBase HEAD
+    if($LASTEXITCODE -ne 0){throw 'R223_EXPECTED_R190_TEST_BASE_NOT_ANCESTOR'}
+    $changedSource=@(& git -C $root diff --name-only $sourceBase HEAD -- src)
+    if($LASTEXITCODE -ne 0 -or $changedSource.Count -ne 1 -or
+       $changedSource[0] -cne 'src/TaskbarMonitorEnhanced.cs'){
+        throw 'R223_SOURCE_NOT_EXACT_ONE_OPTIMIZATION_FILE'
+    }
+    if((Hash (Join-Path $root 'src\TaskbarMonitorEnhanced.cs')) -cne
+       '4AF4A6C05AFC18E6390D918A10B3CE35A4AF948C7451EF9604311A816C313E3F'){
+        throw 'R223_OPTIMIZATION_SOURCE_SHA_DRIFT'
     }
     $phase='FETCH_EXACT_TWO_OFFICIAL_IMMUTABLE_SETUPS'
     & gh release download v1.7.1 --repo $repo --pattern 'TaskbarMonitorEnhanced_Setup_1.7.1.exe' --dir $out --clobber
@@ -272,7 +350,7 @@ try {
         $wantSHA=if($mode -ceq 'BASE'){$expectedBase}else{$expectedTrial}
         if((Hash $main) -cne $wantSHA){throw 'R193_TRANSITION_BINARY_SHA_MISMATCH'}
         $results+=RunBlock $mode ($i+1)
-        RequireFixture
+        ReconcileAndResetDisposableFixture ($i+1)
     }
     $phase='REAL_FULL_APP_ABBA_ACCEPTANCE'
     if($results.Count -ne 4 -or @($results|Where-Object Kind -eq BASE).Count -ne 2 -or
@@ -321,6 +399,9 @@ try {
         TrialMeanOneCorePercent=$meanTrial
         ObservedReductionPercent=$effect
         AllBlocksCompleted=($results.Count -eq 4)
+        DeterministicFixtureResetAfterEveryBlock=($postRunFixtureHashes.Count -eq 4)
+        NormalizedConfigSHA256=$normalizedSavedConfigSHA
+        PostBlockFixtureSHAEvidence=@($postRunFixtureHashes)
         RestoredBaselineExeOnSacrificialHost=$restored
         OwnerPersonalComputerTouched=$false
         NoPublicReleaseMutation=$true
