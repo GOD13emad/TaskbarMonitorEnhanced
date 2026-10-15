@@ -1,0 +1,104 @@
+name: R211 - Fixed PowerShell reserved args full-app ABBA CPU on independent Windows
+on:
+  push:
+    branches: [audit/r211-args-binding-cpu]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  actual-cpu:
+    name: Original and optimized full app - host ${{ matrix.host }}
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [A, B]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Strict test-only and original R202 frozen harness checks
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or $env:GITHUB_REF -cne 'refs/heads/audit/r211-args-binding-cpu'){throw 'R205_REFUSE_NON_DISPOSABLE'}
+          $base='563626738753a1c8a588f679fefee3118bbd4677'
+          $product='1b2bf5b6b58313706556d10efd242270583b5f0d'
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R205_TEST_HEAD_MISMATCH'}
+          git merge-base --is-ancestor $base HEAD
+          if($LASTEXITCODE -ne 0){throw 'R205_BASE_NOT_ANCESTOR'}
+          git merge-base --is-ancestor $product HEAD
+          if($LASTEXITCODE -ne 0){throw 'R205_PRODUCT_NOT_ANCESTOR'}
+          $diff=@(git diff --name-only $base HEAD)
+          $allowed=@('.github/workflows/audit-cpu-r211.yml','build/Test-HostedCpu-R201.ps1')
+          if($diff.Count -ne 2 -or @($diff|Where-Object {$_ -cnotin $allowed}).Count){throw 'R211_NOT_EXACT_TWO_DIAGNOSTIC_FILES_DELTA'}
+          if(@(git diff --name-only $product HEAD -- src).Count){throw 'R205_PRODUCT_MUTATION'}
+          $p=(Resolve-Path './build/Test-HostedCpu-R201.ps1').Path
+          $raw=[IO.File]::ReadAllText($p,[Text.Encoding]::UTF8)
+          $lf=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+          $h=[Security.Cryptography.SHA256]::Create()
+          try{$digest=[Convert]::ToHexString($h.ComputeHash([Text.Encoding]::UTF8.GetBytes($lf)))}finally{$h.Dispose()}
+          if($digest -cne '90FBC49FD5FD3F6B358BF284AABAB32BB578172176D5D2CF9A88631DD7B0CA89'){throw 'R211_CORRECTED_CPU_HARNESS_SHA_DRIFT'}
+          if($lf -match 'function ExactProcess\(\[string\]\$exe,\[string\]\$args,' -or $lf -match '\$info\.Arguments=\$args'){throw 'R211_RESERVED_ARGS_ROOTCAUSE_RECURRED'}
+          if($lf -notmatch 'function ExactProcess\(\[string\]\$exe,\[string\]\$cliArgs,' -or $lf -notmatch '\$info\.Arguments=\$cliArgs'){throw 'R211_FIXED_ARGUMENT_BINDING_ANCHOR_MISSING'}
+          function R211-ProbeArgs([string]$exe,[string]$cliArgs,[int]$timeout){return $cliArgs}
+          if((R211-ProbeArgs 'NONE' '/install /quiet /desktop=0 /startup=0' 195000) -cne '/install /quiet /desktop=0 /startup=0'){throw 'R211_POSITIVE_ARGUMENT_BINDING_REGRESSION'}
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw 'R205_SCRIPT_PARSER_FAIL'}
+          if(@(git status --porcelain).Count){throw 'R205_CHECKOUT_DIRTY'}
+          'R205_SOURCE_AND_PARSER_PASS'
+      - name: Import exact independently compiled R202 Main and verify fresh host
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $d=Join-Path $env:RUNNER_TEMP 'TBME_R201_CANDIDATE'
+          if(Test-Path $d){throw 'R205_ARTIFACT_PATH_EXISTS'}
+          New-Item -ItemType Directory $d -ErrorAction Stop|Out-Null
+          & gh run download 38638445612 --repo GOD13emad/TaskbarMonitorEnhanced --name R201-only-candidate-main --dir $d
+          if($LASTEXITCODE -ne 0){throw 'R205_COMPILED_BINARY_FETCH_FAIL'}
+          $exe=Join-Path $d 'TaskbarMonitorEnhanced.exe'
+          if((Get-FileHash $exe -Algorithm SHA256).Hash -cne '3448552CA6711D861BAD3739BEA77FC04626477DF64D5E30227BC95AF00771AF'){throw 'R205_CANDIDATE_BINARY_SHA_DRIFT'}
+          $app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
+          $reg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
+          $proof=Join-Path $env:RUNNER_TEMP 'R201_PREINSTALL_${{ matrix.host }}.json'
+          $out=Join-Path $env:RUNNER_TEMP 'TBME_R193_CPU_${{ matrix.host }}'
+          if(Test-Path $proof){throw 'R205_PRESTATE_PREEXISTS'}
+          $state=[ordered]@{
+            Revision='R201';Host='${{ matrix.host }}';GitCommit=$env:GITHUB_SHA
+            OutputExists=[bool](Test-Path $out);AppRootExists=[bool](Test-Path $app)
+            UninstallKeyExists=[bool](Test-Path $reg)
+            ProcessCount=[int]@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count
+            DownloadedBinarySHA256=(Get-FileHash $exe -Algorithm SHA256).Hash
+            SourceArtifactRun=38638445612;ImageVersion=$env:ImageVersion;ImageOS=$env:ImageOS
+            NoBuildOnCPUHost=$true;NoPersonalPCMutation=$true
+          }
+          [IO.File]::WriteAllText($proof,($state|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
+          if($state.OutputExists -or $state.AppRootExists -or $state.UninstallKeyExists -or $state.ProcessCount -ne 0){throw 'R205_HOST_NOT_FRESH'}
+          'R205_INDEPENDENT_BUILD_AND_FRESH_VM_PASS'
+      - name: 171 to 172 and full app original versus trial CPU 4x60s ABBA
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          .\build\Test-HostedCpu-R201.ps1 -HostLabel '${{ matrix.host }}'
+          $r=Join-Path $env:RUNNER_TEMP 'TBME_R193_CPU_${{ matrix.host }}\R201_CPU_AB.json'
+          if(!(Test-Path $r -PathType Leaf)){throw 'R205_MISSING_CPU_RECEIPT'}
+          $v=Get-Content $r -Raw|ConvertFrom-Json
+          if($v.Status -cne 'PASS_4_SUSTAINED_FULL_APP_BLOCKS_TWO_VERSIONS_SAME_HOST' -or @($v.ActualBlocks).Count -ne 4 -or !$v.AllBlocksCompleted -or !$v.RestoredBaselineExeOnSacrificialHost -or $v.OwnerPersonalComputerTouched -ne $false){throw 'R205_FULL_APP_CPU_NOT_ACCEPTED'}
+          'R205_GENUINE_FULL_APP_CPU_ABBA_PASS'
+      - name: Preserve raw sanitized CPU and fresh-host receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R205-whole-app-${{ matrix.host }}
+          if-no-files-found: warn
+          retention-days: 21
+          path: |
+            ${{ runner.temp }}/TBME_R193_CPU_${{ matrix.host }}/R201_CPU_AB.json
+            ${{ runner.temp }}/R201_PREINSTALL_${{ matrix.host }}.json
