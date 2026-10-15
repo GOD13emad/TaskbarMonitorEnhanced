@@ -460,7 +460,9 @@ internal static partial class SetupProgram
         Extract("Payload.TaskbarMonitorEnhanced.exe",AppExe);
         Extract("Payload.TaskbarMonitorEnhanced.exe.config",AppExe+".config");
         Extract("Payload.TaskbarMonitorEnhanced.ico",Path.Combine(AppRoot,"TaskbarMonitorEnhanced.ico"));
-        Extract("Payload.TaskbarMonitorEnhanced.cs",Path.Combine(AppRoot,"TaskbarMonitorEnhanced.cs"));
+        // R255: Source/TaskbarMonitorEnhanced.cs is the single managed source copy.
+        // Do not create the obsolete redundant root source: same-version maintenance
+        // correctly requires that removed duplicate to be absent.
         Extract("Payload.TaskbarMonitorEnhanced.cs",Path.Combine(AppRoot,"Source","TaskbarMonitorEnhanced.cs"));
         Extract("Payload.StudioThemes.cs",Path.Combine(AppRoot,"Source","StudioThemes.cs"));
         Extract("Payload.WallpaperStudio.cs",Path.Combine(AppRoot,"Source","WallpaperStudio.cs"));

@@ -1,0 +1,128 @@
+name: R255 - Disposable fresh-source dedup and exact same-version maintenance
+on:
+  push:
+    branches:
+      - fix/r255-fresh-installer-idempotence
+permissions:
+  contents: read
+jobs:
+  candidate:
+    name: R255 unpublished candidate exact build
+    runs-on: windows-2025
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Ensure only R255 fresh source correction and two tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/fix/r255-fresh-installer-idempotence'){
+             throw 'R255_REQUIRE_DISPOSABLE_TEST_ONLY_BRANCH'
+          }
+          $base='6001fce0e7900f2a1ec5172224f4c75224f3ac69'
+          git merge-base --is-ancestor $base HEAD
+          if($LASTEXITCODE -ne 0){throw 'R255_RELEASED_173_SOURCE_NOT_PARENT'}
+          $allowed=@('.github/workflows/audit-r255-fresh-maintenance-disposable.yml',
+             'build/Test-R255-FreshSameVersion-Disposable.ps1',
+             'installer/TaskbarMonitorEnhanced_Setup.cs')
+          $files=@(git diff --name-only $base HEAD)
+          if($files.Count -ne 3 -or @($files|Where-Object {$_ -cnotin $allowed}).Count){
+             throw 'R255_MUTATION_OUTSIDE_EXACT_THREE_TEST_PATHS'
+          }
+          $code=Get-Content './installer/TaskbarMonitorEnhanced_Setup.cs' -Raw
+          if($code.Contains('Extract("Payload.TaskbarMonitorEnhanced.cs",Path.Combine(AppRoot,"TaskbarMonitorEnhanced.cs"));') -or
+             !$code.Contains('Extract("Payload.TaskbarMonitorEnhanced.cs",Path.Combine(AppRoot,"Source","TaskbarMonitorEnhanced.cs"));')){
+             throw 'R255_REDUNDANT_SOURCE_FIX_MISSING_OR_MANAGED_SOURCE_MISSING'
+          }
+          $test='./build/Test-R255-FreshSameVersion-Disposable.ps1'
+          $bytes=[IO.File]::ReadAllText((Resolve-Path $test).Path,[Text.Encoding]::UTF8)
+          $lf=$bytes.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+          $digest=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
+          if($digest -cne 'AECE6C1B04560B1B3E2038028B90AC1675018073A2417F29EAB0AA9A347B4D63'){
+             throw 'R255_PRIVATE_HARNESS_HASH_CHANGED'
+          }
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($test,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw 'R255_POWERSHELL_TEST_PARSE_FAILED'}
+          'R255_EXACT_TEST_ONLY_SOURCE_SCOPE=PASS'
+      - name: Build exact unpublished WinForms Setup and record candidate digest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Build.ps1
+          if($LASTEXITCODE -ne 0){throw 'R255_TEST_CANDIDATE_BUILD_FAILED'}
+          $setup='./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.3.exe'
+          $main='./build/_out/App/TaskbarMonitorEnhanced.exe'
+          if(!(Test-Path $setup) -or !(Test-Path $main)){throw 'R255_MISSING_CANDIDATE_BINARY'}
+          $manifest=[ordered]@{
+            Commit=$env:GITHUB_SHA;Version='1.7.3';TestOnly=$true;ReleaseAllowed=$false
+            MainSHA256=(Get-FileHash $main).Hash;SetupSHA256=(Get-FileHash $setup).Hash
+            OwnerComputerTouched=$false
+          }
+          [IO.File]::WriteAllText('./build/_out/CANDIDATE.json',($manifest|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
+          'R255_EXACT_UNPUBLISHED_BINARY_BUILD=PASS'
+      - name: Preserve only unpublished candidate bytes for disposable machines
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R255-not-public-candidate
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            build/_out/CANDIDATE.json
+            build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.3.exe
+  genuine-fresh-maintenance:
+    needs: candidate
+    name: "R255 actual fresh Setup + twice same-version maintenance ${{ matrix.guest }}"
+    runs-on: ${{ matrix.system }}
+    timeout-minutes: 22
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - guest: A
+            system: windows-2025
+          - guest: B
+            system: windows-2022
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: R255-not-public-candidate
+          path: build/_out
+      - name: Install exact unpublished candidate on disposable guest and verify all regression gates
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Test-R255-FreshSameVersion-Disposable.ps1 -CandidateDir ./build/_out -HostLabel '${{ matrix.guest }}'
+          if($LASTEXITCODE -ne 0){throw 'R255_GENUINE_DISPOSABLE_SETUP_REGRESSION'}
+          $r=Get-Content (Join-Path $env:RUNNER_TEMP 'TBME_R255_${{ matrix.guest }}/R255_FRESH.json') -Raw |ConvertFrom-Json
+          if($r.Status -cne 'PASS_REAL_GUEST_FRESH_R255_NO_REDUNDANT_SOURCE_AND_TWICE_IDEMPOTENT' -or
+             $r.SourceCommit -cne $env:GITHUB_SHA -or
+             $r.SingleManagedSourceWithoutRootDuplicate -ne $true -or
+             $r.FreshInstallExit -ne 0 -or $r.FirstSameVersionMaintenanceExit -ne 0 -or
+             $r.NegativeProgramFilesCollisionExit -ne 34 -or
+             $r.SecondSameVersionMaintenanceExit -ne 0 -or
+             $r.ProtectedCanaryAndConfigPreserved -ne $true -or
+             $r.PublicSetupChanged -ne $false -or $r.PersonalComputerTouched -ne $false -or
+             $r.RealHKLMRegistryOrCrossUserAcceptance -ne $false){
+             throw 'R255_STATUS_SCOPE_OR_PROTECTION_NOT_ACCEPTED'
+          }
+          'R255_GUEST_REAL_FRESH_AND_MAINTENANCE_ACCEPTED=PASS'
+      - name: Retain guest test receipts on both success and failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R255-guest-${{ matrix.guest }}
+          retention-days: 21
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/TBME_R255_${{ matrix.guest }}/R255_FRESH.json
