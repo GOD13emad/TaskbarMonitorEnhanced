@@ -58,10 +58,10 @@ function Hash([string]$path) {
     if(!(Test-Path $path -PathType Leaf)){return 'MISSING'}
     return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
 }
-function ExactProcess([string]$exe,[string]$args,[int]$timeoutMs) {
+function ExactProcess([string]$exe,[string]$cliArgs,[int]$timeoutMs) {
     $info=New-Object Diagnostics.ProcessStartInfo
     $info.FileName=$exe
-    $info.Arguments=$args
+    $info.Arguments=$cliArgs
     $info.UseShellExecute=$false
     $info.WorkingDirectory=(Split-Path $exe -Parent)
     $p=[Diagnostics.Process]::Start($info)
