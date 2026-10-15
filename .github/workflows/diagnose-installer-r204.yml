@@ -28,7 +28,12 @@ jobs:
           $a=@('.github/workflows/diagnose-installer-r204.yml','build/Diagnose-HostedSetup-R204.ps1')
           if($c.Count -ne 2 -or @($c|Where-Object {$_ -cnotin $a}).Count){throw 'R204_PRODUCT_SOURCE_OR_OTHER_FILES_CHANGED'}
           $f=(Resolve-Path 'build/Diagnose-HostedSetup-R204.ps1').Path
-          if((Get-FileHash $f -Algorithm SHA256).Hash -cne '0298B917ED07AEFBD0F8187E63C642CF71717EA73BEB2B776AE70A11F562D409'){throw 'R204_DIAGNOSTIC_SCRIPT_SHA_DRIFT'}
+          # Normalize checkout LF/CRLF before computing the pinned UTF-8 source checksum.
+          $raw=[IO.File]::ReadAllText($f,[Text.Encoding]::UTF8)
+          $lf=$raw.Replace("`r`n","`n").Replace("`r","`n")
+          $h=[Security.Cryptography.SHA256]::Create()
+          try{$actual=[Convert]::ToHexString($h.ComputeHash([Text.Encoding]::UTF8.GetBytes($lf)))}finally{$h.Dispose()}
+          if($actual -cne '0298B917ED07AEFBD0F8187E63C642CF71717EA73BEB2B776AE70A11F562D409'){throw 'R204_CANONICAL_SCRIPT_SHA_DRIFT'}
           $t=$null;$errors=$null
           [void][System.Management.Automation.Language.Parser]::ParseFile($f,[ref]$t,[ref]$errors)
           if(@($errors).Count){throw 'R204_POWERSHELL_PARSER_ERRORS'}
