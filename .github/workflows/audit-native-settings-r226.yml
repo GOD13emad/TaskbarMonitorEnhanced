@@ -1,0 +1,97 @@
+name: R226 - Disposable native Settings foreground visual regression for optimized R223
+on:
+  push:
+    branches: [audit/r226-native-settings-foreground]
+permissions:
+  contents: read
+jobs:
+  native-settings:
+    name: Real Win32 Settings over topmost glass on guest ${{ matrix.host }}
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [A, B]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Check exact sacrificial host and test-only source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/audit/r226-native-settings-foreground'){
+             throw 'R226_REFUSE_NON_HOSTED_WINDOWS'
+          }
+          $base='768460614462cb4888da98ab4abe725e7e64cecf'
+          git merge-base --is-ancestor $base HEAD
+          if($LASTEXITCODE -ne 0){throw 'R226_PARENT_COMMIT_NOT_ANCESTOR'}
+          $changed=@(git diff --name-only $base HEAD)
+          $allowed=@('.github/workflows/audit-native-settings-r226.yml','build/Test-NativeSettings-R226.ps1')
+          if($changed.Count -ne 2 -or @($changed|Where-Object {$_ -cnotin $allowed}).Count){
+             throw 'R226_EXPERIMENT_NOT_ONLY_TWO_TEST_FILES'
+          }
+          if((Get-FileHash './src/TaskbarMonitorEnhanced.cs' -Algorithm SHA256).Hash -cne
+             '4AF4A6C05AFC18E6390D918A10B3CE35A4AF948C7451EF9604311A816C313E3F'){
+             throw 'R226_OPTIMIZED_PRODUCT_SOURCE_DRIFT'
+          }
+          $raw=[IO.File]::ReadAllText('./build/Test-NativeSettings-R226.ps1',[Text.Encoding]::UTF8)
+          $lf=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+          $computed=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
+          if($computed -cne 'FE2D4B6D56CE5ECC5D39D00C4B190A5CE8F761C5521393922E1FD28C58AF7977'){
+             throw 'R226_TEST_RUNNER_NORMALIZED_SHA'
+          }
+          $tok=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile('./build/Test-NativeSettings-R226.ps1',
+              [ref]$tok,[ref]$errors)
+          if(@($errors).Count){throw 'R226_TEST_RUNNER_PARSER'}
+          if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){
+             throw 'R226_RUNNING_APP_PREEXISTS'
+          }
+          if(Test-Path (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced')){
+             throw 'R226_PRIVATE_INSTALLED_APP_PREEXISTS'
+          }
+          'R226_SACRIFICIAL_VM_PREFLIGHT=PASS'
+      - name: Build exact optimized test Main on native Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          dotnet build './build/TaskbarMonitorEnhanced.csproj' -c Release --nologo -p:RestoreIgnoreFailedSources=true
+          if($LASTEXITCODE -ne 0){throw 'R226_HOSTED_BUILD_FAILED'}
+          $main='./build/_out/App/TaskbarMonitorEnhanced.exe'
+          if(!(Test-Path -LiteralPath $main -PathType Leaf) -or
+             (Get-FileHash $main -Algorithm SHA256).Hash -cne
+             '5A44490034EB8A8B846FB11E7BD6954EED741F92DB53FC7A568DCCA358A5BCE2'){
+             throw 'R226_BUILT_CANDIDATE_BINARY_NOT_EXACT'
+          }
+          'R226_EXACT_MAIN_SHA=PASS'
+      - name: Real screenshot and actual title click Settings foreground with independent pixel verifier
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Test-NativeSettings-R226.ps1 -Machine '${{ matrix.host }}'
+          if($LASTEXITCODE -ne 0){throw 'R226_NATIVE_SETTINGS_PROOF_FAILED'}
+          $p=Join-Path $env:RUNNER_TEMP 'TBME_R226_SETTINGS_${{ matrix.host }}\R226_NATIVE_SETTINGS_RESULT.json'
+          if(!(Test-Path -LiteralPath $p -PathType Leaf)){throw 'R226_RESULT_MISSING'}
+          $v=Get-Content $p -Raw|ConvertFrom-Json
+          if($v.Status -cne 'PASS_DISPOSABLE_R223_NATIVE_SETTINGS_FOREGROUND_OVER_LAYERED_TOPMOST_GLASS' -or
+             $v.IndependentVerifier -cne 'PASS_INDEPENDENT_PIXELS_AND_FIFTEEN_HOSTILE_MUTANTS_REJECTED' -or
+             $v.NoOwnerPersonalDesktopInput -ne $true){
+             throw 'R226_NATIVE_FOREGROUND_RECEIPT_NOT_ACCEPTED'
+          }
+          'R226_DISPOSABLE_REAL_NATIVE_SETTINGS_SCREEN=PASS'
+      - name: Preserve raw Settings Win32 proof and actual screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R226-native-settings-${{ matrix.host }}
+          if-no-files-found: warn
+          retention-days: 21
+          path: |
+            ${{ runner.temp }}/TBME_R226_SETTINGS_${{ matrix.host }}/R226_NATIVE_SETTINGS_RESULT.json
+            ${{ runner.temp }}/TBME_R226_SETTINGS_${{ matrix.host }}/native/*
