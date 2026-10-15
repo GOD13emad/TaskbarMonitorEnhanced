@@ -108,10 +108,23 @@ try{
     (Hash (Join-Path $app "Uninstall.exe")) -cne $setupExpected){Fail "FRESH_OFFICIAL_IDENTITY_WRONG"}
  if((Get-ItemProperty $uninstall -ErrorAction Stop).DisplayVersion -cne "1.7.3"){Fail "FRESH_HKCU_VERSION_WRONG"}
  if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){Fail "FRESH_NO_STARTUP_PROCESS_REQUIRED"}
- [IO.File]::WriteAllText($canary, "R254 intentionally synthetic canary; no personal data",[Text.UTF8Encoding]::new($false))
+ $phase="SEED_SYNTHETIC_GUEST_USER_CONFIG_AND_BACKUP"
+ # A genuine fresh official Setup intentionally leaves user-owned config to
+ # the first application start; startup=0 means neither file need exist.
+ # Seed an independent user fixture WITHOUT overwriting any existing file.
+ $config=Join-Path $app "config.json"
+ $configBak=Join-Path $app "config.json.bak"
+ if(!(Test-Path $config -PathType Leaf)){
+  [IO.File]::WriteAllText($config,'{"Theme":"Retro Terminal","GlassMode":true,"Opacity":0,"OpacityWhenGlassOff":0.1,"ConfigSchemaVersion":8,"StartWithWindows":false,"R254UserSentinel":"keep this fixture"}',[Text.UTF8Encoding]::new($false))
+ }
+ if(!(Test-Path $configBak -PathType Leaf)){
+  [IO.File]::WriteAllText($configBak,'{"R254IndependentBackup":"a separate user-owned previous backup must be preserved"}',[Text.UTF8Encoding]::new($false))
+ }
+ [IO.File]::WriteAllText($canary,"R254 intentionally synthetic canary; no personal data",[Text.UTF8Encoding]::new($false))
  $originalRunValue=Get-RunValue
  $originalHashes=MainFileMap
- if(@($originalHashes.Values|Where-Object {$_ -ceq "MISSING"}).Count){Fail "PROTECTED_FILE_MISSING"}
+ $missing=@($originalHashes.Keys|Where-Object {$originalHashes[$_] -ceq "MISSING"})
+ if($missing.Count){Fail ("PROTECTED_FILE_MISSING_"+($missing -join "_"))}
  $phase="INJECT_KNOWN_ONLY_LEGACY_PROGRAM_FILES_SENTINEL"
  # Caller-specific program files root is guaranteed empty in this fresh hosted VM.
  if(Test-Path $legacy){Fail "CANNOT_CLAIM_PROGRAMFILES_DIR"}

@@ -52,7 +52,7 @@ jobs:
           $raw=[IO.File]::ReadAllText($path,[Text.Encoding]::UTF8)
           $lf=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
           $actual=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
-          if($actual -cne '7D203B5EBCDDA69261156D267376419998866AF7740E8645B12AB6F7EBB1ED7A') {
+          if($actual -cne '974EE34A0C874BBFE3DF83CC1909667FD4B4FB052C75F555F69D832ACFC5E3A4') {
               throw 'R254_TEST_HARNESS_HASH_CHANGED'
           }
           $tokens=$null;$errors=$null
