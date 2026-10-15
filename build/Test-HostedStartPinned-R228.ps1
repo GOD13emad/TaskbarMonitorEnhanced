@@ -52,6 +52,93 @@ function Child([string]$exe,[string[]]$arglist,[int]$maxMillis,[string]$label){
         return [int]$proc.ExitCode
     }finally{$proc.Dispose()}
 }
+function Capture-GuestNativeFailure {
+  if($sourcePid -le 0 -or !$installed){return}
+  $folder=Join-Path $work 'native-diagnostics'
+  New-Item -ItemType Directory -Path $folder -Force|Out-Null
+  $dest=Join-Path $folder 'R228_GUEST_NATIVE_WINDOW_CENSUS.json'
+  try{
+    $nativeCode=@'
+using System;
+using System.Runtime.InteropServices;
+public static class R228WindowReadOnly {
+    [StructLayout(LayoutKind.Sequential)]public struct RECT { public int L,T,R,B; }
+    public delegate bool EnumCallback(IntPtr hwnd,IntPtr arg);
+    [DllImport("user32.dll")]public static extern bool EnumWindows(EnumCallback callback,IntPtr arg);
+    [DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr hwnd,out uint pid);
+    [DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr hwnd);
+    [DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr hwnd,out RECT rect);
+    [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")]static extern IntPtr Style64(IntPtr hwnd,int index);
+    [DllImport("user32.dll",EntryPoint="GetWindowLongW")]static extern int Style32(IntPtr hwnd,int index);
+    public static long Style(IntPtr hwnd,int index) {
+        return IntPtr.Size==8?Style64(hwnd,index).ToInt64():Style32(hwnd,index);
+    }
+    [DllImport("user32.dll",CharSet=CharSet.Unicode)]public static extern IntPtr FindWindow(string cls,string title);
+}
+'@
+    Add-Type -TypeDefinition $nativeCode -Language CSharp -ErrorAction Stop
+    $tray=[R228WindowReadOnly]::FindWindow('Shell_TrayWnd',$null)
+    $trayRect=[R228WindowReadOnly+RECT]::new()
+    $known=$tray -ne [IntPtr]::Zero -and [R228WindowReadOnly]::GetWindowRect($tray,[ref]$trayRect)
+    $items=[Collections.Generic.List[object]]::new()
+    $callback=[R228WindowReadOnly+EnumCallback]{
+       param([IntPtr]$hwnd,[IntPtr]$arg)
+       [uint32]$pid=[uint32]0
+       [void][R228WindowReadOnly]::GetWindowThreadProcessId($hwnd,[ref]$pid)
+       if($pid -eq [uint32]$sourcePid){
+          $rect=[R228WindowReadOnly+RECT]::new()
+          $valid=[R228WindowReadOnly]::GetWindowRect($hwnd,[ref]$rect)
+          $style=[R228WindowReadOnly]::Style($hwnd,-16)
+          $exstyle=[R228WindowReadOnly]::Style($hwnd,-20)
+          $within=$known -and $valid -and $rect.L -ge $trayRect.L -and
+            $rect.T -ge $trayRect.T -and $rect.R -le $trayRect.R -and $rect.B -le $trayRect.B
+          $items.Add([ordered]@{
+              Hwnd=$hwnd.ToInt64();PID=$pid;Visible=[R228WindowReadOnly]::IsWindowVisible($hwnd)
+              Rect=@($rect.L,$rect.T,($rect.R-$rect.L),($rect.B-$rect.T))
+              GetRect=$valid;Style=$style;ExStyle=$exstyle
+              IsPopup=(($style -band 0x80000000L) -ne 0)
+              IsChild=(($style -band 0x40000000L) -ne 0)
+              Layered=(($exstyle -band 0x00080000L) -ne 0)
+              NoActivate=(($exstyle -band 0x08000000L) -ne 0)
+              Composited=(($exstyle -band 0x02000000L) -ne 0)
+              WithinTaskbar=$within
+          })
+       }
+       return $true
+    }
+    [void][R228WindowReadOnly]::EnumWindows($callback,[IntPtr]::Zero)
+    $logLines=[Collections.Generic.List[string]]::new()
+    $logs=Join-Path $app 'Logs'
+    if(Test-Path $logs){
+        foreach($f in @(Get-ChildItem $logs -File -Filter 'tbme_csharp_*.log'|Sort-Object LastWriteTimeUtc -Descending|Select-Object -First 2)){
+            $stream=[IO.FileStream]::new($f.FullName,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+            try{
+                $reader=[IO.StreamReader]::new($stream,[Text.Encoding]::UTF8)
+                $raw=$reader.ReadToEnd()
+                foreach($line in @($raw -split '[\r\n]+'|Where-Object {$_ -match 'TOPLEVEL_GLASS|ATTACH|GLASS|POSITION|TASKBAR|OVERLAY|RECOVERY|ERROR'}|Select-Object -Last 70)){
+                    if($line.Length -le 400){$logLines.Add($line)}
+                }
+            }finally{$stream.Dispose()}
+        }
+    }
+    $data=[ordered]@{
+        Revision='R228';Category='READONLY_SACRIFICIAL_GUEST_HWNDS_AND_ATTACHEVENTS'
+        GuestPID=$sourcePid
+        MainExeSHA256=(Hash $installedMain)
+        GlassConfigOpacity=0.0
+        GlassModeTrue=$glassSet
+        TaskbarHwnd=$tray.ToInt64();TaskbarKnown=$known
+        TaskbarRect=if($known){@($trayRect.L,$trayRect.T,($trayRect.R-$trayRect.L),($trayRect.B-$trayRect.T))}else{@()}
+        TopLevelOwnedWindows=@($items.ToArray())
+        ProgramAttachmentEventLines=@($logLines.ToArray())
+        NoUserComputerOrDesktopTouched=$true
+    }
+    [IO.File]::WriteAllText($dest,($data|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+  }catch{
+     [IO.File]::WriteAllText($dest,([ordered]@{Status='DIAGNOSTIC_NOT_EXECUTED';Error=$_.Exception.Message}|ConvertTo-Json),
+         [Text.UTF8Encoding]::new($false))
+  }
+}
 function RestoreGuest(){
    # No personal user content is ever touched; this cleanup operates ONLY on the
    # exact new disposable guest files created by the official installer.
@@ -174,6 +261,7 @@ try{
    $status='PASS_REAL_DISPOSABLE_OPTIMIZED_GLASS_START_STAYS_PINNED_AND_INK_RECOVERS'
 }catch{
    $failure=$_.Exception.GetType().Name+': '+$_.Exception.Message
+   Capture-GuestNativeFailure
 }finally{
    try{RestoreGuest}catch{$failure+='; CLEANUP='+$_.Exception.Message;$status='FAIL'}
    if(Test-Path $work){

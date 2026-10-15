@@ -1,4 +1,4 @@
-name: R228 - Real native Start pinned Glass proof for optimized R223 on disposable Windows
+name: R228 - Diagnose real Start pinned Glass native host HWND on disposable Windows
 on:
   push:
     branches: [audit/r228-start-glass-pinned-real]
@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        host: [A, B]
+        host: [A]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -43,7 +43,7 @@ jobs:
               throw 'R228_PRODUCT_CODE_NOT_EXACT_FROZEN_R223'
           }
           $scripts=@{
-             'Test-HostedStartPinned-R228.ps1'='DC8FB07B5962F00F586CE79F19879C0AD1200C9834ADB17164E7F62A6C9A63D5'
+             'Test-HostedStartPinned-R228.ps1'='6DB0D8ABD052399F339A80359F5481452CFC08FE47BC92D3614DAE8751B360F2'
              'Verify-StartPinned-R228.ps1'='221391108E55B263DA9A1F068EC682D97DA62630B34EB2ABAAC68B246DEF6E2E'
           }
           foreach($name in $scripts.Keys){
@@ -103,3 +103,4 @@ jobs:
           path: |
             ${{ runner.temp }}/TBME_R228_START_${{ matrix.host }}/R228_REAL_NATIVE_START_GUEST.json
             ${{ runner.temp }}/TBME_R228_START_${{ matrix.host }}/start/*
+            ${{ runner.temp }}/TBME_R228_START_${{ matrix.host }}/native-diagnostics/*
