@@ -1,0 +1,196 @@
+name: R210 - Conditional Microsoft CDB noninvasive stuck-installer stack
+on:
+  push:
+    branches: [audit/r210-cdb-noninvasive]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  cdb-exact-stack:
+    name: Approved disposable Windows CDB availability and exact installer stack
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 13
+    steps:
+      - name: Exact isolated checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify immutable product and frozen original CPU harness
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/audit/r210-cdb-noninvasive'){
+             throw 'R210_NOT_DISPOSABLE_APPROVED_HOST'
+          }
+          $base='dc511d146905f3be65fb5e1979da7a4f0691f367'
+          $product='1b2bf5b6b58313706556d10efd242270583b5f0d'
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R210_HEAD_SHA_MISMATCH'}
+          git merge-base --is-ancestor $base HEAD
+          if($LASTEXITCODE -ne 0){throw 'R210_ACCEPTED_PARENT_NOT_ANCESTOR'}
+          $diff=@(git diff --name-only $base HEAD)
+          if($diff.Count -ne 1 -or $diff[0] -cne '.github/workflows/cdb-noninvasive-r210.yml'){
+             throw 'R210_CHANGED_PATHS_NOT_EXACT_ONE_DIAGNOSTIC_WORKFLOW'
+          }
+          if(@(git diff --name-only $product HEAD -- src).Count){throw 'R210_PRODUCT_SOURCE_CHANGED'}
+          $f=(Resolve-Path './build/Test-HostedCpu-R201.ps1').Path
+          $text=[IO.File]::ReadAllText($f,[Text.Encoding]::UTF8)
+          $lf=$text.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+          $sha=[Security.Cryptography.SHA256]::Create()
+          try{$actual=[Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($lf)))}finally{$sha.Dispose()}
+          if($actual -cne 'CCB1FD297F675B1F61CAC324477DD3159CD45FD5551FC6EAF2D0299B0A0F05EB'){
+             throw 'R210_ORIGINAL_CPU_HARNESS_SHA_DRIFT'
+          }
+          $tok=$null;$errs=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($f,[ref]$tok,[ref]$errs)
+          if(@($errs).Count){throw 'R210_HARNESS_STATIC_PARSE_FAILED'}
+          if(@(git status --porcelain).Count){throw 'R210_CHECKOUT_DIRTY'}
+          'R210_FROZEN_PRODUCT_AND_HARNESS=PASS'
+      - name: Find Microsoft Debugging Tools without install, reboot, or elevation
+        id: debugger
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $d=Join-Path $env:RUNNER_TEMP 'TBME_R210_STACK_A'
+          if(Test-Path $d){throw 'R210_PREEXISTING_DIAG_OUTPUT'}
+          New-Item -ItemType Directory -Path $d -ErrorAction Stop|Out-Null
+          $available=@(
+            'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe',
+            'C:\Program Files\Windows Kits\10\Debuggers\x64\cdb.exe'
+          )|Where-Object {Test-Path $_ -PathType Leaf}
+          $status='DEBUGGER_NOT_INSTALLED_NO_HARNESS_RUN'
+          if(@($available).Count -eq 1){$status='DEBUGGER_PINNED_PATH_FOUND'}
+          if(@($available).Count -gt 1){throw 'R210_AMBIGUOUS_MULTIPLE_DEBUGGER_BINARIES'}
+          $details=[ordered]@{
+            Revision='R210';Objective='Read-only Windows native stack on existing exact frozen Setup hang'
+            Status=$status;ToolAvailable=(@($available).Count -eq 1)
+            ToolPath=if(@($available).Count -eq 1){[string]$available[0]}else{$null}
+            ToolSHA256=if(@($available).Count -eq 1){(Get-FileHash ([string]$available[0]) -Algorithm SHA256).Hash}else{$null}
+            ImageOS=$env:ImageOS;ImageVersion=$env:ImageVersion;Commit=$env:GITHUB_SHA
+            OwnerComputerTouched=$false;NoRebootOrPolicyMutation=$true
+            NoProductOrReleaseMutation=$true;UTC=[DateTime]::UtcNow.ToString('o')
+          }
+          [IO.File]::WriteAllText((Join-Path $d 'R210_TOOL_PREFLIGHT.json'),($details|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
+          if($details.ToolAvailable){ 'available=true'|Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append }
+          else{ 'available=false'|Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append }
+          Write-Output ($details|ConvertTo-Json -Compress -Depth 5)
+      - name: If CDB is available, capture one noninvasive native stack from frozen installer
+        if: steps.debugger.outputs.available == 'true'
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_REF -cne 'refs/heads/audit/r210-cdb-noninvasive'){
+             throw 'R210_REFUSE_NON_DISPOSABLE'
+          }
+          $d=Join-Path $env:RUNNER_TEMP 'TBME_R210_STACK_A'
+          $tool=Get-Content (Join-Path $d 'R210_TOOL_PREFLIGHT.json') -Raw|ConvertFrom-Json
+          if($tool.ToolAvailable -ne $true -or !(Test-Path $tool.ToolPath -PathType Leaf) -or
+             (Get-FileHash $tool.ToolPath -Algorithm SHA256).Hash -cne $tool.ToolSHA256){
+             throw 'R210_CDB_AUTHORITY_MISMATCH'
+          }
+          $import=Join-Path $env:RUNNER_TEMP 'TBME_R201_CANDIDATE'
+          if(Test-Path $import){throw 'R210_NOT_FRESH_CANDIDATE_DESTINATION'}
+          New-Item -ItemType Directory -Path $import -ErrorAction Stop|Out-Null
+          & gh run download 38638445612 --repo GOD13emad/TaskbarMonitorEnhanced --name R201-only-candidate-main --dir $import
+          if($LASTEXITCODE -ne 0){throw 'R210_PINNED_ARTIFACT_FETCH_ERROR'}
+          $exe=Join-Path $import 'TaskbarMonitorEnhanced.exe'
+          $expected='3448552CA6711D861BAD3739BEA77FC04626477DF64D5E30227BC95AF00771AF'
+          if((Get-FileHash $exe -Algorithm SHA256).Hash -cne $expected){throw 'R210_PINNED_CANDIDATE_HASH_DRIFT'}
+          $app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
+          $reg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
+          $root=Join-Path $env:RUNNER_TEMP 'TBME_R193_CPU_A'
+          $proof=Join-Path $env:RUNNER_TEMP 'R201_PREINSTALL_A.json'
+          if(Test-Path $proof){throw 'R210_PRESTATE_PATH_EXISTS'}
+          $pre=[ordered]@{
+            Revision='R201';Host='A';GitCommit=$env:GITHUB_SHA
+            OutputExists=[bool](Test-Path $root);AppRootExists=[bool](Test-Path $app)
+            UninstallKeyExists=[bool](Test-Path $reg)
+            ProcessCount=[int]@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count
+            DownloadedBinarySHA256=$expected;NoBuildExecutedInCpuJob=$true;NoPersonalMachineTouched=$true
+            SourceArtifactRun=38638445612;ImageOS=$env:ImageOS;ImageVersion=$env:ImageVersion
+          }
+          [IO.File]::WriteAllText($proof,($pre|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+          if($pre.OutputExists -or $pre.AppRootExists -or $pre.UninstallKeyExists -or $pre.ProcessCount -ne 0){
+             throw 'R210_NON_FRESH_WINDOWS_HOST'
+          }
+          $stack=Join-Path $d 'R210_NONINVASIVE_THREAD_STACK.txt'
+          $errfile=Join-Path $d 'R210_CDB_ERROR.txt'
+          $sidecar=Start-Job -ArgumentList @([string]$tool.ToolPath,$stack,$errfile,$app) -ScriptBlock {
+            param([string]$cdb,[string]$stack,[string]$errfile,[string]$app)
+            $ErrorActionPreference='Stop'
+            $w=[Diagnostics.Stopwatch]::StartNew()
+            $p=$null
+            while($w.Elapsed.TotalSeconds -lt 80){
+              $arr=@(Get-Process -Name 'TaskbarMonitorEnhanced_Setup_1.7.1' -ErrorAction SilentlyContinue)
+              if($arr.Count -gt 1){throw 'R210_MULTIPLE_SETUP_PROCESSES'}
+              if($arr.Count -eq 1){$p=$arr[0];break}
+              Start-Sleep -Seconds 1
+            }
+            if($null -eq $p){throw 'R210_EXPECTED_SETUP_PROCESS_NOT_SEEN'}
+            $pidToObserve=[int]$p.Id
+            Start-Sleep -Seconds 16
+            if((Test-Path $app) -or $p.HasExited){throw 'R210_SETUP_NOT_STALLED_BEFORE_APPROOT'}
+            $arguments='-pvr -p '+([string]$pidToObserve)+' -c "~* kb; q"'
+            $c=Start-Process -FilePath $cdb -ArgumentList $arguments -PassThru -NoNewWindow -RedirectStandardOutput $stack -RedirectStandardError $errfile
+            try{
+              if(!$c.WaitForExit(30000)){
+                # Only own private debugger helper on a sacrificial host.
+                try{$c.Kill()}catch{}
+                [void]$c.WaitForExit(5000)
+                throw 'R210_CDB_NONINVASIVE_TIMED_OUT'
+              }
+              if($c.ExitCode -ne 0){throw ('R210_CDB_EXIT_'+$c.ExitCode)}
+            }finally{$c.Dispose()}
+            if(!(Test-Path $stack -PathType Leaf) -or (Get-Item $stack).Length -lt 100){
+              throw 'R210_EMPTY_STACK_WITNESS'
+            }
+            'R210_NONINVASIVE_CDB_STACK_CAPTURED_PID='+$pidToObserve
+          }
+          $harnessError=''
+          try{ .\build\Test-HostedCpu-R201.ps1 -HostLabel A }
+          catch{$harnessError=$_.Exception.GetType().Name+': '+$_.Exception.Message}
+          finally{
+            $finished=[bool](Wait-Job $sidecar -Timeout 15)
+            if(!$finished){Stop-Job $sidecar -ErrorAction SilentlyContinue}
+            $sidecarOutput=@(Receive-Job $sidecar -ErrorAction SilentlyContinue | ForEach-Object {$_ | Out-String})
+            $sidecarErrors=@($sidecar.ChildJobs|ForEach-Object {$_.Error}|ForEach-Object {$_.ToString()})
+            $state=$sidecar.State.ToString()
+            Remove-Job $sidecar -Force -ErrorAction SilentlyContinue
+            $receipt=[ordered]@{
+              Revision='R210';Objective='Official Microsoft CDB -pvr noninvasive stuck-thread stack'
+              OriginalHarnessError=$harnessError;DebuggerSidecarState=$state
+              DebuggerSidecarOutput=$sidecarOutput;DebuggerSidecarErrors=$sidecarErrors
+              StackFilePresent=[bool](Test-Path $stack -PathType Leaf)
+              StackFileBytes=if(Test-Path $stack -PathType Leaf){(Get-Item $stack).Length}else{0}
+              OwnerComputerTouched=$false;OfficialProductReleaseUnmodified=$true
+              NoSecurityBypassNoReboot=$true;UTCTime=[DateTime]::UtcNow.ToString('o')
+            }
+            [IO.File]::WriteAllText((Join-Path $d 'R210_STACK_RESULT.json'),($receipt|ConvertTo-Json -Depth 10),[Text.UTF8Encoding]::new($false))
+            Write-Output ($receipt|ConvertTo-Json -Compress -Depth 8)
+          }
+          if($harnessError -and $harnessError -notmatch 'R193_INSTALLER_TIMEOUT'){
+             throw ('R210_UNEXPECTED_HARNESS_ERROR '+$harnessError)
+          }
+          if(!(Test-Path $stack -PathType Leaf) -or (Get-Item $stack).Length -lt 100){
+             throw 'R210_STACK_EVIDENCE_NOT_ACCEPTED'
+          }
+          'R210_DIAGNOSTIC_NONINVASIVE_STACK_PASS_NOT_PRODUCT_OR_CPU_PASS'
+      - name: Preserve debugger availability and stacks without private memory dumps
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R210-CDB-stack-A
+          retention-days: 21
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/TBME_R210_STACK_A/R210_TOOL_PREFLIGHT.json
+            ${{ runner.temp }}/TBME_R210_STACK_A/R210_STACK_RESULT.json
+            ${{ runner.temp }}/TBME_R210_STACK_A/R210_NONINVASIVE_THREAD_STACK.txt
+            ${{ runner.temp }}/TBME_R210_STACK_A/R210_CDB_ERROR.txt
+            ${{ runner.temp }}/TBME_R193_CPU_A/R201_CPU_AB.json
+            ${{ runner.temp }}/R201_PREINSTALL_A.json
