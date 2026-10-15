@@ -1,0 +1,84 @@
+name: R232 - Disposable exact 442-file cold backup and full root restore
+on:
+  push:
+    branches: [audit/r232-ownerlike-cold-rollback]
+permissions:
+  contents: read
+jobs:
+  ownerlike-cold-rollback:
+    name: R232 genuine installed official cold root A/B ${{ matrix.host }}
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [A, B]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Pinned source and fresh disposable Windows preflight
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/audit/r232-ownerlike-cold-rollback' -or
+             $env:COMPUTERNAME -match '(?i)EMAD|ALI|LAPTOP'){throw 'R232_DISPOSABLE_HOST_REQUIRED'}
+          $parent='03e70785529354f741d75449a19d7e2538c2b81d'
+          git merge-base --is-ancestor $parent HEAD
+          if($LASTEXITCODE -ne 0){throw 'R232_EXACT_PARENT_REQUIRED'}
+          $changed=@(git diff --name-only $parent HEAD)
+          $allowed=@('.github/workflows/audit-r232-ownerlike-cold-rollback.yml',
+                     'build/Test-CompleteColdRootRollback.ps1')
+          if($changed.Count -ne 2 -or @($changed|Where-Object {$_ -cnotin $allowed}).Count){
+              throw 'R232_ONLY_2_TEST_FILES_ALLOWED'
+          }
+          $file='./build/Test-CompleteColdRootRollback.ps1'
+          $raw=[IO.File]::ReadAllText($file,[Text.Encoding]::UTF8)
+          $lf=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+          $sourceDigest=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
+          if($sourceDigest -cne '136538A5618BD0DAEAEA63EF682FA5EC8AC91A9958189A9CFC0BC6FA11263854'){
+              throw 'R232_TEST_HARNESS_EXACT_LF_SHA_CHANGED'
+          }
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($file,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw 'R232_INVALID_POWERSHELL_TEST_SOURCE'}
+          if((Test-Path (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced')) -or
+             @(Get-Process TaskbarMonitorEnhanced,TaskbarMonitorSensorSupervisor,TaskbarMonitorSensorBroker -ErrorAction SilentlyContinue).Count){
+             throw 'R232_GUEST_APP_ALREADY_PRESENT'
+          }
+          'R232_PINNED_TEST_SOURCE_GITHUB_HOSTED_GUEST=PASS'
+      - name: Download exact official 1.7.2, install guest, seed 442 ownerlike files, cold backup and full restore
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Test-CompleteColdRootRollback.ps1 -Machine '${{ matrix.host }}'
+          if($LASTEXITCODE -ne 0){throw 'R232_BACKUP_RESTORE_COMMAND_EXIT_FAIL'}
+          $path=Join-Path $env:RUNNER_TEMP 'TBME_R232_COLD_${{ matrix.host }}/R232_REAL_INSTALLED_COLD_ROLLBACK.json'
+          if(!(Test-Path -LiteralPath $path)){throw 'R232_RECEIPT_MISSING'}
+          $r=Get-Content -LiteralPath $path -Raw|ConvertFrom-Json
+          if($r.Status -cne 'PASS_R232_DISPOSABLE_REAL_442_FILE_COLD_ARCHIVE_AND_ISOLATED_RESTORE' -or
+             $r.ExactSourceFilesBackedUp -ne 442 -or
+             $r.OwnerlikeExact442Files -ne $true -or
+             $r.HostilePathTraversalRejected -ne $true -or
+             $r.IsolatedRestoreAllFileBytesExact -ne $true -or
+             $r.ActualGuestInstalledRootRestoredFromArchive -ne $true -or
+             $r.InstallerHKCURegistrationPreserved -ne $true -or
+             $r.UserPersonalComputerTouched -ne $false -or
+             $r.PersonalOwnerFullColdBackupAccepted -ne $false){
+                throw 'R232_RECEIPT_SCOPE_OR_IDENTITY_REJECTED'
+          }
+          'R232_FULL_ROOT_442_FILES_AND_HOSTILE_NEGATIVE=PASS'
+      - name: Retain bounded guest evidence even when failing
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R232-full-root-guest-${{ matrix.host }}
+          if-no-files-found: warn
+          retention-days: 21
+          path: |
+            ${{ runner.temp }}/TBME_R232_COLD_${{ matrix.host }}/R232_REAL_INSTALLED_COLD_ROLLBACK.json
