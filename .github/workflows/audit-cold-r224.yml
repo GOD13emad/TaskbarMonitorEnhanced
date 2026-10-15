@@ -1,12 +1,12 @@
-name: R224 - Real official installed root cold backup and rollback on disposable Windows
+name: R225 - Exact HKCU installation and startup registry backup fault and restore on disposable Windows
 on:
   push:
-    branches: [audit/r224-disposable-cold-restore]
+    branches: [audit/r225-disposable-registry-rollback]
 permissions:
   contents: read
 jobs:
   cold-install-root:
-    name: Exact v1.7.2 cold full-root rollback on disposable host ${{ matrix.host }}
+    name: Exact v1.7.2 HKCU uninstall and startup registry rollback on disposable host ${{ matrix.host }}
     runs-on: windows-2025-vs2026
     timeout-minutes: 15
     strategy:
@@ -25,21 +25,21 @@ jobs:
           if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
              $env:RUNNER_OS -cne 'Windows' -or
              $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
-             $env:GITHUB_REF -cne 'refs/heads/audit/r224-disposable-cold-restore'){
+             $env:GITHUB_REF -cne 'refs/heads/audit/r225-disposable-registry-rollback'){
               throw 'R224_REFUSE_NOT_DISPOSABLE_GITHUB_HOST'
           }
-          $base='70d9fedfad5fedad0a87d66e4477800855601aab'
+          $base='da5b919d8e0bddde46c6351b0269041e4d407c72'
           git merge-base --is-ancestor $base HEAD
-          if($LASTEXITCODE -ne 0){throw 'R224_EXPECTED_R223_PARENT_NOT_ANCESTOR'}
+          if($LASTEXITCODE -ne 0){throw 'R225_EXPECTED_R224_PARENT_NOT_ANCESTOR'}
           $files=@(git diff --name-only $base HEAD)
-          $allowed=@('.github/workflows/audit-cold-r224.yml','build/Test-HostedColdRestore-R224.ps1')
+          $allowed=@('.github/workflows/audit-cold-r224.yml','build/Test-HostedRegistry-R225.ps1')
           if($files.Count -ne 2 -or @($files|Where-Object {$_ -cnotin $allowed}).Count){
-              throw 'R224_TEST_BRANCH_SCOPE_NOT_EXACT'
+              throw 'R225_REGISTRY_ONLY_SCOPE_NOT_EXACT'
           }
-          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R224_UNEXPECTED_COMMIT'}
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R225_UNEXPECTED_COMMIT'}
           $h=(Get-FileHash './src/TaskbarMonitorEnhanced.cs' -Algorithm SHA256).Hash
           if($h -cne '4AF4A6C05AFC18E6390D918A10B3CE35A4AF948C7451EF9604311A816C313E3F'){
-              throw 'R224_R223_PRODUCT_SOURCE_SHA_CHANGED'
+              throw 'R225_PRODUCT_SOURCE_CHANGED'
           }
           # Windows checkout converts LF to CRLF; validate canonical LF source bytes
           # rather than platform-specific on-disk newline encoding.
@@ -49,54 +49,44 @@ jobs:
           if($sha -cne 'B6A8FB996C8DAC4922FF51DFD53D53F6EC988E71926FC77A2FCD64A275D0330B'){
               throw 'R224_COLD_RUNNER_NORMALIZED_LF_SHA_CHANGED'
           }
+          $new=[IO.File]::ReadAllText('./build/Test-HostedRegistry-R225.ps1',[Text.Encoding]::UTF8)
+          $canonical=$new.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+          $newSha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($canonical)))
+          if($newSha -cne 'E849750B37357DBC9A924C3CC9CAD9E2F10D6427F18B8612F6CC40EA3542A3D8'){
+              throw 'R225_NEW_REGISTRY_RUNNER_NORMALIZED_SHA_DRIFT'
+          }
           $t=$null;$errors=$null
-          [void][Management.Automation.Language.Parser]::ParseFile('./build/Test-HostedColdRestore-R224.ps1',
+          [void][Management.Automation.Language.Parser]::ParseFile('./build/Test-HostedRegistry-R225.ps1',
                  [ref]$t,[ref]$errors)
-          if(@($errors).Count){throw 'R224_SCRIPT_PARSER_FAILED'}
+          if(@($errors).Count){throw 'R225_NEW_RUNNER_PS_PARSER_FAILED'}
           if(Test-Path (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced')){
-              throw 'R224_NOT_FRESH_OR_USER_DATA_PRESENT'
+              throw 'R225_NOT_FRESH_OR_USER_DATA_PRESENT'
           }
           if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){
-              throw 'R224_EXISTING_GUEST_APP_PROCESS'
+              throw 'R225_EXISTING_GUEST_APP_PROCESS'
           }
-          'R224_HOST_AND_SOURCE_PREFLIGHT=PASS'
-      - name: Compile exact R223 test-only binary on guest
-        shell: pwsh
-        run: |
-          $ErrorActionPreference='Stop'
-          dotnet build './build/TaskbarMonitorEnhanced.csproj' -c Release --nologo -p:RestoreIgnoreFailedSources=true
-          if($LASTEXITCODE -ne 0){throw 'R224_GUEST_BUILD_FAIL'}
-          $main='./build/_out/App/TaskbarMonitorEnhanced.exe'
-          if(!(Test-Path $main) -or
-             (Get-FileHash $main -Algorithm SHA256).Hash -cne
-             '5A44490034EB8A8B846FB11E7BD6954EED741F92DB53FC7A568DCCA358A5BCE2'){
-              throw 'R224_CANDIDATE_BUILD_NOT_DETERMINISTIC'
-          }
-          'R224_CANDIDATE_SHA=PASS'
-      - name: Real official v1.7.2 guest cold full-root archive, actual trial replacement and rollback
+          'R225_HOST_AND_SOURCE_PREFLIGHT=PASS'
+      - name: Real guest HKCU full-value backup, intentional fault and exact type-preserving restoration
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference='Stop'
-          ./build/Test-HostedColdRestore-R224.ps1 -Machine '${{ matrix.host }}'
-          $r=Join-Path $env:RUNNER_TEMP 'TBME_R224_COLD_${{ matrix.host }}\R224_REAL_INSTALLED_COLD_ROLLBACK.json'
-          if(!(Test-Path $r -PathType Leaf)){throw 'R224_MISSING_GUEST_COLD_RECEIPT'}
-          $v=Get-Content $r -Raw|ConvertFrom-Json
-          if($v.Status -cne 'PASS_REAL_DISPOSABLE_INSTALLED_ROOT_COLD_ARCHIVE_AND_FULL_RESTORE' -or
-             !$v.ActualGuestInstalledRootRestoredFromArchive -or
-             !$v.IsolatedRestoreAllFileBytesExact -or
-             !$v.GuestInstalledMainActuallyReplacedWithTrial -or
-             !$v.InstallerHKCURegistrationPreserved -or
-             $v.UserPersonalComputerTouched -ne $false){
-             throw 'R224_DISPOSABLE_COMPLETE_ROLLBACK_NOT_ACCEPTED'
-          }
-          'R224_REAL_GUEST_FULL_ROOT_AND_REGISTRY_ROLLBACK=PASS'
-      - name: Preserve raw real guest cold rollback receipt
+          ./build/Test-HostedRegistry-R225.ps1 -Machine '${{ matrix.host }}'
+          if($LASTEXITCODE -ne 0){throw 'R225_REGISTRY_TEST_RUNNER_FAILED'}
+          $p=Join-Path $env:RUNNER_TEMP 'TBME_R225_REGISTRY_${{ matrix.host }}\R225_REAL_HKCU_REGISTRY_RESTORE.json'
+          if(!(Test-Path $p -PathType Leaf)){throw 'R225_RECEIPT_NOT_CREATED'}
+          $v=Get-Content $p -Raw | ConvertFrom-Json
+          if($v.Status -cne 'PASS_REAL_GUEST_EXACT_HKCU_INSTALL_STARTUP_REGISTRY_BACKUP_FAULT_RESTORE' -or
+             $v.GuestMainStillOfficial -ne $true -or $v.RestoredByteAndTypeExact -ne $true -or
+             $v.FaultInjected -ne $true -or $v.RegistryRestoreFunctionExecuted -ne $true -or
+             $v.UserPersonalComputerTouched -ne $false){throw 'R225_POST_RESTORE_REGISTRY_RECEIPT_NOT_ACCEPTED'}
+          'R225_DISPOSABLE_EXACT_HKCU_RESTORE=PASS'
+      - name: Preserve exact real guest HKCU registry restoration receipt
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: R224-disposable-cold-${{ matrix.host }}
+          name: R225-disposable-registry-${{ matrix.host }}
           if-no-files-found: warn
           retention-days: 21
-          path: ${{ runner.temp }}/TBME_R224_COLD_${{ matrix.host }}/R224_REAL_INSTALLED_COLD_ROLLBACK.json
+          path: ${{ runner.temp }}/TBME_R225_REGISTRY_${{ matrix.host }}/R225_REAL_HKCU_REGISTRY_RESTORE.json
