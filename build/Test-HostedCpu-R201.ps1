@@ -40,6 +40,8 @@ $failure=''
 $results=@()
 $proc=$null
 $expectedConfigSha=$null
+$normalizedSavedConfigSHA=$null
+$postRunFixtureHashes=@()
 $testFixture='{"Theme":"Retro Terminal","Opacity":0.10,"GlassMode":false,"OpacityWhenGlassOff":0.10,"ConfigSchemaVersion":8,"StartWithWindows":false,"UpdateIntervalMs":1000,"ShowSparklines":true,"AutoCheckUpdates":false}'
 $proof=Join-Path $env:RUNNER_TEMP ('R201_PREINSTALL_'+$HostLabel+'.json')
 if(!(Test-Path $proof -PathType Leaf)){throw 'R201_FRESH_HOST_PREINSTALL_PROOF_MISSING'}
@@ -105,6 +107,72 @@ function RequireFixture(){
        !(Test-Path $sentinel -PathType Leaf) -or
        [IO.File]::ReadAllText($sentinel) -cne 'R201 sacrificial Windows only'){
         throw 'R193_CONFIG_OR_PROTECTED_FIXTURE_CHANGED'
+    }
+}
+# R216: only on disposable GitHub Windows. Real app normally persists its normalized
+# config on WM_CLOSE via CleanupRuntime -> AppConfig.Save. This is not a user-file mutation.
+# Require matching core preferences, intact immutable canary and stable normalized bytes;
+# then reset exact comparable fixture before the next real CPU block.
+function ReconcileAndResetDisposableFixture([int]$block){
+    if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){
+        throw 'R216_PROCESS_STILL_RUNNING_BEFORE_FIXTURE_RESET'
+    }
+    if(!(Test-Path $sentinel -PathType Leaf) -or
+       [IO.File]::ReadAllText($sentinel) -cne 'R201 sacrificial Windows only'){
+        throw 'R216_USER_OWNED_CANARY_CHANGED_FAIL_CLOSED'
+    }
+    $actualConfig=Hash $config
+    $actualBackup=Hash $backup
+    if($actualConfig -ceq 'MISSING' -or $actualBackup -ceq 'MISSING' -or
+       $actualConfig -cne $actualBackup){
+        throw 'R216_NORMALIZED_CONFIG_BACKUP_NOT_BYTE_IDENTICAL'
+    }
+    $cfgBytes=[IO.File]::ReadAllBytes($config)
+    $bakBytes=[IO.File]::ReadAllBytes($backup)
+    if($cfgBytes.Length -gt 65536 -or $bakBytes.Length -gt 65536){
+        throw 'R216_CONFIG_SIZE_BUDGET_EXCEEDED'
+    }
+    try{$saved=[IO.File]::ReadAllText($config,[Text.Encoding]::UTF8)|ConvertFrom-Json}
+    catch{throw 'R216_NORMALIZED_CONFIG_JSON_INVALID'}
+    if($saved.Theme -cne 'Retro Terminal' -or [bool]$saved.GlassMode -or
+       [math]::Abs([double]$saved.Opacity-0.10) -gt 0.00001 -or
+       [math]::Abs([double]$saved.OpacityWhenGlassOff-0.10) -gt 0.00001 -or
+       [int]$saved.ConfigSchemaVersion -ne 8 -or [bool]$saved.StartWithWindows -or
+       [int]$saved.UpdateIntervalMs -ne 1000 -or
+       ![bool]$saved.ShowSparklines -or [bool]$saved.AutoCheckUpdates){
+        throw 'R216_CONFIG_PROTECTED_PUBLIC_PREFERENCES_CHANGED'
+    }
+    if($null -eq $script:normalizedSavedConfigSHA){
+        $script:normalizedSavedConfigSHA=$actualConfig
+    }elseif($script:normalizedSavedConfigSHA -cne $actualConfig){
+        throw 'R216_NORMALIZED_CONFIG_SHA_NOT_STABLE_ACROSS_ABBA'
+    }
+    $script:postRunFixtureHashes+=([ordered]@{
+        Block=$block;ConfigSHA256=$actualConfig;BackupSHA256=$actualBackup
+        OriginalInputConfigSHA256=$script:expectedConfigSha
+        NormalizedKeyCount=@($saved.PSObject.Properties.Name).Count
+        ProtectedPreferencesUnchanged=$true;DisposableCanaryUnchanged=$true
+    })
+    # Exact same canary-free, deterministic prestate for each ABBA block.
+    # If either write fails, restore the captured normalized bytes and fail closed.
+    try{
+        if((Hash $config) -cne $actualConfig -or (Hash $backup) -cne $actualBackup){
+            throw 'R216_CONCURRENT_FIXTURE_EDIT_BEFORE_RESET'
+        }
+        [IO.File]::WriteAllText($config,$testFixture,[Text.UTF8Encoding]::new($false))
+        [IO.File]::WriteAllText($backup,$testFixture,[Text.UTF8Encoding]::new($false))
+        RequireFixture
+    }catch{
+        try{
+            [IO.File]::WriteAllBytes($config,$cfgBytes)
+            [IO.File]::WriteAllBytes($backup,$bakBytes)
+            if((Hash $config) -cne $actualConfig -or (Hash $backup) -cne $actualBackup){
+                throw 'R216_ROLLBACK_HASH_MISMATCH'
+            }
+        }catch{
+            throw 'R216_FIXTURE_RESET_FAILED_ROLLBACK_UNRESOLVED'
+        }
+        throw 'R216_FIXTURE_RESET_FAILED_RESTORED_NORMALIZED_INPUT'
     }
 }
 function MonitorWindow([uint32]$targetPid) {
@@ -273,7 +341,7 @@ try {
         $wantSHA=if($mode -ceq 'BASE'){$expectedBase}else{$expectedTrial}
         if((Hash $main) -cne $wantSHA){throw 'R193_TRANSITION_BINARY_SHA_MISMATCH'}
         $results+=RunBlock $mode ($i+1)
-        RequireFixture
+        ReconcileAndResetDisposableFixture ($i+1)
     }
     $phase='REAL_FULL_APP_ABBA_ACCEPTANCE'
     if($results.Count -ne 4 -or @($results|Where-Object Kind -eq BASE).Count -ne 2 -or
@@ -322,6 +390,9 @@ try {
         TrialMeanOneCorePercent=$meanTrial
         ObservedReductionPercent=$effect
         AllBlocksCompleted=($results.Count -eq 4)
+        DeterministicFixtureResetAfterEveryBlock=($postRunFixtureHashes.Count -eq 4)
+        NormalizedConfigSHA256=$normalizedSavedConfigSHA
+        PostBlockFixtureSHAEvidence=@($postRunFixtureHashes)
         RestoredBaselineExeOnSacrificialHost=$restored
         OwnerPersonalComputerTouched=$false
         NoPublicReleaseMutation=$true
