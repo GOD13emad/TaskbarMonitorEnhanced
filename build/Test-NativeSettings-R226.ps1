@@ -27,7 +27,9 @@ try{
     if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){
         Fail 'APPLICATION_ALREADY_RUNNING_IN_GUEST'
     }
-    New-Item -ItemType Directory -Path $out -Force | Out-Null
+    # Proof owns the child directory and explicitly refuses any pre-existing output.
+    New-Item -ItemType Directory -Path $dir -ErrorAction Stop | Out-Null
+    if(Test-Path -LiteralPath $out){Fail 'PROOF_OUTPUT_DIR_ALREADY_EXISTS'}
     $stage='PRODUCTION_TEST_BINARY_NATIVE_REAL_FOREGROUND'
     $si=[Diagnostics.ProcessStartInfo]::new()
     $si.FileName=(Resolve-Path $source).Path

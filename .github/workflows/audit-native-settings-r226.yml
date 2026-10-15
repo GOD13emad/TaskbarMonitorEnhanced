@@ -43,7 +43,7 @@ jobs:
           $raw=[IO.File]::ReadAllText('./build/Test-NativeSettings-R226.ps1',[Text.Encoding]::UTF8)
           $lf=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
           $computed=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
-          if($computed -cne 'FE2D4B6D56CE5ECC5D39D00C4B190A5CE8F761C5521393922E1FD28C58AF7977'){
+          if($computed -cne '3F76CC3B6B278BA6D246995CA1C908BD8F48F90429F3725346A50653A96A6C97'){
              throw 'R226_TEST_RUNNER_NORMALIZED_SHA'
           }
           $tok=$null;$errors=$null
