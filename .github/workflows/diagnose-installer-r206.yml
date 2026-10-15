@@ -1,0 +1,57 @@
+name: R206 - Instrument official installer after exact CPU-host prestate
+on:
+  push:
+    branches: [audit/r206-installer-prestate-observe]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  observe:
+    name: One ephemeral host exact-prestate child and sensor phase
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Static preflight and frozen product SHA
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_REF -cne 'refs/heads/audit/r206-installer-prestate-observe'){throw 'R206_NOT_APPROVED_HOSTED_BRANCH'}
+          $base='2d23b6d0d4a6a9fb44ef52eaeae1fbecaa94048f'
+          $product='1b2bf5b6b58313706556d10efd242270583b5f0d'
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R206_HEAD_DRIFT'}
+          git merge-base --is-ancestor $base HEAD
+          if($LASTEXITCODE -ne 0){throw 'R206_PARENT_DRIFT'}
+          if(@(git diff --name-only $product HEAD -- src).Count){throw 'R206_PRODUCT_SOURCE_MUTATED'}
+          $diff=@(git diff --name-only $base HEAD)
+          $allow=@('.github/workflows/diagnose-installer-r206.yml','build/Diagnose-HostedSetup-R206.ps1')
+          if($diff.Count -ne 2 -or @($diff|Where-Object {$_ -cnotin $allow}).Count){throw 'R206_UNSAFE_DIFF'}
+          $f=(Resolve-Path 'build/Diagnose-HostedSetup-R206.ps1').Path
+          $raw=[IO.File]::ReadAllText($f,[Text.Encoding]::UTF8)
+          $lf=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+          $h=[Security.Cryptography.SHA256]::Create()
+          try{$actual=[Convert]::ToHexString($h.ComputeHash([Text.Encoding]::UTF8.GetBytes($lf)))}finally{$h.Dispose()}
+          if($actual -cne '551EB3EA3B79EAE34985B46ED138A16F7223C3946CB7378BFE72AB442FE5A27A'){throw 'R206_SCRIPT_SHA_DRIFT'}
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($f,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw 'R206_POWERSHELL_PARSER_ERRORS'}
+          if(@(git status --porcelain).Count){throw 'R206_CHECKOUT_DIRTY'}
+          'R206_SOURCE_SHA_AND_PARSER=PASS'
+      - name: Instrument exact R205 candidate prestate and official v171 Setup
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          .\build\Diagnose-HostedSetup-R206.ps1 -HostLabel A
+      - name: Preserve bounded sanitized parent-child and sensor-phase snapshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R206-installer-prestate-A
+          if-no-files-found: warn
+          retention-days: 21
+          path: ${{ runner.temp }}/TBME_R206_A/R206_INSTALL_OBSERVE.json
