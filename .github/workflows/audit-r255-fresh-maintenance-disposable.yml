@@ -103,7 +103,8 @@ jobs:
         run: |
           $ErrorActionPreference='Stop'
           ./build/Test-R255-FreshSameVersion-Disposable.ps1 -CandidateDir ./build/_out -HostLabel '${{ matrix.guest }}'
-          if($LASTEXITCODE -ne 0){throw 'R255_GENUINE_DISPOSABLE_SETUP_REGRESSION'}
+          # Invoke the PowerShell test directly: all test failures THROW. LASTEXITCODE
+          # is a stale value from unrelated native commands, not this .ps1 result.
           $r=Get-Content (Join-Path $env:RUNNER_TEMP 'TBME_R255_${{ matrix.guest }}/R255_FRESH.json') -Raw |ConvertFrom-Json
           if($r.Status -cne 'PASS_REAL_GUEST_FRESH_R255_NO_REDUNDANT_SOURCE_AND_TWICE_IDEMPOTENT' -or
              $r.SourceCommit -cne $env:GITHUB_SHA -or
