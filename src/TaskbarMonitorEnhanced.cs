@@ -33,18 +33,18 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Live system monitor integrated into the Windows taskbar")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.7.2+r155")]
+[assembly: AssemblyInformationalVersion("1.7.3+r243")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.7.2.0")]
-[assembly: AssemblyFileVersion("1.7.2.0")]
+[assembly: AssemblyVersion("1.7.3.0")]
+[assembly: AssemblyFileVersion("1.7.3.0")]
 
 namespace TaskbarMonitorEnhanced
 {
     internal static class BuildInfo
     {
-        public const string Version = "V1_7_2_R155_TASKBAR_FIX";
+        public const string Version = "V1_7_3_R243_CPU_PREFILTER";
         public const string Product = "Taskbar Monitor Enhanced";
-        public const string PublicVersion = "1.7.2";
+        public const string PublicVersion = "1.7.3";
         public const string ShortcutName = "Taskbar Monitor Enhanced";
         public const string ProductDescription = "Live system monitor integrated into the Windows taskbar";
         public const string Author = "Dr. Ali-Akbar Emadeddin";
@@ -7167,6 +7167,7 @@ namespace TaskbarMonitorEnhanced
         private ComboBox theme,windowsLightTheme,windowsDarkTheme,position,taskbarDisplay,cpuMode,gpuMode,diskMode,netMode,multiLayout,memoryUnit,storageUnit,networkUnit,diskRateUnit;
         private NumericUpDown opacity,interval,width,cpuWarn,gpuWarn,diskWarn,batteryInterval,historyLength;
         private GlassToggleSwitch glassModeToggle;
+        private Label glassModeState;
         private int lastOpacityPercent;
         private CheckBox cpu,ram,disk,gpu,vram,net,temp,spark,startup,safe,floatAboveStart,ramNumeric,diskNumeric,flyout,hoverAll,autoCheckUpdates,tempAlerts,tempNotifications,adaptiveBattery,followWindowsTheme;
         private CheckedListBox cpuList,gpuList,diskList,netList;
@@ -7258,9 +7259,16 @@ namespace TaskbarMonitorEnhanced
             Label glassLabel=new Label{Text="Glass mode",Location=new Point(24,164),Size=new Size(145,26)};
             display.Controls.Add(glassLabel);
             glassModeToggle=new GlassToggleSwitch{Location=new Point(180,158),
-                Size=new Size(112,34),Checked=c.GlassMode};
+                Size=new Size(68,34),Checked=c.GlassMode};
             SetA11y(glassModeToggle,"Glass mode switch","Click or press Space to switch Glass on or off. On: zero background; Off: your saved 1-100% opacity.");
             display.Controls.Add(glassModeToggle);
+            // A separate, opaque status label eliminates mixed native CheckBox text
+            // painting and keeps track, thumb and ON/OFF text spatially independent.
+            glassModeState=new Label{Text=c.GlassMode?"On":"Off",Location=new Point(260,160),
+                Size=new Size(72,30),AutoSize=false,TextAlign=ContentAlignment.MiddleLeft,
+                ForeColor=SettingsText,BackColor=SettingsSurface};
+            SetA11y(glassModeState,"Glass mode status","Current Glass mode state.");
+            display.Controls.Add(glassModeState);
             lastOpacityPercent=Math.Max(1,Math.Min(100,(int)Math.Round(c.OpacityWhenGlassOff*100)));
             opacity=Number(display,"Background opacity %",c.GlassMode?0:(decimal)(c.Opacity*100),c.GlassMode?0:1,100,216);
             opacity.Enabled=!c.GlassMode;
@@ -7335,7 +7343,9 @@ namespace TaskbarMonitorEnhanced
             ModernizeSettingsPage(diagnostics,"Diagnostics","Inspect live health, copy reports and export support evidence.");
             ModernizeSettingsPage(advanced,"Advanced","Maintenance, logs and safe configuration reset.");
 
-            themePreview=new ThemePreviewControl(themePreviewRenderer);themePreview.Location=new Point(24,500);themePreview.Size=new Size(650,132);themePreview.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;display.AutoScrollMinSize=new Size(760,680);display.Controls.Add(themePreview);themePreview.BringToFront();
+            // The note extends to y=508 after the page modernization shift.
+            // The former preview at y=500 overlapped it by 8px; leave a 28px gap.
+            themePreview=new ThemePreviewControl(themePreviewRenderer);themePreview.Location=new Point(24,536);themePreview.Size=new Size(650,132);themePreview.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;display.AutoScrollMinSize=new Size(760,720);display.Controls.Add(themePreview);themePreview.BringToFront();
             theme.SelectedIndexChanged+=delegate{UpdateThemeModeUi();};windowsLightTheme.SelectedIndexChanged+=delegate{UpdateThemeModeUi();};windowsDarkTheme.SelectedIndexChanged+=delegate{UpdateThemeModeUi();};followWindowsTheme.CheckedChanged+=delegate{UpdateThemeModeUi();};UpdateThemeModeUi();
             EnsureAccessibilityMetadata(this);
 
@@ -7412,6 +7422,12 @@ namespace TaskbarMonitorEnhanced
             else if(control is NumericUpDown)
             {
                 NumericUpDown n=(NumericUpDown)control;n.BackColor=SettingsSurface2;n.ForeColor=SettingsText;n.BorderStyle=BorderStyle.FixedSingle;foreach(Control child in n.Controls){child.BackColor=SettingsSurface2;child.ForeColor=SettingsText;}
+            }
+            else if(control is GlassToggleSwitch)
+            {
+                // Native Flat CheckBox paint is never allowed over custom track ink.
+                GlassToggleSwitch x=(GlassToggleSwitch)control;
+                x.FlatStyle=FlatStyle.Standard;x.ForeColor=SettingsText;x.BackColor=SettingsSurface;
             }
             else if(control is CheckBox)
             {
@@ -7524,6 +7540,7 @@ namespace TaskbarMonitorEnhanced
         private void SyncGlassOpacityUi()
         {
             if(glassModeToggle==null || opacity==null)return;
+            if(glassModeState!=null)glassModeState.Text=glassModeToggle.Checked?"On":"Off";
             if(glassModeToggle.Checked)
             {
                 if(opacity.Enabled && opacity.Value>0)lastOpacityPercent=(int)opacity.Value;

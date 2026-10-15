@@ -21,12 +21,12 @@ namespace TaskbarMonitorEnhanced
     {
         internal GlassToggleSwitch()
         {
-            AutoSize=false;Size=new Size(112,34);TabStop=true;Text="";
+            AutoSize=false;Size=new Size(68,34);TabStop=true;Text="";
             AccessibleRole=AccessibleRole.CheckButton;
             SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|
-                ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw|
-                ControlStyles.SupportsTransparentBackColor,true);
-            BackColor=Color.Transparent;Cursor=Cursors.Hand;
+                ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw,true);
+            // Never composite other WinForms/native text behind this owner-painted control.
+            BackColor=Color.FromArgb(20,28,38);Cursor=Cursors.Hand;
         }
         protected override void OnCheckedChanged(EventArgs e)
         {base.OnCheckedChanged(e);Invalidate();}
@@ -36,11 +36,16 @@ namespace TaskbarMonitorEnhanced
             {Checked=e.KeyCode==Keys.Right;e.Handled=true;e.SuppressKeyPress=true;return;}
             base.OnKeyDown(e);
         }
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            e.Graphics.Clear(BackColor);
+        }
         protected override void OnPaint(PaintEventArgs e)
         {
+            e.Graphics.Clear(BackColor);
             e.Graphics.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             float h=Math.Max(12,Math.Min(ClientSize.Height-6,26f*DeviceDpi/96f));
-            float w=h*1.9f,x=3,y=(ClientSize.Height-h)/2f;
+            float w=Math.Min(ClientSize.Width-8,h*1.9f),x=4,y=(ClientSize.Height-h)/2f;
             Color track=SystemInformation.HighContrast?
                 (Checked?SystemColors.Highlight:SystemColors.ControlDark):
                 (Checked?Color.FromArgb(41,128,227):Color.FromArgb(96,106,121));
@@ -54,9 +59,8 @@ namespace TaskbarMonitorEnhanced
             float inset=Math.Max(2,h/9),d=h-2*inset;
             using(var thumb=new SolidBrush(SystemInformation.HighContrast?SystemColors.HighlightText:Color.White))
                 e.Graphics.FillEllipse(thumb,right?x+w-inset-d:x+inset,y+inset,d,d);
-            TextRenderer.DrawText(e.Graphics,Checked?"On":"Off",Font,
-                new Rectangle((int)(x+w+8),0,Math.Max(1,ClientSize.Width-(int)(x+w+8)),ClientSize.Height),
-                Enabled?ForeColor:SystemColors.GrayText,TextFormatFlags.Left|TextFormatFlags.VerticalCenter);
+            // The ON/OFF word lives in an independent opaque Settings label, not
+            // on top of the switch's thumb or in an insufficient width at high DPI.
             if(Focused&&ShowFocusCues)ControlPaint.DrawFocusRectangle(e.Graphics,ClientRectangle);
         }
     }
