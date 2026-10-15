@@ -1,0 +1,51 @@
+name: R204 - Bounded independent installer child-process observation
+on:
+  push:
+    branches:
+      - audit/r204-installer-phase-observe
+permissions:
+  contents: read
+jobs:
+  diagnostic-official-171:
+    name: One disposable Windows installer-phase observation
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact isolated diagnostic-only source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify pinned code, unchanged product, and parser
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_REF -cne 'refs/heads/audit/r204-installer-phase-observe'){throw 'R204_NOT_APPROVED_HOSTED_TEST_BRANCH'}
+          $base='8f8514189ab966138d13260e5590c5df104634b4'
+          git merge-base --is-ancestor $base HEAD
+          if($LASTEXITCODE -ne 0){throw 'R204_BASE_NOT_ANCESTOR'}
+          $c=@(git diff --name-only $base HEAD)
+          $a=@('.github/workflows/diagnose-installer-r204.yml','build/Diagnose-HostedSetup-R204.ps1')
+          if($c.Count -ne 2 -or @($c|Where-Object {$_ -cnotin $a}).Count){throw 'R204_PRODUCT_SOURCE_OR_OTHER_FILES_CHANGED'}
+          $f=(Resolve-Path 'build/Diagnose-HostedSetup-R204.ps1').Path
+          if((Get-FileHash $f -Algorithm SHA256).Hash -cne '0298B917ED07AEFBD0F8187E63C642CF71717EA73BEB2B776AE70A11F562D409'){throw 'R204_DIAGNOSTIC_SCRIPT_SHA_DRIFT'}
+          $t=$null;$errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($f,[ref]$t,[ref]$errors)
+          if(@($errors).Count){throw 'R204_POWERSHELL_PARSER_ERRORS'}
+          if(@(git status --porcelain).Count){throw 'R204_CHECKOUT_DIRTY'}
+          'R204_TEST_ONLY_SOURCE_AND_PARSER=PASS'
+      - name: Single official v1.7.1 installer diagnostic with bounded child snapshots
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          .\build\Diagnose-HostedSetup-R204.ps1 -HostLabel A
+      - name: Preserve sanitized process timeline whether success or failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R204-installer-phase-A
+          if-no-files-found: warn
+          retention-days: 21
+          path: ${{ runner.temp }}/TBME_R204_A/R204_INSTALL_OBSERVE.json
