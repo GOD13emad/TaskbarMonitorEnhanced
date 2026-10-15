@@ -41,9 +41,13 @@ jobs:
           if($h -cne '4AF4A6C05AFC18E6390D918A10B3CE35A4AF948C7451EF9604311A816C313E3F'){
               throw 'R224_R223_PRODUCT_SOURCE_SHA_CHANGED'
           }
-          if((Get-FileHash './build/Test-HostedColdRestore-R224.ps1' -Algorithm SHA256).Hash -cne
-             'B6A8FB996C8DAC4922FF51DFD53D53F6EC988E71926FC77A2FCD64A275D0330B'){
-              throw 'R224_COLD_RUNNER_SHA_CHANGED'
+          # Windows checkout converts LF to CRLF; validate canonical LF source bytes
+          # rather than platform-specific on-disk newline encoding.
+          $raw=[IO.File]::ReadAllText('./build/Test-HostedColdRestore-R224.ps1',[Text.Encoding]::UTF8)
+          $lf=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+          $sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
+          if($sha -cne 'B6A8FB996C8DAC4922FF51DFD53D53F6EC988E71926FC77A2FCD64A275D0330B'){
+              throw 'R224_COLD_RUNNER_NORMALIZED_LF_SHA_CHANGED'
           }
           $t=$null;$errors=$null
           [void][Management.Automation.Language.Parser]::ParseFile('./build/Test-HostedColdRestore-R224.ps1',
