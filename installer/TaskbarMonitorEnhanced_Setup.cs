@@ -1284,7 +1284,7 @@ internal static partial class SetupProgram
             }
         }
         File.WriteAllText(Path.Combine(UpgradeRoot,"index.txt"),String.Join("\n",lines.ToArray()),Encoding.ASCII);
-        if(previousVersion!=InstalledV16 && previousVersion!=InstalledV170 && previousVersion!=InstalledV171 && previousVersion!=Version)throw new InvalidDataException("Invalid previous version for journal.");
+        if(previousVersion!=InstalledV16 && previousVersion!=InstalledV170 && previousVersion!=InstalledV171 && previousVersion!=InstalledV172 && previousVersion!=Version)throw new InvalidDataException("Invalid previous version for journal.");
         File.WriteAllText(Path.Combine(UpgradeRoot,"previous_version.txt"),previousVersion,Encoding.ASCII);
         WritePhase("PREPARED");
     }
@@ -1335,7 +1335,7 @@ internal static partial class SetupProgram
         string priorVersionPath=Path.Combine(UpgradeRoot,"previous_version.txt");
         if(!File.Exists(priorVersionPath))throw new IOException("Previous upgrade version missing; retain stage.");
         string priorVersion=File.ReadAllText(priorVersionPath,Encoding.ASCII);
-        if(priorVersion!=InstalledV16 && priorVersion!=InstalledV170 && priorVersion!=InstalledV171 && priorVersion!=Version)throw new IOException("Unknown previous version; retain stage.");
+        if(priorVersion!=InstalledV16 && priorVersion!=InstalledV170 && priorVersion!=InstalledV171 && priorVersion!=InstalledV172 && priorVersion!=Version)throw new IOException("Unknown previous version; retain stage.");
         // This works after a mid-commit process kill: exact old snapshots are persisted
         // on the same volume, and new-only files are removed only if their SHA is known.
         for(int i=rows.Count-1;i>=0;i--){
