@@ -1,0 +1,169 @@
+name: R209 - Native Windows wait-chain on frozen original installer hang
+on:
+  push:
+    branches: [audit/r209-original-harness-wct]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  wct-diagnostic:
+    name: One isolated Windows-hosted WCT on frozen R207 harness
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 16
+    steps:
+      - name: Full history, exact test-only checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prove test-only source and Windows probe parser SHA
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/audit/r209-original-harness-wct'){
+             throw 'R209_NON_DISPOSABLE_OR_WRONG_BRANCH'
+          }
+          $base='2598922353a45c4610d82db152d27b51b6efd7df'
+          $product='1b2bf5b6b58313706556d10efd242270583b5f0d'
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R209_WORKFLOW_SHA_NOT_CURRENT_HEAD'}
+          git merge-base --is-ancestor $base HEAD
+          if($LASTEXITCODE -ne 0){throw 'R209_ORIGINAL_HARNESS_BASE_NOT_ANCESTOR'}
+          $diff=@(git diff --name-only $base HEAD)
+          $allowed=@('.github/workflows/inspect-original-harness-wct-r209.yml','build/Probe-WaitChain-R209.ps1')
+          if($diff.Count -ne 2 -or @($diff|Where-Object {$_ -cnotin $allowed}).Count){
+            throw 'R209_CHANGE_NOT_EXACT_TWO_DIAGNOSTIC_FILES'
+          }
+          if(@(git diff --name-only $product HEAD -- src).Count){throw 'R209_PUBLIC_PRODUCT_SOURCE_MODIFIED'}
+          if(@(git status --porcelain).Count){throw 'R209_CHECKOUT_UNCLEAN'}
+          $script=(Resolve-Path './build/Probe-WaitChain-R209.ps1').Path
+          $original=(Resolve-Path './build/Test-HostedCpu-R201.ps1').Path
+          $pairs=@(
+            @($script,'1B77FEDB6A8658B314810DBFA3DFE395B916B15EDF34550BE9E821396C801039'),
+            @($original,'CCB1FD297F675B1F61CAC324477DD3159CD45FD5551FC6EAF2D0299B0A0F05EB')
+          )
+          foreach($row in $pairs){
+            $text=[IO.File]::ReadAllText($row[0],[Text.Encoding]::UTF8)
+            $lf=$text.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+            $hash=[Security.Cryptography.SHA256]::Create()
+            try{$actual=[Convert]::ToHexString($hash.ComputeHash([Text.Encoding]::UTF8.GetBytes($lf)))}finally{$hash.Dispose()}
+            if($actual -cne $row[1]){throw ('R209_SCRIPT_SHA_MISMATCH '+$row[0])}
+            $tokens=$null;$errors=$null
+            [void][Management.Automation.Language.Parser]::ParseFile($row[0],[ref]$tokens,[ref]$errors)
+            if(@($errors).Count){throw ('R209_STATIC_PARSE_ERROR '+$row[0])}
+          }
+          'R209_FROZEN_PRODUCT_ORIGINAL_HARNESS_AND_WCT_SHA_PARSER_PASS'
+      - name: Import immutable candidate bytes and prove exact fresh Windows state
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $dest=Join-Path $env:RUNNER_TEMP 'TBME_R201_CANDIDATE'
+          if(Test-Path $dest){throw 'R209_IMPORTED_CANDIDATE_DIR_ALREADY_EXISTS'}
+          New-Item -ItemType Directory -Path $dest -ErrorAction Stop|Out-Null
+          & gh run download 38638445612 --repo GOD13emad/TaskbarMonitorEnhanced --name R201-only-candidate-main --dir $dest
+          if($LASTEXITCODE -ne 0){throw 'R209_GH_SOURCE_ARTIFACT_MISSING'}
+          $exe=Join-Path $dest 'TaskbarMonitorEnhanced.exe'
+          $expected='3448552CA6711D861BAD3739BEA77FC04626477DF64D5E30227BC95AF00771AF'
+          if((Get-FileHash $exe -Algorithm SHA256).Hash -cne $expected){throw 'R209_CANDIDATE_SHA_NOT_EXACT'}
+          $app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
+          $unreg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
+          $oldOut=Join-Path $env:RUNNER_TEMP 'TBME_R193_CPU_A'
+          $proof=Join-Path $env:RUNNER_TEMP 'R201_PREINSTALL_A.json'
+          if(Test-Path $proof){throw 'R209_PRESTATE_EXISTS'}
+          $state=[ordered]@{
+            Revision='R201';Host='A';GitCommit=$env:GITHUB_SHA;OutputExists=[bool](Test-Path $oldOut)
+            AppRootExists=[bool](Test-Path $app);UninstallKeyExists=[bool](Test-Path $unreg)
+            ProcessCount=[int]@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count
+            DownloadedBinarySHA256=$expected;NoBuildExecutedInCpuJob=$true;NoPersonalMachineTouched=$true
+            ImageVersion=$env:ImageVersion;ImageOS=$env:ImageOS;SourceArtifactRun=38638445612
+          }
+          [IO.File]::WriteAllText($proof,($state|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
+          if($state.OutputExists -or $state.AppRootExists -or $state.UninstallKeyExists -or $state.ProcessCount -ne 0){
+            throw 'R209_NON_FRESH_INSTALL_ROOT'
+          }
+          'R209_EXACT_FROZEN_R207_PRECONDITION=PASS'
+      - name: Run unchanged original harness with separate read-only WCT sampler
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_REF -cne 'refs/heads/audit/r209-original-harness-wct'){
+             throw 'R209_SACRIFICIAL_HOST_ONLY'
+          }
+          $d=Join-Path $env:RUNNER_TEMP 'TBME_R209_DIAG_A'
+          if(Test-Path $d){throw 'R209_DIAG_DIR_ALREADY_EXISTS'}
+          New-Item -ItemType Directory -Path $d -ErrorAction Stop|Out-Null
+          $timeline=Join-Path $d 'R209_WCT_TIMELINE.json'
+          $summary=Join-Path $d 'R209_RUN_RESULT.json'
+          $probe=(Resolve-Path './build/Probe-WaitChain-R209.ps1').Path
+          $ps=[Diagnostics.ProcessStartInfo]::new()
+          $ps.FileName=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+          $ps.Arguments='-NoProfile -ExecutionPolicy Bypass -File "'+$probe+'" -Receipt "'+$timeline+'" -MaxSeconds 210 -IntervalSeconds 8'
+          $ps.UseShellExecute=$false
+          $ps.CreateNoWindow=$true
+          $ps.WorkingDirectory=$env:RUNNER_TEMP
+          $child=[Diagnostics.Process]::Start($ps)
+          if($null -eq $child){throw 'R209_WCT_CHILD_NOT_STARTED'}
+          $harnessErr=''
+          try {
+            .\build\Test-HostedCpu-R201.ps1 -HostLabel A
+          } catch {
+            $harnessErr=$_.Exception.GetType().Name+': '+$_.Exception.Message
+          } finally {
+            $exited=$child.WaitForExit(30000)
+            if(!$exited){
+              # Terminates exclusively the private, exact Process object created for this WCT probe.
+              try{$child.Kill()}catch{}
+              try{[void]$child.WaitForExit(5000)}catch{}
+            }
+            $nativeExit=if($child.HasExited){$child.ExitCode}else{$null}
+            $child.Dispose()
+            $sampleCount=0;$nativeWctSuccess=0;$hangObserved=$false;$snapshotError=''
+            if(Test-Path $timeline -PathType Leaf){
+              try{
+                $data=Get-Content -LiteralPath $timeline -Raw|ConvertFrom-Json
+                $sampleCount=@($data.Samples).Count
+                foreach($t in @($data.Samples)){
+                  if($t.ObservedProcesses -eq 1 -and $t.AppRootExists -eq $false){$hangObserved=$true}
+                  foreach($th in @($t.Threads)){
+                    if($th.WctResult.Successful -eq $true){$nativeWctSuccess++}
+                  }
+                }
+              }catch{$snapshotError=$_.Exception.GetType().Name}
+            }
+            $result=[ordered]@{
+              Revision='R209';Objective='Native WCT and thread-state diagnostics of original frozen installer wait'
+              OriginalHarnessUnchanged=$true;OriginalHarnessError=$harnessErr
+              WctSidecarProcessExitCode=$nativeExit;WctSnapshots=$sampleCount;WctQueriesSuccessful=$nativeWctSuccess
+              PreAppRootInstallerObserved=$hangObserved;WctSnapshotReadError=$snapshotError
+              OwnerComputerTouched=$false;ReleaseMutation=$false
+              ObservationOnlyNoCpuOrInstallerAcceptance=$true;FinishedUTC=[DateTime]::UtcNow.ToString('o')
+            }
+            [IO.File]::WriteAllText($summary,($result|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+            Write-Output ($result|ConvertTo-Json -Depth 8 -Compress)
+          }
+          if(!(Test-Path $timeline -PathType Leaf) -or $sampleCount -lt 3 -or
+             $nativeWctSuccess -lt 1 -or !$hangObserved -or $snapshotError){
+             throw 'R209_WCT_PRIMARY_EVIDENCE_INCOMPLETE_FAIL_CLOSED'
+          }
+          if($harnessErr -and $harnessErr -notmatch 'R193_INSTALLER_TIMEOUT'){
+             throw ('R209_NEW_UNCLASSIFIED_HARNESS_FAILURE '+$harnessErr)
+          }
+          'R209_DIAGNOSTIC_WCT_CAPTURE=PASS_NOT_PRODUCT_OR_CPU_ACCEPTANCE'
+      - name: Preserve independent probe, original harness outcome and prestate
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R209-standalone-WCT-A
+          retention-days: 21
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/TBME_R209_DIAG_A/R209_WCT_TIMELINE.json
+            ${{ runner.temp }}/TBME_R209_DIAG_A/R209_RUN_RESULT.json
+            ${{ runner.temp }}/TBME_R193_CPU_A/R201_CPU_AB.json
+            ${{ runner.temp }}/R201_PREINSTALL_A.json
