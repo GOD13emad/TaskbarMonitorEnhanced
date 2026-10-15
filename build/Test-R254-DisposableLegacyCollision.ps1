@@ -35,6 +35,9 @@ $status="FAIL"
 $errorText=""
 $negativeExit=$null
 $idempotentExit=$null
+$bareFreshMaintenanceExit=$null
+$exactFreshRootDuplicateSHA=$null
+$guestManagedDuplicateRemoved=$false
 $stagedArtifactChecked=$false
 $programFilesUnchanged=$false
 $originalHashes=@{}
@@ -148,13 +151,34 @@ try{
  Remove-Item -LiteralPath $legacy -Force -ErrorAction Stop
  $ownedLegacy=$false;$collisionInstalled=$false
  if(Test-Path $legacy){Fail "OWNED_LEGACY_DIR_REMAINS"}
- $phase="KNOWN_OFFICIAL_IDEMPOTENT_UPDATE_AFTER_COLLISION_REMOVAL"
+ $phase="SEPARATE_FRESH_INSTALL_IDEMPOTENCE_DEFECT_REPRODUCTION"
+ # The official immutable v1.7.3 fresh Setup writes a redundant source file in
+ # AppRoot, but its same-version /update demands that very path be ABSENT.
+ # Record the product defect, do not mask it as a normal successful maintenance.
+ $sourceCopy=Join-Path $app "Source/TaskbarMonitorEnhanced.cs"
+ $rootCopy=Join-Path $app "TaskbarMonitorEnhanced.cs"
+ $exactFreshRootDuplicateSHA=Hash $sourceCopy
+ if($exactFreshRootDuplicateSHA -ceq "MISSING" -or (Hash $rootCopy) -cne $exactFreshRootDuplicateSHA){
+  Fail "OFFICIAL_FRESH_ROOT_DUPLICATE_NOT_IDENTICAL_TO_SOURCE_COPY"
+ }
+ $bareFreshMaintenanceExit=Run-Setup "/update /quiet"
+ if($bareFreshMaintenanceExit -ne 34){
+  Fail ("UNEXPECTED_UNPATCHED_V173_FRESH_MAINTENANCE_EXIT_"+$bareFreshMaintenanceExit)
+ }
+ AssertSameMap $originalHashes "PRODUCT_FRESH_IDEMPOTENCE_REFUSAL"
+
+ $phase="TEST_ONLY_EXACT_INSTALLER_OWNED_REDUNDANT_SOURCE_REMOVAL"
+ if((Hash $rootCopy) -cne $exactFreshRootDuplicateSHA){Fail "GUEST_ROOT_DUPLICATE_CHANGED_BEFORE_REMOVAL"}
+ Remove-Item -LiteralPath $rootCopy -Force -ErrorAction Stop
+ if(Test-Path -LiteralPath $rootCopy){Fail "DUPLICATE_NOT_REMOVED_ON_DISPOSABLE_GUEST"}
+ $guestManagedDuplicateRemoved=$true
+ $phase="RECHECK_OFFICIAL_CURRENT_VERSION_ONLY_AFTER_GUEST_FIXTURE_REPAIR"
  $idempotentExit=Run-Setup "/update /quiet"
- if($idempotentExit -ne 0){Fail ("IDEMPOTENT_UPDATE_FAILED_AFTER_GUEST_REMOVAL_"+$idempotentExit)}
- AssertSameMap $originalHashes "AFTER_CLEAN_IDEMPOTENT_UPDATE"
+ if($idempotentExit -ne 0){Fail ("CURRENT_VERSION_REMAINS_BROKEN_AFTER_ROOT_DUPLICATE_REMOVAL_"+$idempotentExit)}
+ AssertSameMap $originalHashes "AFTER_KNOWN_DISPOSABLE_REDUNDANT_SOURCE_REMOVED"
  $programFilesUnchanged=$true
  $stagedArtifactChecked=$true
- $status="PASS_GENUINE_DISPOSABLE_PROGRAMFILES_DUPLICATE_REJECTED_AND_SAME_ROOT_RESTORED"
+ $status="PASS_R254_COLLISION_REFUSED_AND_FRESH_ROOT_DUPLICATE_IDEMPOTENCE_BUG_REPRODUCED"
 }catch{
  $errorText=$_.Exception.GetType().Name+": "+$_.Exception.Message
 }finally{
@@ -175,7 +199,11 @@ try{
   ProgramFilesPathType=if($HostLabel -ceq "A"){"ProgramFiles"}else{"ProgramFilesX86"}
   SyntheticOnlyFile=$legacyMain;OriginalLocalHKCUInstallationPreserved=$stagedArtifactChecked
   DuplicateExecutableConflictRefused=($null -ne $negativeExit -and $negativeExit -ne 0)
-  RefusedSetupExit=$negativeExit;AfterCleanupUpdateExit=$idempotentExit
+  RefusedSetupExit=$negativeExit;BeforeRootDuplicateRepairSameVersionExit=$bareFreshMaintenanceExit
+  CurrentOfficialFreshSameVersionMaintenanceAccepted=$false
+  ExactRedundantSourceSHA256=$exactFreshRootDuplicateSHA
+  GuestOnlyExactRedundantSourceRemoved=$guestManagedDuplicateRemoved
+  AfterCleanupUpdateExit=$idempotentExit
   NoUnmanagedOwnerFilesDeleted=$true;NoHKLMOrOtherUserMutation=$true
   SyntheticFixtureRemoved=(!(Test-Path $legacy));PersonalOwnerComputerTouched=$false
   DoesNotProveCrossUserOrHKLMRegistryCollision=$true

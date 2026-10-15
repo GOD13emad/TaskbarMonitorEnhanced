@@ -52,7 +52,7 @@ jobs:
           $raw=[IO.File]::ReadAllText($path,[Text.Encoding]::UTF8)
           $lf=$raw.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
           $actual=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
-          if($actual -cne '974EE34A0C874BBFE3DF83CC1909667FD4B4FB052C75F555F69D832ACFC5E3A4') {
+          if($actual -cne '351DC5E90CC876FE6E15D6D734877B246CED5DB51271254A0AB0560CFDE024E3') {
               throw 'R254_TEST_HARNESS_HASH_CHANGED'
           }
           $tokens=$null;$errors=$null
@@ -73,11 +73,14 @@ jobs:
           if($LASTEXITCODE -ne 0){throw 'R254_NEGATIVE_REAL_INSTALLER_FAILED'}
           $json=Join-Path $env:RUNNER_TEMP 'TBME_R254_${{ matrix.guest }}/R254_COLLISION.json'
           $receipt=Get-Content -LiteralPath $json -Raw | ConvertFrom-Json
-          if($receipt.Status -cne 'PASS_GENUINE_DISPOSABLE_PROGRAMFILES_DUPLICATE_REJECTED_AND_SAME_ROOT_RESTORED' -or
+          if($receipt.Status -cne 'PASS_R254_COLLISION_REFUSED_AND_FRESH_ROOT_DUPLICATE_IDEMPOTENCE_BUG_REPRODUCED' -or
              $receipt.DuplicateExecutableConflictRefused -ne $true -or
              $receipt.NoUnmanagedOwnerFilesDeleted -ne $true -or
              $receipt.SyntheticFixtureRemoved -ne $true -or
              $receipt.OriginalLocalHKCUInstallationPreserved -ne $true -or
+             $receipt.BeforeRootDuplicateRepairSameVersionExit -ne 34 -or
+             $receipt.CurrentOfficialFreshSameVersionMaintenanceAccepted -ne $false -or
+             $receipt.GuestOnlyExactRedundantSourceRemoved -ne $true -or
              $receipt.AfterCleanupUpdateExit -ne 0 -or
              $receipt.PersonalOwnerComputerTouched -ne $false -or
              $receipt.DoesNotProveCrossUserOrHKLMRegistryCollision -ne $true) {
