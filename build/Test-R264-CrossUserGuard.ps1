@@ -120,6 +120,17 @@ try{
  Unregister-ScheduledTask -TaskName $task -Confirm:$false -ErrorAction Stop
  $taskOwned=$false
  $taskRemoved=($null -eq (Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue))
+ if(!$taskRemoved){Fail 'OWNED_TASK_NOT_REMOVED_BEFORE_FRESH_GUARD'}
+ $phase='FRESH_SINGLE_USER_NO_GLOBAL_TASK_AND_NO_SHARED_BROKER_MUST_NOT_FALSE_REFUSE'
+ foreach($mode in @('Install','Uninstall')){
+  $app=Join-Path $out ('FreshNoTaskRoot_'+$mode)
+  New-Item -ItemType Directory -Path $app|Out-Null
+  $run=InvokePrefix $mode $app
+  if($run.Exit -ne 0 -or $run.Out -notmatch 'R264_GUARD_PASSED_SAME_USER'){
+   Fail ('EMPTY_GLOBAL_TASK_GUARD_FALSE_REFUSED_'+$mode+'_'+$run.Err)
+  }
+  $allowed+=('FreshNoTask_'+$mode)
+ }
  $found=Get-LocalUser -Name $user -ErrorAction Stop
  if([string]$found.SID.Value -cne $otherSID){Fail 'LOCAL_USER_IDENTITY_CHANGED'}
  Disable-LocalUser -Name $user -ErrorAction Stop

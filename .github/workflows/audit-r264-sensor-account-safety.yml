@@ -50,7 +50,7 @@ jobs:
           }
           $files=@(
             @{File='installer/TBME_Setup_Elevated_Helper.ps1';SHA='84A7DC21012A63C5959447D7234B365CF926028016A81B742F891951B191E7FB'},
-            @{File='build/Test-R264-CrossUserGuard.ps1';SHA='A8D6DA57417A5E69A5C8FC551F9A044F535C66C3DD5BAB363436ED1DEACA7D18'}
+            @{File='build/Test-R264-CrossUserGuard.ps1';SHA='BFDAC316CF51A6020055CE372E5FD33DCF6EF80CB65CD50005A5CE002872D420'}
           )
           foreach($item in $files){
             $path=(Resolve-Path $item.File).Path
@@ -85,7 +85,7 @@ jobs:
              $r.Status -cne 'PASS_OTHER_USER_SENSOR_TASK_PRESERVED_AND_SAME_OWNER_GUARD_ALLOWED' -or
              $r.Guest -cne '${{ matrix.guest }}' -or
              @($r.OtherUserModesRefused).Count -ne 2 -or
-             @($r.SameUserModesPermitted).Count -ne 2 -or
+             @($r.SameUserModesPermitted).Count -ne 4 -or
              $r.TestOwnedTaskDeleted -ne $true -or
              $r.GuestUserAccountDeleted -ne $true -or
              $r.ExactProductionHelperAfterGuardWasNotExecuted -ne $true -or
