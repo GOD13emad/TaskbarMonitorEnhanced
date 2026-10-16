@@ -91,3 +91,5 @@ jobs:
             ${{ runner.temp }}/TBME_R283_${{ matrix.host }}_${{ matrix.phase }}/ARMED.json
             ${{ runner.temp }}/TBME_R283_${{ matrix.host }}_${{ matrix.phase }}/ARMED.error.txt
             ${{ runner.temp }}/TBME_R283_${{ matrix.host }}_${{ matrix.phase }}/R283_INSTALL_DIAGNOSTIC.json
+            ${{ runner.temp }}/TBME_R283_${{ matrix.host }}_${{ matrix.phase }}/R283_RETRY_DIAGNOSTIC.json
+            ${{ runner.temp }}/TBME_R283_${{ matrix.host }}_${{ matrix.phase }}/R283_OFFICIAL_SETUP_INTERNAL_ERROR.txt

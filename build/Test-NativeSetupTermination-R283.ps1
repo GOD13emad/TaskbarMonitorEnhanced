@@ -290,8 +290,36 @@ try{
    throw 'R283_JOURNAL_OR_MIXED_MANAGED_MAIN_LOST_AFTER_PROCESS_KILL'
  }
  $phaseNow='COLD_SECOND_OFFICIAL_SETUP_RECOVERS_ACTUAL_KILLED_SETUP'
+ $diagRoot=Join-Path $env:RUNNER_TEMP 'TBME_R126_STABLE_UPDATE'
+ if(!(Test-Path $diagRoot)){[IO.Directory]::CreateDirectory($diagRoot)|Out-Null}
+ # Public Setup already provides an exact-source hosted-only exception writer.
+ # Enable it in the fresh retry so EXIT 34 exposes the real internal exception.
+ $env:TBME_UPDATE_DIAGNOSTIC_PHASE='POSITIVE_OFFICIAL_STABLE'
  $result=Run-Exact $currentExe '/update /quiet'
- if($result -ne 0){throw ('R283_REAL_SETUP_RETRY_FAILED_'+$result)}
+ $env:TBME_UPDATE_DIAGNOSTIC_PHASE=''
+ if($result -ne 0){
+  $phaseText=$(if(Test-Path $phaseFile){Get-Content $phaseFile -Raw}else{'PHASE_ABSENT'})
+  $stageFiles=@()
+  if(Test-Path $stage){
+   foreach($item in @(Get-ChildItem $stage -File -Recurse)){
+    $rel=$item.FullName.Substring($stage.Length+1)
+    $stageFiles+=@([pscustomobject]@{Rel=$rel;Bytes=$item.Length;Sha256=(Get-FileHash $item.FullName).Hash})
+   }
+  }
+  $detail=[ordered]@{
+   ExitCode=$result;TestStage=$phaseNow;ActualSetupKilled=$nativeTerminated
+   CurrentStagePhase=$phaseText;RemainingStageFileCount=@($stageFiles).Count
+   OldMainHash=(Hash (Join-Path $app 'TaskbarMonitorEnhanced.exe'))
+   OldReleaseNotePresent=(Test-Path $target -PathType Leaf)
+   StageFileMeta=$stageFiles;UTC=[DateTime]::UtcNow.ToString('o')
+  }
+  [IO.File]::WriteAllText((Join-Path $out 'R283_RETRY_DIAGNOSTIC.json'),($detail|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
+  $builtIn=Join-Path $diagRoot 'R129_DIAG_POSITIVE_OFFICIAL_STABLE.txt'
+  if(Test-Path $builtIn){
+   Copy-Item -LiteralPath $builtIn -Destination (Join-Path $out 'R283_OFFICIAL_SETUP_INTERNAL_ERROR.txt') -ErrorAction Stop
+  }
+  throw ('R283_REAL_SETUP_RETRY_FAILED_'+$result)
+ }
  if(Test-Path $stage){throw 'RECOVERY_JOURNAL_NOT_CLEANED'}
  if((Hash (Join-Path $app 'TaskbarMonitorEnhanced.exe')) -cne $main176 -or
     (Hash (Join-Path $app 'Uninstall.exe')) -cne $sha176 -or
