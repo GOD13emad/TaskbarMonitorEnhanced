@@ -38,6 +38,9 @@ $cleaned=$false
 $baseline=@{}
 $setupExit=$null
 $updateExit=$null
+$script:InstallTimedOut=$false
+$script:TimeoutDiagnostic=$null
+$script:ExactSetupProcessKilledAfterTimeout=$null
 $hklmKeyNames=@()
 $viewKey=$null
 $hive=$null
@@ -64,7 +67,37 @@ function RealSetup([string]$args){
  $proc=[Diagnostics.Process]::Start($psi)
  if($null -eq $proc){Deny 'INSTALLER_PROCESS_FAILED_TO_START'}
  try{
-  if(-not $proc.WaitForExit(180000)){Deny ('SETUP_TIMEOUT_'+$proc.Id)}
+  if(-not $proc.WaitForExit(45000)){
+   # Bound the negative test: capture phase without any GUI bypass or waiting
+   # for arbitrary UAC windows. Kill only this launched Setup PID on disposable VM.
+   $script:InstallTimedOut=$true
+   try{$proc.Refresh()}catch{}
+   $cpuVal=-1
+   $threadVal=-1
+   try{$cpuVal=[Math]::Round($proc.TotalProcessorTime.TotalSeconds,3)}catch{}
+   try{$threadVal=$proc.Threads.Count}catch{}
+   $details=[ordered]@{
+    ProcessPid=$proc.Id
+    CpuSeconds=$cpuVal
+    ThreadCount=$threadVal
+    AppRootPresent=(Test-Path $app)
+    MainExePresent=(Test-Path (Join-Path $app 'TaskbarMonitorEnhanced.exe'))
+    InstallStatePresent=(Test-Path (Join-Path $app 'install_state.json'))
+    HKCURegistered=(Test-Path $uninstall)
+    SensorBackendPresent=(Test-Path (Join-Path $app 'SensorBackend/LibreHardwareMonitor-0.9.6/LibreHardwareMonitorLib.dll'))
+    SensorInstallResultPresent=(Test-Path (Join-Path $app 'Logs/sensor_install_result.json'))
+    SensorProcessCount=@(Get-Process TaskbarMonitorSensorBroker,TaskbarMonitorSensorSupervisor -ErrorAction SilentlyContinue).Count
+    MainProcessCount=@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count
+   }
+   $script:TimeoutDiagnostic=$details
+   try{
+    $proc.Kill()
+    $script:ExactSetupProcessKilledAfterTimeout=[bool]$proc.WaitForExit(7000)
+   }catch{
+    $script:ExactSetupProcessKilledAfterTimeout=$false
+   }
+   Deny ('SETUP_TIMEOUT_WITH_STAGE_DIAGNOSTIC_PID_'+$proc.Id)
+  }
   return [int]$proc.ExitCode
  }finally{$proc.Dispose()}
 }
@@ -206,6 +239,9 @@ try{
    SyntheticHKLMUninstallOnly=$true;DifferentRealUserAccountTested=$false
    OtherMachineExePresent=$false;RegistryOnlyDoesNotProveSecondActualInstall=$true
    ActualFreshSetupExit=$setupExit;ActualSameVersionUpdateWithHKLM=$updateExit
+   InstallTimedOut=$script:InstallTimedOut
+   TimeoutDiagnostic=$script:TimeoutDiagnostic
+   ExactSetupProcessKilledAfterTimeout=$script:ExactSetupProcessKilledAfterTimeout
    SyntheticRegistryMarkerCleaned=$cleaned
    UserOwnedCanaryAndBackupPreserved=($status -like 'PASS_*' -and $setupExit -eq 0)
    PublicReleaseChanged=$false;OwnerPersonalPCChanged=$false
