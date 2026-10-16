@@ -1,0 +1,94 @@
+name: R263 - Machinewide Scheduled Task namespace is shared across different user principals
+on:
+  push:
+    branches:
+      - audit/r263-disposable-task-namespace
+permissions:
+  contents: read
+jobs:
+  shared-scheduler-namespace:
+    name: "R263 no-trigger synthetic task overwrite ${{ matrix.guest }}"
+    runs-on: ${{ matrix.system }}
+    timeout-minutes: 13
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - guest: A
+            system: windows-2025
+          - guest: B
+            system: windows-2022
+    steps:
+      - name: Source checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Fail-closed verified exact guest-only scripts and Windows hosting
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/audit/r263-disposable-task-namespace' -or
+             $env:COMPUTERNAME -match '(?i)EMAD|ALI|LAPTOP'){
+             throw 'R263_GUEST_HOST_NOT_DISPOSABLE'
+          }
+          $base='1375d719989aa93966bae445ac63b9a415f637ad'
+          git merge-base --is-ancestor $base HEAD
+          if($LASTEXITCODE -ne 0){throw 'R263_SOURCE_BASELINE_NOT_EXACT'}
+          $changes=@(git diff --name-only $base HEAD)
+          $allow=@('.github/workflows/audit-r263-disposable-task-namespace.yml',
+                   'build/Test-R263-DisposableTaskNamespace.ps1')
+          if($changes.Count -ne 2 -or @($changes|Where-Object {$_ -cnotin $allow}).Count){
+             throw 'R263_PRODUCT_SOURCE_CHANGED_UNEXPECTEDLY'
+          }
+          $p=(Resolve-Path './build/Test-R263-DisposableTaskNamespace.ps1').Path
+          $txt=[IO.File]::ReadAllText($p,[Text.Encoding]::UTF8)
+          $lf=$txt.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+          $sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
+          if($sha -cne 'D21CFE95F84EA54390980033BEA3281F370A7B1DF533695F52FBF83F4DB8B34C'){
+             throw 'R263_TASK_TEST_SOURCE_PIN_CHANGED'
+          }
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw 'R263_POWERSHELL_SOURCE_INVALID'}
+          $isAdmin=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+          if(!$isAdmin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){
+             throw 'R263_HOSTED_ADMIN_NOT_AVAILABLE_NO_PRIVILEGE_ESCALATION'
+          }
+          'R263_DISPOSABLE_SOURCE_AND_HOST_SCOPE_PASS'
+      - name: Real Windows Task Scheduler same name different principal no triggers
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Test-R263-DisposableTaskNamespace.ps1 -HostLabel '${{ matrix.guest }}'
+          $receipt=Join-Path $env:RUNNER_TEMP 'TBME_R263_${{ matrix.guest }}/R263_TASK_NAMESPACE.json'
+          if(!(Test-Path $receipt)){throw 'R263_MISSING_DIAGNOSTIC_RECEIPT'}
+          $r=Get-Content $receipt -Raw|ConvertFrom-Json
+          if($r.Revision -cne 'R263' -or
+             $r.Status -cne 'PASS_SYNTHETIC_MACHINEWIDE_SAME_TASK_NAME_FORCE_REPLACES_DIFFERENT_USER_PRINCIPAL' -or
+             $r.Guest -cne '${{ matrix.guest }}' -or
+             $r.DistinctAccounts -ne $true -or
+             $r.SameNameForceReplacedFirstPrincipal -ne $true -or
+             $r.NoTaskTriggersOrStarts -ne $true -or
+             $r.SyntheticTaskRemoved -ne $true -or
+             $r.SyntheticSecondAccountRemoved -ne $true -or
+             $r.ProductElevatedHelperActuallyExecuted -ne $false -or
+             $r.NoDriverOrSensorInstall -ne $true -or
+             $r.OwnerPCUntouched -ne $true){
+            throw 'R263_UNEXPECTED_GUEST_TASK_NAMESPACE_RESULT'
+          }
+          'R263_TWO_DIFFERENT_USER_PRINCIPALS_SHARED_TASK_NAME_PROVEN=PASS'
+          $global:LASTEXITCODE=0
+      - name: Preserve test-only scope and receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R263-no-trigger-task-${{ matrix.guest }}
+          if-no-files-found: warn
+          retention-days: 21
+          path: |
+            ${{ runner.temp }}/TBME_R263_${{ matrix.guest }}/R263_TASK_NAMESPACE.json
