@@ -147,7 +147,7 @@ try{
  $secure=ConvertTo-SecureString -String $secret -AsPlainText -Force
  $cred=[Management.Automation.PSCredential]::new(("$env:COMPUTERNAME\"+$fakeUsername),$secure)
  $secret=$null
- $account=New-LocalUser -Name $fakeUsername -Password $secure -AccountNeverExpires -PasswordNeverExpires -Description 'R262 transient GitHub-hosted two-account product audit' -ErrorAction Stop
+ $account=New-LocalUser -Name $fakeUsername -Password $secure -AccountNeverExpires -PasswordNeverExpires -Description 'R262 disposable test-only local account' -ErrorAction Stop
  $createdSid=[string]$account.SID.Value
  $created=$true
  if($createdSid -notmatch '^S-1-5-21-'){Fail 'NEW_GUEST_ACCOUNT_SID_INVALID'}

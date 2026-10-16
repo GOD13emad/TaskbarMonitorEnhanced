@@ -51,7 +51,7 @@ jobs:
           }
           $children=@(
             @{File='build/Test-R262-OtherLocalUser-Install.ps1'; SHA='1D2B9D7FE344336E48B2C09EBE6CDA6D50397E3EAD8FC37BAC7618A2EBC610A6'},
-            @{File='build/Test-R262-RealTwoAccounts-Disposable.ps1'; SHA='9EA3B23B48CDAFB2028C2CF3F663CC89E3A30B610FE7C759E531F620CC2135EE'}
+            @{File='build/Test-R262-RealTwoAccounts-Disposable.ps1'; SHA='DCF56A400E3EF872CF2797DCD333B9AFB304DF22CBA7112931ADEEAEAA3F5FC2'}
           )
           foreach($item in $children){
             $src=(Resolve-Path $item.File).Path
