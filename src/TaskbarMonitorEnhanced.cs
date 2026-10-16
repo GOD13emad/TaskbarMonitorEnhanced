@@ -33,18 +33,18 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Live system monitor integrated into the Windows taskbar")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.7.3+r243")]
+[assembly: AssemblyInformationalVersion("1.7.4+r256")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.7.3.0")]
-[assembly: AssemblyFileVersion("1.7.3.0")]
+[assembly: AssemblyVersion("1.7.4.0")]
+[assembly: AssemblyFileVersion("1.7.4.0")]
 
 namespace TaskbarMonitorEnhanced
 {
     internal static class BuildInfo
     {
-        public const string Version = "V1_7_3_R243_CPU_PREFILTER";
+        public const string Version = "V1_7_4_R256_FRESH_MAINTENANCE";
         public const string Product = "Taskbar Monitor Enhanced";
-        public const string PublicVersion = "1.7.3";
+        public const string PublicVersion = "1.7.4";
         public const string ShortcutName = "Taskbar Monitor Enhanced";
         public const string ProductDescription = "Live system monitor integrated into the Windows taskbar";
         public const string Author = "Dr. Ali-Akbar Emadeddin";
