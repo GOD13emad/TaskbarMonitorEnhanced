@@ -1,0 +1,93 @@
+name: R283 real official Setup process kill during rollback on disposable Windows
+
+on:
+  push:
+    branches: [test/r283-disposable-native-setup-interrupt]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  original-release-cold-recovery:
+    name: Actual Setup-process interruption / guest ${{ matrix.host }}
+    timeout-minutes: 20
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: A
+            phase: COMMITTING
+            os: windows-2025
+          - host: B
+            phase: COMMITTING
+            os: windows-2022
+    steps:
+      - name: Checkout test-only source on exact hosted revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Verify PowerShell 5.1 parser and disposable execution contract
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:COMPUTERNAME -match 'EMAD-PC'){throw 'R283_UNSAFE_NON_DISPOSABLE_HOST'}
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R283_SOURCE_CHECKOUT_MISMATCH'}
+          $p=(Resolve-Path build/Test-NativeSetupTermination-R283.ps1).Path
+          $tokens=$null; $errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){$errors | ForEach-Object { Write-Output $_.Message };throw 'R283_POWERSHELL_PARSER_FAILED'}
+          $source=[IO.File]::ReadAllText($p)
+          if($source.Contains('[string]$args') -or !$source.Contains('[string]$arguments') -or
+             !$source.Contains('$si.Arguments=$arguments')){
+             throw 'R283_BLOCK_RESERVED_POWERSHELL_AUTOMATIC_ARGS_PARAMETER'
+          }
+          if(!(Test-Path build/official-v175-managed.json)){throw 'R283_PREDECESSOR_PINNED_FIXTURE_MISSING'}
+          'R283_EXACT_HOSTED_GUARDS_AND_TEST_PARSER_PASS'
+
+      - name: Stage exact prior fixture; kill helper and native Setup during rollback
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Test-NativeSetupTermination-R283.ps1 -HostLabel '${{ matrix.host }}' -Phase '${{ matrix.phase }}'
+          $receipt=Join-Path $env:RUNNER_TEMP 'TBME_R283_${{ matrix.host }}_${{ matrix.phase }}/R283_ABRUPT_RECOVERY.json'
+          if(!(Test-Path $receipt)){throw 'R283_DURABLE_RECEIPT_ABSENT'}
+          $r=Get-Content $receipt -Raw|ConvertFrom-Json
+          if($r.Status -cne 'PASS_DISPOSABLE_CHILD_KILLED_THEN_OFFICIAL_INSTALLER_AUTO_RECOVERED' -or
+             $r.SourceBranchCommit -cne $env:GITHUB_SHA -or
+             $r.HostLabel -cne '${{ matrix.host }}' -or
+             $r.Scenario -cne '${{ matrix.phase }}' -or
+             $r.Official175ManagedFixtureRowsExact -ne 22 -or
+             $r.OriginalOfficial175InstallerFreshInstallPerformed -ne $false -or
+             $r.HistoricalV175FilesExtractedFromPinnedPublishedInstallerResources -ne $true -or
+             $r.PrivilegedSensorDriverInstallPerformedForTest -ne $false -or
+             $r.StagingHelperExternalProcessKilled -ne $true -or
+             $r.NativeSetupAutomaticJournalRecoveryAndInPlaceUpgrade -ne $true -or
+             $r.ExactProtectedUserDataSHA256Preserved -ne $true -or
+             $r.SingleCanonicalUserRoot -ne $true -or
+             $r.RealPhysicalMainsCut -ne $false -or
+             $r.ActualSetupExecutableProcessKilled -ne $true -or
+             $r.NativeSetupManagedFileRollbackWitnessed -ne $true -or
+             $r.NoOriginalOwnerPcTouched -ne $true){throw 'R283_TYPED_DISPOSABLE_RECOVERY_NOT_ACCEPTED'}
+          if($r.ManagedComponentsPartiallyReplacedBeforeKill -ne 2){throw 'R283_PARTIAL_COMMIT_NOT_PROVEN'}
+          'R283_VERIFIED_EXACT_OFFICIAL_176_AFTER_REAL_TEST_CHILD_KILL=PASS'
+
+      - name: Preserve the bounded individual fail/pass receipt on hosted runner
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R283-abrupt-${{ matrix.host }}-${{ matrix.phase }}
+          if-no-files-found: warn
+          retention-days: 21
+          path: |
+            ${{ runner.temp }}/TBME_R283_${{ matrix.host }}_${{ matrix.phase }}/R283_ABRUPT_RECOVERY.json
+            ${{ runner.temp }}/TBME_R283_${{ matrix.host }}_${{ matrix.phase }}/ARMED.json
+            ${{ runner.temp }}/TBME_R283_${{ matrix.host }}_${{ matrix.phase }}/ARMED.error.txt
+            ${{ runner.temp }}/TBME_R283_${{ matrix.host }}_${{ matrix.phase }}/R283_INSTALL_DIAGNOSTIC.json
