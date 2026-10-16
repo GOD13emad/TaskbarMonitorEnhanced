@@ -1,7 +1,7 @@
 name: v1.7.6 - Full protected v1.7.5 upgrade and native acceptance
 on:
   push:
-    branches: [fix/v1.7.6-glass-thermal-alert-r272, main]
+    branches: [fix/v1.7.6-glass-thermal-alert-r272]
   workflow_dispatch:
 permissions:
   contents: read
