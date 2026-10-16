@@ -12,9 +12,9 @@ Any future trusted signing must use a new independently versioned release. Hash 
 
 ## Provider and current status
 
-**Planned provider option: SignPath Foundation. Program acceptance and actual public-trust signing remain unverified.**
+**Potential provider option: SignPath Foundation. A previous open-source application was not approved; a new application has not been accepted and public-trust signing is unavailable.**
 
-The project is prepared for the SignPath Foundation open-source signing program. **External acceptance and a production public-trust signature are not yet proven.** The self-signed development certificate documented under `docs/security/` validates the signing pipeline only and is not public publisher trust.
+The repository contains technical preparation for a potential future SignPath Foundation application. **A prior submission was declined; provider acceptance and a production public-trust signature do not exist.** Reapplication requires a new provider review and stronger independent public-adoption evidence; repository readiness alone is insufficient. The self-signed development certificate documented under `docs/security/` validates the signing pipeline only and is not public publisher trust.
 
 ### SignPath Foundation program attribution (conditional; no endorsement or certificate yet)
 
@@ -22,7 +22,7 @@ The following exact wording is required by the SignPath Foundation code-signing 
 
 > Free code signing provided by SignPath.io, certificate by SignPath Foundation
 
-**Current status: application and provider approval pending; no published Taskbar Monitor Enhanced binary is claimed to be signed by SignPath Foundation.** This required attribution is included for application readiness, not as a statement that the service, certificate or production signing is available.
+**Current status: a previous Foundation application was not accepted; no current approved signing account or certificate is evidenced, and no published Taskbar Monitor Enhanced binary is claimed to be signed by SignPath Foundation.** This required attribution is included for application readiness, not as a statement that the service, certificate or production signing is available.
 
 The open-source maintainer, reviewers and signing approver are identified in the **Team roles** section below; project privacy and user-controlled network activity are documented in [PRIVACY.md](PRIVACY.md). See the [SignPath Foundation code of conduct](https://signpath.org/terms.html). Public-trust signing additionally requires identical project/product-version metadata for artifacts submitted together, verified GitHub-hosted source-build origin, and explicit approval for each production signing request. Untrusted self-signed development certificates must never be used as public-publisher proof.
 
@@ -69,7 +69,7 @@ The application does not upload monitoring telemetry, configuration data, or per
 
 Signed status is only one release gate. Users and maintainers must also verify the release tag and commit, published SHA-256 values, SBOM and provenance evidence, and runtime acceptance for the same release identity.
 
-Until a trusted signing provider actually signs a release, public-trust signing remains **PENDING** even when all repository-side release gates pass.
+Until a qualified trusted signing provider actually signs a separately versioned release, public-trust signing remains **UNAVAILABLE / NOT APPROVED** even when repository-side release gates pass.
 
 ## Security reporting
 
