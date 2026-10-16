@@ -1,0 +1,111 @@
+name: R262 - Genuine two separate Windows local account install scope
+on:
+  push:
+    branches:
+      - audit/r262-disposable-real-two-users
+permissions:
+  contents: read
+jobs:
+  two-user-roots:
+    name: "R262 two actual users on one disposable Windows ${{ matrix.guest }}"
+    runs-on: ${{ matrix.system }}
+    timeout-minutes: 19
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - guest: A
+            system: windows-2025
+          - guest: B
+            system: windows-2022
+    steps:
+      - name: Exact test-only source checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check exact previous public main, test source and VM admin authority
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $base='1375d719989aa93966bae445ac63b9a415f637ad'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/audit/r262-disposable-real-two-users' -or
+             $env:COMPUTERNAME -match '(?i)EMAD|ALI|LAPTOP'){
+               throw 'R262_NO_UNAUTHORIZED_LOCAL_ACCOUNT_ACTIONS'
+          }
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R262_SOURCE_HEAD_MISMATCH'}
+          git merge-base --is-ancestor $base HEAD
+          if($LASTEXITCODE -ne 0){throw 'R262_OFFICIAL_SOURCE_174_NOT_PARENT'}
+          $allowed=@(
+            '.github/workflows/audit-r262-real-two-users-disposable.yml',
+            'build/Test-R262-OtherLocalUser-Install.ps1',
+            'build/Test-R262-RealTwoAccounts-Disposable.ps1'
+          )
+          $changes=@(git diff --name-only $base HEAD)
+          if($changes.Count -ne 3 -or @($changes|Where-Object {$_ -cnotin $allowed}).Count){
+             throw 'R262_UNEXPECTED_PRODUCT_SOURCE_CHANGE'
+          }
+          $children=@(
+            @{File='build/Test-R262-OtherLocalUser-Install.ps1'; SHA='3C106192ED486ADD497273516ABF77CC3F8DCFF4BFB0F8B723F6B452FBAABC05'},
+            @{File='build/Test-R262-RealTwoAccounts-Disposable.ps1'; SHA='EFA41BE8A54E05DB5B1D08AC9475AFD43FCA97D5F7EDB65392A14BCB036B48F8'}
+          )
+          foreach($item in $children){
+            $src=(Resolve-Path $item.File).Path
+            $str=[IO.File]::ReadAllText($src,[Text.Encoding]::UTF8)
+            $lf=$str.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+            $sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
+            if($sha -cne $item.SHA){throw 'R262_GUEST_SCRIPT_HASH_CHANGED'}
+            $t=$null;$errors=$null
+            [void][Management.Automation.Language.Parser]::ParseFile($src,[ref]$t,[ref]$errors)
+            if(@($errors).Count){throw 'R262_POWERSHELL51_SYNTAX_INVALID'}
+          }
+          $admin=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+          if(!$admin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){
+            throw 'R262_DISPOSABLE_RUNNER_NOT_ADMIN_NO_ESCALATION'
+          }
+          if(Test-Path (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced')){
+            throw 'R262_GUEST_ALREADY_INSTALLED'
+          }
+          'R262_EXACT_TEST_ONLY_AND_GUEST_ADMIN_CHECKS=PASS'
+      - name: Real per-user installation under two genuinely distinct Windows account SIDs
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Test-R262-RealTwoAccounts-Disposable.ps1 -HostLabel '${{ matrix.guest }}'
+          $path=Join-Path $env:RUNNER_TEMP 'TBME_R262_${{ matrix.guest }}/R262_TWO_USERS.json'
+          if(!(Test-Path $path)){throw 'R262_REQUIRED_EXACT_RECEIPT_NOT_FOUND'}
+          $r=Get-Content $path -Raw|ConvertFrom-Json
+          if($r.Revision -cne 'R262' -or $r.Host -cne '${{ matrix.guest }}' -or
+             $r.Status -cne 'PASS_R262_TWO_GENUINE_SEPARATE_WINDOWS_ACCOUNTS_HAVE_DISTINCT_OFFICIAL_PERUSER_INSTALLS' -or
+             $r.FirstAccountSetupExit -ne 0 -or
+             $r.FirstAccountHKCUVersion -cne '1.7.4' -or
+             $r.DistinctAccountSIDs -ne $true -or
+             $r.DistinctAppRoots -ne $true -or
+             $r.SyntheticSecondUserAccountRemoved -ne $true -or
+             $r.FirstAppRootDataExactlyPreserved -ne $true -or
+             $r.MachinewideSingletonProven -ne $false -or
+             $r.OneInstalledCopyPerAccountProven -ne $true -or
+             $r.SimultaneousTwoUserLocalCopiesObserved -ne $true -or
+             $r.NoHKLMOrWinRing0ChangedByTest -ne $true -or
+             $r.OwnerPersonalComputerUntouched -ne $true -or
+             $r.PublicV174ReleaseUnmodified -ne $true){
+               throw 'R262_SECOND_LOCAL_USER_ACTUAL_SETUP_NOT_ACCEPTED'
+          }
+          'R262_TWO_SEPARATE_REAL_WINDOWS_USER_INSTALLATIONS=PASS'
+          $global:LASTEXITCODE=0
+      - name: Retain bounded receipts for both user principals
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R262-actual-2-users-${{ matrix.guest }}
+          retention-days: 21
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/TBME_R262_${{ matrix.guest }}/R262_TWO_USERS.json
+            ${{ runner.temp }}/TBME_R262_${{ matrix.guest }}/R262_GUEST_B.json
