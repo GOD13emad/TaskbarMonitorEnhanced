@@ -1,7 +1,7 @@
 name: v1.7.5 - Full protected v1.7.4 upgrade and native acceptance
 on:
   push:
-    branches: [release/r265-v175-sensor-crossuser-safety, main]
+    branches: [release/r265-v175-sensor-crossuser-safety]
   workflow_dispatch:
 permissions:
   contents: read
