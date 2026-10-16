@@ -6290,6 +6290,19 @@ namespace TaskbarMonitorEnhanced
             {
                 using(Pen hotPen=new Pen(Color.FromArgb(235,AlertPolicy.AlertColor),2f))
                     g.DrawRectangle(hotPen,inner.X,inner.Y,Math.Max(1,inner.Width-1),Math.Max(1,inner.Height-1));
+                // Preserve a semantic warning mask for Glass mode: recolor ONLY
+                // hot metric glyphs/charts, never normal theme ink or the backdrop.
+                if(glassThermalWarningCanvas!=null)
+                {
+                    using(SolidBrush maskBrush=new SolidBrush(Color.White))
+                        glassThermalWarningCanvas.FillRectangle(maskBrush,inner);
+                    if(glassInkCanvas!=null)
+                        using(Pen rim=new Pen(Color.White,2f))
+                            glassInkCanvas.DrawRectangle(rim,inner.X,inner.Y,Math.Max(1,inner.Width-1),Math.Max(1,inner.Height-1));
+                    if(glassHaloCanvas!=null)
+                        using(Pen haloRim=new Pen(Color.White,4f))
+                            glassHaloCanvas.DrawRectangle(haloRim,inner.X,inner.Y,Math.Max(1,inner.Width-1),Math.Max(1,inner.Height-1));
+                }
             }
             if(t.Mode=="round"||t.Mode=="glass")
             {
@@ -10237,6 +10250,7 @@ namespace TaskbarMonitorEnhanced
         {
             Native.EnableDllSearchHardening();
             if(args!=null && args.Length>1 && args[0]=="--glassproof")return TaskbarGlassProof.Run(args[1]);
+            if(args!=null && args.Length>1 && args[0]=="--glassthermalproof")return TaskbarGlassThermalProof.Run(args[1]);
             if(args!=null && args.Length>1 && args[0]=="--chartglassproof")return TaskbarChartGlassProof.Run(args[1]);
             if(args!=null && args.Length>1 && args[0]=="--glassliveproof")return TaskbarGlassLiveProof.Run(args[1]);
             if(args!=null && args.Length>1 && args[0]=="--topglassliveproof")return TaskbarTopGlassVisualProof.Run(args[1]);
