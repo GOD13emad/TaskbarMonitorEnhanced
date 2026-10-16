@@ -42,6 +42,11 @@ jobs:
           $tokens=$null; $errors=$null
           [void][Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)
           if(@($errors).Count){$errors | ForEach-Object { Write-Output $_.Message };throw 'R282_POWERSHELL_PARSER_FAILED'}
+          $source=[IO.File]::ReadAllText($p)
+          if($source.Contains('[string]$args') -or !$source.Contains('[string]$arguments') -or
+             !$source.Contains('$si.Arguments=$arguments')){
+             throw 'R282_BLOCK_RESERVED_POWERSHELL_AUTOMATIC_ARGS_PARAMETER'
+          }
           if(!(Test-Path build/official-v175-managed.json)){throw 'R282_PREDECESSOR_PINNED_FIXTURE_MISSING'}
           'R282_EXACT_HOSTED_GUARDS_AND_TEST_PARSER_PASS'
 

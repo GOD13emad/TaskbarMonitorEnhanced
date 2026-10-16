@@ -39,10 +39,13 @@ function Hash([string]$p){
  if(Test-Path $p -PathType Leaf){return (Get-FileHash $p -Algorithm SHA256).Hash}
  return 'MISSING'
 }
-function Run-Exact([string]$exe,[string]$args){
+function Run-Exact([string]$exe,[string]$arguments){
+ # Do not use '$args' as a parameter: PowerShell automatically replaces it with
+ # unbound positional arguments, silently dropping /update /quiet and hanging GUI.
+ if($arguments -cne '/update /quiet'){throw ('R282_UNEXPECTED_SETUP_ARGUMENT_STRING_'+$arguments)}
  # Exact process launch from successful R273 hosted installer acceptance.
  $si=New-Object Diagnostics.ProcessStartInfo
- $si.FileName=$exe;$si.Arguments=$args;$si.UseShellExecute=$false
+ $si.FileName=$exe;$si.Arguments=$arguments;$si.UseShellExecute=$false
  $si.WorkingDirectory=(Split-Path $exe -Parent)
  $p=[Diagnostics.Process]::Start($si)
  if(!$p){throw 'R282_SETUP_NOT_STARTED'}
