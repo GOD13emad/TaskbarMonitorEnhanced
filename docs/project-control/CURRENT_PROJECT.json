@@ -2,18 +2,18 @@
   "Schema": 1,
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
-  "Scope": "PUBLIC_REDACTED_SNAPSHOT; owner-local detailed Project Brain is the only active operational authority",
-  "CurrentEngineeringRevision": "R276",
-  "Status": "PUBLIC_IMMUTABLE_UNSIGNED_V176_OWNER_GLASS_ALERT_SCOPED_PASS",
-  "UpdatedUtc": "2026-10-16T17:00:48Z",
+  "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
+  "CurrentEngineeringRevision": "R285",
+  "Status": "PUBLIC_REDACTED_MIRROR_R285_IMMUTABLE_V177_REAL_OWNER_INPLACE_SCOPED_DELIVERED",
+  "UpdatedUtc": "2026-10-16T21:48:03.585645+00:00",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
-    "Version": "1.7.6",
-    "ReleaseId": 415147285,
-    "ReleaseURL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.7.6",
-    "SourceCommit": "2348791fbde3aff5a18b7df536dba8a66a65d191",
-    "SetupSHA256": "D1FE446CC2D8274A5B63E8080FAB15767A6799B5A377584B0F7B923056E2CEE0",
-    "InstalledMainSHA256": "0FA50938D330DB02D7D66593740F51FEE5D3036C59484E5697C34DCBC55A2DF8",
+    "Version": "1.7.7",
+    "ReleaseId": 415382091,
+    "ReleaseURL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.7.7",
+    "SourceCommit": "dc68cf448173bd0808d1dfa54bc9e9bf7ca20aad",
+    "SetupSHA256": "395AEE56006F55FD5DCCFB52E1519088CE01A10386840D7008C6BA900136A06D",
+    "InstalledMainSHA256": "A6D4BFD00C918C0601A12D185F414E92F2B6A85927042B811537B0BC37606253",
     "PublicAssetCount": 7,
     "InstallerUnsigned": true,
     "PerUserInstall": true,
@@ -22,7 +22,15 @@
     "OwnerHighCpuRealRedPixelsConfirmed": true,
     "OwnerWindowsNotificationsOptedIn": true,
     "OwnerApplicationNotificationDispatchLogged": true,
-    "ActualOsToastOrSoundProven": false
+    "ActualOsToastOrSoundProven": false,
+    "OwnerLiveV177VersionObserved": true,
+    "MainBuildCI": 38965519302,
+    "NativeHostedActualSetupKillRecoveryCI": 38965519445,
+    "IndependentPublicSevenAssetG16Passed": true,
+    "OwnerPerUserUpgradeRealExitZero": true,
+    "OwnerOldVersionRecoverable26Files": true,
+    "HistoricalRedPixelProofVersion": "1.7.6",
+    "Current177ActualRedPixelsIndependentlyCounted": false
   },
   "Completed": [
     "Seven immutable public v1.7.5 assets independently SHA/Manifest verified (R267)",
@@ -32,18 +40,17 @@
     "Owner current-user scheduled-task principal and all four live process SIDs matched; installed hashes retained (R270)",
     "R272-R274 semantic Glass red-warning compositor correction across 98 actual bitmap tests; safe official v1.7.5→v1.7.6 transactional update and rollback on two hosted Windows A/B.",
     "R275 immutable public unsigned v1.7.6: one Setup, seven assets independently SHA/manifest verified by live G16; exact merged-main CI and Windows A/B SUCCESS.",
-    "R276 owner official same-root 1.7.6 update with private 26-entry preupgrade recovery, real hot CPU Glass 3243 red pixels, Windows notification opt-in plus app dispatch, 10/10 healthy sensors."
+    "R276 owner official same-root 1.7.6 update with private 26-entry preupgrade recovery, real hot CPU Glass 3243 red pixels, Windows notification opt-in plus app dispatch, 10/10 healthy sensors.",
+    "R285 public mirror: v1.7.7 immutable seven assets and exact-source CI, real owner 1.7.6→1.7.7 same-root update, live CPU threshold dispatch, old-version backup; no unproven audio/security/global claims."
   ],
   "Open": [
     "ISSUE6_REPORTER_DRIVER_SHA_AND_INSTALL_ORIGIN_MISSING",
-    "CONTROLLED_PHYSICAL_MAINS_LOSS_NOT_TESTED",
-    "ONE_PER_MACHINE_POLICY_REQUIRES_EXPLICIT_OWNER_DECISION; one per Windows user verified",
-    "INDEPENDENT_SECURITY_SIGNING_LAB_NOT_PROVEN; intentionally unsigned release accepted"
+    "OWNER_APP_OS_NOTIFICATION_BANNER_AND_SOUND_NOT_INDEPENDENTLY_WITNESSED"
   ],
-  "CriticalPath": "Maintain immutable v1.7.6 and the existing per-user single-root installation; red thermal warnings and optional Windows notifications confirmed at app level. External dependencies remain reporter's WinRing0 driver hash/install origin (Issue #6), controlled actual physical AC power-cut, and optional machinewide singleton policy. Unsigned publisher waiver accepted.",
-  "MainBlocker": "The requested Glass thermal warning repair is installed and scoped PASS. Only reporter-specific vulnerable-driver attribution, real physical mains-loss recovery and machinewide singleton design/policy remain outside acceptance. Actual OS toast/audio and independent security signing lab were not certified.",
-  "BrainStatus": "PUBLIC_SUMMARY_R276; owner-local detailed Project Brain is sole active operational authority",
-  "ExactNextAction": "Maintain installed v1.7.6 unchanged; obtain original reporter WinRing0 driver SHA/source without restoring quarantined malware, test physical power loss only on an isolated authorized rig, and decide machinewide vs accepted per-user policy only if required.",
+  "CriticalPath": "Immutable v1.7.7 public source dc68cf4 and seven SHA-verified assets PASS; native Windows A/B actual Setup interruption/recovery and 27-step Build CI PASS; owner same-root per-user 1.7.6 to 1.7.7 real upgrade and live Glass/alert dispatch verified. Reporter Issue #6 and OS audible/visible notification independent witness remain external. Owner excluded physical AC interruption.",
+  "MainBlocker": "No in-scope released app blocker. Reporter-specific WinRing0 source/hash is unavailable (Issue #6); an independent live owner-app OS notification banner/audio witness is also absent. Neither optional global multiuser policy nor waived signing nor excluded AC outage blocks the current per-user release.",
+  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R285_NOT_A_SECOND_OPERATIONAL_BRAIN",
+  "ExactNextAction": "Use the one official immutable v1.7.7 Setup for new per-user installations or supported in-place updates. Never bypass Defender; original reporter WinRing0 driver SHA/download path requested in Issue #6. Verify owner-app OS banner/speaker on a natural threshold event without heating hardware. No physical AC test is required.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -51,5 +58,18 @@
     "Path": "docs/project-control/CURRENT_PROJECT.json",
     "GitBlob": "95e4d549d855de787a9274888bc686e3fda54d20",
     "Role": "immutable historical evidence, superseded by current R276"
-  }
+  },
+  "HistoricalOfficialV176": {
+    "Version": "1.7.6",
+    "ReleaseId": 415147285,
+    "SourceCommit": "2348791fbde3aff5a18b7df536dba8a66a65d191",
+    "SetupSHA256": "D1FE446CC2D8274A5B63E8080FAB15767A6799B5A377584B0F7B923056E2CEE0",
+    "MainSHA256": "0FA50938D330DB02D7D66593740F51FEE5D3036C59484E5697C34DCBC55A2DF8"
+  },
+  "AcceptedScopeExclusions": [
+    "PHYSICAL_AC_MAINS_INTERRUPTION_TEST_REMOVED_BY_OWNER",
+    "MACHINEWIDE_MULTISUPERUSER_GLOBAL_SINGLETON_NOT_REQUESTED",
+    "AUTHENTICODE_PUBLISHER_SIGNING_WAIVED_FOR_UNSIGNED_RELEASE",
+    "INDEPENDENT_SECURITY_LAB_CLEARANCE_NOT_CLAIMED"
+  ]
 }
