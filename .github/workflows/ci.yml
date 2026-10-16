@@ -135,7 +135,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          ./build/Verify-Release-Metadata-R243.ps1 -SelfTest
+          ./build/Verify-Release-Metadata-R256.ps1 -SelfTest
           if ($LASTEXITCODE -ne 0) {throw 'R136 release version, 5 output SHA and SBOM source gates FAILED'}
 
       - name: Attest binary build provenance
