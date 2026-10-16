@@ -1,4 +1,4 @@
-name: R282 Official v1.7.6 disposable abrupt staging termination recovery
+name: R282 Pinned 1.7.5 fixture and immutable 1.7.6 cold journal recovery
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   original-release-cold-recovery:
-    name: Exact official Setup / ${{ matrix.phase }} / disposable Windows ${{ matrix.host }}
+    name: Public v1.7.6 Setup / ${{ matrix.phase }} / pinned-file guest ${{ matrix.host }}
     timeout-minutes: 20
     runs-on: ${{ matrix.os }}
     strategy:
@@ -45,7 +45,7 @@ jobs:
           if(!(Test-Path build/official-v175-managed.json)){throw 'R282_PREDECESSOR_PINNED_FIXTURE_MISSING'}
           'R282_EXACT_HOSTED_GUARDS_AND_TEST_PARSER_PASS'
 
-      - name: Kill only the disposable staging-helper and prove cold native Setup recovery
+      - name: Build exact resource-pinned prior fixture, kill test helper, recover with real public Setup
         shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}
@@ -59,6 +59,10 @@ jobs:
              $r.SourceBranchCommit -cne $env:GITHUB_SHA -or
              $r.HostLabel -cne '${{ matrix.host }}' -or
              $r.Scenario -cne '${{ matrix.phase }}' -or
+             $r.Official175ManagedFixtureRowsExact -ne 22 -or
+             $r.OriginalOfficial175InstallerFreshInstallPerformed -ne $false -or
+             $r.HistoricalV175FilesExtractedFromPinnedPublishedInstallerResources -ne $true -or
+             $r.PrivilegedSensorDriverInstallPerformedForTest -ne $false -or
              $r.StagingHelperExternalProcessKilled -ne $true -or
              $r.NativeSetupAutomaticJournalRecoveryAndInPlaceUpgrade -ne $true -or
              $r.ExactProtectedUserDataSHA256Preserved -ne $true -or

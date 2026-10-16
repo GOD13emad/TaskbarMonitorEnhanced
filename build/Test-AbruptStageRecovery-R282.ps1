@@ -132,10 +132,64 @@ try{
  $currentExe=Join-Path $out 'TaskbarMonitorEnhanced_Setup_1.7.6.exe'
  if((Hash $previousExe) -cne $sha175 -or (Hash $currentExe) -cne $sha176){throw 'SIGNED_OFF_PUBLIC_ASSET_SHA_CHANGED'}
  $passes+=@('PUBLIC_175_176_ASSETS_PINNED')
- $phaseNow='INSTALL_OFFICIAL_175_ON_DISPOSABLE'
- if((Run-Exact $previousExe '/install /quiet /desktop=0 /startup=0') -ne 0){throw 'OFFICIAL_175_INSTALL_FAILED'}
- if((Hash (Join-Path $app 'TaskbarMonitorEnhanced.exe')) -cne $main175 -or (Get-ItemProperty $uninstall).DisplayVersion -cne '1.7.5'){throw 'OFFICIAL_INSTALLED_175_IDENTITY_FAIL'}
- if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){throw 'PRODUCT_UNEXPECTEDLY_RUNNING'}
+ $phaseNow='STAGE_EXACT_22_SHA_PINNED_OFFICIAL_V175_RESOURCES_ONLY'
+ # Previous authentic R273 hosted CI covered genuine fresh 1.7.5 install;
+ # this R282 isolated crash test needs a byte-exact prior product root WITHOUT
+ # installing privileged machine drivers or invoking fresh Setup/UAC.
+ $inventory=Get-Content (Join-Path $PSScriptRoot 'official-v175-managed.json') -Raw|ConvertFrom-Json
+ if($inventory.Version -ne '1.7.5' -or $inventory.ManagedCount -ne 22 -or
+    $inventory.PublishedSetupSHA256 -cne $sha175 -or $inventory.PublishedMainSHA256 -cne $main175 -or
+    @($inventory.Rows).Count -ne 22){throw 'R282_PREDECESSOR_22_FILE_PINNING_CHANGED'}
+ $assembly=[Reflection.Assembly]::LoadFile([IO.Path]::GetFullPath($previousExe))
+ [IO.Directory]::CreateDirectory($app)|Out-Null
+ foreach($row in $inventory.Rows){
+  $rel=[string]$row.Path
+  if([string]::IsNullOrWhiteSpace($rel) -or [IO.Path]::IsPathRooted($rel) -or
+     $rel -match '(^|[/\\])\.\.([/\\]|$)' -or $rel -match '[:*?"<>|]'){throw 'R282_UNSAFE_PREDECESSOR_MEMBER'}
+  $dest=Join-Path $app $rel
+  $normalized=[IO.Path]::GetFullPath($dest)
+  if(!$normalized.StartsWith(([IO.Path]::GetFullPath($app).TrimEnd('\')+'\'),[StringComparison]::OrdinalIgnoreCase)){throw 'R282_RESOURCE_OUTPUT_OUTSIDE_DISPOSABLE_ROOT'}
+  [IO.Directory]::CreateDirectory((Split-Path $normalized -Parent))|Out-Null
+  if(Test-Path $normalized){throw ('R282_DUPLICATE_RESOURCE_'+$rel)}
+  if($rel -ceq 'Uninstall.exe'){
+   [IO.File]::Copy($previousExe,$normalized)
+  }else{
+   $resourceName='Payload.'+[IO.Path]::GetFileName($rel)
+   $stream=$assembly.GetManifestResourceStream($resourceName)
+   if(!$stream){throw ('R282_PREDECESSOR_EMBEDDED_RESOURCE_MISSING_'+$resourceName)}
+   try{
+    $target=[IO.File]::Open($normalized,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+    try{$stream.CopyTo($target)}finally{$target.Dispose()}
+   }finally{$stream.Dispose()}
+  }
+  if((Hash $normalized) -cne $row.SHA256 -or (Get-Item $normalized).Length -ne $row.Bytes){throw ('R282_OFFICIAL_PREDECESSOR_ROW_IDENTITY_DRIFT_'+$rel)}
+ }
+ $backendRoot=Join-Path $app 'SensorBackend\LibreHardwareMonitor-0.9.6'
+ $archive=Join-Path $out 'LHM_096_REPLAY_FROM_OFFICIAL_175_SETUP.zip'
+ $stream=$assembly.GetManifestResourceStream('Payload.LibreHardwareMonitor.zip')
+ if(!$stream){throw 'R282_OFFICIAL_SENSOR_LIBRARY_RESOURCE_MISSING'}
+ try{
+  $target=[IO.File]::Open($archive,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+  try{$stream.CopyTo($target)}finally{$target.Dispose()}
+ }finally{$stream.Dispose()}
+ Add-Type -AssemblyName System.IO.Compression.FileSystem
+ [IO.Directory]::CreateDirectory($backendRoot)|Out-Null
+ [IO.Compression.ZipFile]::ExtractToDirectory($archive,$backendRoot)
+ if((Hash (Join-Path $backendRoot 'LibreHardwareMonitorLib.dll')) -cne '6EBC194316536BA61AF5BE24508AD9FCBB2ECC685E716C12E787C79530F66BF0'){throw 'R282_PINNED_BACKEND_LIBRARY_WRONG'}
+ $synthetic=[ordered]@{App='Taskbar Monitor Enhanced';Version='1.7.5';PublicVersion='1.7.5'
+  ProductIdentity='LOCKED';SensorLayerStatus='READY';SensorLayerMode='R282_DISPOSABLE_PRESEEDED_NO_DRIVER'
+  SensorLayerVersion='0.9.6';MainLaunchMode='NOT_STARTED_DISPOSABLE';R282Fixture=$true}
+ [IO.File]::WriteAllText((Join-Path $app 'install_state.json'),($synthetic|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
+ $key=New-Item -Path $uninstall -Force -ErrorAction Stop
+ Set-ItemProperty -Path $uninstall -Name 'DisplayName' -Value 'Taskbar Monitor Enhanced'
+ Set-ItemProperty -Path $uninstall -Name 'DisplayVersion' -Value '1.7.5'
+ Set-ItemProperty -Path $uninstall -Name 'InstallLocation' -Value $app
+ $key.Dispose()
+ if((Hash (Join-Path $app 'TaskbarMonitorEnhanced.exe')) -cne $main175 -or
+    (Hash (Join-Path $app 'Uninstall.exe')) -cne $sha175 -or
+    (Get-ItemProperty $uninstall).DisplayVersion -cne '1.7.5'){throw 'R282_PINNED_PREDECESSOR_FIXTURE_INCOMPLETE'}
+ if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){throw 'DISPOSABLE_FIXTURE_STARTED_REAL_PRODUCT'}
+ $passes+=@('22_OFFICIAL_V175_MANAGED_ROWS_VERIFIED_SHA_FROM_EMBEDDED_RESOURCES','NO_PRIVILEGED_SENSOR_DRIVER_INSTALLED')
  $config=Join-Path $app 'config.json'
  $backup=Join-Path $app 'config.json.bak'
  $userOwned=Join-Path $app 'R282_USER_OWNED_CANARY.txt'
@@ -206,6 +260,9 @@ try{
   SourceBranchCommit=$env:GITHUB_SHA;ExactOriginalReleaseSource=$releaseHead
   Official175SetupSHA256=$sha175;Official176SetupSHA256=$sha176
   Official175MainSHA256=$main175;Official176MainSHA256=$main176
+  Official175ManagedFixtureRowsExact=22;OriginalOfficial175InstallerFreshInstallPerformed=$false
+  HistoricalV175FilesExtractedFromPinnedPublishedInstallerResources=$true
+  PrivilegedSensorDriverInstallPerformedForTest=$false
   HostLabel=$HostLabel;Scenario=$Phase;WindowStagedAndOwned=$true
   StagingHelperExternalProcessKilled=$terminated
   ActualSetupExecutableProcessKilled=$false;RealPhysicalMainsCut=$false
