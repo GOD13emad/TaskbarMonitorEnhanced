@@ -57,7 +57,9 @@ function CanonicalTestSourceHash([string]$file){
  if(!(Test-Path $file -PathType Leaf)){return 'MISSING'}
  $t=[IO.File]::ReadAllText($file,[Text.Encoding]::UTF8)
  $lf=$t.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
- return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
+ $h=[Security.Cryptography.SHA256]::Create()
+ try{return [BitConverter]::ToString($h.ComputeHash([Text.Encoding]::UTF8.GetBytes($lf))).Replace('-','')}
+ finally{$h.Dispose()}
 }
 function Fail([string]$reason){throw ('R262_'+$reason)}
 function Hash([string]$file){
