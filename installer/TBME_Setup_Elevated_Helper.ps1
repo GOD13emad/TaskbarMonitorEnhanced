@@ -138,6 +138,55 @@ function Restore-PreviousSensorLayer([string]$Reason){
 
 Write-Log "BEGIN mode=$Mode user=$UserId"
 
+# R264-SENSOR-GUARD-BOUNDARY-BEGIN
+# Before any shared task/process/file mutation, fail closed if a different
+# Windows account owns the fixed legacy machinewide sensor task or processes.
+# This is defensive per-account isolation, NOT a machinewide singleton policy.
+function Resolve-SensorPrincipalSid([string]$AccountName){
+    if([string]::IsNullOrWhiteSpace($AccountName)){throw 'EMPTY_SENSOR_PRINCIPAL'}
+    if($AccountName -match '^S-1-5-(?:\d+-)+\d+$'){return $AccountName}
+    $account=[Security.Principal.NTAccount]::new($AccountName)
+    return [string]$account.Translate([Security.Principal.SecurityIdentifier]).Value
+}
+function Preserve-OtherUserSensorLayer([string]$Why){
+    $script:ActiveArchitecture='SHARED_PROTECTED_SENSOR_LAYER_LEFT_UNTOUCHED'
+    Write-Log ('CROSS_USER_SENSOR_SAFETY_REFUSAL reason='+$Why+' mode='+$Mode)
+    Write-Result 'DEGRADED_OTHER_USER_SENSOR_LAYER_PRESERVED' ('Protected sensors were not changed: '+$Why+'. The per-user main app remains available with unavailable protected metrics as N/A.') 'NOT_STARTED' $null $false $false $false
+    exit 0
+}
+try{
+    $expectedUserSid=Resolve-SensorPrincipalSid $UserId
+    Import-Module ScheduledTasks -ErrorAction Stop
+    $lookupErrors=@()
+    $existing=@(Get-ScheduledTask -TaskPath '\' -TaskName $TaskName -ErrorAction SilentlyContinue -ErrorVariable +lookupErrors |
+        Where-Object {$null -ne $_})
+    if(@($lookupErrors|Where-Object {$_.CategoryInfo.Category -ne [Management.Automation.ErrorCategory]::ObjectNotFound}).Count){
+        throw 'TASK_SCHEDULER_LOOKUP_NOT_TRUSTED'
+    }
+    if($existing.Count -gt 1){throw 'MULTIPLE_GLOBAL_TASK_MATCHES'}
+    if($existing.Count -eq 1){
+        $oldSid=Resolve-SensorPrincipalSid ([string]$existing[0].Principal.UserId)
+        if($oldSid -cne $expectedUserSid){
+            Preserve-OtherUserSensorLayer 'ANOTHER_ACCOUNT_OWNS_GLOBAL_SCHEDULED_TASK'
+        }
+    }elseif(Test-Path -LiteralPath $BrokerRoot){
+        Preserve-OtherUserSensorLayer 'UNOWNED_SHARED_PROGRAMFILES_BROKER_WITHOUT_TASK'
+    }
+    $sensorProcesses=@(Get-CimInstance Win32_Process -Filter "Name='TaskbarMonitorSensorBroker.exe' OR Name='TaskbarMonitorSensorSupervisor.exe'" -ErrorAction Stop |
+       Where-Object {$null -ne $_})
+    foreach($proc in $sensorProcesses){
+        $owner=Invoke-CimMethod -InputObject $proc -MethodName GetOwnerSid -ErrorAction Stop
+        if([int]$owner.ReturnValue -ne 0 -or
+            [String]::IsNullOrWhiteSpace([string]$owner.Sid) -or
+            [string]$owner.Sid -cne $expectedUserSid){
+            Preserve-OtherUserSensorLayer 'SENSOR_PROCESS_OWNER_IS_UNKNOWN_OR_OTHER_ACCOUNT'
+        }
+    }
+}catch{
+    Preserve-OtherUserSensorLayer ('UNVERIFIED_MACHINEWIDE_SENSOR_OWNERSHIP_'+$_.Exception.GetType().Name)
+}
+# R264-SENSOR-GUARD-BOUNDARY-END
+
 if($Mode -eq 'Uninstall'){
     try{
         Get-Process TaskbarMonitorSensorSupervisor,TaskbarMonitorSensorBroker -ErrorAction SilentlyContinue |
