@@ -1469,7 +1469,8 @@ internal static partial class SetupProgram
               (parts[1]!="-" && !Regex.IsMatch(parts[1],"^[0-9A-F]{64}$")) ||
               (parts[2]!="-" && !Regex.IsMatch(parts[2],"^[0-9A-F]{64}$")))
                 throw new InvalidDataException("Upgrade journal path or digest modified.");
-            parsed.Add(new StageEntry(parts[0],parts[1],parts[2]));
+            // Convert the validated on-disk label back to the compiled-in target before filesystem use.
+            parsed.Add(new StageEntry(UpgradeTargets[i].Rel,parts[1],parts[2]));
         }
         return parsed;
     }
