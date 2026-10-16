@@ -1,0 +1,110 @@
+name: R261 - Official v1.7.4 disposable HKLM registry-view boundary audit
+on:
+  push:
+    branches:
+      - audit/r261-machinewide-hklm-collision
+permissions:
+  contents: read
+jobs:
+  hklm-boundary:
+    name: "R261 synthetic HKLM ${{ matrix.view }} guest ${{ matrix.guest }}"
+    runs-on: ${{ matrix.system }}
+    timeout-minutes: 19
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - guest: A
+            view: Registry64
+            system: windows-2025
+          - guest: B
+            view: Registry32
+            system: windows-2022
+    steps:
+      - name: Exact source checkout without saved GitHub credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Fail closed for non-disposable host and unrelated changes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/audit/r261-machinewide-hklm-collision' -or
+             $env:COMPUTERNAME -match '(?i)EMAD|ALI|LAPTOP'){
+               throw 'R261_REQUIRE_FRESH_DISPOSABLE_HOST_AND_BRANCH'
+          }
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R261_HEAD_MISMATCH'}
+          $base='1375d719989aa93966bae445ac63b9a415f637ad'
+          git merge-base --is-ancestor $base HEAD
+          if($LASTEXITCODE -ne 0){throw 'R261_PUBLISHED_V174_NOT_ANCESTOR'}
+          $files=@(git diff --name-only $base HEAD)
+          $allow=@('.github/workflows/audit-r261-disposable-hklm-views.yml',
+                   'build/Test-R261-HKLM-RegistryViews-Disposable.ps1')
+          if($files.Count -ne 2 -or @($files|Where-Object {$_ -cnotin $allow}).Count){
+             throw 'R261_UNEXPECTED_SOURCE_SCOPE'
+          }
+          $p=Join-Path $pwd 'build/Test-R261-HKLM-RegistryViews-Disposable.ps1'
+          $text=[IO.File]::ReadAllText($p,[Text.Encoding]::UTF8)
+          $lf=$text.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+          $sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
+          if($sha -cne '504FB80E13C75D59214F4A12D817E033D2C0404E18F50F29F5463BCF335B40E3'){
+             throw 'R261_EXACT_HKLM_TEST_SCRIPT_SHA_CHANGED'
+          }
+          $tk=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($p,[ref]$tk,[ref]$errors)
+          if(@($errors).Count){throw 'R261_POWERSHELL_PARSER_ERROR'}
+          if(Test-Path (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced')){
+             throw 'R261_EXISTING_PERUSER_ROOT_STOP_BEFORE_REGISTRY_MUTATION'
+          }
+          $admin=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+          if(-not $admin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){
+             throw 'R261_HOSTED_RUNNER_ADMIN_NOT_AVAILABLE_NO_PRIV_ESCALATION'
+          }
+          'R261_DISPOSABLE_SCOPE_AND_HASH_PREFLIGHT=PASS'
+      - name: Real published installer, synthetic HKLM registration and automatic cleanup
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Test-R261-HKLM-RegistryViews-Disposable.ps1 -HostLabel '${{ matrix.guest }}'
+          $file=Join-Path $env:RUNNER_TEMP 'TBME_R261_${{ matrix.guest }}/R261_HKLM_DIAGNOSTIC.json'
+          if(!(Test-Path $file)){throw 'R261_EXACT_RECEIPT_NOT_FOUND'}
+          $r=Get-Content -LiteralPath $file -Raw|ConvertFrom-Json
+          if($r.Revision -cne 'R261' -or
+             $r.Host -cne '${{ matrix.guest }}' -or
+             $r.RegistryView -cne '${{ matrix.view }}' -or
+             $r.Status -cnotmatch '^PASS_DIAGNOSTIC_' -or
+             $r.SetupSHA256 -cne 'C00F0C944E4BFBEE93989E4B5A29931D460CC0011ABDC8FDE6A498E467BCC1A1' -or
+             $r.SyntheticRegistryMarkerCleaned -ne $true -or
+             $r.SyntheticHKLMUninstallOnly -ne $true -or
+             $r.DifferentRealUserAccountTested -ne $false -or
+             $r.OtherMachineExePresent -ne $false -or
+             $r.ActualMultiuserHKLMUniquenessGateAccepted -ne $false -or
+             $r.PublicReleaseChanged -ne $false -or
+             $r.OwnerPersonalPCChanged -ne $false){
+               throw 'R261_SCOPE_OR_CLEANUP_RECEIPT_NOT_ACCEPTED'
+          }
+          if($r.ActualFreshSetupExit -eq 0){
+            if($r.ActualSameVersionUpdateWithHKLM -ne 0 -or
+               $r.UserOwnedCanaryAndBackupPreserved -ne $true){
+              throw 'R261_REAL_INSTALLER_OR_USER_PRESERVATION_NOT_ACCEPTED'
+            }
+          }
+          'R261_REGISTRY_VIEW_BEHAVIOR_AND_GUEST_CLEANUP=PASS'
+          # Only after all receipt assertions passed: avoid stale native GH exit code.
+          $global:LASTEXITCODE=0
+      - name: Retain bounded diagnosis even on test failures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R261-HKLM-${{ matrix.view }}-${{ matrix.guest }}
+          retention-days: 21
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/TBME_R261_${{ matrix.guest }}/R261_HKLM_DIAGNOSTIC.json
