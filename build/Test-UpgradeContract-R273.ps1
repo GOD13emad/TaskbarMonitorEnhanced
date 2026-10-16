@@ -12,6 +12,14 @@ $f=[Reflection.BindingFlags]'Static,Public,NonPublic'
 $newState=$t.GetMethod('NewInstallState',$f)
 $legacy=$t.GetMethod('LegacyExpected',$f)
 $optional=$t.GetMethod('IsOptionalStableLegacyRoot',$f)
+# Regression for the R274 real two-VM failure: the pre-mutation 1.7.5
+# allowlist is not sufficient unless COMMITTING rollback also accepts 1.7.5.
+if($null -eq $t.GetMethod('RestoreInterruptedUpgrade',$f)){throw 'R274_ROLLBACK_METHOD_ABSENT'}
+$setupSource=Get-Content (Join-Path $PSScriptRoot '..\installer\TaskbarMonitorEnhanced_Setup.cs') -Raw
+$restoreBlock=[regex]::Match($setupSource,'(?s)static void RestoreInterruptedUpgrade\(List<StageEntry> rows\)(.*?)// This works after')
+if(!$restoreBlock.Success -or $restoreBlock.Groups[1].Value -notmatch 'priorVersion!=InstalledV175'){
+ throw 'R274_COMMITTING_ROLLBACK_REJECTS_REAL_OFFICIAL_175'
+}
 if($t.GetField('Version',$f).GetRawConstantValue() -cne '1.7.6'){throw 'R273_COMPILED_VERSION_NOT_172'}
 $cases=0;$negative=0
 foreach($v in @('1.6.0','1.7.0','1.7.1','1.7.2','1.7.3','1.7.4','1.7.5')){

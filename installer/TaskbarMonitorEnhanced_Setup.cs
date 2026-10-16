@@ -1433,7 +1433,7 @@ internal static partial class SetupProgram
         string priorVersionPath=Path.Combine(UpgradeRoot,"previous_version.txt");
         if(!File.Exists(priorVersionPath))throw new IOException("Previous upgrade version missing; retain stage.");
         string priorVersion=File.ReadAllText(priorVersionPath,Encoding.ASCII);
-        if(priorVersion!=InstalledV16 && priorVersion!=InstalledV170 && priorVersion!=InstalledV171 && priorVersion!=InstalledV172 && priorVersion!=InstalledV173 && priorVersion!=InstalledV174 && priorVersion!=Version)throw new IOException("Unknown previous version; retain stage.");
+        if(priorVersion!=InstalledV16 && priorVersion!=InstalledV170 && priorVersion!=InstalledV171 && priorVersion!=InstalledV172 && priorVersion!=InstalledV173 && priorVersion!=InstalledV174 && priorVersion!=InstalledV175 && priorVersion!=Version)throw new IOException("Unknown previous version; retain stage.");
         // This works after a mid-commit process kill: exact old snapshots are persisted
         // on the same volume, and new-only files are removed only if their SHA is known.
         for(int i=rows.Count-1;i>=0;i--){
