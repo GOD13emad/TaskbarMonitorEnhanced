@@ -3,28 +3,36 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "PUBLIC_REDACTED_SNAPSHOT; owner-local detailed Project Brain is the only active operational authority",
-  "CurrentEngineeringRevision": "R270",
-  "Status": "PUBLIC_IMMUTABLE_UNSIGNED_V175_OWNER_SCOPED_PASS",
-  "UpdatedUtc": "2026-10-16T13:05:40Z",
+  "CurrentEngineeringRevision": "R276",
+  "Status": "PUBLIC_IMMUTABLE_UNSIGNED_V176_OWNER_GLASS_ALERT_SCOPED_PASS",
+  "UpdatedUtc": "2026-10-16T17:00:48Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
-    "Version": "1.7.5",
-    "ReleaseId": 414936595,
-    "ReleaseURL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.7.5",
-    "SourceCommit": "9284b124168f3aa2c90f8637eeba6a20f2d0e1af",
-    "SetupSHA256": "8E37397F02273952B5866003FC156E152B13FC90D95D80B5DB4208046DD588EC",
-    "InstalledMainSHA256": "25E0565301963467BF290908BE965F73EDDE6BF41EC693A4FE45ED19653FBDB6",
+    "Version": "1.7.6",
+    "ReleaseId": 415147285,
+    "ReleaseURL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.7.6",
+    "SourceCommit": "2348791fbde3aff5a18b7df536dba8a66a65d191",
+    "SetupSHA256": "D1FE446CC2D8274A5B63E8080FAB15767A6799B5A377584B0F7B923056E2CEE0",
+    "InstalledMainSHA256": "0FA50938D330DB02D7D66593740F51FEE5D3036C59484E5697C34DCBC55A2DF8",
     "PublicAssetCount": 7,
     "InstallerUnsigned": true,
     "PerUserInstall": true,
-    "MachinewideSingletonProven": false
+    "MachinewideSingletonProven": false,
+    "OwnerObservedGlassModeZeroAlpha": true,
+    "OwnerHighCpuRealRedPixelsConfirmed": true,
+    "OwnerWindowsNotificationsOptedIn": true,
+    "OwnerApplicationNotificationDispatchLogged": true,
+    "ActualOsToastOrSoundProven": false
   },
   "Completed": [
     "Seven immutable public v1.7.5 assets independently SHA/Manifest verified (R267)",
     "Exact-main Windows A/B build, fresh/upgrade/rollback, native UI and cross-user guard CI PASS (R265)",
     "Owner official v1.7.4 to v1.7.5 in-place upgrade and 443-file cold backup/isolated restore PASS (R268)",
     "Owner unmanaged data preserved, Glass native observations and unpaired 60.688-second CPU observation recorded (R269)",
-    "Owner current-user scheduled-task principal and all four live process SIDs matched; installed hashes retained (R270)"
+    "Owner current-user scheduled-task principal and all four live process SIDs matched; installed hashes retained (R270)",
+    "R272-R274 semantic Glass red-warning compositor correction across 98 actual bitmap tests; safe official v1.7.5→v1.7.6 transactional update and rollback on two hosted Windows A/B.",
+    "R275 immutable public unsigned v1.7.6: one Setup, seven assets independently SHA/manifest verified by live G16; exact merged-main CI and Windows A/B SUCCESS.",
+    "R276 owner official same-root 1.7.6 update with private 26-entry preupgrade recovery, real hot CPU Glass 3243 red pixels, Windows notification opt-in plus app dispatch, 10/10 healthy sensors."
   ],
   "Open": [
     "ISSUE6_REPORTER_DRIVER_SHA_AND_INSTALL_ORIGIN_MISSING",
@@ -32,16 +40,16 @@
     "ONE_PER_MACHINE_POLICY_REQUIRES_EXPLICIT_OWNER_DECISION; one per Windows user verified",
     "INDEPENDENT_SECURITY_SIGNING_LAB_NOT_PROVEN; intentionally unsigned release accepted"
   ],
-  "CriticalPath": "Keep immutable v1.7.5 and existing owner data unchanged; pursue only external reporter artifact, controlled physical mains-loss rig, and explicit machinewide install policy if required.",
-  "MainBlocker": "External security attribution and physical rig evidence; owner policy if one-per-machine is required. Existing per-user product release is scoped PASS, not unconditional FINAL.",
-  "BrainStatus": "PUBLIC_SUMMARY_R270; not the owner-local complete Brain",
-  "ExactNextAction": "Use public Issue #7 for current blockers; obtain reporter driver SHA/origin without restoring quarantined malware, test physical AC outage on a controlled disposable rig, and decide per-user versus machinewide installation only if a new policy is needed.",
+  "CriticalPath": "Maintain immutable v1.7.6 and the existing per-user single-root installation; red thermal warnings and optional Windows notifications confirmed at app level. External dependencies remain reporter's WinRing0 driver hash/install origin (Issue #6), controlled actual physical AC power-cut, and optional machinewide singleton policy. Unsigned publisher waiver accepted.",
+  "MainBlocker": "The requested Glass thermal warning repair is installed and scoped PASS. Only reporter-specific vulnerable-driver attribution, real physical mains-loss recovery and machinewide singleton design/policy remain outside acceptance. Actual OS toast/audio and independent security signing lab were not certified.",
+  "BrainStatus": "PUBLIC_SUMMARY_R276; owner-local detailed Project Brain is sole active operational authority",
+  "ExactNextAction": "Maintain installed v1.7.6 unchanged; obtain original reporter WinRing0 driver SHA/source without restoring quarantined malware, test physical power loss only on an isolated authorized rig, and decide machinewide vs accepted per-user policy only if required.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
     "Commit": "9284b124168f3aa2c90f8637eeba6a20f2d0e1af",
     "Path": "docs/project-control/CURRENT_PROJECT.json",
     "GitBlob": "95e4d549d855de787a9274888bc686e3fda54d20",
-    "Role": "immutable historical evidence, superseded by R270"
+    "Role": "immutable historical evidence, superseded by current R276"
   }
 }
