@@ -52,7 +52,7 @@ jobs:
           $text=[IO.File]::ReadAllText($p,[Text.Encoding]::UTF8)
           $lf=$text.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
           $sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
-          if($sha -cne '80A178E5E0E5E327ADB4E8B0F864831D478D06E1B11A013B7E69C27BE1FA0C3B'){
+          if($sha -cne '7947DF23AF8F8081A147A4743E70E8FE056E806DC2DF4F812970D31F785CB298'){
              throw 'R261_EXACT_HKLM_TEST_SCRIPT_SHA_CHANGED'
           }
           $tk=$null;$errors=$null

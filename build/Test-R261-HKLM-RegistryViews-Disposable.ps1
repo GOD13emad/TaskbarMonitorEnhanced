@@ -57,10 +57,10 @@ function SHA([string]$f){
  if(-not (Test-Path -LiteralPath $f -PathType Leaf)){return 'ABSENT'}
  return (Get-FileHash -LiteralPath $f -Algorithm SHA256 -ErrorAction Stop).Hash
 }
-function RealSetup([string]$args){
+function RealSetup([string]$arguments){
  $psi=[Diagnostics.ProcessStartInfo]::new()
  $psi.FileName=$setup
- $psi.Arguments=$args
+ $psi.Arguments=$arguments
  $psi.WorkingDirectory=$out
  $psi.UseShellExecute=$false
  $psi.CreateNoWindow=$true
