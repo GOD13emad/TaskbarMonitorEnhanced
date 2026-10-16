@@ -23,7 +23,7 @@ $shaMain='279DF6276973D45A1F979792718E7BA1A9DB31A44C3C34E7335C7BE1503A3E3C'
 $appA=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
 $hkcuA='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
 $sourceB=Join-Path $PSScriptRoot 'Test-R262-OtherLocalUser-Install.ps1'
-$shaGuestB='3C106192ED486ADD497273516ABF77CC3F8DCFF4BFB0F8B723F6B452FBAABC05'
+$shaGuestB='1D2B9D7FE344336E48B2C09EBE6CDA6D50397E3EAD8FC37BAC7618A2EBC610A6'
 $fakeUsername="TBME262"+$HostLabel
 $shared=Join-Path $env:ProgramData ("TBME_R262_"+$HostLabel)
 $out=Join-Path $env:RUNNER_TEMP ("TBME_R262_"+$HostLabel)
@@ -53,6 +53,12 @@ $beforeA=@{}
 $profileB=''
 $hklmA=''
 $hklmB=''
+function CanonicalTestSourceHash([string]$file){
+ if(!(Test-Path $file -PathType Leaf)){return 'MISSING'}
+ $t=[IO.File]::ReadAllText($file,[Text.Encoding]::UTF8)
+ $lf=$t.Replace(([string][char]13+[string][char]10),([string][char]10)).Replace(([string][char]13),([string][char]10))
+ return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($lf)))
+}
 function Fail([string]$reason){throw ('R262_'+$reason)}
 function Hash([string]$file){
  if(!(Test-Path -LiteralPath $file -PathType Leaf)){return 'ABSENT'}
@@ -95,7 +101,7 @@ if((Test-Path $appA) -or (Test-Path $hkcuA) -or
    @(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){
  Fail 'NOT_FRESH_HOSTED_WINDOWS'
 }
-if((Hash $sourceB) -cne $shaGuestB){Fail 'GUEST_B_SCRIPT_SOURCE_NOT_PINNED'}
+if((CanonicalTestSourceHash $sourceB) -cne $shaGuestB){Fail 'GUEST_B_SCRIPT_SOURCE_NOT_PINNED'}
 if(@(InspectHKLM|Where-Object {$_ -eq $true}).Count){Fail 'REAL_MACHINE_REGISTRATION_PRESENT'}
 New-Item -ItemType Directory -Path $out -ErrorAction Stop|Out-Null
 try{
@@ -105,7 +111,7 @@ try{
  & gh release download $tag --repo $root --pattern 'TaskbarMonitorEnhanced_Setup_1.7.4.exe' --dir $shared
  if($LASTEXITCODE -ne 0 -or (Hash $setup) -cne $shaSetup){Fail 'PUBLIC174_SETUP_DOWNLOAD_IDENTITY_NOT_PASS'}
  Copy-Item -LiteralPath $sourceB -Destination $runnerScript -ErrorAction Stop
- if((Hash $runnerScript) -cne $shaGuestB){Fail 'B_SECOND_ACCOUNT_SCRIPT_COPY_MISMATCH'}
+ if((CanonicalTestSourceHash $runnerScript) -cne $shaGuestB){Fail 'B_SECOND_ACCOUNT_SCRIPT_COPY_MISMATCH'}
  # ACL changes apply ONLY to this new, owned ProgramData scratch directory.
  & icacls.exe $shared /grant '*S-1-5-32-545:(OI)(CI)RX' /T *> $null
  if($LASTEXITCODE -ne 0){Fail 'GUEST_B_CANNOT_READ_OWNED_SCRATCH'}
@@ -143,9 +149,22 @@ try{
  $createdSid=[string]$account.SID.Value
  $created=$true
  if($createdSid -notmatch '^S-1-5-21-'){Fail 'NEW_GUEST_ACCOUNT_SID_INVALID'}
+ $phase='ISSUE_SCOPED_PUBLIC_TEST_AUTHORITY_TO_GENUINE_SECOND_ACCOUNT'
+ $authority=Join-Path $shared 'R262_TEST_AUTHORITY.json'
+ if(Test-Path $authority){Fail 'SECOND_USER_TEST_AUTHORITY_ALREADY_PRESENT'}
+ $marker=[ordered]@{
+  Revision='R262'
+  HeadSourceSHA='1375d719989aa93966bae445ac63b9a415f637ad'
+  ExpectedSecondUserSID=$createdSid
+  HostComputerName=$env:COMPUTERNAME
+  OfficialSetupSHA256=$shaSetup
+  SyntheticParentOnDisposableGitHubVM=$true
+ }
+ [IO.File]::WriteAllText($authority,($marker|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
+ if(!(Test-Path $authority)){Fail 'DISPOSABLE_SCOPED_AUTHORITY_NOT_ISSUED'}
  $phase='LOGON_REAL_B_TOKEN_AND_RUN_OFFICIAL_INSTALL_AS_B'
  $argument='-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "'+$runnerScript+'" -SetupPath "'+$setup+'" -ReceiptPath "'+$bProofIn+'"'
- $p=Start-Process -FilePath 'powershell.exe' -ArgumentList $argument -Credential $cred -LoadUserProfile -PassThru -WindowStyle Hidden -ErrorAction Stop
+ $p=Start-Process -FilePath 'powershell.exe' -ArgumentList $argument -Credential $cred -LoadUserProfile -PassThru -WindowStyle Hidden -WorkingDirectory $shared -ErrorAction Stop
  if($null -eq $p){Fail 'SECOND_USER_PROCESS_NOT_LAUNCHED'}
  try{
   if(!$p.WaitForExit(215000)){Fail ('SECOND_USER_LOGON_OR_SETUP_TIMEOUT_'+$p.Id)}

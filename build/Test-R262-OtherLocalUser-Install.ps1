@@ -7,11 +7,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 # Runs ONLY as a non-admin disposable local user created by the parent GH VM.
 # Do not invoke under owner or current administrator, never write another HKCU.
-if($env:GITHUB_ACTIONS -cne 'true' -or
-   $env:RUNNER_OS -cne 'Windows' -or
-   $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
-   $env:COMPUTERNAME -match '(?i)EMAD|ALI|LAPTOP'){
- throw 'R262_OTHER_USER_REFUSE_NON_DISPOSABLE_HOST'
+# CreateProcessWithLogonW builds the new user's own environment and might
+# intentionally omit the original GitHub runner's GITHUB_ACTIONS variables.
+# The parent already strictly checks the hosted runner before creating this user.
+# The child requires a receipt tied to its exact SID and scoped ProgramData root.
+if($env:COMPUTERNAME -match '(?i)EMAD|ALI|LAPTOP'){
+ throw 'R262_OTHER_USER_REFUSE_OWNER_COMPUTER'
 }
 $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
 $principal=[Security.Principal.WindowsPrincipal]::new($identity)
@@ -22,6 +23,29 @@ $sid=[string]$identity.User.Value
 $user=[string]$identity.Name
 if($sid -notmatch '^S-1-5-21-' -or $user -notmatch '(?i)\\TBME262[AB]$'){
  throw 'R262_SECOND_USER_IDENTITY_NOT_CREATED_GUEST'
+}
+$expectedShared=$null
+foreach($label in @('A','B')){
+ $dir=Join-Path $env:ProgramData ('TBME_R262_'+$label)
+ $testSetup=Join-Path $dir 'TaskbarMonitorEnhanced_Setup_1.7.4.exe'
+ $testReceipt=Join-Path $dir 'Results/R262_GUEST_B.json'
+ if([String]::Equals([IO.Path]::GetFullPath($SetupPath),[IO.Path]::GetFullPath($testSetup),[StringComparison]::OrdinalIgnoreCase) -and
+    [String]::Equals([IO.Path]::GetFullPath($ReceiptPath),[IO.Path]::GetFullPath($testReceipt),[StringComparison]::OrdinalIgnoreCase)){
+  $expectedShared=$dir
+  break
+ }
+}
+if([String]::IsNullOrWhiteSpace($expectedShared)){throw 'R262_CHILD_SETUP_OR_RECEIPT_OUTSIDE_OWNED_PROGRAMDATA'}
+$authority=Join-Path $expectedShared 'R262_TEST_AUTHORITY.json'
+if(!(Test-Path $authority -PathType Leaf)){throw 'R262_CHILD_DISPOSABLE_PARENT_AUTHORITY_MISSING'}
+$test=Get-Content -LiteralPath $authority -Raw|ConvertFrom-Json -ErrorAction Stop
+if($test.Revision -cne 'R262' -or
+   $test.HeadSourceSHA -cne '1375d719989aa93966bae445ac63b9a415f637ad' -or
+   $test.ExpectedSecondUserSID -cne $sid -or
+   $test.HostComputerName -cne $env:COMPUTERNAME -or
+   $test.OfficialSetupSHA256 -cne 'C00F0C944E4BFBEE93989E4B5A29931D460CC0011ABDC8FDE6A498E467BCC1A1' -or
+   $test.SyntheticParentOnDisposableGitHubVM -ne $true){
+ throw 'R262_CHILD_CANNOT_PROVE_SCOPED_PARENT_ACCOUNT_AND_SETUP'
 }
 $targetRoot=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
 $reg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'

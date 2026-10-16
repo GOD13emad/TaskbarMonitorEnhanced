@@ -50,8 +50,8 @@ jobs:
              throw 'R262_UNEXPECTED_PRODUCT_SOURCE_CHANGE'
           }
           $children=@(
-            @{File='build/Test-R262-OtherLocalUser-Install.ps1'; SHA='3C106192ED486ADD497273516ABF77CC3F8DCFF4BFB0F8B723F6B452FBAABC05'},
-            @{File='build/Test-R262-RealTwoAccounts-Disposable.ps1'; SHA='EFA41BE8A54E05DB5B1D08AC9475AFD43FCA97D5F7EDB65392A14BCB036B48F8'}
+            @{File='build/Test-R262-OtherLocalUser-Install.ps1'; SHA='1D2B9D7FE344336E48B2C09EBE6CDA6D50397E3EAD8FC37BAC7618A2EBC610A6'},
+            @{File='build/Test-R262-RealTwoAccounts-Disposable.ps1'; SHA='FA2E138FCB8C5B2EB824DA410E1B5E153AD91D5FFF586113997656D467267036'}
           )
           foreach($item in $children){
             $src=(Resolve-Path $item.File).Path
