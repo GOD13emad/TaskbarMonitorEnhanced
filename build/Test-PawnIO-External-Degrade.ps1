@@ -32,7 +32,7 @@ try {
     [IO.File]::WriteAllBytes((Join-Path $Payload 'TaskbarMonitorSensorSupervisor.exe'),[byte[]](1,2,3))
     [IO.File]::WriteAllBytes((Join-Path $App 'SensorBackend\LibreHardwareMonitor-0.9.6\LibreHardwareMonitorLib.dll'),[byte[]](1,2,3))
     [IO.File]::WriteAllText($Mock,$mocked,[Text.UTF8Encoding]::new($false))
-    $exec=@(& pwsh -NoProfile -File $Mock -Mode Install -PayloadDir $Payload -AppRoot $App -UserId 'R85_TEST_FIXTURE_NO_DRIVER')
+    $exec=@(& pwsh -NoProfile -File $Mock -Mode Install -PayloadDir $Payload -AppRoot $App -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name))
     if($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $Result)){throw 'R85 MOCK HOST SENSOR HELPER FAILED'}
     $receipt=Get-Content -LiteralPath $Result -Raw|ConvertFrom-Json
     if($receipt.Status -cne 'DEGRADED' -or
