@@ -34,10 +34,11 @@ function VerifyTask{
    @($x.Triggers|Where-Object {$null -ne $_}).Count){Fail 'TEST_TASK_UNEXPECTED_OWNERSHIP_OR_TRIGGER'}
  return $x
 }
-function InvokePrefix([string]$mode,[string]$root){
+function InvokePrefix([string]$mode,[string]$root,[bool]$fullHelper=$false){
  $psi=[Diagnostics.ProcessStartInfo]::new()
  $psi.FileName='powershell.exe'
- $psi.Arguments='-NoProfile -NonInteractive -File "'+$copy+'" -Mode '+$mode+' -PayloadDir "'+$payload+'" -AppRoot "'+$root+'" -UserId "'+$identity.Name+'"'
+ $selected=if($fullHelper){$helper}else{$copy}
+ $psi.Arguments='-NoProfile -NonInteractive -File "'+$selected+'" -Mode '+$mode+' -PayloadDir "'+$payload+'" -AppRoot "'+$root+'" -UserId "'+$identity.Name+'"'
  $psi.WorkingDirectory=$out;$psi.UseShellExecute=$false;$psi.CreateNoWindow=$true
  $psi.RedirectStandardOutput=$true;$psi.RedirectStandardError=$true
  $proc=[Diagnostics.Process]::Start($psi)
@@ -99,6 +100,23 @@ try{
      $run.Out -match 'R264_GUARD_PASSED_SAME_USER'){Fail ('REFUSAL_STATUS_WRONG_'+$mode)}
   if([string](VerifyTask).Principal.UserId -cne $otherPrincipal){Fail ('OTHER_TASK_CHANGED_'+$mode)}
   $blocked+=$mode
+ }
+ $phase='RUN_REAL_FULL_ELEVATED_HELPER_AGAINST_OTHER_ACCOUNT_OWNED_TASK'
+ # Unlike prefix tests above, run all released helper source. It MUST exit
+ # before real shared broker drivers/files or any global process mutation.
+ foreach($mode in @('Install','Uninstall')){
+  $app=Join-Path $out ('WholeHelperOtherRoot_'+$mode)
+  New-Item -ItemType Directory -Path $app|Out-Null
+  $run=InvokePrefix $mode $app $true
+  $result=Join-Path $app 'Logssensor_install_result.json'
+  if($run.Exit -ne 0 -or !(Test-Path $result)){Fail ('REAL_FULL_HELPER_OTHER_USER_NOT_REFUSED_'+$mode+'_'+$run.Err)}
+  $j=Get-Content $result -Raw|ConvertFrom-Json
+  if($j.Status -cne 'DEGRADED_OTHER_USER_SENSOR_LAYER_PRESERVED' -or
+     $j.Architecture -cne 'SHARED_PROTECTED_SENSOR_LAYER_LEFT_UNTOUCHED'){
+   Fail ('REAL_FULL_HELPER_ENTERED_UNSAFE_CODE_'+$mode)
+  }
+  if([string](VerifyTask).Principal.UserId -cne $otherPrincipal){Fail ('OTHER_GLOBAL_TASK_MODIFIED_BY_FULL_HELPER_'+$mode)}
+  $blocked+=('WholeHelper_'+$mode)
  }
  $phase='SAME_USER_TASK_SHOULD_PASS_GUARD_ONLY_NOT_HELPER_MUTATIONS'
  $own=New-ScheduledTaskPrincipal -UserId $identity.Name -LogonType Interactive -RunLevel Limited
@@ -164,6 +182,7 @@ finally{
   OtherTaskPrincipal=$otherPrincipal;CurrentTaskPrincipal=$currentPrincipal
   OtherUserModesRefused=$blocked;SameUserModesPermitted=$allowed
   TestOwnedTaskDeleted=$taskRemoved;GuestUserAccountDeleted=$accountRemoved
+  VerifiedRealFullHelperEarlyRefusal=($blocked.Count -eq 4)
   NoSensorTaskTriggered=$true;NoPawnIODriverOrSetupExecuted=$true
   OwnerPCAndPublicV174Unchanged=$true;NeedsNewVersionForAnyDeployment=$true
   Utc=[DateTime]::UtcNow.ToString('o')
