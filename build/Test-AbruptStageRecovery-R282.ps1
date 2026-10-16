@@ -5,6 +5,7 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
+Add-Type -AssemblyName System.Windows.Forms
 # Irreversible termination is ONLY allowed for the exact child we launch
 # on an authenticated disposable GitHub-hosted Windows VM.
 if($PSVersionTable.PSEdition -cne 'Desktop' -or
@@ -39,13 +40,30 @@ function Hash([string]$p){
  return 'MISSING'
 }
 function Run-Exact([string]$exe,[string]$args){
- $si=[Diagnostics.ProcessStartInfo]::new()
- $si.FileName=$exe;$si.Arguments=$args;$si.WorkingDirectory=Split-Path $exe -Parent
- $si.UseShellExecute=$false;$si.CreateNoWindow=$true
+ # Exact process launch from successful R273 hosted installer acceptance.
+ $si=New-Object Diagnostics.ProcessStartInfo
+ $si.FileName=$exe;$si.Arguments=$args;$si.UseShellExecute=$false
+ $si.WorkingDirectory=(Split-Path $exe -Parent)
  $p=[Diagnostics.Process]::Start($si)
  if(!$p){throw 'R282_SETUP_NOT_STARTED'}
  try{
-  if(!$p.WaitForExit(150000)){throw ('R282_SETUP_TIMEOUT_PID_'+$p.Id)}
+  if(!$p.WaitForExit(190000)){
+   $children=@(Get-CimInstance Win32_Process | Where-Object {$_.ParentProcessId -eq $p.Id} | Select-Object -ExpandProperty Name)
+   $driver=Get-Service PawnIO -ErrorAction SilentlyContinue
+   $snapshot=[ordered]@{
+    FailedPhase=$phaseNow;InstallerPid=$p.Id
+    InstallerStillRunning=(-not $p.HasExited)
+    ChildProcessNames=$children
+    InstalledRootExists=[bool](Test-Path $app)
+    InstalledMainPresent=[bool](Test-Path (Join-Path $app 'TaskbarMonitorEnhanced.exe'))
+    InstalledStatePresent=[bool](Test-Path (Join-Path $app 'install_state.json'))
+    PawnIOServiceState=$(if($driver){[string]$driver.Status}else{'NOT_PRESENT'})
+    CanReadInstallLogs=[bool](Test-Path (Join-Path $app 'Logs'))
+    RecordedUtc=[DateTime]::UtcNow.ToString('o')
+   }
+   [IO.File]::WriteAllText((Join-Path $out 'R282_INSTALL_DIAGNOSTIC.json'),($snapshot|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+   throw ('R282_SETUP_TIMEOUT_PID_'+$p.Id+'_CHILDREN_'+($children -join ','))
+  }
   return [int]$p.ExitCode
  }finally{$p.Dispose()}
 }

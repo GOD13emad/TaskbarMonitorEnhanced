@@ -80,3 +80,4 @@ jobs:
             ${{ runner.temp }}/TBME_R282_${{ matrix.host }}_${{ matrix.phase }}/R282_ABRUPT_RECOVERY.json
             ${{ runner.temp }}/TBME_R282_${{ matrix.host }}_${{ matrix.phase }}/ARMED.json
             ${{ runner.temp }}/TBME_R282_${{ matrix.host }}_${{ matrix.phase }}/ARMED.error.txt
+            ${{ runner.temp }}/TBME_R282_${{ matrix.host }}_${{ matrix.phase }}/R282_INSTALL_DIAGNOSTIC.json
