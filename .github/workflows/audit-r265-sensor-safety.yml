@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - release/r265-v175-sensor-crossuser-safety
-      - main
 permissions:
   contents: read
 jobs:

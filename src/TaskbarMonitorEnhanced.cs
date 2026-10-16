@@ -33,18 +33,18 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Live system monitor integrated into the Windows taskbar")]
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyInformationalVersion("1.7.5+r265")]
+[assembly: AssemblyInformationalVersion("1.7.6+r273")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.7.5.0")]
-[assembly: AssemblyFileVersion("1.7.5.0")]
+[assembly: AssemblyVersion("1.7.6.0")]
+[assembly: AssemblyFileVersion("1.7.6.0")]
 
 namespace TaskbarMonitorEnhanced
 {
     internal static class BuildInfo
     {
-        public const string Version = "V1_7_5_R265_SENSOR_CROSSUSER_GUARD";
+        public const string Version = "V1_7_6_R273_GLASS_THERMAL_ALERT";
         public const string Product = "Taskbar Monitor Enhanced";
-        public const string PublicVersion = "1.7.5";
+        public const string PublicVersion = "1.7.6";
         public const string ShortcutName = "Taskbar Monitor Enhanced";
         public const string ProductDescription = "Live system monitor integrated into the Windows taskbar";
         public const string Author = "Dr. Ali-Akbar Emadeddin";
@@ -6290,6 +6290,19 @@ namespace TaskbarMonitorEnhanced
             {
                 using(Pen hotPen=new Pen(Color.FromArgb(235,AlertPolicy.AlertColor),2f))
                     g.DrawRectangle(hotPen,inner.X,inner.Y,Math.Max(1,inner.Width-1),Math.Max(1,inner.Height-1));
+                // Preserve a semantic warning mask for Glass mode: recolor ONLY
+                // hot metric glyphs/charts, never normal theme ink or the backdrop.
+                if(glassThermalWarningCanvas!=null)
+                {
+                    using(SolidBrush maskBrush=new SolidBrush(Color.White))
+                        glassThermalWarningCanvas.FillRectangle(maskBrush,inner);
+                    if(glassInkCanvas!=null)
+                        using(Pen rim=new Pen(Color.White,2f))
+                            glassInkCanvas.DrawRectangle(rim,inner.X,inner.Y,Math.Max(1,inner.Width-1),Math.Max(1,inner.Height-1));
+                    if(glassHaloCanvas!=null)
+                        using(Pen haloRim=new Pen(Color.White,4f))
+                            glassHaloCanvas.DrawRectangle(haloRim,inner.X,inner.Y,Math.Max(1,inner.Width-1),Math.Max(1,inner.Height-1));
+                }
             }
             if(t.Mode=="round"||t.Mode=="glass")
             {
@@ -10237,6 +10250,7 @@ namespace TaskbarMonitorEnhanced
         {
             Native.EnableDllSearchHardening();
             if(args!=null && args.Length>1 && args[0]=="--glassproof")return TaskbarGlassProof.Run(args[1]);
+            if(args!=null && args.Length>1 && args[0]=="--glassthermalproof")return TaskbarGlassThermalProof.Run(args[1]);
             if(args!=null && args.Length>1 && args[0]=="--chartglassproof")return TaskbarChartGlassProof.Run(args[1]);
             if(args!=null && args.Length>1 && args[0]=="--glassliveproof")return TaskbarGlassLiveProof.Run(args[1]);
             if(args!=null && args.Length>1 && args[0]=="--topglassliveproof")return TaskbarTopGlassVisualProof.Run(args[1]);

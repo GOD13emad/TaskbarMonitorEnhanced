@@ -106,6 +106,14 @@ jobs:
           $glass = Get-Content ./artifacts/ci-visual/glassproof/GLASS_PROOF.json -Raw | ConvertFrom-Json
           if ($glass.Status -ne 'PASS' -or $glass.Tests -ne 196) { throw '49-theme alpha contrast foreground proof did not PASS.' }
 
+      - name: R272 semantic thermal warnings visible as red ink in Glass on all 49 themes
+        shell: pwsh
+        run: |
+          ./build/Test-GlassThermal-R272.ps1 -MainPath ./build/_out/App/TaskbarMonitorEnhanced.exe -OutDir ./artifacts/ci-thermal-r272
+          $r = Get-Content ./artifacts/ci-thermal-r272/R272_ACCEPTANCE.json -Raw | ConvertFrom-Json
+          if ($r.Status -cne 'PASS' -or $r.ThemePairs -ne 98 -or $r.AlertPixelMinimum -lt 40 -or $r.ColdPixelMaximum -ne 0) {
+              throw 'R272 threshold-to-red foreground Glass semantic contract failed.'
+          }
       - name: R244 nine-page Settings UI overlap and Glass mode renderer guard
         shell: powershell
         run: |
@@ -135,7 +143,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          ./build/Verify-Release-Metadata-R265.ps1 -SelfTest
+          ./build/Verify-Release-Metadata-R273.ps1 -SelfTest
           if ($LASTEXITCODE -ne 0) {throw 'R136 release version, 5 output SHA and SBOM source gates FAILED'}
 
       - name: Attest binary build provenance
@@ -168,6 +176,8 @@ jobs:
             artifacts/ci-visual/SUMMARY.json
             artifacts/ci-visual/chartglassproof/CHART_GLASS_PROOF.json
             artifacts/ci-visual/glassproof/GLASS_PROOF.json
+            artifacts/ci-thermal-r272/R272_ACCEPTANCE.json
+            artifacts/ci-thermal-r272/real-thermal-pixels/THERMAL_GLASS_PROOF.json
             artifacts/ci-settings-r244/R244_SETTINGS_UI.json
             artifacts/ci-settings-r244/R244_GLASS_SWITCH_ON.png
             artifacts/ci-runtime/SUMMARY.json
