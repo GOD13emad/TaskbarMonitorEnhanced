@@ -51,7 +51,7 @@ jobs:
           }
           $files=@(
             @{File='installer/TBME_Setup_Elevated_Helper.ps1';SHA='84A7DC21012A63C5959447D7234B365CF926028016A81B742F891951B191E7FB'},
-            @{File='build/Test-R265-CrossUserGuard.ps1';SHA='935BF48132112F2C01AD3D0E29129C06D400D444974F3121E38A279C9A458A8B'}
+            @{File='build/Test-R265-CrossUserGuard.ps1';SHA='D51BE3D43B530F88E55CE3AC534CD4FE72681E0C74473ABECA236DBC37CAC114'}
           )
           foreach($item in $files){
             $path=(Resolve-Path $item.File).Path

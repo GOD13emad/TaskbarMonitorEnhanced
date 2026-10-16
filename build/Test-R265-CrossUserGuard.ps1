@@ -109,7 +109,7 @@ try{
   New-Item -ItemType Directory -Path $app|Out-Null
   $run=InvokePrefix $mode $app $true
   $result=Join-Path $app 'Logssensor_install_result.json'
-  if($run.Exit -ne 0 -or !(Test-Path $result)){Fail ('REAL_FULL_HELPER_OTHER_USER_NOT_REFUSED_'+$mode+'_'+$run.Err)}
+  if($run.Exit -ne 0 -or !(Test-Path $result)){Fail ('REAL_FULL_HELPER_OTHER_USER_NOT_REFUSED_'+$mode+'_Exit_'+$run.Exit+'_Result_'+(Test-Path $result)+'_Out_'+$run.Out+'_Err_'+$run.Err)}
   $j=Get-Content $result -Raw|ConvertFrom-Json
   if($j.Status -cne 'DEGRADED_OTHER_USER_SENSOR_LAYER_PRESERVED' -or
      $j.Architecture -cne 'SHARED_PROTECTED_SENSOR_LAYER_LEFT_UNTOUCHED'){

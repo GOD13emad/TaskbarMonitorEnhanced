@@ -177,12 +177,12 @@ try{
  # Exercise production journal and rollback code, without adding failure hooks to shipped binaries.
  # This is explicit simulated interruption, not a physical outage or real process-kill witness.
  $a=[Reflection.Assembly]::LoadFile([IO.Path]::GetFullPath($setup));$t=$a.GetType('SetupProgram',$true);$f=[Reflection.BindingFlags]'Static,NonPublic,Public'
- $legacy=$t.GetMethod('LegacyExpected',$f).Invoke($null,[object[]]@('1.7.4','OFFICIAL_STABLE_V173'))
+ $legacy=$t.GetMethod('LegacyExpected',$f).Invoke($null,[object[]]@('1.7.4','OFFICIAL_STABLE_V174'))
  $fresh=$t.GetMethod('PrepareNewBytes',$f).Invoke($null,[object[]]@($sourceText))
  # Reflection host is PowerShell, so explicitly substitute EXACT verified Setup bytes for @SELF.
  $fresh['Uninstall.exe']=[IO.File]::ReadAllBytes($setup)
  $beforeRollback=Snapshot
- [void]$t.GetMethod('StageNewManaged',$f).Invoke($null,[object[]]@($fresh,$legacy,$sourceText,'1.7.4','OFFICIAL_STABLE_V173'))
+ [void]$t.GetMethod('StageNewManaged',$f).Invoke($null,[object[]]@($fresh,$legacy,$sourceText,'1.7.4','OFFICIAL_STABLE_V174'))
  $stage=Join-Path $app '.tbme-upgrade'
  [void]$t.GetMethod('WritePhase',$f).Invoke($null,[object[]]@('COMMITTING'))
  foreach($rel in @('TaskbarMonitorEnhanced.exe','Source/TaskbarGlass.cs')){
