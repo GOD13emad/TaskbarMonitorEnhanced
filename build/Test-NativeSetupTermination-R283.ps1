@@ -106,10 +106,11 @@ try{
  [void]$t.GetMethod('StageNewManaged',$f).Invoke($null,[object[]]@($fresh,$legacy,$state,$version,$channel))
  if($Phase -ceq 'COMMITTING'){
   [void]$t.GetMethod('WritePhase',$f).Invoke($null,[object[]]@('COMMITTING'))
-  foreach($rel in @('TaskbarMonitorEnhanced.exe','Docs/THIRD_PARTY_NOTICES.md')){
+  foreach($rel in @('TaskbarMonitorEnhanced.exe','Docs/RELEASE_NOTES_v1.7.6.md')){
    $staged=Join-Path (Join-Path $App '.tbme-upgrade\new') $rel
    $live=Join-Path $App $rel
-   [R283FileBridge]::ReplaceNoBackup($staged,$live)
+   if(Test-Path $live){[R283FileBridge]::ReplaceNoBackup($staged,$live)}
+   else{[IO.File]::Move($staged,$live)}
   }
   if((Get-FileHash (Join-Path $App 'TaskbarMonitorEnhanced.exe')).Hash -ne '0FA50938D330DB02D7D66593740F51FEE5D3036C59484E5697C34DCBC55A2DF8'){throw 'PHYSICAL_PARTIAL_COMMIT_UNVERIFIED'}
  }
@@ -243,16 +244,17 @@ try{
  if(!(Test-Path $stage)){throw 'KILL_DESTROYED_EXPECTED_STAGE'}
  $passes+=@('ACTUAL_STAGING_HELPER_PROCESS_ABRUPTLY_KILLED')
  $phaseNow='ACTUAL_NATIVE_SETUP_PROCESS_KILL_DURING_RECOVERY'
- $targetRel='Docs/THIRD_PARTY_NOTICES.md'
+ $targetRel='Docs/RELEASE_NOTES_v1.7.6.md'
  $target=Join-Path $app $targetRel
- $expectedOld=@($inventory.Rows|Where-Object Path -eq $targetRel)
- if($expectedOld.Count -ne 1){throw 'WATCHED_OLD_RESOURCE_NOT_PINNED'}
- if((Hash $target) -ceq $expectedOld[0].SHA256 -or (Hash (Join-Path $app 'TaskbarMonitorEnhanced.exe')) -cne $main176){
+ # This file exists ONLY in v1.7.6: the shipping rollback deletes it at
+ # managed row 19 of 31, leaving the Main EXE and prior rows to restore.
+ # FileSystemWatcher observes that actual physical deletion BEFORE killing Setup.
+ if(!(Test-Path $target -PathType Leaf) -or
+    (Hash (Join-Path $app 'TaskbarMonitorEnhanced.exe')) -cne $main176){
    throw 'R283_BOTH_KILL_WITNESS_INPUTS_NOT_NEW_VERSION'
  }
- # Only the two hosted Windows test guests can terminate their OWN native
- # Setup process, and only after the real Setup restores this managed document.
- $watcher=[IO.FileSystemWatcher]::new((Join-Path $app 'Docs'),'THIRD_PARTY_NOTICES.md')
+ # Only two ephemeral GitHub-hosted guests may terminate their own Setup PID.
+ $watcher=[IO.FileSystemWatcher]::new((Join-Path $app 'Docs'),'RELEASE_NOTES_v1.7.6.md')
  $watcher.NotifyFilter=[IO.NotifyFilters]'FileName,LastWrite,Size,CreationTime'
  $watcher.EnableRaisingEvents=$true
  $si=[Diagnostics.ProcessStartInfo]::new()
@@ -266,7 +268,7 @@ try{
   if($nativeSetup.HasExited){throw ('R283_OFFICIAL_SETUP_FINISHED_BEFORE_INTERCEPTION_'+$nativeSetup.ExitCode)}
   $event=$watcher.WaitForChanged([IO.WatcherChangeTypes]::All,75)
   if($event.TimedOut){continue}
-  if((Hash $target) -cne $expectedOld[0].SHA256){continue}
+  if((Hash $target) -cne 'MISSING'){continue}
   if((Hash (Join-Path $app 'TaskbarMonitorEnhanced.exe')) -cne $main176){
     throw 'R283_ROLLBACK_WINDOW_MISSED_MAIN_ALREADY_RESTORED'
   }
@@ -278,7 +280,7 @@ try{
   $nativeSetup.Kill()
   if(!$nativeSetup.WaitForExit(20000)){throw 'R283_NATIVE_SETUP_PROCESS_DID_NOT_TERMINATE'}
   $nativeTerminated=$true
-  $passes+=@('ACTUAL_SETUP_PROCESS_KILLED_WHILE_MANAGED_DOCUMENT_ALREADY_ROLLED_BACK')
+  $passes+=@('ACTUAL_SETUP_PROCESS_KILLED_AFTER_NATIVE_DELETE_OF_NEW_ONLY_RELEASE_NOTE')
   break
  }
  if(!$nativeTerminated){throw 'R283_DID_NOT_OBSERVE_KILLABLE_OFFICIAL_SETUP_ROLLBACK_WINDOW'}
