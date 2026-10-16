@@ -1,4 +1,4 @@
-# R273 independent, read-only authority check for the versioned 1.7.7
+# R273 independent, read-only authority check for the versioned 1.7.8
 # release Build Manifest -> deterministic binary files -> SBOM 2.3.
 [CmdletBinding()]
 param(
@@ -22,20 +22,20 @@ $commit=(& git -C $root rev-parse HEAD).Trim()
 if($LASTEXITCODE -ne 0 -or $commit -cnotmatch '^[a-f0-9]{40}$'){throw 'R273_CURRENT_HEAD_NOT_EXACT'}
 function Issues($manifest,$sbom,$setup,$sha){
  $fail=[Collections.Generic.List[string]]::new()
- if($manifest.Version -cne '1.7.7' -or $manifest.Build -cne 'V1_7_7_R284_RESTORE_SCRATCH_RECOVERY'){
+ if($manifest.Version -cne '1.7.8' -or $manifest.Build -cne 'V1_7_8_R286_OPTIONAL_TEMP_SOUND'){
   $fail.Add('WRONG_PUBLIC_BUILD_VERSION')
  }
- if($sbom.spdxVersion -cne 'SPDX-2.3' -or $sbom.name -cne 'Taskbar-Monitor-Enhanced-1.7.7' -or
-    $sbom.documentNamespace -cne ('https://github.com/GOD13emad/TaskbarMonitorEnhanced/spdx/1.7.7/'+$sha)){
+ if($sbom.spdxVersion -cne 'SPDX-2.3' -or $sbom.name -cne 'Taskbar-Monitor-Enhanced-1.7.8' -or
+    $sbom.documentNamespace -cne ('https://github.com/GOD13emad/TaskbarMonitorEnhanced/spdx/1.7.8/'+$sha)){
   $fail.Add('SPDX_SOURCE_AND_VERSION_DRIFT')
  }
  if(@($sbom.packages).Count -ne 3 -or @($sbom.files).Count -ne 5 -or
-    $sbom.packages[0].versionInfo -cne '1.7.7'){
+    $sbom.packages[0].versionInfo -cne '1.7.8'){
   $fail.Add('SPDX_PRODUCT_PACKAGE_VERSION_DRIFT')
  }
  $required=@('TaskbarMonitorEnhanced.exe','TaskbarMonitorEnhanced.exe.config',
    'TaskbarMonitorSensorBroker.exe','TaskbarMonitorSensorSupervisor.exe',
-   'TaskbarMonitorEnhanced_Setup_1.7.7.exe')
+   'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
  $found=@($manifest.Outputs|ForEach-Object {$_.Name})
  if(@($manifest.Outputs).Count -ne 5 -or
     @(Compare-Object ($required|Sort-Object) ($found|Sort-Object)).Count -ne 0){
@@ -44,7 +44,7 @@ function Issues($manifest,$sbom,$setup,$sha){
   foreach($row in $manifest.Outputs){
    $name=[string]$row.Name
    $rel=switch($name){
-    'TaskbarMonitorEnhanced_Setup_1.7.7.exe' {'build\_out\Setup\'+$name;break}
+    'TaskbarMonitorEnhanced_Setup_1.7.8.exe' {'build\_out\Setup\'+$name;break}
     'TaskbarMonitorSensorBroker.exe' {'build\_out\Broker\'+$name;break}
     'TaskbarMonitorSensorSupervisor.exe' {'build\_out\Supervisor\'+$name;break}
     default {'build\_out\App\'+$name}
@@ -68,9 +68,9 @@ function Issues($manifest,$sbom,$setup,$sha){
   $fail.Add('SETUP_RESOURCE_OR_PROPRIETARY_DEPENDENCY_REJECTED')
  }
  $main=(Join-Path $root 'build\_out\App\TaskbarMonitorEnhanced.exe')
- $setupExe=(Join-Path $root 'build\_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.7.exe')
+ $setupExe=(Join-Path $root 'build\_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.8.exe')
  if((Get-Item $main).VersionInfo.ProductVersion -cne (Get-Item $setupExe).VersionInfo.ProductVersion -or
-    !(Get-Item $main).VersionInfo.ProductVersion.StartsWith('1.7.7')){
+    !(Get-Item $main).VersionInfo.ProductVersion.StartsWith('1.7.8')){
   $fail.Add('ASSEMBLY_PRODUCT_VERSION_DIFFERENT')
  }
  return @($fail.ToArray())
@@ -82,7 +82,7 @@ if($SelfTest){
   @{Type='Manifest';Field='Version';Bad='1.7.0'},
   @{Type='Manifest';Field='Build';Bad='V1_7_0_R39_WALLPAPER_STUDIO'},
   @{Type='Sbom';Field='name';Bad='Taskbar-Monitor-Enhanced-1.7.0'},
-  @{Type='Sbom';Field='documentNamespace';Bad=('https://github.com/GOD13emad/TaskbarMonitorEnhanced/spdx/1.7.7/'+('0'*40))},
+  @{Type='Sbom';Field='documentNamespace';Bad=('https://github.com/GOD13emad/TaskbarMonitorEnhanced/spdx/1.7.8/'+('0'*40))},
   @{Type='Setup';Field='PawnIOBundled';Bad=$true}
  )
  foreach($mutation in $mutants){

@@ -2,7 +2,7 @@ name: R284 private v1.7.7 candidate and exact interrupted Setup recovery
 
 on:
   push:
-    branches: [fix/v1.7.7-restore-residue-r284, main]
+    branches: [fix/v1.7.7-restore-residue-r284]
   workflow_dispatch:
 
 permissions:
