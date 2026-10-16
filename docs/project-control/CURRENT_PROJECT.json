@@ -1,63 +1,47 @@
 {
   "Schema": 1,
   "Project": "TaskbarMonitorEnhanced",
-  "CanonicalRoot": "C:\\Users\\Aa.Emad\\source\\repos\\TaskbarMonitorEnhanced",
-  "InstalledRoot": "C:\\Users\\Aa.Emad\\AppData\\Local\\TaskbarMonitorEnhanced",
-  "CurrentEngineeringRevision": "R40",
-  "Status": "CURRENT_PACKAGE_CANDIDATE_ACCEPTED_NOT_INSTALLED",
-  "UpdatedUtc": "2026-10-05T17:03:48.6381459Z",
-  "FinalObjective": "Deliver v1.7.0 Wallpaper Studio with 21 Studio themes including Sekiro and exactly 10 wallpapers per Studio theme, preserving the accepted v1.6.0 runtime until promotion gates pass.",
-  "DefinitionOfDone": [
-    "21 Studio themes including Sekiro",
-    "10 validated wallpapers per Studio theme (210 total)",
-    "preview/export/apply UX",
-    "reversible desktop apply pre-state/rollback",
-    "candidate source tests PASS",
-    "v1.7 package/installer integrated",
-    "clean-clone determinism and visual package acceptance PASS",
-    "single reversible live wallpaper canary PASS",
-    "installed v1.7 runtime regression PASS",
-    "release/CI promotion PASS if publication is authorized"
-  ],
-  "PreviousAcceptedState": {
-    "Version": "1.6.0",
-    "Revision": "R38",
-    "Status": "RELEASED_ACCEPTED_IMMUTABLE",
-    "SourceSHA": "1652989b80c5c6d301c6f05818c48c5207fd9b7a",
-    "InstalledMainSHA256": "05F9E069C4598FDAD327A41BF1CA34A1498D022119DB81E09F4B3B091C9BA377"
-  },
-  "CurrentCandidate": {
-    "Branch": "feature/v1.7.0-wallpaper-studio",
-    "ProductSourceCommit": "ed46152eb9d9ff326687ba5038aa0990e03102d0",
-    "PackagingCommit": "2cb0baadb127c4b9e8090670d51905ffd2e29627",
-    "SourceAcceptance": "docs/acceptance/v1.7.0/R39_SOURCE_CANDIDATE_ACCEPTANCE.json",
-    "PackageAcceptance": "docs/acceptance/v1.7.0/R40_PACKAGE_CANDIDATE_ACCEPTANCE.json",
-    "ThemesTotal": 49,
-    "StudioThemes": 21,
-    "WallpapersPerStudioTheme": 10,
-    "StudioWallpapers": 210,
-    "SetupSHA256": "58E844297A0B33E52F05D5023408DB159275BAECDB5C1627DBAEA990CF1237AF",
-    "Installed": false,
-    "Released": false
+  "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
+  "Scope": "PUBLIC_REDACTED_SNAPSHOT; owner-local detailed Project Brain is the only active operational authority",
+  "CurrentEngineeringRevision": "R270",
+  "Status": "PUBLIC_IMMUTABLE_UNSIGNED_V175_OWNER_SCOPED_PASS",
+  "UpdatedUtc": "2026-10-16T13:05:40Z",
+  "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
+  "CurrentAcceptedBaseline": {
+    "Version": "1.7.5",
+    "ReleaseId": 414936595,
+    "ReleaseURL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.7.5",
+    "SourceCommit": "9284b124168f3aa2c90f8637eeba6a20f2d0e1af",
+    "SetupSHA256": "8E37397F02273952B5866003FC156E152B13FC90D95D80B5DB4208046DD588EC",
+    "InstalledMainSHA256": "25E0565301963467BF290908BE965F73EDDE6BF41EC693A4FE45ED19653FBDB6",
+    "PublicAssetCount": 7,
+    "InstallerUnsigned": true,
+    "PerUserInstall": true,
+    "MachinewideSingletonProven": false
   },
   "Completed": [
-    "R39 source implementation and pixel validation",
-    "R40 v1.7 installer/build identity integration",
-    "WallpaperStudio canonical source embedded and extraction path verified",
-    "Setup /verify PASS with 25 resources",
-    "exact-commit full build PASS 0 warnings / 0 errors",
-    "clean-clone determinism PASS",
-    "visual candidate suite PASS 8/8",
-    "workspace proof PASS",
-    "wallpaper proof PASS 210/210 unique"
+    "Seven immutable public v1.7.5 assets independently SHA/Manifest verified (R267)",
+    "Exact-main Windows A/B build, fresh/upgrade/rollback, native UI and cross-user guard CI PASS (R265)",
+    "Owner official v1.7.4 to v1.7.5 in-place upgrade and 443-file cold backup/isolated restore PASS (R268)",
+    "Owner unmanaged data preserved, Glass native observations and unpaired 60.688-second CPU observation recorded (R269)",
+    "Owner current-user scheduled-task principal and all four live process SIDs matched; installed hashes retained (R270)"
   ],
   "Open": [
-    "single live apply/verify/restore canary",
-    "installed v1.7 runtime acceptance",
-    "release/CI gates"
+    "ISSUE6_REPORTER_DRIVER_SHA_AND_INSTALL_ORIGIN_MISSING",
+    "CONTROLLED_PHYSICAL_MAINS_LOSS_NOT_TESTED",
+    "ONE_PER_MACHINE_POLICY_REQUIRES_EXPLICIT_OWNER_DECISION; one per Windows user verified",
+    "INDEPENDENT_SECURITY_SIGNING_LAB_NOT_PROVEN; intentionally unsigned release accepted"
   ],
-  "CriticalPath": "single reversible wallpaper canary -> installed v1.7 acceptance -> release/CI",
-  "MainBlocker": "Live desktop apply/restore behavior is not yet proven on the host; package promotion to installed v1.7 is blocked until one controlled canary returns the exact desktop pre-state.",
-  "BrainStatus": "CURRENT_R40_PACKAGE_CANDIDATE",
-  "ExactNextAction": "R41 only: capture wallpaper/GUI/AnyDesk pre-state, apply one Sekiro wallpaper from exact candidate 2cb0baa, verify it, restore the exact prior wallpaper/style/tile, and verify host stability."
+  "CriticalPath": "Keep immutable v1.7.5 and existing owner data unchanged; pursue only external reporter artifact, controlled physical mains-loss rig, and explicit machinewide install policy if required.",
+  "MainBlocker": "External security attribution and physical rig evidence; owner policy if one-per-machine is required. Existing per-user product release is scoped PASS, not unconditional FINAL.",
+  "BrainStatus": "PUBLIC_SUMMARY_R270; not the owner-local complete Brain",
+  "ExactNextAction": "Use public Issue #7 for current blockers; obtain reporter driver SHA/origin without restoring quarantined malware, test physical AC outage on a controlled disposable rig, and decide per-user versus machinewide installation only if a new policy is needed.",
+  "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
+  "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
+  "HistoricalR40Record": {
+    "Commit": "9284b124168f3aa2c90f8637eeba6a20f2d0e1af",
+    "Path": "docs/project-control/CURRENT_PROJECT.json",
+    "GitBlob": "95e4d549d855de787a9274888bc686e3fda54d20",
+    "Role": "immutable historical evidence, superseded by R270"
+  }
 }
