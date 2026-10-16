@@ -108,7 +108,7 @@ try{
   $app=Join-Path $out ('WholeHelperOtherRoot_'+$mode)
   New-Item -ItemType Directory -Path $app|Out-Null
   $run=InvokePrefix $mode $app $true
-  $result=Join-Path $app 'Logssensor_install_result.json'
+  $result=Join-Path $app 'Logs\sensor_install_result.json'
   if($run.Exit -ne 0 -or !(Test-Path $result)){Fail ('REAL_FULL_HELPER_OTHER_USER_NOT_REFUSED_'+$mode+'_Exit_'+$run.Exit+'_Result_'+(Test-Path $result)+'_Out_'+$run.Out+'_Err_'+$run.Err)}
   $j=Get-Content $result -Raw|ConvertFrom-Json
   if($j.Status -cne 'DEGRADED_OTHER_USER_SENSOR_LAYER_PRESERVED' -or
@@ -176,7 +176,7 @@ finally{
   }
  }catch{$status='FAIL_ACCOUNT_CLEANUP_UNCERTAIN';$failure+=' | '+$_.Exception.Message}
  $r=[ordered]@{
-  Revision='R264';Status=$status;Guest=$HostLabel;Phase=$phase;Failure=$failure
+  Revision='R265';Status=$status;Guest=$HostLabel;Phase=$phase;Failure=$failure
   SourceGuardSHA256=$expected;ExactProductionHelperAfterGuardWasNotExecuted=$true
   OtherUserSid=$otherSID;CurrentUserSid=$ownerSID
   OtherTaskPrincipal=$otherPrincipal;CurrentTaskPrincipal=$currentPrincipal
