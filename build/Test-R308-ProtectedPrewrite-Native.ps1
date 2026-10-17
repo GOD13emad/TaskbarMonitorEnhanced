@@ -60,8 +60,13 @@ if((& $normalize $embedded) -cne (& $normalize $raw)){
 $checks.Add('SAME_EXACT_PE_EMBEDDED_HELPER_SOURCE')
 $save=$raw.IndexOf('New-SensorDurableJournal $SensorJournalRoot $validatedSensorSid ',[StringComparison]::Ordinal)
 $mutation=$raw.IndexOf('    Assert-OrRecordSensorOwner',[StringComparison]::Ordinal)
-$stale=$raw.IndexOf('if(Test-Path -LiteralPath $SensorJournalRoot)',[StringComparison]::Ordinal)
-if($stale -lt 0 -or $save -lt 0 -or $mutation -le $save){
+$ownerBoundary=$raw.IndexOf('# R264-SENSOR-GUARD-BOUNDARY-END',[StringComparison]::Ordinal)
+$legacyStale=$raw.IndexOf('if(Test-Path -LiteralPath $SensorJournalRoot)',[StringComparison]::Ordinal)
+$protectedPreflight=$raw.IndexOf('Resume-SensorCompletedJournal $SensorJournalRoot $validatedSensorSid',[StringComparison]::Ordinal)
+if($save -lt 0 -or $mutation -le $save -or $ownerBoundary -lt 0 -or
+   ($legacyStale -lt 0 -and $protectedPreflight -lt 0) -or
+   ($protectedPreflight -ge 0 -and
+    ($protectedPreflight -le $ownerBoundary -or $protectedPreflight -ge $save))){
  throw 'R308_JOURNAL_NOT_BEFORE_FIRST_PROTECTED_MUTATION'
 }
 $checks.Add('STALE_JOURNAL_REFUSAL_AND_PREMUTATION_ORDER')
