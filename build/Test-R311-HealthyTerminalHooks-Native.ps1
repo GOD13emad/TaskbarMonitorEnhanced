@@ -58,7 +58,9 @@ $normalize={param([string]$s) $s.Replace(([string][char]13+[string][char]10),[st
 if((& $normalize $embedded) -cne (& $normalize $raw)){throw 'R311_PE_RESOURCE_SOURCE_NOT_IDENTICAL'}
 $checks.Add('EMBEDDED_PE_RESOURCE_EQUALS_CURRENT_SECURITY_HELPER')
 $ownerGuard=$raw.IndexOf('# R264-SENSOR-GUARD-BOUNDARY-END',[StringComparison]::Ordinal)
-$preflight=$raw.IndexOf('Resume-SensorCompletedJournal $SensorJournalRoot $validatedSensorSid',[StringComparison]::Ordinal)
+$preflight=[Math]::Max(
+ $raw.IndexOf('Resume-SensorCompletedJournal $SensorJournalRoot $validatedSensorSid',[StringComparison]::Ordinal),
+ $raw.IndexOf('Resume-SensorPendingJournal $SensorJournalRoot $validatedSensorSid $BrokerRoot $AppRoot $TaskName',[StringComparison]::Ordinal))
 $uninstall=$raw.IndexOf('if($Mode -eq ''Uninstall'')',[StringComparison]::Ordinal)
 $writeAhead=$raw.IndexOf('New-SensorDurableJournal $SensorJournalRoot $validatedSensorSid',[StringComparison]::Ordinal)
 $health=$raw.IndexOf('if(-not $taskInstalled -or -not $SupervisorHealthy)',[StringComparison]::Ordinal)

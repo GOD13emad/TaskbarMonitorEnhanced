@@ -62,7 +62,9 @@ $save=$raw.IndexOf('New-SensorDurableJournal $SensorJournalRoot $validatedSensor
 $mutation=$raw.IndexOf('    Assert-OrRecordSensorOwner',[StringComparison]::Ordinal)
 $ownerBoundary=$raw.IndexOf('# R264-SENSOR-GUARD-BOUNDARY-END',[StringComparison]::Ordinal)
 $legacyStale=$raw.IndexOf('if(Test-Path -LiteralPath $SensorJournalRoot)',[StringComparison]::Ordinal)
-$protectedPreflight=$raw.IndexOf('Resume-SensorCompletedJournal $SensorJournalRoot $validatedSensorSid',[StringComparison]::Ordinal)
+$protectedPreflight=[Math]::Max(
+ $raw.IndexOf('Resume-SensorCompletedJournal $SensorJournalRoot $validatedSensorSid',[StringComparison]::Ordinal),
+ $raw.IndexOf('Resume-SensorPendingJournal $SensorJournalRoot $validatedSensorSid $BrokerRoot $AppRoot $TaskName',[StringComparison]::Ordinal))
 if($save -lt 0 -or $mutation -le $save -or $ownerBoundary -lt 0 -or
    ($legacyStale -lt 0 -and $protectedPreflight -lt 0) -or
    ($protectedPreflight -ge 0 -and
