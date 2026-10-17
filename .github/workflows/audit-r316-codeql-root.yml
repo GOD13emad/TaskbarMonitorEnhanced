@@ -32,6 +32,8 @@ jobs:
         with:
           languages: csharp
           build-mode: none
+          config: |
+            threat-models: local
       - name: Analyze without uploading or dismissing any scanning alerts
         uses: github/codeql-action/analyze@v4
         with:
@@ -69,11 +71,12 @@ jobs:
             throw 'R316_BASELINE_CODEQL_QUERY_COVERAGE_UNTRUSTWORTHY_ZERO'
           }
           $summary=[ordered]@{
-            Schema=1;Revision='R316';Mode='csharp-default-ubuntu-buildmode-none'
+            Schema=1;Revision='R316';Mode='csharp-default-ubuntu-none-remote-and-local'
             Variant='${{ matrix.variant }}'
             AnalyzedCommit=(git rev-parse HEAD).Trim()
             WorkflowCommit='${{ github.sha }}'
             GeneratedSarifCount=$files.Count;AllFindings=$allCount;CompiledSetupReferences=$compiledReferences;CompilerErrors=$compilerErrorCount
+            ThreatModel='remote_and_local'
             TargetFindingCount=$relevant.Count
             PathInjectionCount=@($relevant|Where-Object Rule -eq 'cs/path-injection').Count
             CommandLineInjectionCount=@($relevant|Where-Object Rule -eq 'cs/command-line-injection').Count
