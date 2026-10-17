@@ -85,12 +85,24 @@ try{
     }
     $checks.Add('ORIGINAL_UAC_RUNAS_SHELL_CONTRACT_PRESERVED')
     $prefix='-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand '
-    if(-not $info.Arguments.StartsWith($prefix,[StringComparison]::Ordinal) -or
-       $info.Arguments.Contains(' -File ') -or $info.Arguments.Contains('ExecutionPolicy Bypass') -or
-       $info.Arguments.Length -gt 32080){
+    $inline='-NoProfile -NonInteractive -WindowStyle Hidden -Command '
+    $isEncoded=$info.Arguments.StartsWith($prefix,[StringComparison]::Ordinal)
+    $isInline=$info.Arguments.StartsWith($inline,[StringComparison]::Ordinal)
+    if((-not $isEncoded -and -not $isInline) -or
+       $info.Arguments.Contains(' -File ') -or
+       $info.Arguments.Contains('ExecutionPolicy Bypass') -or
+       ($isEncoded -and $info.Arguments.Length -gt 32080) -or
+       ($isInline -and $info.Arguments.Length -gt 30000)){
        throw 'R298_POWER_SHELL_SCRIPT_ENTRY_WAS_WEAKENED'
     }
-    $checks.Add('TRUSTED_ENCODED_COMMAND_NO_TEMP_SCRIPT')
+    $bootstrap=if($isEncoded){
+        [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($info.Arguments.Substring($prefix.Length)))
+    }else{$info.Arguments.Substring($inline.Length)}
+    if($bootstrap -notmatch '\$blob=\[Convert\]::FromBase64String' -or
+       -not $bootstrap.Contains('[ScriptBlock]::Create($code)')){
+        throw 'R298_TRUSTED_HELPER_BOOTSTRAP_PROVENANCE_INVALID'
+    }
+    $checks.Add('TRUSTED_PE_INLINE_COMMAND_NO_TEMP_SCRIPT')
     $originalEncoded=$info.Arguments
     [void][IO.Directory]::CreateDirectory($fake)
     $rogue=Join-Path $fake 'powershell.exe'
@@ -118,16 +130,17 @@ try{
     $args4[0]=[string]'Uninstall'
     $uninstall=[Diagnostics.ProcessStartInfo]$method.Invoke($null,$args4)
     if(-not [string]::Equals($uninstall.FileName,$expected,[StringComparison]::OrdinalIgnoreCase) -or
-       $uninstall.Arguments -cnotmatch '\-Mode ''Uninstall''' -or
        $uninstall.Arguments.Contains(' -File ')){
-       # Mode is inside the base64 bootstrap rather than a literal argument.
-       $encoded=$uninstall.Arguments.Substring($prefix.Length)
-       $bootstrap=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($encoded))
-       if($bootstrap -cnotmatch "\-Mode 'Uninstall'" -or
-          -not [string]::Equals($uninstall.FileName,$expected,[StringComparison]::OrdinalIgnoreCase) -or
-          $uninstall.Arguments.Contains(' -File ')){
-          throw 'R298_UNINSTALL_MODE_OR_HOST_NOT_PINNED'
-       }
+        throw 'R298_UNINSTALL_HOST_OR_SCRIPT_UNPINNED'
+    }
+    $uninstallBootstrap=if($uninstall.Arguments.StartsWith($prefix,[StringComparison]::Ordinal)){
+        [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($uninstall.Arguments.Substring($prefix.Length)))
+    }elseif($uninstall.Arguments.StartsWith($inline,[StringComparison]::Ordinal)){
+        $uninstall.Arguments.Substring($inline.Length)
+    }else{throw 'R298_UNINSTALL_TRANSPORT_UNSUPPORTED'}
+    if($uninstallBootstrap -cnotmatch "\-Mode 'Uninstall'" -or
+       $uninstallBootstrap -notmatch '\$blob=\[Convert\]::FromBase64String'){
+        throw 'R298_UNINSTALL_MODE_OR_HELPER_SOURCE_UNPINNED'
     }
     $checks.Add('UNINSTALL_MODE_USES_SAME_ABSOLUTE_TRUSTED_HOST')
     if((SHA $main) -cne $mainBefore){throw 'R298_GUEST_MAIN_WAS_CHANGED'}

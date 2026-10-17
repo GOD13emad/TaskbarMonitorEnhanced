@@ -203,10 +203,10 @@ jobs:
              $r.Host -cne '${{ matrix.host }}' -or $r.SourceCommit -cne $env:GITHUB_SHA -or
              $r.OriginalOwnerComputerTouched -ne $false -or $r.UACOrProtectedServiceCalled -ne $false -or
              $r.ExactTrustedHelperSource -ne $true -or $r.MaliciousTempScriptIgnored -ne $true -or
-             $r.RealNonElevatedEncodedPowerShellCalled -ne $true -or
+             $r.RealNonElevatedInMemoryPowerShellCalled -ne $true -or
              $r.InvalidAppRootRejectedBeforeWrite -ne $true -or
              $r.InstalledMainUnchanged -ne $true -or
-             $r.BoundedEncodedCommandLength -lt 1000 -or $r.BoundedEncodedCommandLength -gt 32000 -or
+             $r.BoundedInMemoryCommandLength -lt 1000 -or $r.BoundedInMemoryCommandLength -gt 30000 -or
              @($r.Checks).Count -lt 9 -or
              @($r.Checks|Where-Object {$_ -ceq 'QUOTED_HOSTILE_USER_INPUT_ENCODED_AS_DATA'}).Count -ne 1 -or
              @($r.Checks|Where-Object {$_ -ceq 'COMMAND_LINE_INJECTION_SENTINEL_NOT_EXECUTED'}).Count -ne 1){throw 'R293_NATIVE_INMEMORY_RECEIPT_REJECTED'}
@@ -466,12 +466,12 @@ jobs:
              $r.Host -cne '${{ matrix.host }}' -or $r.SourceCommit -cne $env:GITHUB_SHA -or
              $r.OriginalOwnerComputerTouched -ne $false -or
              $r.NoUAC -ne $true -or
-             $r.ExistingEncodedCommandPreserved -ne $true -or
+             ($r.ShortEncodedCommandUsed -ne $true -and $r.ShortInlineTransportVerified -ne $true) -or
              $r.LongProfileFallbackCommandExecuted -ne $true -or
              $r.NoUserWritableScriptExecuted -ne $true -or
              $r.HostileInputRemainedEncoded -ne $true -or
              $r.InstalledUserFilesUnchanged -ne $true -or
-             $r.EncodedCommandLength -gt 32080 -or
+             $r.ShortCommandLength -gt 32080 -or
              $r.LongFallbackCommandLength -gt 30000 -or
              @($r.Checks).Count -lt 9){throw 'R304_NATIVE_GATES_NOT_MET'}
           'R304_NATIVE_SHORT_LONG_HOSTILE_TRANSPORT=PASS'
@@ -595,6 +595,33 @@ jobs:
              throw 'R307_INSTALLED_DISPOSABLE_GUEST_MAIN_CHANGED'
           }
           'R307_SYNTHETIC_PROTECTED_JOURNAL_ACL_PASS_NOT_PRODUCTION_RECOVERY'
+      - name: R308 validate production protected journal prewrite functions on disposable Windows
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $script=(Resolve-Path build/Test-R308-ProtectedPrewrite-Native.ps1).Path
+          $tok=$null;$err=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($script,[ref]$tok,[ref]$err)
+          if(@($err).Count){$err|ForEach-Object {$_.Message};throw 'R308_PS51_PARSER_INVALID'}
+          ./build/Test-R308-ProtectedPrewrite-Native.ps1 -HostLabel '${{ matrix.host }}' -CandidateDir (Resolve-Path _r284_private_candidate).Path
+          $path=Join-Path $env:RUNNER_TEMP ('R308_${{ matrix.host }}_'+$env:GITHUB_RUN_ID+'/R308_JOURNAL_PREWRITE_RECEIPT.json')
+          if(!(Test-Path -LiteralPath $path)){throw 'R308_TYPED_RECEIPT_MISSING'}
+          $r=Get-Content -LiteralPath $path -Raw|ConvertFrom-Json
+          if($r.Schema -ne 1 -or $r.Revision -cne 'R308' -or
+             $r.Status -cne 'PASS_PRODUCTION_JOURNAL_PREWRITE_FUNCTIONS_SYNTHETIC' -or
+             $r.Host -cne '${{ matrix.host }}' -or $r.SourceCommit -cne $env:GITHUB_SHA -or
+             $r.OwnerComputerTouched -ne $false -or $r.ActualProgramFilesWritten -ne $false -or
+             $r.ActualScheduledTaskModified -ne $false -or $r.ActualUACInvoked -ne $false -or
+             $r.ActualProtectedSensorHelperKilled -ne $false -or
+             $r.ProductionFunctionsExtractedFromExactPE -ne $true -or
+             $r.JournalReadyPublishedPreMutation -ne $true -or
+             $r.StaleJournalFailsClosed -ne $true -or
+             $r.SIDAndHashAndReparseFailClosed -ne $true -or
+             $r.ExternalUserDataUnchanged -ne $true -or
+             $r.TerminalCleanupAndColdRecoveryImplemented -ne $false -or
+             @($r.Checks).Count -ne 15){throw 'R308_NATIVE_JOURNAL_PREWRITE_PROOF_NOT_ACCEPTED'}
+          'R308_PREWRITE_ONLY_PASS_PRODUCTION_COLD_RECOVERY_STILL_OPEN'
+
       - name: Preserve bounded guest evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -622,3 +649,4 @@ jobs:
             ${{ runner.temp }}/R305_${{ matrix.host }}_${{ github.run_id }}/R305_ELEVATED_TOKEN_SID_RECEIPT.json
             ${{ runner.temp }}/R306_${{ matrix.host }}_${{ github.run_id }}/R306_ROLLBACK_MODEL_RECEIPT.json
             ${{ runner.temp }}/R307_${{ matrix.host }}_${{ github.run_id }}/R307_PROTECTED_JOURNAL_ACL_RECEIPT.json
+            ${{ runner.temp }}/R308_${{ matrix.host }}_${{ github.run_id }}/R308_JOURNAL_PREWRITE_RECEIPT.json

@@ -60,15 +60,23 @@ try{
     $args4[3]=[string]$user
     $cmd=[string]$m.Invoke($null,$args4)
     $prefix='-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand '
-    if(-not $cmd.StartsWith($prefix,[StringComparison]::Ordinal) -or
-       $cmd.Contains(' -File ') -or $cmd.Contains('ExecutionPolicy Bypass')){
+    $inlinePrefix='-NoProfile -NonInteractive -WindowStyle Hidden -Command '
+    if($cmd.Contains(' -File ') -or $cmd.Contains('ExecutionPolicy Bypass')){
         throw 'R293_ELEVATION_COMMAND_USES_UNTRUSTED_FILE_PATH'
     }
-    $encoded=$cmd.Substring($prefix.Length)
-    if($encoded.Length -lt 1000 -or $encoded.Length -gt 32000){
-        throw 'R293_ENCODED_COMMAND_LENGTH_OUT_OF_BOUNDS'
+    $encodedTransport=$cmd.StartsWith($prefix,[StringComparison]::Ordinal)
+    if($encodedTransport){
+        $encoded=$cmd.Substring($prefix.Length)
+        if($encoded.Length -lt 1000 -or $encoded.Length -gt 32000){
+            throw 'R293_ENCODED_COMMAND_LENGTH_OUT_OF_BOUNDS'
+        }
+        $script=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($encoded))
+    }else{
+        if(-not $cmd.StartsWith($inlinePrefix,[StringComparison]::Ordinal) -or
+           $cmd.Length -gt 30000){throw 'R293_UNSAFE_OR_LONG_INLINE_COMMAND'}
+        $encoded=$cmd.Substring($inlinePrefix.Length)
+        $script=$encoded
     }
-    $script=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($encoded))
     if(-not $script.Contains('[ScriptBlock]::Create($code)') -or
        $script.Contains(' -File ')){
         throw 'R293_DECODED_COMMAND_DOES_NOT_RUN_EMBEDDED_SOURCE'
@@ -208,10 +216,10 @@ try{
         UACOrProtectedServiceCalled=$false
         ExactTrustedHelperSource=$true
         MaliciousTempScriptIgnored=$true
-        RealNonElevatedEncodedPowerShellCalled=$true
+        RealNonElevatedInMemoryPowerShellCalled=$true
         InvalidAppRootRejectedBeforeWrite=$true
         InstalledMainUnchanged=$true
-        BoundedEncodedCommandLength=$encoded.Length
+        BoundedInMemoryCommandLength=$cmd.Length
         Checks=@($checks)
         RecordedUtc=[DateTime]::UtcNow.ToString('o')
     }

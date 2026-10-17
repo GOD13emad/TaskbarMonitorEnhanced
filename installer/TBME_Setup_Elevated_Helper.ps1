@@ -122,6 +122,7 @@ $validatedSensorSid=Assert-SensorPrivilegedBoundary $Mode $PayloadDir $AppRoot $
 $TaskName='TaskbarMonitorEnhanced Sensor Broker'
 $BrokerRoot=Join-Path $env:ProgramFiles 'TaskbarMonitorEnhanced\SensorBroker'
 $SensorOwnerMarker=Join-Path $BrokerRoot '.tbme-owner.sid'
+$script:SensorJournalRoot=Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles)) 'TaskbarMonitorEnhanced\.tbme-sensor-rollback'
 $LogsRoot=Join-Path $AppRoot 'Logs'
 $ResultPath=Join-Path $LogsRoot 'sensor_install_result.json'
 $LogPath=Join-Path $LogsRoot 'sensor_install.log'
@@ -251,6 +252,213 @@ function Clear-SensorRollbackBuffer {
     $script:RollbackCaptured=$false
 }
 
+# R308 experimental protected write-ahead snapshot. The current review stage
+# deliberately refuses preexisting/stale journals rather than consuming them.
+# Crash recovery and terminal cleanup need separate native acceptance.
+function Get-SensorJournalHash([byte[]]$Value){
+    $sha=[Security.Cryptography.SHA256]::Create()
+    try{return [BitConverter]::ToString($sha.ComputeHash($Value)).Replace('-','')}
+    finally{$sha.Dispose()}
+}
+function Assert-SensorJournalRelative([string]$Rel){
+    if([string]::IsNullOrWhiteSpace($Rel) -or $Rel.Length -gt 240 -or
+       [IO.Path]::IsPathRooted($Rel) -or $Rel.Contains('/') -or
+       $Rel.Contains(':') -or $Rel.StartsWith('\') -or $Rel.EndsWith('\')){
+        throw 'SENSOR_JOURNAL_UNSAFE_RELATIVE_NAME'
+    }
+    foreach($part in $Rel.Split('\')){
+        if($part -ceq '.' -or $part -ceq '..' -or $part.EndsWith('.') -or
+           $part -cnotmatch '^[A-Za-z0-9_.-]+$'){
+            throw 'SENSOR_JOURNAL_UNSAFE_RELATIVE_NAME'
+        }
+    }
+}
+function Assert-SensorJournalTrustedAcl([string]$Path,[bool]$RequireProtected){
+    Assert-SensorBoundaryNoReparse $Path
+    $acl=Get-Acl -LiteralPath $Path -ErrorAction Stop
+    $owner=([Security.Principal.NTAccount]::new([string]$acl.Owner)).Translate(
+        [Security.Principal.SecurityIdentifier]).Value
+    $trusted=@('S-1-5-18','S-1-5-32-544',
+        'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464')
+    if($trusted -cnotcontains $owner){throw 'SENSOR_JOURNAL_UNTRUSTED_OWNER'}
+    if($RequireProtected -and -not $acl.AreAccessRulesProtected){
+        throw 'SENSOR_JOURNAL_UNPROTECTED_DACL'
+    }
+    $write=[Security.AccessControl.FileSystemRights]::Write -bor
+        [Security.AccessControl.FileSystemRights]::Modify -bor
+        [Security.AccessControl.FileSystemRights]::Delete -bor
+        [Security.AccessControl.FileSystemRights]::DeleteSubdirectoriesAndFiles -bor
+        [Security.AccessControl.FileSystemRights]::ChangePermissions -bor
+        [Security.AccessControl.FileSystemRights]::TakeOwnership
+    foreach($rule in $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])){
+        if($rule.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow){continue}
+        if($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly){continue}
+        if(($trusted -cnotcontains [string]$rule.IdentityReference.Value) -and
+           ($rule.FileSystemRights -band $write)){
+            throw 'SENSOR_JOURNAL_UNTRUSTED_WRITE_ACE'
+        }
+    }
+}
+function Write-SensorJournalUnique([string]$Root,[string]$Relative,[byte[]]$Bytes){
+    Assert-SensorJournalRelative $Relative
+    $file=Join-Path $Root $Relative
+    $parent=[IO.Path]::GetDirectoryName($file)
+    Assert-SensorBoundaryNoReparse $parent
+    [void][IO.Directory]::CreateDirectory($parent)
+    Assert-SensorJournalTrustedAcl $parent $false
+    Assert-SensorBoundaryNoReparse $file
+    $fs=[IO.FileStream]::new($file,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+    try{$fs.Write($Bytes,0,$Bytes.Length);$fs.Flush($true)}
+    finally{$fs.Dispose()}
+    Assert-SensorJournalTrustedAcl $file $false
+}
+function Assert-SensorDurableJournal([string]$Root,[string]$ExpectedSid){
+    Assert-SensorJournalTrustedAcl $Root $true
+    $ready=Join-Path $Root 'READY'
+    Assert-SensorBoundaryNoReparse $ready
+    if(-not [IO.File]::Exists($ready) -or
+       [IO.File]::ReadAllText($ready,[Text.Encoding]::ASCII) -cne 'TBME_SENSOR_READY_V1'){
+        throw 'SENSOR_JOURNAL_INCOMPLETE_OR_UNREADY'
+    }
+    foreach($name in @('READY','manifest.json','task.xml')){
+        Assert-SensorJournalTrustedAcl (Join-Path $Root $name) $false
+    }
+    $file=Join-Path $Root 'manifest.json'
+    if(([IO.FileInfo]::new($file)).Length -gt 65536){throw 'SENSOR_JOURNAL_MANIFEST_OVERSIZE'}
+    $manifest=[IO.File]::ReadAllText($file,[Text.Encoding]::UTF8)|ConvertFrom-Json
+    if($manifest.Schema -ne 1 -or $manifest.Phase -cne 'PREPARED' -or
+       $manifest.Sid -cne $ExpectedSid){throw 'SENSOR_JOURNAL_OWNER_OR_PHASE_MISMATCH'}
+    $bytes=[IO.File]::ReadAllBytes((Join-Path $Root 'task.xml'))
+    if($bytes.Length -gt 262144 -or
+       (Get-SensorJournalHash $bytes) -cne [string]$manifest.TaskHash){
+        throw 'SENSOR_JOURNAL_TASK_XML_HASH_MISMATCH'
+    }
+    $allowed=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach($n in @('READY','manifest.json','task.xml')){[void]$allowed.Add((Join-Path $Root $n))}
+    [void]$allowed.Add((Join-Path $Root 'files'))
+    $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    if(@($manifest.Files).Count -gt 128){throw 'SENSOR_JOURNAL_SNAPSHOT_COUNT_INVALID'}
+    [long]$total=0
+    foreach($row in @($manifest.Files)){
+        $rel=[string]$row.Rel
+        Assert-SensorJournalRelative $rel
+        if(-not $seen.Add($rel)){throw 'SENSOR_JOURNAL_DUPLICATE_SNAPSHOT'}
+        $path=Join-Path (Join-Path $Root 'files') $rel
+        Assert-SensorJournalTrustedAcl $path $false
+        $blob=[IO.File]::ReadAllBytes($path)
+        $total+=$blob.Length
+        if($blob.Length -gt 16777216 -or $total -gt 67108864 -or
+           $blob.Length -ne [long]$row.Length -or
+           (Get-SensorJournalHash $blob) -cne [string]$row.Hash){
+            throw 'SENSOR_JOURNAL_SNAPSHOT_HASH_MISMATCH'
+        }
+        [void]$allowed.Add($path)
+        $parent=[IO.Path]::GetDirectoryName($path)
+        while($parent.StartsWith((Join-Path $Root 'files')+'\',[StringComparison]::OrdinalIgnoreCase)){
+            [void]$allowed.Add($parent)
+            $parent=[IO.Path]::GetDirectoryName($parent)
+        }
+    }
+    if(-not [IO.Directory]::Exists((Join-Path $Root 'files'))){
+        throw 'SENSOR_JOURNAL_FILES_DIRECTORY_MISSING'
+    }
+    # Check each child before recursing; never follow a junction while merely
+    # enumerating the rollback journal (PowerShell provider behavior varies).
+    $pending=[Collections.Generic.List[string]]::new()
+    $pending.Add($Root)
+    while($pending.Count -gt 0){
+        $directory=$pending[$pending.Count-1]
+        $pending.RemoveAt($pending.Count-1)
+        Assert-SensorBoundaryNoReparse $directory
+        foreach($member in [IO.Directory]::GetFileSystemEntries($directory)){
+            $full=[IO.Path]::GetFullPath($member)
+            $attrs=[IO.File]::GetAttributes($full)
+            if(($attrs -band [IO.FileAttributes]::ReparsePoint) -ne 0){
+                throw 'SENSOR_JOURNAL_REPARSE_MEMBER'
+            }
+            if(-not $allowed.Contains($full)){
+                throw 'SENSOR_JOURNAL_UNKNOWN_MEMBER'
+            }
+            if(($attrs -band [IO.FileAttributes]::Directory) -ne 0){
+                $pending.Add($full)
+            }
+        }
+    }
+    return $manifest
+}
+function New-SensorDurableJournal(
+    [string]$Root,[string]$Sid,[object[]]$Rows,[string]$TaskXml,
+    [string[]]$NewNames,[bool]$OldRootPresent
+){
+    $token=[Security.Principal.WindowsIdentity]::GetCurrent().User
+    if($null -eq $token -or $token.Value -cne $Sid){
+        throw 'SENSOR_JOURNAL_TOKEN_MISMATCH'
+    }
+    Assert-SensorBoundaryNoReparse $Root
+    if(Test-Path -LiteralPath $Root){throw 'SENSOR_JOURNAL_ALREADY_EXISTS'}
+    $parent=[IO.Path]::GetDirectoryName($Root)
+    Assert-SensorJournalTrustedAcl $parent $false
+    $all=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    if(@($Rows).Count -gt 128 -or @($NewNames).Count -gt 64){
+        throw 'SENSOR_JOURNAL_INVENTORY_TOO_LARGE'
+    }
+    $index=[Collections.Generic.List[object]]::new()
+    [long]$sum=0
+    foreach($r in @($Rows)){
+        $rel=[string]$r.Rel
+        Assert-SensorJournalRelative $rel
+        if(-not $all.Add($rel)){throw 'SENSOR_JOURNAL_DUPLICATE_ORIGINAL'}
+        $payload=[byte[]]$r.Data
+        $sum+=$payload.Length
+        if($payload.Length -gt 16777216 -or $sum -gt 67108864){
+            throw 'SENSOR_JOURNAL_TOO_LARGE'
+        }
+        $index.Add([pscustomobject]@{Rel=$rel;Length=$payload.Length;Hash=(Get-SensorJournalHash $payload)})
+    }
+    $newList=[Collections.Generic.List[string]]::new()
+    $newSeen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach($name in $NewNames){
+        Assert-SensorJournalRelative $name
+        if(-not $newSeen.Add($name)){throw 'SENSOR_JOURNAL_DUPLICATE_NEXT_FILE'}
+        $newList.Add($name)
+    }
+    $xml=[Text.Encoding]::UTF8.GetBytes([string]$TaskXml)
+    if($xml.Length -gt 262144){throw 'SENSOR_JOURNAL_XML_TOO_LARGE'}
+    $admins=[Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')
+    $system=[Security.Principal.SecurityIdentifier]::new('S-1-5-18')
+    $acl=[Security.AccessControl.DirectorySecurity]::new()
+    $acl.SetOwner($admins)
+    $acl.SetAccessRuleProtection($true,$false)
+    foreach($principal in @($admins,$system)){
+        $ace=[Security.AccessControl.FileSystemAccessRule]::new(
+            $principal,[Security.AccessControl.FileSystemRights]::FullControl,
+            [Security.AccessControl.InheritanceFlags]'ContainerInherit,ObjectInherit',
+            [Security.AccessControl.PropagationFlags]::None,
+            [Security.AccessControl.AccessControlType]::Allow)
+        [void]$acl.AddAccessRule($ace)
+    }
+    [void][IO.Directory]::CreateDirectory($Root,$acl)
+    Assert-SensorJournalTrustedAcl $Root $true
+    [void][IO.Directory]::CreateDirectory((Join-Path $Root 'files'))
+    Assert-SensorJournalTrustedAcl (Join-Path $Root 'files') $false
+    foreach($r in @($Rows)){
+        Write-SensorJournalUnique $Root ('files\'+[string]$r.Rel) ([byte[]]$r.Data)
+    }
+    Write-SensorJournalUnique $Root 'task.xml' $xml
+    $manifest=[ordered]@{
+        Schema=1;Phase='PREPARED';Sid=$Sid;OldRootPresent=$OldRootPresent
+        TaskPresent=($xml.Length -gt 0);TaskHash=(Get-SensorJournalHash $xml)
+        Files=@($index);ExpectedNewFiles=@($newList)
+    }
+    $json=[Text.Encoding]::UTF8.GetBytes(($manifest|ConvertTo-Json -Depth 6 -Compress))
+    if($json.Length -gt 65536){throw 'SENSOR_JOURNAL_MANIFEST_TOO_LARGE'}
+    Write-SensorJournalUnique $Root 'manifest.json' $json
+    # READY is written and flushed LAST, before any service/task mutation.
+    Write-SensorJournalUnique $Root 'READY' ([Text.Encoding]::ASCII.GetBytes('TBME_SENSOR_READY_V1'))
+    $verified=Assert-SensorDurableJournal $Root $Sid
+    if($verified.Phase -cne 'PREPARED'){throw 'SENSOR_JOURNAL_READY_READBACK_FAILED'}
+}
+
 function Capture-PreviousSensorLayer {
     try{
         Clear-SensorRollbackBuffer
@@ -366,6 +574,17 @@ try{
     Preserve-OtherUserSensorLayer ('UNVERIFIED_MACHINEWIDE_SENSOR_OWNERSHIP_'+$_.Exception.GetType().Name)
 }
 # R264-SENSOR-GUARD-BOUNDARY-END
+
+# R308: no automatic recovery/cleanup until an independently validated
+# terminal protocol exists. Existing or partial journal blocks further
+# protected writes; the per-user main application remains usable.
+Assert-SensorBoundaryNoReparse $SensorJournalRoot
+if(Test-Path -LiteralPath $SensorJournalRoot){
+    $script:ActiveArchitecture='PROTECTED_JOURNAL_RECOVERY_REQUIRED'
+    Write-Log 'R308_PENDING_PROTECTED_JOURNAL_NO_NEW_PROTECTED_MUTATION'
+    Write-Result 'DEGRADED_ROLLBACK_RECOVERY_REQUIRED' 'A protected sensor update journal is pending validation. Protected sensors were not modified; a verified recovery procedure is required.' 'NOT_STARTED' $null $false $false $false
+    exit 0
+}
 
 if($Mode -eq 'Uninstall'){
     try{
@@ -510,6 +729,30 @@ try{
 if(-not(Capture-PreviousSensorLayer)){
     $ActiveArchitecture='PREVIOUS_SENSOR_LAYER_UNCHANGED'
     Write-Result 'DEGRADED' 'Setup could not capture a rollback snapshot of the existing protected sensor layer, so it did not modify that layer.' 'NOT_STARTED' $null $false $false $false
+    exit 0
+}
+# R308: preserve old protected bytes and task XML BEFORE writing ownership
+# markers, stopping tasks or replacing protected files.
+try{
+    $parent=[IO.Path]::GetDirectoryName($SensorJournalRoot)
+    Assert-SensorBoundaryNoReparse $parent
+    if(-not [IO.Directory]::Exists($parent)){
+        [void][IO.Directory]::CreateDirectory($parent)
+    }
+    Assert-SensorJournalTrustedAcl $parent $false
+    $expectedNew=[Collections.Generic.List[string]]::new()
+    foreach($name in @('TaskbarMonitorSensorBroker.exe','TaskbarMonitorSensorSupervisor.exe','.tbme-owner.sid')){
+        $expectedNew.Add($name)
+    }
+    foreach($verified in $VerifiedBackendEntries){
+        $expectedNew.Add(([string]$verified.Rel).Replace('/','\'))
+    }
+    New-SensorDurableJournal $SensorJournalRoot $validatedSensorSid $RollbackFiles $RollbackTaskXmlText $expectedNew.ToArray() ([IO.Directory]::Exists($BrokerRoot))
+    Write-Log 'R308_DURABLE_READY_VERIFIED_BEFORE_PROTECTED_MUTATION'
+}catch{
+    Clear-SensorRollbackBuffer
+    Write-Log ('R308_PROTECTED_JOURNAL_PREWRITE_REFUSED '+$_.Exception.Message)
+    Write-Result 'DEGRADED' 'Protected sensor snapshot could not be durably verified before mutation; prior protected services were preserved.' 'NOT_STARTED' $null $false $false $false
     exit 0
 }
 

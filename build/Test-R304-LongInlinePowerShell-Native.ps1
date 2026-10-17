@@ -99,15 +99,22 @@ $normalPayload=Join-Path $env:RUNNER_TEMP ('tbme_setup_'+('a'*32))
 $normalRoot=Join-Path $env:WINDIR 'R304_Expected_PreWrite_Refusal'
 $normal=Command Install $normalPayload $normalRoot $user
 $encodedPrefix='-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand '
-if(-not $normal.StartsWith($encodedPrefix,[StringComparison]::Ordinal) -or
-   $normal.Length -gt 32080){
- throw 'R304_SHORT_ENCODEDCOMMAND_BACKWARD_COMPAT_FAILED'
+$inlinePrefix='-NoProfile -NonInteractive -WindowStyle Hidden -Command '
+$shortIsEncoded=$normal.StartsWith($encodedPrefix,[StringComparison]::Ordinal)
+$shortIsInline=$normal.StartsWith($inlinePrefix,[StringComparison]::Ordinal)
+if((-not $shortIsEncoded -and -not $shortIsInline) -or
+   ($shortIsEncoded -and $normal.Length -gt 32080) -or
+   ($shortIsInline -and $normal.Length -gt 30000) -or
+   $normal.Contains(' -File ')){
+ throw 'R304_SHORT_UNBOUNDED_OR_UNSAFE_TRANSPORT'
 }
-$normalCode=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($normal.Substring($encodedPrefix.Length)))
+$normalCode=if($shortIsEncoded){
+ [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($normal.Substring($encodedPrefix.Length)))
+}else{$normal.Substring($inlinePrefix.Length)}
 $match=[regex]::Match($normalCode,"(?m)^\`$blob=\[Convert\]::FromBase64String\('([A-Za-z0-9+/=]+)'\)")
 if(!$match.Success){throw 'R304_PRIOR_PE_HELPER_BLOB_NOT_ENCODED'}
 $originalBlob=$match.Groups[1].Value
-$checks.Add('SHORT_ENCODEDCOMMAND_AND_PEBLOB_UNCHANGED')
+$checks.Add('SHORT_INMEMORY_COMMAND_PE_BLOB_PINNED')
 $longName='C:\Users\'+('Q'*128)
 $longPayload=$longName+'\AppData\Local\Temp\tbme_setup_'+('b'*32)
 $longRoot=$longName+'\AppData\Local\TaskbarMonitorEnhanced'
@@ -143,7 +150,7 @@ if(!$limitFailed){throw 'R304_UNBOUNDED_PARAMETER_FAILOPEN'}
 $checks.Add('PER_PARAMETER_LENGTH_CAP_PRESERVED')
 # The native 5.1 child runs as the current guest user, NEVER with Verb=runas.
 # All three invocations must refuse before writing any optional sensor state.
-Expect-FailsClosed 'SHORT_EXISTING_ENCODED_COMMAND_REFUSED_PREWRITE' $normal 'SENSOR_BOUNDARY_APP_ROOT_OUTSIDE_USER_PROFILE'
+Expect-FailsClosed 'SHORT_EXACT_PE_COMMAND_REFUSED_PREWRITE' $normal 'SENSOR_BOUNDARY_APP_ROOT_OUTSIDE_USER_PROFILE'
 Expect-FailsClosed 'LONG_NEW_COMMAND_REFUSED_PREWRITE' $fallback 'SENSOR_BOUNDARY_APP_ROOT_OUTSIDE_USER_PROFILE'
 Expect-FailsClosed 'HOSTILE_LONG_COMMAND_REFUSED_PREWRITE' $attack 'SENSOR_BOUNDARY_APP_ROOT_OUTSIDE_USER_PROFILE'
 if((Hash $main) -cne $original.Main -or
@@ -158,12 +165,13 @@ $record=[ordered]@{
  Status='PASS_LONG_PROFILE_INMEMORY_POWERSHELL_FALLBACK'
  Host=$HostLabel;SourceCommit=$env:GITHUB_SHA;NoUAC=$true
  OriginalOwnerComputerTouched=$false
- ExistingEncodedCommandPreserved=$true
+ ShortEncodedCommandUsed=$shortIsEncoded
+ ShortInlineTransportVerified=$shortIsInline
  LongProfileFallbackCommandExecuted=$true
  NoUserWritableScriptExecuted=$true
  HostileInputRemainedEncoded=$true
  InstalledUserFilesUnchanged=$true
- EncodedCommandLength=$normal.Length
+ ShortCommandLength=$normal.Length
  LongFallbackCommandLength=$fallback.Length
  HostileFallbackCommandLength=$attack.Length
  Checks=@($checks)
