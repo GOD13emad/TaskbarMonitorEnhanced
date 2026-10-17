@@ -711,6 +711,32 @@ jobs:
              $r.InstalledOwnerDataUnchanged -ne $true -or
              @($r.Checks).Count -ne 18){throw 'R311_NATIVE_ACCEPTANCE_GATES_UNMET'}
           'R311_HEALTHY_COMMIT_AND_PENDING_PREPARED_FAIL_CLOSED=PASS'
+      - name: R312 reject foreign or executable-task XML before any cold ScheduledTask restore
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $test=(Resolve-Path build/Test-R312-PinnedTaskXml-Native.ps1).Path
+          $tok=$null;$err=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($test,[ref]$tok,[ref]$err)
+          if(@($err).Count){$err|ForEach-Object {$_.Message};throw 'R312_PS51_NATIVE_TEST_SYNTAX_INVALID'}
+          ./build/Test-R312-PinnedTaskXml-Native.ps1 -HostLabel '${{ matrix.host }}' -CandidateDir (Resolve-Path _r284_private_candidate).Path
+          $receipt=Join-Path $env:RUNNER_TEMP ('R312_${{ matrix.host }}_'+$env:GITHUB_RUN_ID+'/R312_TRUSTED_TASK_XML_RECEIPT.json')
+          if(!(Test-Path -LiteralPath $receipt)){throw 'R312_NATIVE_RECEIPT_MISSING'}
+          $r=Get-Content -LiteralPath $receipt -Raw|ConvertFrom-Json
+          if($r.Schema -ne 1 -or $r.Revision -cne 'R312' -or
+             $r.Status -cne 'PASS_EXACT_PRODUCTION_TASK_XML_POLICY_SYNTHETIC' -or
+             $r.Host -cne '${{ matrix.host }}' -or $r.SourceCommit -cne $env:GITHUB_SHA -or
+             $r.OriginalOwnerComputerTouched -ne $false -or
+             $r.ActualProgramFilesWritten -ne $false -or
+             $r.ActualUACInvoked -ne $false -or
+             $r.ActualScheduledTaskModified -ne $false -or
+             $r.ExactPEPolicyFunctionsLoaded -ne $true -or
+             $r.LegitimateTaskXmlAccepted -ne $true -or
+             $r.CommandPrincipalTriggerAndXmlInjectionRejected -ne $true -or
+             $r.InstalledOwnerDataUnchanged -ne $true -or
+             $r.ProductionColdTaskRegistrationIntegrated -ne $false -or
+             @($r.Checks).Count -ne 18){throw 'R312_NATIVE_TASK_XML_POLICY_GATES_UNMET'}
+          'R312_PINNED_TASK_XML_POLICY_SYNTHETIC=PASS_NO_TASK_REGISTRATION'
       - name: Preserve bounded guest evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -742,3 +768,4 @@ jobs:
             ${{ runner.temp }}/R309_${{ matrix.host }}_${{ github.run_id }}/R309_TERMINAL_REPLAY_RECEIPT.json
             ${{ runner.temp }}/R310_${{ matrix.host }}_${{ github.run_id }}/R310_RETIRED_JOURNAL_CLEANUP_RECEIPT.json
             ${{ runner.temp }}/R311_${{ matrix.host }}_${{ github.run_id }}/R311_HEALTHY_TERMINAL_HOOK_RECEIPT.json
+            ${{ runner.temp }}/R312_${{ matrix.host }}_${{ github.run_id }}/R312_TRUSTED_TASK_XML_RECEIPT.json

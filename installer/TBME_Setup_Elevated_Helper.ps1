@@ -859,6 +859,100 @@ function Complete-HealthySensorJournal(
     }
 }
 
+# R312: replaying a prior Scheduled Task XML can register executable actions.
+# Only the exact prior same-SID LogonTrigger and pinned Supervisor Exec are
+# allowed. Never permit RegistrationTrigger, alternate command or XML DTD.
+function Resolve-SensorPriorTaskPrincipalSid([string]$name){
+ if([string]::IsNullOrWhiteSpace($name)){throw 'SENSOR_JOURNAL_TASK_XML_EMPTY_IDENTITY'}
+ if($name -match '^S-1-5-(?:\d+-)+\d+$'){return $name}
+ try{
+  return [string]([Security.Principal.NTAccount]::new($name)).Translate(
+   [Security.Principal.SecurityIdentifier]).Value
+ }catch{throw 'SENSOR_JOURNAL_TASK_XML_IDENTITY_UNRESOLVABLE'}
+}
+function Assert-SensorTrustedOldTaskXml(
+ [string]$Text,[string]$ExpectedSid,[string]$TrustedBrokerRoot,[string]$TrustedAppRoot
+){
+ if([string]::IsNullOrWhiteSpace($Text) -or $Text.Length -gt 262144){
+  throw 'SENSOR_JOURNAL_TASK_XML_MISSING_OR_OVERSIZE'
+ }
+ if($ExpectedSid -cnotmatch '^S-1-5-21-(?:\d+-){3}\d+$'){
+  throw 'SENSOR_JOURNAL_TASK_XML_EXPECTED_SID_UNTRUSTED'
+ }
+ $xml=[Xml.XmlDocument]::new()
+ $xml.XmlResolver=$null
+ $settings=[Xml.XmlReaderSettings]::new()
+ $settings.DtdProcessing=[Xml.DtdProcessing]::Prohibit
+ $settings.XmlResolver=$null
+ $settings.MaxCharactersInDocument=262144
+ $settings.MaxCharactersFromEntities=0
+ $settings.IgnoreComments=$false
+ $sr=[IO.StringReader]::new($Text)
+ $reader=$null
+ try{
+  $reader=[Xml.XmlReader]::Create($sr,$settings)
+  $xml.Load($reader)
+ }finally{
+  if($reader){$reader.Dispose()}
+  $sr.Dispose()
+ }
+ $n=[Xml.XmlNamespaceManager]::new($xml.NameTable)
+ $n.AddNamespace('t','http://schemas.microsoft.com/windows/2004/02/mit/task')
+ if($null -eq $xml.DocumentElement -or
+    $xml.DocumentElement.LocalName -cne 'Task' -or
+    $xml.DocumentElement.NamespaceURI -cne 'http://schemas.microsoft.com/windows/2004/02/mit/task'){
+  throw 'SENSOR_JOURNAL_TASK_XML_UNSUPPORTED_NAMESPACE'
+ }
+ $principals=@($xml.SelectNodes('/t:Task/t:Principals/t:Principal',$n))
+ $actions=@($xml.SelectNodes('/t:Task/t:Actions/*',$n))
+ $triggers=@($xml.SelectNodes('/t:Task/t:Triggers/*',$n))
+ if($principals.Count -ne 1 -or $actions.Count -ne 1 -or
+    $triggers.Count -ne 1 -or $actions[0].LocalName -cne 'Exec' -or
+    $triggers[0].LocalName -cne 'LogonTrigger'){
+  throw 'SENSOR_JOURNAL_TASK_XML_UNEXPECTED_ACTION_OR_TRIGGER'
+ }
+ $principal=$principals[0]
+ $uid=$principal.SelectSingleNode('t:UserId',$n)
+ $logon=$principal.SelectSingleNode('t:LogonType',$n)
+ $run=$principal.SelectSingleNode('t:RunLevel',$n)
+ if(!$uid -or !$logon -or !$run -or
+    (Resolve-SensorPriorTaskPrincipalSid ([string]$uid.InnerText)) -cne $ExpectedSid -or
+    [string]$logon.InnerText -cne 'InteractiveToken' -or
+    [string]$run.InnerText -cne 'HighestAvailable'){
+  throw 'SENSOR_JOURNAL_TASK_XML_FOREIGN_PRINCIPAL_OR_PRIVILEGES'
+ }
+ $triggerUid=$triggers[0].SelectSingleNode('t:UserId',$n)
+ if(!$triggerUid -or
+    (Resolve-SensorPriorTaskPrincipalSid ([string]$triggerUid.InnerText)) -cne $ExpectedSid){
+  throw 'SENSOR_JOURNAL_TASK_XML_WRONG_LOGON_USER'
+ }
+ $exe=$actions[0]
+ $command=$exe.SelectSingleNode('t:Command',$n)
+ $args=$exe.SelectSingleNode('t:Arguments',$n)
+ if(!$command -or !$args -or $exe.SelectSingleNode('t:WorkingDirectory',$n)){
+  throw 'SENSOR_JOURNAL_TASK_XML_EXEC_SHAPE_UNEXPECTED'
+ }
+ $expectedExe=Join-Path $TrustedBrokerRoot 'TaskbarMonitorSensorSupervisor.exe'
+ $expectedBroker=Join-Path $TrustedBrokerRoot 'TaskbarMonitorSensorBroker.exe'
+ $expectedOutput=Join-Path $TrustedAppRoot 'cpu_temp_broker.json'
+ $expectedArgs='--broker "'+$expectedBroker+'" --output "'+$expectedOutput+'"'
+ if(-not [string]::Equals([string]$command.InnerText,$expectedExe,[StringComparison]::OrdinalIgnoreCase) -or
+    -not [string]::Equals([string]$args.InnerText,$expectedArgs,[StringComparison]::OrdinalIgnoreCase)){
+  throw 'SENSOR_JOURNAL_TASK_XML_EXEC_NOT_PINNED'
+ }
+ $uri=$xml.SelectSingleNode('/t:Task/t:RegistrationInfo/t:URI',$n)
+ if($uri -and [string]$uri.InnerText -cne '\TaskbarMonitorEnhanced Sensor Broker'){
+  throw 'SENSOR_JOURNAL_TASK_XML_URI_UNPINNED'
+ }
+ if($principal.SelectSingleNode('t:GroupId',$n)){
+  throw 'SENSOR_JOURNAL_TASK_XML_GROUP_PRINCIPAL_FORBIDDEN'
+ }
+ if($xml.SelectSingleNode('/t:Task/t:RegistrationInfo/t:SecurityDescriptor',$n)){
+  throw 'SENSOR_JOURNAL_TASK_XML_EMBEDDED_SECURITY_DESCRIPTOR_REFUSED'
+ }
+ return $true
+}
+
 function Capture-PreviousSensorLayer {
     try{
         Clear-SensorRollbackBuffer
