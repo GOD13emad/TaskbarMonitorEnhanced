@@ -113,6 +113,7 @@ $validatedSensorSid=Assert-SensorPrivilegedBoundary $Mode $PayloadDir $AppRoot $
 
 $TaskName='TaskbarMonitorEnhanced Sensor Broker'
 $BrokerRoot=Join-Path $env:ProgramFiles 'TaskbarMonitorEnhanced\SensorBroker'
+$SensorOwnerMarker=Join-Path $BrokerRoot '.tbme-owner.sid'
 $LogsRoot=Join-Path $AppRoot 'Logs'
 $ResultPath=Join-Path $LogsRoot 'sensor_install_result.json'
 $LogPath=Join-Path $LogsRoot 'sensor_install.log'
@@ -332,7 +333,16 @@ try{
             Preserve-OtherUserSensorLayer 'ANOTHER_ACCOUNT_OWNS_GLOBAL_SCHEDULED_TASK'
         }
     }elseif(Test-Path -LiteralPath $BrokerRoot){
-        Preserve-OtherUserSensorLayer 'UNOWNED_SHARED_PROGRAMFILES_BROKER_WITHOUT_TASK'
+        # R303: an aborted same-user install may leave an existing protected
+        # BrokerRoot after task removal. Refuse absent/other-user ownership.
+        Assert-SensorBoundaryNoReparse $SensorOwnerMarker
+        if(-not (Test-Path -LiteralPath $SensorOwnerMarker -PathType Leaf)){
+            Preserve-OtherUserSensorLayer 'UNOWNED_SHARED_PROGRAMFILES_BROKER_WITHOUT_TASK'
+        }
+        if([IO.File]::ReadAllText($SensorOwnerMarker,[Text.Encoding]::ASCII).Trim() -cne $expectedUserSid){
+            Preserve-OtherUserSensorLayer 'PROTECTED_SENSOR_OWNER_MARKER_MISMATCH'
+        }
+        Write-Log 'PARTIAL_PROTECTED_SENSOR_BROKER_SAME_OWNER_ACCEPTED'
     }
     $sensorProcesses=@(Get-CimInstance Win32_Process -Filter "Name='TaskbarMonitorSensorBroker.exe' OR Name='TaskbarMonitorSensorSupervisor.exe'" -ErrorAction Stop |
        Where-Object {$null -ne $_})
@@ -500,6 +510,31 @@ $pawnExit=$null
 $rebootRequired=$false
 Write-Log "PAWNIO_ALREADY_PRESENT version=$existingPawn"
 
+# R303: publish protected SID ownership BEFORE unregistering the old task.
+# The marker is never accepted from writable Temp/AppData and is exclusive.
+function Assert-OrRecordSensorOwner {
+    Assert-SensorBoundaryNoReparse $BrokerRoot
+    Assert-SensorBoundaryNoReparse $SensorOwnerMarker
+    if(Test-Path -LiteralPath $SensorOwnerMarker){
+        if([IO.File]::ReadAllText($SensorOwnerMarker,[Text.Encoding]::ASCII).Trim() -cne $validatedSensorSid){
+            throw 'PROTECTED_SENSOR_OWNER_MARKER_MISMATCH'
+        }
+        return
+    }
+    [void][IO.Directory]::CreateDirectory($BrokerRoot)
+    Assert-SensorBoundaryNoReparse $SensorOwnerMarker
+    $bytes=[Text.Encoding]::ASCII.GetBytes($validatedSensorSid)
+    $stream=[IO.FileStream]::new($SensorOwnerMarker,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+    try{$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)}
+    finally{$stream.Dispose()}
+}
+try{
+    Assert-OrRecordSensorOwner
+}catch{
+    Write-Log ('PROTECTED_SENSOR_OWNER_MARKER_SETUP_REFUSED '+$_.Exception.Message)
+    Write-Result 'DEGRADED' 'Protected sensor ownership could not be persisted before modification; existing services were preserved.' 'NOT_STARTED' $null $false $false $false
+    exit 0
+}
 $taskInstalled=$false
 try{
     Get-Process TaskbarMonitorSensorSupervisor,TaskbarMonitorSensorBroker -ErrorAction SilentlyContinue |
