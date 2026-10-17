@@ -101,3 +101,39 @@ if ! grep -Fq "expected SourceRepositoryDigest to be $wrong_source_sha, got $sou
 fi
 echo "PUBLIC_V178_WRONG_SOURCE_COMMIT_REJECTED"
 echo "PUBLIC_V178_NEGATIVE_GATES_PASS"
+
+# Validate the actual reusable Windows PowerShell client logic on GitHub-hosted
+# PowerShell 7; Linux runner skips only Windows Authenticode OS-specific probing.
+command -v pwsh >/dev/null || { echo 'PWSH_RUNTIME_MISSING' >&2; exit 1; }
+client='.github/scripts/Verify-Public-V178.ps1'
+[[ -f "$client" ]] || { echo 'PUBLIC_V178_CLIENT_SCRIPT_MISSING' >&2; exit 1; }
+pwsh -NoLogo -NoProfile -File "$client" -InstallerPath "$installer" -GhPath "$gh_binary"
+echo "PUBLIC_V178_POWERSHELL_CLIENT_REAL_FILE_PASS"
+
+printf 'INVALID' > "$work/client-size-invalid.exe"
+if pwsh -NoLogo -NoProfile -File "$client" \
+  -InstallerPath "$work/client-size-invalid.exe" -GhPath "$gh_binary" \
+  > "$work/client-size.log" 2>&1; then
+  echo 'CRITICAL_CLIENT_ACCEPTED_WRONG_SIZE' >&2
+  exit 1
+fi
+grep -Fq 'PUBLIC_V178_INVALID_SIZE' "$work/client-size.log" || {
+  echo 'INCONCLUSIVE_CLIENT_SIZE_REJECTION' >&2
+  tail -n 8 "$work/client-size.log" >&2
+  exit 1
+}
+
+truncate -s 8565760 "$work/client-digest-invalid.exe"
+if pwsh -NoLogo -NoProfile -File "$client" \
+  -InstallerPath "$work/client-digest-invalid.exe" -GhPath "$gh_binary" \
+  > "$work/client-digest.log" 2>&1; then
+  echo 'CRITICAL_CLIENT_ACCEPTED_WRONG_DIGEST' >&2
+  exit 1
+fi
+grep -Fq 'PUBLIC_V178_DIGEST_MISMATCH' "$work/client-digest.log" || {
+  echo 'INCONCLUSIVE_CLIENT_DIGEST_REJECTION' >&2
+  tail -n 8 "$work/client-digest.log" >&2
+  exit 1
+}
+echo "PUBLIC_V178_POWERSHELL_CLIENT_NEGATIVE_GATES_PASS"
+echo "PUBLIC_V178_POWERSHELL_CLIENT_TESTS_PASS"
