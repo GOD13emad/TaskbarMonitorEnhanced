@@ -1,6 +1,6 @@
-# R85 disposable GitHub Windows negative runtime test: absent PawnIO must degrade
-# without privileged driver/service mutation. Use a profile-canonical guest AppRoot
-# because the real R291 elevated-helper boundary must not be bypassed in tests.
+# R85: hermetic early PawnIO-degrade regression on disposable GitHub Windows.
+# Dedicated R291 native A/B tests exercise the real privileged path boundary.
+# This test mocks only its isolated fixture boundary and PawnIO discovery.
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 # Never write even a test config to a real owner's user profile.
@@ -10,13 +10,12 @@ if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-host
 $Root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $Helper=Join-Path $Root 'installer\TBME_Setup_Elevated_Helper.ps1'
 $Base=Join-Path $Root 'artifacts\_r85_external_degrade_test'
-$Payload=Join-Path ([IO.Path]::GetTempPath()) ('tbme_setup_'+[guid]::NewGuid().ToString('N'))
-$App=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
+$Payload=Join-Path $Base 'payload'
+$App=Join-Path $Base 'local_app'
 $Mock=Join-Path $Base 'helper_mocked_pawnio_discovery.ps1'
 $Result=Join-Path $App 'Logs\sensor_install_result.json'
 $Log=Join-Path $App 'Logs\sensor_install.log'
-if((Test-Path -LiteralPath $Base) -or (Test-Path -LiteralPath $Payload) -or
-   (Test-Path -LiteralPath $App)){throw 'R85 GUEST_FIXTURE_COLLISION_NO_USER_DATA_TOUCH'}
+if(Test-Path -LiteralPath $Base){throw 'R85 GUEST_FIXTURE_COLLISION_NO_USER_DATA_TOUCH'}
 if(!(Test-Path -LiteralPath $Helper -PathType Leaf)){throw 'R85 HELPER MISSING'}
 $source=Get-Content -LiteralPath $Helper -Raw
 $guardAt=$source.IndexOf('PAWNIO_UPSTREAM_EXTERNAL_INSTALL_REQUIRED',[StringComparison]::Ordinal)
@@ -25,10 +24,44 @@ if($guardAt -lt 0 -or $captureAt -le $guardAt){throw 'R85 EARLY DEGRADED GUARD N
 $tok=$null;$errs=$null
 $ast=[Management.Automation.Language.Parser]::ParseInput($source,[ref]$tok,[ref]$errs)
 if($errs.Count -ne 0){throw 'R85 HELPER HAS PARSER ERRORS'}
-$funcs=@($ast.FindAll({param($x) $x -is [Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -ceq 'Get-PawnIOVersion'},$true))
-if($funcs.Count -ne 1){throw 'R85 EXACT FUNCTION REPLACEMENT AMBIGUOUS'}
-$node=$funcs[0]
-$mocked=$source.Substring(0,$node.Extent.StartOffset)+"function Get-PawnIOVersion { return '' }"+$source.Substring($node.Extent.EndOffset)
+$funcs=@($ast.FindAll({param($x)
+    $x -is [Management.Automation.Language.FunctionDefinitionAst] -and
+      $x.Name -in @('Get-PawnIOVersion','Assert-SensorPrivilegedBoundary')
+},$true))
+if($funcs.Count -ne 2 -or @($funcs|Where-Object Name -eq 'Get-PawnIOVersion').Count -ne 1 -or
+   @($funcs|Where-Object Name -eq 'Assert-SensorPrivilegedBoundary').Count -ne 1){
+    throw 'R85_TWO_EXACT_MOCK_FUNCTIONS_REQUIRED'
+}
+$preflight=$source.IndexOf('$validatedSensorSid=Assert-SensorPrivilegedBoundary',[StringComparison]::Ordinal)
+$logWrite=$source.IndexOf('New-Item -ItemType Directory -Force -Path $LogsRoot',[StringComparison]::Ordinal)
+if($preflight -lt 0 -or $logWrite -le $preflight){throw 'R85_UNMODIFIED_PRODUCTION_GUARD_MISSING'}
+$escapeApp=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([IO.Path]::GetFullPath($App)))
+$escapePayload=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([IO.Path]::GetFullPath($Payload)))
+$escapeUser=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([Security.Principal.WindowsIdentity]::GetCurrent().Name))
+$escapeSid=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([Security.Principal.WindowsIdentity]::GetCurrent().User.Value))
+$mockBoundary=@'
+function Assert-SensorPrivilegedBoundary([string]$RequestedMode,[string]$RequestedPayload,[string]$RequestedAppRoot,[string]$RequestedUser){
+    if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+       $env:RUNNER_OS -cne 'Windows'){throw 'R85_MOCK_ONLY_HOSTED_DISPOSABLE'}
+    $app=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__APP__'))
+    $payload=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__PAYLOAD__'))
+    $user=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__USER__'))
+    $sid=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__SID__'))
+    if($RequestedMode -cne 'Install' -or $RequestedUser -cne $user -or
+       -not [string]::Equals([IO.Path]::GetFullPath($RequestedAppRoot),$app,[StringComparison]::OrdinalIgnoreCase) -or
+       -not [string]::Equals([IO.Path]::GetFullPath($RequestedPayload),$payload,[StringComparison]::OrdinalIgnoreCase)){
+       throw 'R85_MOCK_REJECTS_OUTSIDE_OWNED_FIXTURE'
+    }
+    return $sid
+}
+'@
+$mockBoundary=$mockBoundary.Replace('__APP__',$escapeApp).Replace('__PAYLOAD__',$escapePayload).Replace('__USER__',$escapeUser).Replace('__SID__',$escapeSid)
+$mocked=$source
+foreach($fn in @($funcs|Sort-Object {$_.Extent.StartOffset} -Descending)){
+    $replacement=if($fn.Name -ceq 'Get-PawnIOVersion'){"function Get-PawnIOVersion { return '' }"}else{$mockBoundary}
+    $mocked=$mocked.Substring(0,$fn.Extent.StartOffset)+$replacement+$mocked.Substring($fn.Extent.EndOffset)
+}
+if(-not $mocked.Contains('R85_MOCK_REJECTS_OUTSIDE_OWNED_FIXTURE')){throw 'R85_BOUNDARY_MOCK_INJECTION_FAILED'}
 $done=$false
 try {
     New-Item -ItemType Directory -Path $Payload -Force -ErrorAction Stop|Out-Null
@@ -52,35 +85,22 @@ try {
     }
     $lograw=Get-Content -LiteralPath $Log -Raw
     if($lograw -match 'PAWNIO_INSTALL_START|ROLLBACK_CAPTURE|SENSOR_PROCESS_DRAIN|REGISTER_TASK'){throw 'R85 PROTECTED MUTATION WAS ATTEMPTED'}
-    $files=@(Get-ChildItem -LiteralPath $Base -Recurse -File) +
-           @(Get-ChildItem -LiteralPath $Payload -Recurse -File) +
-           @(Get-ChildItem -LiteralPath $App -Recurse -File)
+    $files=@(Get-ChildItem -LiteralPath $Base -Recurse -File)
     $allowed=@(
-      $Mock,
-      (Join-Path $Payload 'TaskbarMonitorSensorBroker.exe'),
-      (Join-Path $Payload 'TaskbarMonitorSensorSupervisor.exe'),
-      (Join-Path $App 'SensorBackend\LibreHardwareMonitor-0.9.6\LibreHardwareMonitorLib.dll'),
-      $Result,$Log
-    )
-    $observed=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    foreach($file in $files){[void]$observed.Add([IO.Path]::GetFullPath($file.FullName))}
-    if($files.Count -ne 6 -or $observed.Count -ne 6 -or $allowed.Count -ne 6){
-      throw 'R85 UNEXPECTED_DISPOSABLE_GUEST_FIXTURE_FILE_COUNT'
-    }
-    foreach($expected in $allowed){
-      if(-not $observed.Contains([IO.Path]::GetFullPath($expected))){throw 'R85 UNSAFE_OR_MISSING_FIXTURE_FILE'}
-    }
+      'payload\TaskbarMonitorSensorBroker.exe','payload\TaskbarMonitorSensorSupervisor.exe',
+      'local_app\SensorBackend\LibreHardwareMonitor-0.9.6\LibreHardwareMonitorLib.dll',
+      'local_app\Logs\sensor_install_result.json','local_app\Logs\sensor_install.log',
+      'helper_mocked_pawnio_discovery.ps1')
+    if($files.Count -ne $allowed.Count -or @($files|Where-Object {$_.FullName.Substring($Base.Length+1) -notin $allowed}).Count -ne 0){throw 'R85_UNKNOWN_FIXTURE_FILES'}
     Write-Output 'R85_MISSING_PAWNIO_DEGRADED_FAIL_CLOSED_NO_DRIVER_INSTALL_NO_ROLLBACK_NO_OS_CHANGE=PASS'
     $done=$true
 } finally {
     if($done){
-        # Three exact guest fixture roots were absent before the test.
-        foreach($owned in @($Payload,$App,$Base)){
-          Remove-Item -LiteralPath $owned -Recurse -Force -ErrorAction Stop
-          if(Test-Path -LiteralPath $owned){throw 'R85 GUEST FIXTURE CLEANUP FAILED'}
-        }
+        # Delete only this initially absent, owned fixture; never touch user AppData.
+        Remove-Item -LiteralPath $Base -Recurse -Force -ErrorAction Stop
+        if(Test-Path -LiteralPath $Base){throw 'R85_FIXTURE_CLEANUP_FAILED'}
     }else{
-        Write-Warning ('R85 GUEST FAILURE: fixtures preserved in '+$Base+' ; '+$Payload+' ; '+$App)
+        Write-Warning ('R85 GUEST FAILURE: owned fixture preserved at '+$Base)
     }
 }
 exit 0
