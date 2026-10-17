@@ -1765,6 +1765,39 @@ internal static partial class SetupProgram
         }
     }
 
+    // R301: COMMITTING rollback needs a separate durable success marker.
+    // Otherwise a crash during backup cleanup makes the next COMMITTING
+    // replay require already-deleted old snapshots. ROLLED_BACK is written
+    // only after the old live file hashes and HKCU version have been restored.
+    static void VerifyRolledBackUpgrade(List<StageEntry> rows)
+    {
+        string versionPath=Path.Combine(UpgradeRoot,"previous_version.txt");
+        CheckNoReparse(versionPath);
+        if(!File.Exists(versionPath))
+            throw new IOException("Rolled-back upgrade version missing; retain stage.");
+        string oldVersion=File.ReadAllText(versionPath,Encoding.ASCII);
+        if(oldVersion!=InstalledV16 && oldVersion!=InstalledV170 &&
+           oldVersion!=InstalledV171 && oldVersion!=InstalledV172 &&
+           oldVersion!=InstalledV173 && oldVersion!=InstalledV174 &&
+           oldVersion!=InstalledV175 && oldVersion!=InstalledV176 &&
+           oldVersion!=InstalledV177 && oldVersion!=Version)
+            throw new IOException("Rolled-back upgrade version is not pinned.");
+        using(RegistryKey key=Registry.CurrentUser.OpenSubKey(UninstallKey,false)){
+            if(key==null || !String.Equals(Convert.ToString(key.GetValue("DisplayVersion")),
+                                            oldVersion,StringComparison.Ordinal))
+                throw new IOException("Rolled-back uninstall registration mismatch.");
+        }
+        foreach(StageEntry row in rows){
+            string live=UPath(row.Rel);
+            if(row.Previous=="-"){
+                if(File.Exists(live))
+                    throw new IOException("Rolled-back new component unexpectedly remains: "+row.Rel);
+            }else if(!File.Exists(live) || UpgradeHash(live)!=row.Previous){
+                throw new IOException("Rolled-back previous SHA mismatch: "+row.Rel);
+            }
+        }
+    }
+
     static void RecoverUpgradeStageIfAny()
     {
         FinishRetiredUpgradeStageIfAny();
@@ -1790,6 +1823,14 @@ internal static partial class SetupProgram
         }
         if(phase=="COMMITTING"){
             RestoreInterruptedUpgrade(rows);
+            WritePhase("ROLLED_BACK");
+            CleanOwnedStage(rows);return;
+        }
+        if(phase=="ROLLED_BACK"){
+            // A previous rollback already succeeded; its old snapshots may
+            // have been removed before process death. Verify the exact live
+            // old version rather than attempting to consume them again.
+            VerifyRolledBackUpgrade(rows);
             CleanOwnedStage(rows);return;
         }
         if(phase=="COMMITTED"){
