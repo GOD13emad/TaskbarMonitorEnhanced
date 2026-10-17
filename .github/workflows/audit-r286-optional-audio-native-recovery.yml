@@ -397,6 +397,32 @@ jobs:
              $r.NoJournalResidue -ne $true -or
              @($r.Checks).Count -lt 8){throw 'R301_TYPED_NATIVE_RECEIPT_INVALID'}
           'R301_REAL_TEST_WORKER_KILL_AND_RESTART_RECOVERY_PASS'
+      - name: R302 actually terminate original Setup during stage cleanup and resume safely
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $p=(Resolve-Path build/Test-R302-ActualSetupStageCleanupCrash-Native.ps1).Path
+          $tok=$null;$err=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($p,[ref]$tok,[ref]$err)
+          if(@($err).Count){$err|ForEach-Object {$_.Message};throw 'R302_NATIVE_PS51_TEST_PARSE_FAILED'}
+          ./build/Test-R302-ActualSetupStageCleanupCrash-Native.ps1 -HostLabel '${{ matrix.host }}' -CandidateDir (Resolve-Path _r284_private_candidate).Path
+          $p=Join-Path $env:RUNNER_TEMP ('R302_${{ matrix.host }}_'+$env:GITHUB_RUN_ID+'/R302_REAL_SETUP_CLEANUP_KILL_RECEIPT.json')
+          if(!(Test-Path -LiteralPath $p)){throw 'R302_TYPED_RECEIPT_MISSING'}
+          $r=Get-Content -LiteralPath $p -Raw|ConvertFrom-Json
+          if($r.Schema -ne 1 -or $r.Revision -cne 'R302' -or
+             $r.Status -cne 'PASS_NATIVE_SETUP_KILLED_DURING_STAGE_CLEANUP_RECOVERED' -or
+             $r.Host -cne '${{ matrix.host }}' -or $r.SourceCommit -cne $env:GITHUB_SHA -or
+             $r.OriginalOwnerComputerTouched -ne $false -or
+             $r.UnmodifiedCandidateSetupExecuted -ne $true -or
+             $r.ActualSetupProcessTerminated -ne $true -or
+             $r.RecoveredBySecondActualSetupProcess -ne $true -or
+             $r.MainSetupConfigStateAndRegistryPreserved -ne $true -or
+             $r.NoStageOrRetiredResidue -ne $true -or
+             $r.ActualSetupPid -le 0 -or $r.SecondSetupPid -le 0 -or
+             $r.ActualSetupPid -eq $r.SecondSetupPid -or
+             $r.JournalFilesAfterKill -lt 1 -or
+             @($r.Tests).Count -lt 5){throw 'R302_NATIVE_ACCEPTANCE_FAILED'}
+          'R302_EXACT_NATIVE_SETUP_PROCESS_KILL_AND_RECOVERY_PASS'
       - name: Preserve bounded guest evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -418,3 +444,4 @@ jobs:
             ${{ runner.temp }}/R299_${{ matrix.host }}_${{ github.run_id }}/R299_NONRECURSIVE_CLEANUP_RECEIPT.json
             ${{ runner.temp }}/R300_${{ matrix.host }}_${{ github.run_id }}/R300_RETIRED_JOURNAL_RECEIPT.json
             ${{ runner.temp }}/R301_${{ matrix.host }}_${{ github.run_id }}/R301_ROLLBACK_RETRY_RECEIPT.json
+            ${{ runner.temp }}/R302_${{ matrix.host }}_${{ github.run_id }}/R302_REAL_SETUP_CLEANUP_KILL_RECEIPT.json
