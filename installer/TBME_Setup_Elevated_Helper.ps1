@@ -52,6 +52,14 @@ function Assert-SensorPrivilegedBoundary(
     if($sid -cnotmatch '^S-1-5-21-(?:\d+-){3}\d+$'){
         throw 'SENSOR_BOUNDARY_USER_PROFILE_NOT_INTERACTIVE'
     }
+    # R305: runas with a credential prompt can launch as a different admin.
+    # Fail BEFORE any sensor log/result/ProgramFiles/task mutation if the
+    # actual elevated process identity is not the intended user's SID.
+    $effective=[Security.Principal.WindowsIdentity]::GetCurrent()
+    if($null -eq $effective -or $null -eq $effective.User -or
+       -not [string]::Equals([string]$effective.User.Value,$sid,[StringComparison]::OrdinalIgnoreCase)){
+        throw 'SENSOR_BOUNDARY_ELEVATED_TOKEN_ACCOUNT_MISMATCH'
+    }
     $profileKey='HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\'+$sid
     $entry=Get-ItemProperty -LiteralPath $profileKey -ErrorAction Stop
     if([string]::IsNullOrWhiteSpace([string]$entry.ProfileImagePath)){

@@ -143,8 +143,27 @@ try{
     $evilUser=$user+"'; [IO.File]::WriteAllText('"+$sentinel+"','R293_INJECTION'); #"
     $args4[3]=[string]$evilUser
     $evilCmd=[string]$m.Invoke($null,$args4)
-    if(-not $evilCmd.StartsWith($prefix,[StringComparison]::Ordinal)){throw 'R293_INJECTED_COMMAND_NOT_ENCODED'}
-    $evilBootstrap=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($evilCmd.Substring($prefix.Length)))
+    if($evilCmd.StartsWith($prefix,[StringComparison]::Ordinal)){
+        $evilBootstrap=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($evilCmd.Substring($prefix.Length)))
+    }else{
+        # R305-F01: the added prewrite SID guard grows the trusted helper.
+        # An adversarial longer user input now legitimately selects R304's
+        # bounded inline -Command instead of UTF16 -EncodedCommand.
+        # The exact trusted PE blob, no writable -File and Base64-only user
+        # arguments are mandatory in EITHER supported transport.
+        $inlinePrefix='-NoProfile -NonInteractive -WindowStyle Hidden -Command '
+        if(-not $evilCmd.StartsWith($inlinePrefix,[StringComparison]::Ordinal) -or
+           $evilCmd.Length -gt 30000 -or
+           $evilCmd.Contains(' -File ') -or
+           $evilCmd.Contains('ExecutionPolicy Bypass')){
+            throw 'R293_INJECTED_COMMAND_UNSAFE_OR_UNBOUNDED'
+        }
+        $evilBootstrap=$evilCmd.Substring($inlinePrefix.Length)
+        if(-not $evilBootstrap.Contains($re.Groups[1].Value) -or
+           -not $evilBootstrap.Contains('[ScriptBlock]::Create($code)')){
+            throw 'R293_LONG_FALLBACK_SOURCE_NOT_PINNED_TO_SAME_PE_RESOURCE'
+        }
+    }
     if($evilBootstrap.Contains($evilUser) -or $evilBootstrap.Contains($sentinel)){
        throw 'R293_CALLER_ARGUMENT_WAS_INTERPOLATED_AS_SCRIPT_SOURCE'
     }

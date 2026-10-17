@@ -110,7 +110,7 @@ internal static partial class SetupProgram
     }
 
     // R293: PowerShell code is transported from this immutable, embedded PE resource
-    // via one in-memory EncodedCommand. Never elevate a .ps1 from writable Temp.
+    // via an in-memory command. Never elevate a .ps1 from writable Temp.
     static string Base64Utf8Argument(string value)
     {
         if(String.IsNullOrWhiteSpace(value) || value.Length>4096)
@@ -179,11 +179,11 @@ internal static partial class SetupProgram
         // In particular, a quoted Windows user/path cannot inject PowerShell syntax.
         string script=
           "$ErrorActionPreference='Stop'\n"+
-          "$b=[Convert]::FromBase64String('"+packed+"')\n"+
-          "$m=[IO.MemoryStream]::new($b)\n"+
-          "$z=[IO.Compression.GZipStream]::new($m,[IO.Compression.CompressionMode]0)\n"+
-          "$r=[IO.StreamReader]::new($z)\n"+
-          "try{$code=$r.ReadToEnd()}finally{$r.Close()}\n"+
+          "$blob=[Convert]::FromBase64String('"+packed+"')\n"+
+          "$ms=[IO.MemoryStream]::new($blob)\n"+
+          "$gzip=[IO.Compression.GZipStream]::new($ms,[IO.Compression.CompressionMode]0)\n"+
+          "$reader=[IO.StreamReader]::new($gzip)\n"+
+          "try{$code=$reader.ReadToEnd()}finally{$reader.Close()}\n"+
           "function d($s){[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($s))}\n"+
           "$p=d('"+Base64Utf8Argument(payload)+"')\n"+
           "$a=d('"+Base64Utf8Argument(appRoot)+"')\n"+
@@ -193,11 +193,23 @@ internal static partial class SetupProgram
           "$n='"+pipeNonce+"'\n"+
           "& ([ScriptBlock]::Create($code)) -Mode '"+mode+"' -PayloadDir $p -AppRoot $a -UserId $u -ExpectedBrokerSHA256 '"+brokerHash+"' -ExpectedSupervisorSHA256 '"+supervisorHash+"' -ExpectedBackendZipSHA256 '"+backendZipHash+"' -StatusPipe $q -StatusNonce $n\n";
         string encoded=Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
-        // Windows CreateProcess has a 32,767-character maximum; leave margin.
-        // Fail closed instead of falling back to unsafe -File or user-writable scripts.
-        if(encoded.Length>32000)
+        // Preserve the established UTF-16 EncodedCommand path when it fits.
+        // Windows Process creation caps the entire command line at 32,767 chars.
+        if(encoded.Length<=32000)
+            return "-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "+encoded;
+        // R304: the SAME in-memory, PE-embedded trusted helper can be transported
+        // as a constant PowerShell -Command string for long profile names.
+        // Variable caller input is only UTF-8/Base64 data; mode is whitelisted
+        // and resource digests are SHA-256 hex. No user-controlled quote or
+        // PowerShell tokens can enter this command source. Never use -File.
+        if(script.IndexOf('"')>=0 || script.IndexOf('\0')>=0)
+            throw new InvalidDataException("Unexpected quote or null in trusted helper bootstrap.");
+        string fallback="-NoProfile -NonInteractive -WindowStyle Hidden -Command \"& { "+script+" }\"";
+        // Leave margin for the executable path and OS quoting. A truly huge
+        // value must still fail closed instead of truncating or using Temp.
+        if(fallback.Length>30000)
             throw new InvalidDataException("Trusted sensor helper command exceeds safe limit.");
-        return "-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "+encoded;
+        return fallback;
     }
 
     // R298: runas uses ShellExecuteEx, which searches the current directory,
@@ -283,12 +295,11 @@ internal static partial class SetupProgram
             SecurityIdentifier current=WindowsIdentity.GetCurrent().User;
             if(current==null)throw new InvalidOperationException("Requesting user SID unavailable.");
             acl.AddAccessRule(new PipeAccessRule(current,PipeAccessRights.FullControl,AccessControlType.Allow));
-            // UAC over-the-shoulder can run as a different administrator SID.
-            // Broader pipe DACL is NOT the authentication gate; actual child PID,
-            // live Process/session, GUID name and nonce must all match.
-            acl.AddAccessRule(new PipeAccessRule(
-                new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid,null),
-                PipeAccessRights.ReadWrite,AccessControlType.Allow));
+            // R305 requires the elevated Helper's effective account SID to
+            // equal this requesting user SID, including under runas / UAC.
+            // A different administrator account MUST fail closed. Never allow
+            // all Authenticated Users to claim the one-instance IPC slot.
+            // Kernel client PID, live process/session and nonce are separately checked.
             stream=new NamedPipeServerStream(Name,PipeDirection.InOut,1,
                 PipeTransmissionMode.Byte,PipeOptions.Asynchronous,4096,4096,acl);
             connection=stream.BeginWaitForConnection(null,null);
