@@ -706,6 +706,135 @@ internal static partial class SetupProgram
         return sensorOutcome;
     }
 
+    // R317: defer deletion until this unelevated Setup process exits.
+    // Do not write executable scripts into mutable Temp and never run cmd.exe.
+    // The entire PowerShell source is an immutable Setup PE string; all paths
+    // enter only as Base64 UTF-8 data, never as PowerShell syntax.
+    static ProcessStartInfo BuildDeferredUninstallCleanupProcessInfo(string root,int parentPid,long parentStartUtcTicks)
+    {
+        string canonical=AppRoot;
+        if(String.IsNullOrWhiteSpace(root) ||
+           !String.Equals(Path.GetFullPath(root),canonical,StringComparison.OrdinalIgnoreCase) ||
+           parentPid<=0 || parentStartUtcTicks<=0)
+            throw new InvalidDataException("Uninstall cleanup requires the exact owner root and parent identity.");
+        string sid=WindowsIdentity.GetCurrent().User.Value;
+        if(!Regex.IsMatch(sid,@"^S-1-5-21-(?:\d+-){3}\d+$"))
+            throw new InvalidDataException("Uninstall cleanup refuses a noninteractive token.");
+        string rootBlob=Base64Utf8Argument(canonical);
+        string script=@"Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+$root=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__ROOT_B64__'))
+$expectedSid='__OWNER_SID__'
+$expectedPid=[int]__PROCESS_ID__
+$expectedStart=[long]__START_TICKS__
+if([Security.Principal.WindowsIdentity]::GetCurrent().User.Value -cne $expectedSid){
+    throw 'TBME_CLEANUP_WRONG_EFFECTIVE_TOKEN'
+}
+$profile=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+$local=[IO.Path]::GetFullPath([Environment]::GetFolderPath('LocalApplicationData')).TrimEnd('\')
+$expectedLocal=[IO.Path]::GetFullPath([IO.Path]::Combine($profile,'AppData','Local')).TrimEnd('\')
+$expectedRoot=[IO.Path]::GetFullPath([IO.Path]::Combine($local,'TaskbarMonitorEnhanced'))
+if($profile.StartsWith('\\') -or $local.StartsWith('\\') -or
+   -not [string]::Equals($local,$expectedLocal,[StringComparison]::OrdinalIgnoreCase) -or
+   -not [string]::Equals([IO.Path]::GetFullPath($root),$expectedRoot,[StringComparison]::OrdinalIgnoreCase)){
+    throw 'TBME_CLEANUP_ROOT_NOT_CANONICAL'
+}
+try{
+    $parent=[Diagnostics.Process]::GetProcessById($expectedPid)
+    try{
+        if($parent.StartTime.ToUniversalTime().Ticks -eq $expectedStart -and
+           -not $parent.WaitForExit(300000)){
+            throw 'TBME_CLEANUP_PARENT_STILL_RUNNING'
+        }
+    }finally{$parent.Dispose()}
+}catch [ArgumentException]{
+    # Parent already exited before cleanup began.
+}catch [InvalidOperationException]{
+    # Parent exited between process lookup and StartTime/WaitForExit.
+}
+if(-not [IO.Directory]::Exists($expectedRoot)){exit 0}
+# Reject every ancestor and descendant reparse point before deletion;
+# this is a path-based check, not proof against concurrent swaps.
+$cursor=$expectedRoot
+while(-not [string]::IsNullOrEmpty($cursor)){
+    if(([IO.File]::GetAttributes($cursor) -band [IO.FileAttributes]::ReparsePoint) -ne 0){
+        throw 'TBME_CLEANUP_ANCESTOR_REPARSE'
+    }
+    $parent=[IO.Path]::GetDirectoryName($cursor)
+    if([string]::IsNullOrEmpty($parent) -or $parent -ceq $cursor){break}
+    $cursor=$parent
+}
+# Stage an exact non-following deletion inventory. Never ask .NET to
+# recursively delete a directory that might acquire a new junction.
+$prefix=[IO.Path]::GetFullPath($expectedRoot).TrimEnd('\')+'\'
+$stack=[Collections.Generic.List[string]]::new()
+$dirs=[Collections.Generic.List[string]]::new()
+$files=[Collections.Generic.List[string]]::new()
+$stack.Add($expectedRoot)
+$members=0
+while($stack.Count -gt 0){
+    $dir=$stack[$stack.Count-1]
+    $stack.RemoveAt($stack.Count-1)
+    $attrs=[IO.File]::GetAttributes($dir)
+    if(($attrs -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+       ($attrs -band [IO.FileAttributes]::Directory) -eq 0){
+        throw 'TBME_CLEANUP_CHANGED_DIRECTORY'
+    }
+    $dirs.Add($dir)
+    foreach($entry in [IO.Directory]::GetFileSystemEntries($dir)){
+        $members++
+        if($members -gt 200000){throw 'TBME_CLEANUP_EXCESSIVE_ENTRY_COUNT'}
+        $full=[IO.Path]::GetFullPath($entry)
+        if(-not $full.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)){
+            throw 'TBME_CLEANUP_PATH_ESCAPED_OWNER_ROOT'
+        }
+        $attrs=[IO.File]::GetAttributes($full)
+        if(($attrs -band [IO.FileAttributes]::ReparsePoint) -ne 0){
+            throw 'TBME_CLEANUP_CHILD_REPARSE'
+        }
+        if(($attrs -band [IO.FileAttributes]::Directory) -ne 0){
+            $stack.Add($full)
+        }else{
+            $files.Add($full)
+        }
+    }
+}
+# Explicit leaf deletes, followed by empty directories deepest first.
+# Every unexpected new member makes Directory.Delete(...,false) fail
+# rather than following it. Native handle-bound race proof remains open.
+foreach($file in $files){
+    $attrs=[IO.File]::GetAttributes($file)
+    if(($attrs -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+       ($attrs -band [IO.FileAttributes]::Directory) -ne 0){
+        throw 'TBME_CLEANUP_CHANGED_FILE'
+    }
+    [IO.File]::Delete($file)
+}
+foreach($dir in ($dirs|Sort-Object Length -Descending)){
+    $attrs=[IO.File]::GetAttributes($dir)
+    if(($attrs -band [IO.FileAttributes]::ReparsePoint) -ne 0){
+        throw 'TBME_CLEANUP_CHANGED_DIRECTORY'
+    }
+    [IO.Directory]::Delete($dir,$false)
+}
+";
+        script=script.Replace("__ROOT_B64__",rootBlob)
+                     .Replace("__OWNER_SID__",sid)
+                     .Replace("__PROCESS_ID__",parentPid.ToString(CultureInfo.InvariantCulture))
+                     .Replace("__START_TICKS__",parentStartUtcTicks.ToString(CultureInfo.InvariantCulture));
+        string encoded=Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+        if(encoded.Length>22000 || !Regex.IsMatch(encoded,@"^[A-Za-z0-9+/=]+$"))
+            throw new InvalidDataException("Uninstall cleanup command is not a bounded Base64 transport.");
+        ProcessStartInfo psi=new ProcessStartInfo();
+        psi.FileName=TrustedSystemPowerShellPath();
+        psi.Arguments="-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "+encoded;
+        psi.WorkingDirectory=Environment.SystemDirectory;
+        psi.UseShellExecute=false;
+        psi.CreateNoWindow=true;
+        psi.WindowStyle=ProcessWindowStyle.Hidden;
+        return psi;
+    }
+
     static void Uninstall(bool quiet)
     {
         if(!quiet){
@@ -734,19 +863,21 @@ internal static partial class SetupProgram
         try{File.Delete(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup),"Taskbar Monitor Enhanced Startup Recovery.lnk"));}catch{}
         Registry.CurrentUser.DeleteSubKeyTree(UninstallKey,false);
 
-        string cleanup=Path.Combine(Path.GetTempPath(),"tbme_cleanup_"+Guid.NewGuid().ToString("N")+".cmd");
-        File.WriteAllText(cleanup,
-          "@echo off\r\nping 127.0.0.1 -n 4 >nul\r\nrmdir /s /q \""+AppRoot+"\"\r\ndel /q \"%~f0\"\r\n",
-          Encoding.ASCII);
-        ProcessStartInfo psi=new ProcessStartInfo("cmd.exe","/c \""+cleanup+"\"");
-        psi.UseShellExecute=false;psi.CreateNoWindow=true;
-        // R108: background cmd must not inherit AppRoot as its working directory.
-        // Otherwise its rmdir of AppRoot can fail although Uninstall.exe exits zero.
-        psi.WorkingDirectory=Path.GetTempPath();
-        Process.Start(psi);
-
+        // Wait for the user to close the dialog before launching cleanup;
+        // then the cleanup process waits for this parent to exit.
         if(!quiet)
-            MessageBox.Show(Product+" was removed.","Uninstall complete",MessageBoxButtons.OK,MessageBoxIcon.Information);
+            MessageBox.Show(Product+" uninstall steps completed. Local files will be removed after this window closes.","Uninstall complete",MessageBoxButtons.OK,MessageBoxIcon.Information);
+        using(Process self=Process.GetCurrentProcess())
+        {
+            ProcessStartInfo info=BuildDeferredUninstallCleanupProcessInfo(
+                AppRoot,self.Id,self.StartTime.ToUniversalTime().Ticks);
+            using(Process delayed=Process.Start(info))
+            {
+                if(delayed==null)
+                    throw new IOException("Trusted deferred uninstall cleanup did not start.");
+            }
+        }
+
     }
 
     static int Verify(string path)
