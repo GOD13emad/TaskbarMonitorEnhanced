@@ -21,9 +21,9 @@ function SHA([string]$path){
  if(!(Test-Path -LiteralPath $path -PathType Leaf)){return 'MISSING'}
  return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
 }
-function ExpectRefusal([string]$name,[Reflection.MethodInfo]$method,[object[]]$args,[string]$pattern){
+function ExpectRefusal([string]$name,[Reflection.MethodInfo]$method,[object[]]$invokeArgs,[string]$pattern){
  $refused=$false
- try{[void]$method.Invoke($null,$args)}
+ try{[void]$method.Invoke($null,$invokeArgs)}
  catch{if($_.Exception.ToString() -match $pattern){$refused=$true}else{throw}}
  if(!$refused){throw ('R299_FAIL_OPEN_'+$name)}
  $script:checks.Add($name)
