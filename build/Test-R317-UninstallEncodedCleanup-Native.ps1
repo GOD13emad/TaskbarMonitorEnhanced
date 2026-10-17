@@ -190,9 +190,9 @@ if($sourceText.Contains('tbme_cleanup_') -or
  throw 'R317_MUTABLE_TEMP_BATCH_OR_CMD_STILL_IN_PRODUCTION_SETUP'
 }
 $checks.Add('REMOVED_MUTABLE_TEMP_BATCH_AND_UNQUALIFIED_CMD_SINK')
-function MustRefuse([string]$name,[object]$path,[int]$pid,[long]$ticks){
+function MustRefuse([string]$name,[object]$path,[int]$parentProcessId,[long]$ticks){
  $rejected=$false
- try{$null=$builder.Invoke($null,([object[]]@($path,$pid,$ticks)))}
+ try{$null=$builder.Invoke($null,([object[]]@($path,$parentProcessId,$ticks)))}
  catch{
   if($_.Exception.GetBaseException().Message -match 'Uninstall cleanup requires the exact owner root'){
    $rejected=$true
