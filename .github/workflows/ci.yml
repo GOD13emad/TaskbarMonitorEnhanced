@@ -71,6 +71,11 @@ jobs:
         run: |
           & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File ./build/Test-BackendZip-R322.ps1
           if ($LASTEXITCODE -ne 0) { throw 'R322 backend ZIP / PE-resource hostile-archive regression failed.' }
+      - name: R323 owned-shortcut-only deletion preserves unrelated .lnk files (native)
+        shell: pwsh
+        run: |
+          & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File ./build/Test-ShortcutOwnership-R323.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R323 foreign-shortcut deletion guard regressed.' }
       - name: Verify deterministic clean-clone build
         shell: pwsh
         run: ./build/Verify-Determinism.ps1

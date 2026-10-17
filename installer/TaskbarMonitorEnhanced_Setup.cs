@@ -365,6 +365,71 @@ internal static partial class SetupProgram
         return elevated.ExitCode;
     }
 
+    // R323: remove only shortcuts that still point at this product and retain
+    // their exact product arguments. A same-name user shortcut is not ours.
+    // This is a same-user guard, not an atomic defence against rename races.
+    static bool DeleteOwnedShortcut(string path,string expectedTarget,string expectedArguments)
+    {
+        if(String.IsNullOrWhiteSpace(path) || String.IsNullOrWhiteSpace(expectedTarget) ||
+           !Path.IsPathRooted(path) || !Path.IsPathRooted(expectedTarget) ||
+           !String.Equals(Path.GetExtension(path),".lnk",StringComparison.OrdinalIgnoreCase))
+            return false;
+        string args=expectedArguments??"";
+        if(args!="" && args!="/repair-sensors" && args!="--startup-recovery")
+            return false;
+        string link=Path.GetFullPath(path);
+        string target=Path.GetFullPath(expectedTarget);
+        try
+        {
+            if(!File.Exists(link) || Directory.Exists(link) ||
+               (File.GetAttributes(link)&FileAttributes.ReparsePoint)!=0)
+                return false;
+            long bytes=new FileInfo(link).Length;
+            if(bytes<1 || bytes>1024*1024)return false;
+
+            Type shellType=Type.GetTypeFromProgID("WScript.Shell",true);
+            object shell=null;
+            object shortcut=null;
+            bool owned=false;
+            try
+            {
+                shell=Activator.CreateInstance(shellType);
+                shortcut=shell.GetType().InvokeMember("CreateShortcut",
+                    BindingFlags.InvokeMethod,null,shell,new object[]{link});
+                if(shortcut==null)return false;
+                Type shortcutType=shortcut.GetType();
+                string actualTarget=shortcutType.InvokeMember("TargetPath",
+                    BindingFlags.GetProperty,null,shortcut,new object[0]) as string;
+                string actualArguments=shortcutType.InvokeMember("Arguments",
+                    BindingFlags.GetProperty,null,shortcut,new object[0]) as string;
+                if(!String.IsNullOrWhiteSpace(actualTarget) && Path.IsPathRooted(actualTarget))
+                {
+                    owned=String.Equals(Path.GetFullPath(actualTarget),target,
+                        StringComparison.OrdinalIgnoreCase) &&
+                        String.Equals((actualArguments??"").Trim(),args,StringComparison.Ordinal);
+                }
+            }
+            finally
+            {
+                if(shortcut!=null && System.Runtime.InteropServices.Marshal.IsComObject(shortcut))
+                    System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shortcut);
+                if(shell!=null && System.Runtime.InteropServices.Marshal.IsComObject(shell))
+                    System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell);
+            }
+            if(!owned || !File.Exists(link) ||
+               (File.GetAttributes(link)&FileAttributes.ReparsePoint)!=0)
+                return false;
+            File.Delete(link);
+            return !File.Exists(link);
+        }
+        catch
+        {
+            // A broken or foreign shortcut must never turn uninstall into
+            // deletion of user-owned content or an elevated fallback.
+            return false;
+        }
+    }
+
     static void Shortcut(string path,string target)
     {
         Shortcut(path,target,"","Live system monitor integrated into the Windows taskbar");
@@ -782,7 +847,7 @@ internal static partial class SetupProgram
         Shortcut(startLink,AppExe);
         Shortcut(repairLink,uninstaller,"/repair-sensors","Repair or retry Taskbar Monitor Enhanced hardware sensors");
         if(desktop)Shortcut(desktopLink,AppExe);
-        else try{File.Delete(desktopLink);}catch{}
+        else try{DeleteOwnedShortcut(desktopLink,AppExe,"");}catch{}
 
         string recoveryLink=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup),"Taskbar Monitor Enhanced Startup Recovery.lnk");
         using(RegistryKey run=Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run")){
@@ -790,7 +855,7 @@ internal static partial class SetupProgram
             else run.DeleteValue("TaskbarMonitorEnhanced",false);
         }
         if(startup)Shortcut(recoveryLink,AppExe,"--startup-recovery","Delayed recovery launcher for Taskbar Monitor Enhanced Start-with-Windows.");
-        else try{File.Delete(recoveryLink);}catch{}
+        else try{DeleteOwnedShortcut(recoveryLink,AppExe,"--startup-recovery");}catch{}
 
         using(RegistryKey key=Registry.CurrentUser.CreateSubKey(UninstallKey)){
             key.SetValue("DisplayName",Product);
@@ -978,13 +1043,13 @@ foreach($dir in ($dirs|Sort-Object Length -Descending)){
         if(helperExit!=0)
             throw new InvalidOperationException("Protected sensor removal failed. Exit code: "+helperExit);
 
-        try{File.Delete(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),Product+".lnk"));}catch{}
-        try{File.Delete(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs),Product+".lnk"));}catch{}
-        try{File.Delete(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs),Product+" - Repair Hardware Sensors.lnk"));}catch{}
+        try{DeleteOwnedShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),Product+".lnk"),AppExe,"");}catch{}
+        try{DeleteOwnedShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs),Product+".lnk"),AppExe,"");}catch{}
+        try{DeleteOwnedShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs),Product+" - Repair Hardware Sensors.lnk"),Path.Combine(AppRoot,"Uninstall.exe"),"/repair-sensors");}catch{}
 
         using(RegistryKey run=Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
             run.DeleteValue("TaskbarMonitorEnhanced",false);
-        try{File.Delete(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup),"Taskbar Monitor Enhanced Startup Recovery.lnk"));}catch{}
+        try{DeleteOwnedShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup),"Taskbar Monitor Enhanced Startup Recovery.lnk"),AppExe,"--startup-recovery");}catch{}
         Registry.CurrentUser.DeleteSubKeyTree(UninstallKey,false);
 
         // Wait for the user to close the dialog before launching cleanup;
