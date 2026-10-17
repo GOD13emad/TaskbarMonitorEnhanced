@@ -122,7 +122,7 @@ if($env:GITHUB_ACTIONS -eq 'true'){
     $appRoot=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
     $programs=[Environment]::GetFolderPath('Programs')
     $existing=Join-Path $programs 'Taskbar Monitor Enhanced.lnk'
-    if(Test-Path $appRoot -or Test-Path $existing){throw 'R324_GUEST_NOT_FRESH'}
+    if((Test-Path $appRoot) -or (Test-Path $existing)){throw 'R324_GUEST_NOT_FRESH'}
     $userShell=New-Object -ComObject WScript.Shell
     $created=$false
     $sentinelHash=''
