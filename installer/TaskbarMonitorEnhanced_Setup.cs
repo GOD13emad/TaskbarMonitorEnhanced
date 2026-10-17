@@ -181,13 +181,42 @@ internal static partial class SetupProgram
         return "-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "+encoded;
     }
 
-    static int ElevatedHelper(string mode,string payload,string appRoot,string user,int timeoutMs)
+    // R298: runas uses ShellExecuteEx, which searches the current directory,
+    // Windows and PATH for an unqualified executable. Pin the native OS host.
+    static string TrustedSystemPowerShellPath()
+    {
+        string system=Path.GetFullPath(Environment.SystemDirectory);
+        if(!Path.IsPathRooted(system) || !Directory.Exists(system))
+            throw new InvalidOperationException("Trusted Windows system directory unavailable.");
+        string first=Path.Combine(system,"WindowsPowerShell");
+        string folder=Path.Combine(first,"v1.0");
+        string exe=Path.Combine(folder,"powershell.exe");
+        if(!Directory.Exists(first) || !Directory.Exists(folder) || !File.Exists(exe))
+            throw new InvalidOperationException("Trusted Windows PowerShell executable missing.");
+        foreach(string candidate in new string[]{system,first,folder,exe})
+        {
+            if((File.GetAttributes(candidate)&FileAttributes.ReparsePoint)!=0)
+                throw new InvalidOperationException("Trusted PowerShell host is a reparse path.");
+        }
+        return exe;
+    }
+
+    // Kept separate from Process.Start so the exact runas target can be
+    // inspected in disposable Windows without granting UAC or starting it.
+    static ProcessStartInfo BuildElevatedSensorProcessInfo(string mode,string payload,string appRoot,string user)
     {
         ProcessStartInfo psi=new ProcessStartInfo();
-        psi.FileName="powershell.exe";
+        psi.FileName=TrustedSystemPowerShellPath();
+        psi.WorkingDirectory=Path.GetDirectoryName(psi.FileName);
         psi.Arguments=BuildElevatedHelperCommand(mode,payload,appRoot,user);
         psi.UseShellExecute=true;
         psi.Verb="runas";
+        return psi;
+    }
+
+    static int ElevatedHelper(string mode,string payload,string appRoot,string user,int timeoutMs)
+    {
+        ProcessStartInfo psi=BuildElevatedSensorProcessInfo(mode,payload,appRoot,user);
 
         Process elevated=null;
         Exception launchError=null;
