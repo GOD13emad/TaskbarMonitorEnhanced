@@ -128,7 +128,12 @@ if($fragmentStart -lt 0 -or $fragmentEnd -le $fragmentStart -or
    $code.Contains('[IO.Directory]::Delete($expectedRoot,$true)')){
  throw 'R317_EXACT_PRODUCTION_DELETION_FRAGMENT_NOT_SAFE'
 }
-$fragment=$code.Substring($fragmentStart,$fragmentEnd+$fragmentEndMarker.Length-$fragmentStart)
+$fragmentClose=$code.IndexOf('}',$fragmentEnd+$fragmentEndMarker.Length)
+if($fragmentClose -le $fragmentEnd -or
+   $code.Substring($fragmentEnd+$fragmentEndMarker.Length,$fragmentClose-($fragmentEnd+$fragmentEndMarker.Length)).Trim().Length -ne 0){
+ throw 'R317_INVALID_END_OF_NONRECURSIVE_FOREACH'
+}
+$fragment=$code.Substring($fragmentStart,$fragmentClose+1-$fragmentStart)
 $tokFragment=$null;$errFragment=$null
 [void][Management.Automation.Language.Parser]::ParseInput($fragment,[ref]$tokFragment,[ref]$errFragment)
 if(@($errFragment).Count){throw 'R317_NONRECURSIVE_FRAGMENT_INVALID_SYNTAX'}
