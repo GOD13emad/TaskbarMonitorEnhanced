@@ -70,8 +70,14 @@ function Assert-SensorPrivilegedBoundary(
     $payload=[IO.Path]::GetFullPath($RequestedPayload)
     $name=[IO.Path]::GetFileName($payload.TrimEnd([IO.Path]::DirectorySeparatorChar))
     $prefix=if($RequestedMode -ceq 'Install'){'tbme_setup_'}else{'tbme_uninstall_'}
-    if(-not $payload.StartsWith(($profile+[IO.Path]::DirectorySeparatorChar),
-                                [StringComparison]::OrdinalIgnoreCase) -or
+    # Only direct children of this user's default Temp root are trusted. A
+    # profile-wide prefix would also accept Downloads or arbitrary subfolders.
+    # Nonstandard redirected TEMP locations fail closed (optional sensors degrade).
+    $expectedTempParent=[IO.Path]::GetFullPath(
+        (Join-Path $profile 'AppData\Local\Temp')
+    ).TrimEnd([IO.Path]::DirectorySeparatorChar)
+    if(-not [string]::Equals([IO.Path]::GetDirectoryName($payload),
+                             $expectedTempParent,[StringComparison]::OrdinalIgnoreCase) -or
        $name -cnotmatch ('^'+$prefix+'[0-9a-f]{32}$')){
         throw 'SENSOR_BOUNDARY_PAYLOAD_OUTSIDE_USER_TEMP'
     }

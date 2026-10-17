@@ -74,6 +74,8 @@ try{
  $log.Add('LEGITIMATE_INSTALL_AND_UNINSTALL_ACCEPTED')
  Reject 'WRONG_APP_ROOT_REFUSED' Install $validInstall (Join-Path $env:WINDIR 'TaskbarMonitorEnhanced') $user
  Reject 'OUTSIDE_USER_PROFILE_REFUSED' Install (Join-Path $env:WINDIR ('tbme_setup_'+('a'*32))) $fixtureApp $user
+ Reject 'DOWNLOADS_ROOT_WITH_VALID_NAME_REFUSED' Install (Join-Path ([Environment]::GetFolderPath('UserProfile')) ('Downloads\tbme_setup_'+('a'*32))) $fixtureApp $user
+ Reject 'NESTED_TEMP_WITH_VALID_NAME_REFUSED' Install (Join-Path (Join-Path $tempRoot 'nested') ('tbme_setup_'+('b'*32))) $fixtureApp $user
  Reject 'WRONG_MODE_PAYLOAD_REFUSED' Uninstall $validInstall $fixtureApp $user
  Reject 'MALFORMED_PAYLOAD_NAME_REFUSED' Install (Join-Path $tempRoot 'tbme_setup_bad') $fixtureApp $user
  Reject 'SERVICE_SID_REFUSED' Install $validInstall $fixtureApp 'S-1-5-18'
