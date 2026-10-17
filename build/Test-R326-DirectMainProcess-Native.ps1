@@ -97,10 +97,10 @@ try{
   throw 'R326_SHELL_VERB_OR_ERROR_DIALOG_PRESENT'
  }
  $checks.Add('REAL_PROCESSSTARTINFO_HAS_NO_SHELL_VERB')
- if($built.WorkingDirectory -cne [IO.Path]::GetFullPath($root)){
-  throw 'R326_WORKDIR_NOT_PINNED_INSTALLATION_ROOT'
+ if($built.WorkingDirectory -cne ''){
+  throw 'R326_WORKDIR_SHOULD_NOT_CONSUME_UNTRUSTED_PROFILE_PATH'
  }
- $checks.Add('REAL_PROCESSSTARTINFO_WORKING_DIRECTORY_EXACT')
+ $checks.Add('REAL_PROCESSSTARTINFO_INHERITS_PREVIOUS_CWD')
  if(!$built.FileName.Contains('&') -or !$built.FileName.Contains('$name')){
   throw 'R326_META_CHARACTERS_LOST_OR_INTERPRETED'
  }

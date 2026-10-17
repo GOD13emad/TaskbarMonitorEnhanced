@@ -635,7 +635,8 @@ internal static partial class SetupProgram
             throw new InvalidDataException("Pinned Main process path escaped its installation root.");
         ProcessStartInfo psi=new ProcessStartInfo();
         psi.FileName=path;
-        psi.WorkingDirectory=root;
+        // Keep the preceding Setup current-directory behavior; do not pass
+        // a profile-controlled WorkingDirectory to CreateProcess.
         psi.Arguments=String.Empty;
         psi.UseShellExecute=false;
         psi.ErrorDialog=false;
