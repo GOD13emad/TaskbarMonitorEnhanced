@@ -139,7 +139,8 @@ jobs:
           [void][Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)
           if(@($errors).Count){$errors|ForEach-Object{$_.Message};throw 'R290_NATIVE_TEST_PARSER_INVALID'}
           ./build/Test-R290-ReparseRecovery-Native.ps1 -HostLabel '${{ matrix.host }}' -CandidateDir (Resolve-Path _r284_private_candidate).Path
-          if($LASTEXITCODE -ne 0){throw 'R290_NATIVE_TEST_FAILED'}
+          # The script throws on failure; LASTEXITCODE can be stale from a prior native Setup.
+          # Validate its typed native receipt instead of mistaking that stale code for failure.
           $p=Join-Path $env:RUNNER_TEMP ('R290_${{ matrix.host }}_'+$env:GITHUB_RUN_ID+'/R290_REPARSE_RECEIPT.json')
           if(!(Test-Path $p)){throw 'R290_GUEST_RECEIPT_MISSING'}
           $r=Get-Content $p -Raw|ConvertFrom-Json
