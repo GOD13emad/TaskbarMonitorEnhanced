@@ -176,7 +176,7 @@ internal static partial class SetupProgram
         string encoded=Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
         // Windows CreateProcess has a 32,767-character maximum; leave margin.
         // Fail closed instead of falling back to unsafe -File or user-writable scripts.
-        if(encoded.Length>31500)
+        if(encoded.Length>32000)
             throw new InvalidDataException("Trusted sensor helper command exceeds safe limit.");
         return "-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "+encoded;
     }
