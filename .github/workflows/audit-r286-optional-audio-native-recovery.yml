@@ -186,6 +186,29 @@ jobs:
              @($r.Checks|Where-Object {$_ -ceq 'DOWNLOADS_ROOT_WITH_VALID_NAME_REFUSED'}).Count -ne 1 -or
              @($r.Checks|Where-Object {$_ -ceq 'NESTED_TEMP_WITH_VALID_NAME_REFUSED'}).Count -ne 1){throw 'R291_TYPED_BOUNDARY_RECEIPT_INVALID'}
           'R291_NATIVE_ELEVATED_SENSOR_BOUNDARY_GUARDS_PASS'
+      - name: R293 execute trusted inline Helper, never rogue writable Temp script
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $p=(Resolve-Path build/Test-R293-InMemorySensorHelper-Native.ps1).Path
+          $tok=$null;$err=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($p,[ref]$tok,[ref]$err)
+          if(@($err).Count){$err|ForEach-Object {$_.Message};throw 'R293_NATIVE_PS51_PARSER_INVALID'}
+          ./build/Test-R293-InMemorySensorHelper-Native.ps1 -HostLabel '${{ matrix.host }}' -CandidateDir (Resolve-Path _r284_private_candidate).Path
+          $p=Join-Path $env:RUNNER_TEMP ('R293_${{ matrix.host }}_'+$env:GITHUB_RUN_ID+'/R293_INMEMORY_RECEIPT.json')
+          if(!(Test-Path -LiteralPath $p)){throw 'R293_TYPED_RECEIPT_MISSING'}
+          $r=Get-Content -LiteralPath $p -Raw|ConvertFrom-Json
+          if($r.Schema -ne 1 -or $r.Revision -cne 'R293' -or
+             $r.Status -cne 'PASS_NO_TEMP_SCRIPT_ELEVATION_INLINE_TRUSTED_SOURCE' -or
+             $r.Host -cne '${{ matrix.host }}' -or $r.SourceCommit -cne $env:GITHUB_SHA -or
+             $r.OriginalOwnerComputerTouched -ne $false -or $r.UACOrProtectedServiceCalled -ne $false -or
+             $r.ExactTrustedHelperSource -ne $true -or $r.MaliciousTempScriptIgnored -ne $true -or
+             $r.RealNonElevatedEncodedPowerShellCalled -ne $true -or
+             $r.InvalidAppRootRejectedBeforeWrite -ne $true -or
+             $r.InstalledMainUnchanged -ne $true -or
+             $r.BoundedEncodedCommandLength -lt 1000 -or $r.BoundedEncodedCommandLength -gt 30000 -or
+             @($r.Checks).Count -lt 6){throw 'R293_NATIVE_INMEMORY_RECEIPT_REJECTED'}
+          'R293_TRUSTED_INMEMORY_HELPER_NEGATIVE=PASS'
       - name: Preserve bounded guest evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -198,3 +221,4 @@ jobs:
             ${{ runner.temp }}/R286_${{ matrix.host }}_${{ github.run_id }}/ARMED.json
             ${{ runner.temp }}/R290_${{ matrix.host }}_${{ github.run_id }}/R290_REPARSE_RECEIPT.json
             ${{ runner.temp }}/R291_${{ matrix.host }}_${{ github.run_id }}/R291_BOUNDARY_RECEIPT.json
+            ${{ runner.temp }}/R293_${{ matrix.host }}_${{ github.run_id }}/R293_INMEMORY_RECEIPT.json

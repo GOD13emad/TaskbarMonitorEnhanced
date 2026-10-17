@@ -104,11 +104,63 @@ internal static partial class SetupProgram
         }catch{}
     }
 
-    static int ElevatedHelper(string helper,string args,int timeoutMs)
+    // R293: PowerShell code is transported from this immutable, embedded PE resource
+    // via one in-memory EncodedCommand. Never elevate a .ps1 from writable Temp.
+    static string Base64Utf8Argument(string value)
+    {
+        if(String.IsNullOrWhiteSpace(value) || value.Length>4096)
+            throw new InvalidDataException("Sensor helper argument missing or too long.");
+        return Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
+    }
+
+    static string BuildElevatedHelperCommand(string mode,string payload,string appRoot,string user)
+    {
+        if(mode!="Install" && mode!="Uninstall")
+            throw new InvalidDataException("Unexpected elevated sensor mode.");
+        string packed;
+        using(Stream resource=Resource("Payload.TBME_Setup_Elevated_Helper.ps1"))
+        {
+            if(resource==null)throw new InvalidDataException("Trusted embedded sensor helper missing.");
+            using(StreamReader reader=new StreamReader(resource,Encoding.UTF8,true))
+            {
+                string source=reader.ReadToEnd();
+                byte[] textBytes=Encoding.UTF8.GetBytes(source);
+                if(textBytes.Length<1000 || textBytes.Length>120000)
+                    throw new InvalidDataException("Unexpected sensor helper source size.");
+                using(MemoryStream buffer=new MemoryStream())
+                {
+                    using(GZipStream zipper=new GZipStream(buffer,CompressionMode.Compress,true))
+                        zipper.Write(textBytes,0,textBytes.Length);
+                    packed=Convert.ToBase64String(buffer.ToArray());
+                }
+            }
+        }
+        // Every caller-supplied parameter is separately base64-encoded as data.
+        // In particular, a quoted Windows user/path cannot inject PowerShell syntax.
+        string script=
+          "$ErrorActionPreference='Stop'\n"+
+          "$blob=[Convert]::FromBase64String('"+packed+"')\n"+
+          "$ms=[IO.MemoryStream]::new($blob)\n"+
+          "$gzip=[IO.Compression.GZipStream]::new($ms,[IO.Compression.CompressionMode]::Decompress)\n"+
+          "$reader=[IO.StreamReader]::new($gzip,[Text.Encoding]::UTF8)\n"+
+          "try{$code=$reader.ReadToEnd()}finally{$reader.Dispose();$gzip.Dispose();$ms.Dispose()}\n"+
+          "$payload=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(payload)+"'))\n"+
+          "$app=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(appRoot)+"'))\n"+
+          "$user=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(user)+"'))\n"+
+          "& ([ScriptBlock]::Create($code)) -Mode '"+mode+"' -PayloadDir $payload -AppRoot $app -UserId $user\n";
+        string encoded=Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+        // Windows CreateProcess has a 32,767-character maximum; leave margin.
+        // Fail closed instead of falling back to unsafe -File or user-writable scripts.
+        if(encoded.Length>30000)
+            throw new InvalidDataException("Trusted sensor helper command exceeds safe limit.");
+        return "-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "+encoded;
+    }
+
+    static int ElevatedHelper(string mode,string payload,string appRoot,string user,int timeoutMs)
     {
         ProcessStartInfo psi=new ProcessStartInfo();
         psi.FileName="powershell.exe";
-        psi.Arguments="-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \""+helper+"\" "+args;
+        psi.Arguments=BuildElevatedHelperCommand(mode,payload,appRoot,user);
         psi.UseShellExecute=true;
         psi.Verb="runas";
 
@@ -263,7 +315,6 @@ internal static partial class SetupProgram
             if(pawn!=null && pawn.Length>0)
                 Extract("Payload.PawnIO_setup.exe",Path.Combine(payload,"PawnIO_setup.exe"));
         }
-        Extract("Payload.TBME_Setup_Elevated_Helper.ps1",Path.Combine(payload,"TBME_Setup_Elevated_Helper.ps1"));
         return payload;
     }
 
@@ -392,13 +443,10 @@ internal static partial class SetupProgram
             Directory.CreateDirectory(Path.Combine(AppRoot,"Logs"));
             try{File.Delete(SensorResultPath);}catch{}
             payload=PrepareSensorPayload();
-            string helper=Path.Combine(payload,"TBME_Setup_Elevated_Helper.ps1");
             string user=WindowsIdentity.GetCurrent().Name;
             int helperExit;
             try{
-                helperExit=ElevatedHelper(helper,
-                  "-Mode Install -PayloadDir \""+payload+"\" -AppRoot \""+AppRoot+"\" -UserId \""+user+"\"",
-                  110000);
+                helperExit=ElevatedHelper("Install",payload,AppRoot,user,110000);
             }catch(Exception ex){
                 outcome.Status="DEGRADED";
                 outcome.Message="The application installed successfully. The protected sensor supervisor did not report ready before Setup finished. "+ex.Message+" It will continue starting in the background; protected temperature fields may briefly show N/A.";
@@ -557,13 +605,9 @@ internal static partial class SetupProgram
 
         string payload=Path.Combine(Path.GetTempPath(),"tbme_uninstall_"+Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(payload);
-        string helper=Path.Combine(payload,"TBME_Setup_Elevated_Helper.ps1");
-        Extract("Payload.TBME_Setup_Elevated_Helper.ps1",helper);
         string user=WindowsIdentity.GetCurrent().Name;
 
-        int helperExit=ElevatedHelper(helper,
-          "-Mode Uninstall -PayloadDir \""+payload+"\" -AppRoot \""+AppRoot+"\" -UserId \""+user+"\"",
-          90000);
+        int helperExit=ElevatedHelper("Uninstall",payload,AppRoot,user,90000);
         if(helperExit!=0)
             throw new InvalidOperationException("Protected sensor removal failed. Exit code: "+helperExit);
 
