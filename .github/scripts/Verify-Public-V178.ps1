@@ -47,8 +47,10 @@ if ($GhPath) {
     }
     $ghExecutable = $command.Source
 }
-$versionLine = [string]((& $ghExecutable --version | Select-Object -First 1))
-if ($LASTEXITCODE -ne 0) { throw 'GH_CLI_VERSION_QUERY_FAILED' }
+$versionOutput = @(& $ghExecutable --version)
+$versionExitCode = $LASTEXITCODE
+if ($versionExitCode -ne 0) { throw "GH_CLI_VERSION_QUERY_FAILED:exit=$versionExitCode" }
+$versionLine = [string]($versionOutput | Select-Object -First 1)
 $match = [regex]::Match($versionLine, '^gh version (\d+\.\d+\.\d+)')
 if (-not $match.Success) { throw "GH_VERSION_UNRECOGNIZED:$versionLine" }
 $version = [version]$match.Groups[1].Value
