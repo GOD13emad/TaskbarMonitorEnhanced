@@ -49,14 +49,22 @@ try{
     $args4[2]=[string]$app
     $args4[3]=[string]([Security.Principal.WindowsIdentity]::GetCurrent().Name)
     $command=[string]$m.Invoke($null,$args4)
-    $prefix='-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand '
-    if(!$command.StartsWith($prefix,[StringComparison]::Ordinal) -or
-       $command.Length -gt 32080){throw 'R294_UNEXPECTED_LAUNCH_COMMAND'}
-    $encoded=$command.Substring($prefix.Length)
-    $bootstrap=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($encoded))
+    $encodedPrefix='-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand '
+    $inlinePrefix='-NoProfile -NonInteractive -WindowStyle Hidden -Command '
+    $encoded=$command.StartsWith($encodedPrefix,[StringComparison]::Ordinal)
+    $inline=$command.StartsWith($inlinePrefix,[StringComparison]::Ordinal)
+    if((-not $encoded -and -not $inline) -or $command.Contains(' -File ') -or
+       $command.Contains('ExecutionPolicy Bypass') -or
+       ($encoded -and $command.Length -gt 32080) -or
+       ($inline -and $command.Length -gt 30000)){
+     throw 'SENSOR_TRUSTED_BOOTSTRAP_TRANSPORT_UNSAFE'
+    }
+    $bootstrap=if($encoded){
+     [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($command.Substring($encodedPrefix.Length)))
+    }else{$command.Substring($inlinePrefix.Length)}
     $match=[regex]::Match($bootstrap,"-ExpectedBrokerSHA256 '([A-F0-9]{64})' -ExpectedSupervisorSHA256 '([A-F0-9]{64})'")
     if(!$match.Success){throw 'R294_TRUSTED_EMBEDDED_HASHES_NOT_TRANSPORTED'}
-    $check.Add('RESOURCE_IDENTITY_PINNED_INSIDE_ENCODED_BOOTSTRAP')
+    $check.Add('RESOURCE_IDENTITY_PINNED_INSIDE_TRUSTED_IN_MEMORY_BOOTSTRAP')
     $helperPath=(Resolve-Path (Join-Path $PSScriptRoot '..\installer\TBME_Setup_Elevated_Helper.ps1')).Path
     $tokens=$null;$errors=$null
     $ast=[Management.Automation.Language.Parser]::ParseFile($helperPath,[ref]$tokens,[ref]$errors)

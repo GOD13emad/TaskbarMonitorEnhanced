@@ -79,10 +79,19 @@ try{
  $args4[2]=[string]$app
  $args4[3]=[string]([Security.Principal.WindowsIdentity]::GetCurrent().Name)
  $command=[string]$m.Invoke($null,$args4)
- $prefix='-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand '
- if(!$command.StartsWith($prefix,[StringComparison]::Ordinal) -or
-    $command.Length -gt 32080){throw 'R295_NATIVE_COMMAND_SIZE_OR_ENTRY_INVALID'}
- $bootstrap=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($command.Substring($prefix.Length)))
+ $encodedPrefix='-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand '
+ $inlinePrefix='-NoProfile -NonInteractive -WindowStyle Hidden -Command '
+ $encoded=$command.StartsWith($encodedPrefix,[StringComparison]::Ordinal)
+ $inline=$command.StartsWith($inlinePrefix,[StringComparison]::Ordinal)
+ if((-not $encoded -and -not $inline) -or $command.Contains(' -File ') -or
+    $command.Contains('ExecutionPolicy Bypass') -or
+    ($encoded -and $command.Length -gt 32080) -or
+    ($inline -and $command.Length -gt 30000)){
+  throw 'SENSOR_TRUSTED_BOOTSTRAP_TRANSPORT_UNSAFE'
+ }
+ $bootstrap=if($encoded){
+  [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($command.Substring($encodedPrefix.Length)))
+ }else{$command.Substring($inlinePrefix.Length)}
  $match=[regex]::Match($bootstrap,"-ExpectedBackendZipSHA256 '([A-F0-9]{64})'")
  if(!$match.Success){throw 'R295_EMBEDDED_ZIP_SHA_NOT_TRANSPORTED'}
  $expectedHash=$match.Groups[1].Value
