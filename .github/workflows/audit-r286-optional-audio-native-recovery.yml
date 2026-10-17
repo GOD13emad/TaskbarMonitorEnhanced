@@ -587,9 +587,10 @@ jobs:
              $r.OwnerComputerTouched -ne $false -or $r.ActualProtectedSensorTaskTouched -ne $false -or
              $r.RealProgramFilesWritten -ne $false -or $r.ExplicitProtectedDaclCreated -ne $true -or
              $r.OwnerTrustedAdministrators -ne $true -or $r.SystemAdminAccessVerified -ne $true -or
+             $r.ManifestFileOwnerTrusted -ne $true -or
              $r.UserWritableRootRejected -ne $true -or $r.NativeJunctionRejected -ne $true -or
              $r.FlushedManifestHashMatched -ne $true -or $r.OutsideCanaryPreserved -ne $true -or
-             @($r.Checks).Count -ne 6){throw 'R307_NATIVE_ACL_PROOF_NOT_ACCEPTED'}
+             @($r.Checks).Count -ne 7){throw 'R307_NATIVE_ACL_PROOF_NOT_ACCEPTED'}
           if((Get-FileHash -LiteralPath $main -Algorithm SHA256).Hash -cne $before){
              throw 'R307_INSTALLED_DISPOSABLE_GUEST_MAIN_CHANGED'
           }

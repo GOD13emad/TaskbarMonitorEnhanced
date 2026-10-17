@@ -98,6 +98,25 @@ if((Get-FileHash $file -Algorithm SHA256).Hash -cne
  throw 'R307_PROTECTED_MANIFEST_FLUSH_READBACK_MISMATCH'
 }
 $checks.Add('FLUSHED_MANIFEST_SHA_READBACK')
+function Assert-R307ProtectedManifestFile([string]$path){
+ $fileInfo=Get-Item -LiteralPath $path -Force -ErrorAction Stop
+ if($fileInfo.PSIsContainer -or ($fileInfo.Attributes -band [IO.FileAttributes]::ReparsePoint)){
+  throw 'R307_MANIFEST_NOT_ORDINARY_FILE'
+ }
+ $acl=Get-Acl -LiteralPath $path -ErrorAction Stop
+ $ownerSid=([Security.Principal.NTAccount]::new([string]$acl.Owner)).Translate(
+    [Security.Principal.SecurityIdentifier])
+ if(-not $allowed.Contains($ownerSid.Value)){throw 'R307_MANIFEST_OWNER_NOT_TRUSTED'}
+ foreach($rule in $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])){
+  if($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and
+     -not $allowed.Contains([string]$rule.IdentityReference.Value) -and
+     ($rule.FileSystemRights -band $writable)){
+   throw 'R307_MANIFEST_FILE_BROAD_WRITE_ALLOWED'
+  }
+ }
+}
+Assert-R307ProtectedManifestFile $file
+$checks.Add('MANIFEST_FILE_OWNER_AND_ACL_TRUSTED')
 # A preexisting user-writable directory must never be accepted as a journal.
 [void][IO.Directory]::CreateDirectory($unsafe)
 $denied=$false
@@ -136,6 +155,7 @@ $data=[ordered]@{
  ExplicitProtectedDaclCreated=$true
  OwnerTrustedAdministrators=$true
  SystemAdminAccessVerified=$true
+ ManifestFileOwnerTrusted=$true
  UserWritableRootRejected=$true
  NativeJunctionRejected=$true
  FlushedManifestHashMatched=$true
