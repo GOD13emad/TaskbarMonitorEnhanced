@@ -79,9 +79,9 @@ if($i -lt 0 -or $j -le $i -or
 }
 $guard=$raw.Substring($i,$j+$end.Length-$i)
 $install=$raw.IndexOf('$taskInstalled=$false',[StringComparison]::Ordinal)
-$markerCall=$raw.IndexOf('    Assert-OrRecordSensorOwner',$install,[StringComparison]::Ordinal)
+$markerCall=$raw.IndexOf('    Assert-OrRecordSensorOwner',[StringComparison]::Ordinal)
 $stop=$raw.IndexOf('    Get-Process TaskbarMonitorSensorSupervisor,TaskbarMonitorSensorBroker -ErrorAction SilentlyContinue |',$install,[StringComparison]::Ordinal)
-if($install -lt 0 -or $markerCall -le $install -or $stop -le $markerCall){
+if($markerCall -lt 0 -or $install -le $markerCall -or $stop -le $install){
  throw 'R303_OWNER_MARKER_MUST_BE_PERSISTED_PRE_MUTATION'
 }
 $checks.Add('EXACT_SOURCE_MARKER_BEFORE_PROTECTED_TASK_OR_PROCESS_MUTATION')
