@@ -77,6 +77,7 @@ try{
  Reject 'WRONG_MODE_PAYLOAD_REFUSED' Uninstall $validInstall $fixtureApp $user
  Reject 'MALFORMED_PAYLOAD_NAME_REFUSED' Install (Join-Path $tempRoot 'tbme_setup_bad') $fixtureApp $user
  Reject 'SERVICE_SID_REFUSED' Install $validInstall $fixtureApp 'S-1-5-18'
+ Reject 'UNRESOLVABLE_WINDOWS_ACCOUNT_REFUSED' Install $validInstall $fixtureApp 'THIS_ACCOUNT_MUST_NOT_EXIST_R291'
  $asm=[Reflection.Assembly]::LoadFile([IO.Path]::GetFullPath($setup))
  $stream=$asm.GetManifestResourceStream('Payload.TBME_Setup_Elevated_Helper.ps1')
  if(!$stream){throw 'R291_BOUNDARY_RESOURCE_MISSING'}

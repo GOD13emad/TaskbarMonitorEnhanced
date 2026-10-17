@@ -36,9 +36,13 @@ function Assert-SensorPrivilegedBoundary(
     $sid=if($RequestedUser -match '^S-1-5-21-(?:\d+-){3}\d+$'){
         $RequestedUser
     }else{
-        [string]([Security.Principal.NTAccount]::new($RequestedUser)).Translate(
-            [Security.Principal.SecurityIdentifier]
-        ).Value
+        try{
+            [string]([Security.Principal.NTAccount]::new($RequestedUser)).Translate(
+                [Security.Principal.SecurityIdentifier]
+            ).Value
+        }catch{
+            throw 'SENSOR_BOUNDARY_USER_ID_UNRESOLVABLE'
+        }
     }
     if($sid -cnotmatch '^S-1-5-21-(?:\d+-){3}\d+$'){
         throw 'SENSOR_BOUNDARY_USER_PROFILE_NOT_INTERACTIVE'

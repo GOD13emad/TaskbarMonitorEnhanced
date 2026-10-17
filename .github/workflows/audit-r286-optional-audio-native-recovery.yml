@@ -182,7 +182,7 @@ jobs:
              $r.DanglingJunctionRejected -ne $true -or
              $r.EmbeddedHelperSourceMatched -ne $true -or
              $r.InstalledMainUnchanged -ne $true -or
-             $r.CheckCount -lt 11){throw 'R291_TYPED_BOUNDARY_RECEIPT_INVALID'}
+             $r.CheckCount -lt 12){throw 'R291_TYPED_BOUNDARY_RECEIPT_INVALID'}
           'R291_NATIVE_ELEVATED_SENSOR_BOUNDARY_GUARDS_PASS'
       - name: Preserve bounded guest evidence
         if: always()
