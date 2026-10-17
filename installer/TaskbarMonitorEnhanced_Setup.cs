@@ -1473,6 +1473,7 @@ internal static partial class SetupProgram
     }
 
     static string UpgradeRoot {get{return Path.Combine(AppRoot,UpgradeStageName);}}
+    static string RetiredUpgradeRoot {get{return Path.Combine(AppRoot,UpgradeStageName+"-retired");}}
     static string Stage(string part,string rel)
     {
         if(part!="new" && part!="old")throw new InvalidDataException("Unexpected stage area.");
@@ -1595,6 +1596,10 @@ internal static partial class SetupProgram
         string root=Path.GetFullPath(UpgradeRoot).TrimEnd(Path.DirectorySeparatorChar);
         string prefix=root+Path.DirectorySeparatorChar;
         CheckNoReparse(root);
+        string retired=Path.GetFullPath(RetiredUpgradeRoot);
+        CheckNoReparse(retired);
+        if(Directory.Exists(retired) || File.Exists(retired))
+            throw new IOException("Prior retired upgrade journal must be recovered first.");
         HashSet<string> knownFiles=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach(string filename in new string[]{"owner.txt","phase.txt","index.txt","phase.tmp","previous_version.txt"})
             knownFiles.Add(Path.GetFullPath(Path.Combine(root,filename)));
@@ -1656,11 +1661,48 @@ internal static partial class SetupProgram
             CheckNoReparse(directory);
             if(Directory.Exists(directory))Directory.Delete(directory,false);
         }
-        // Unknown files or directories cannot be silently removed by this path.
+        // Keep index, phase, prior-version and ownership metadata in the
+        // active journal until a same-parent move retires that whole journal.
+        // Interruption before the move resumes original recovery; after it
+        // only a fixed, bounded metadata tombstone remains.
+        CheckNoReparse(root);
+        CheckNoReparse(retired);
+        Directory.Move(root,retired);
+        FinishRetiredUpgradeStageIfAny();
+    }
+
+    // R300: retryable, nonrecursive cleanup of exact retired metadata only.
+    static void FinishRetiredUpgradeStageIfAny()
+    {
+        string root=Path.GetFullPath(RetiredUpgradeRoot);
+        CheckNoReparse(root);
+        if(File.Exists(root))
+            throw new IOException("Retired upgrade path is not a directory.");
+        if(!Directory.Exists(root))return;
+        string owner=Path.Combine(root,"owner.txt");
+        string[] metadata=new string[]{"phase.tmp","previous_version.txt","index.txt","phase.txt","owner.txt"};
+        HashSet<string> names=new HashSet<string>(metadata,StringComparer.OrdinalIgnoreCase);
+        string[] entries=Directory.GetFileSystemEntries(root);
+        foreach(string entry in entries){
+            string full=Path.GetFullPath(entry);
+            if(!String.Equals(Path.GetDirectoryName(full),root,StringComparison.OrdinalIgnoreCase) ||
+               !names.Contains(Path.GetFileName(full)))
+                throw new IOException("Unknown retired upgrade member; preserve for review: "+full);
+            CheckNoReparse(full);
+            FileAttributes attributes=File.GetAttributes(full);
+            if((attributes&(FileAttributes.Directory|FileAttributes.ReparsePoint))!=0)
+                throw new IOException("Retired upgrade member is not an ordinary file: "+full);
+        }
+        // Owner is last; if it is absent, only an empty directory is safe.
+        if(File.Exists(owner)){
+            if(File.ReadAllText(owner,Encoding.ASCII)!=UpgradeStageMarker)
+                throw new IOException("Retired upgrade ownership marker mismatch.");
+        }else if(entries.Length!=0)
+            throw new IOException("Retired upgrade journal lost its ownership marker.");
         foreach(string name in metadata){
-            string filename=Path.Combine(root,name);
-            CheckNoReparse(filename);
-            if(File.Exists(filename))File.Delete(filename);
+            string file=Path.Combine(root,name);
+            CheckNoReparse(file);
+            if(File.Exists(file))File.Delete(file);
         }
         CheckNoReparse(root);
         Directory.Delete(root,false);
@@ -1725,6 +1767,7 @@ internal static partial class SetupProgram
 
     static void RecoverUpgradeStageIfAny()
     {
+        FinishRetiredUpgradeStageIfAny();
         if(!Directory.Exists(UpgradeRoot))return;
         CheckNoReparse(UpgradeRoot);
         // Interrupted journals are writable in the user's AppData. Before

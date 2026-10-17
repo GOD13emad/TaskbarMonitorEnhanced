@@ -79,7 +79,8 @@ $note=Join-Path $newDocs 'RELEASE_NOTES_v1.7.8.md'
 [void][IO.Directory]::CreateDirectory($old)
 [void][IO.Directory]::CreateDirectory($newDocs)
 foreach($file in @('owner.txt','phase.txt','index.txt','previous_version.txt')){
- [IO.File]::WriteAllText((Join-Path $stage $file),('R299_ONLY_'+$file))
+ $value=if($file -ceq 'owner.txt'){'TBME_UPGRADE_R92_OWNED_STAGE_V1'}else{'R299_ONLY_'+$file}
+ [IO.File]::WriteAllText((Join-Path $stage $file),$value)
 }
 [IO.File]::WriteAllText($note,'R299_NEW_MANAGED_NOTE')
 $ownerBefore=SHA (Join-Path $stage 'owner.txt')
