@@ -822,6 +822,43 @@ function Finish-SensorTerminalJournal([string]$Root,[string]$Sid){
     Finish-SensorRetiredJournal $retired $Sid
 }
 
+# R311 integrates already-tested R309/R310 terminal machinery into the
+# normal protected install success path, not into unverified task restoration.
+function Resume-SensorCompletedJournal([string]$Root,[string]$Sid){
+    Assert-SensorBoundaryNoReparse $Root
+    Assert-SensorBoundaryNoReparse ($Root+'-retired')
+    # R310 prioritizes finishing a prior retired state. Then an active,
+    # uncommitted PREPARED state MUST fail closed, never guessed complete.
+    Finish-SensorTerminalJournal $Root $Sid
+    if([IO.Directory]::Exists($Root) -or [IO.Directory]::Exists($Root+'-retired')){
+        throw 'SENSOR_JOURNAL_RECOVERY_REQUIRED'
+    }
+}
+function Complete-HealthySensorJournal(
+    [string]$Root,[string]$Sid,[bool]$TaskInstalled,[bool]$SupervisorHealthy
+){
+    if(-not $TaskInstalled -or -not $SupervisorHealthy){
+        throw 'SENSOR_JOURNAL_SUPERVISOR_NOT_HEALTHY_NO_COMMIT'
+    }
+    $effective=[Security.Principal.WindowsIdentity]::GetCurrent()
+    if($null -eq $effective -or $null -eq $effective.User -or
+       -not [string]::Equals([string]$effective.User.Value,$Sid,[StringComparison]::OrdinalIgnoreCase)){
+        throw 'SENSOR_JOURNAL_COMMIT_EFFECTIVE_SID_MISMATCH'
+    }
+    $phase=Get-SensorJournalTerminal $Root $Sid
+    if($phase -cne 'PREPARED'){
+        throw 'SENSOR_JOURNAL_COMMIT_NONPREPARED_REFUSED'
+    }
+    Write-SensorJournalTerminal $Root $Sid 'COMMITTED'
+    # A crash after writing COMMITTED is recoverable by the entrypoint
+    # above; a crash during retirement is recoverable by R310's bounded
+    # nonrecursive retired journal cleanup.
+    Finish-SensorTerminalJournal $Root $Sid
+    if([IO.Directory]::Exists($Root) -or [IO.Directory]::Exists($Root+'-retired')){
+        throw 'SENSOR_JOURNAL_COMMIT_RETIRE_RESIDUE'
+    }
+}
+
 function Capture-PreviousSensorLayer {
     try{
         Clear-SensorRollbackBuffer
@@ -938,14 +975,15 @@ try{
 }
 # R264-SENSOR-GUARD-BOUNDARY-END
 
-# R308: no automatic recovery/cleanup until an independently validated
-# terminal protocol exists. Existing or partial journal blocks further
-# protected writes; the per-user main application remains usable.
-Assert-SensorBoundaryNoReparse $SensorJournalRoot
-if(Test-Path -LiteralPath $SensorJournalRoot){
+# R311: before protected changes finish only already-terminal,
+# same-owner, SHA-validated journals. PREPARED remains fail-closed until
+# actual prior task/file cold recovery is independently proven.
+try{
+    Resume-SensorCompletedJournal $SensorJournalRoot $validatedSensorSid
+}catch{
     $script:ActiveArchitecture='PROTECTED_JOURNAL_RECOVERY_REQUIRED'
-    Write-Log 'R308_PENDING_PROTECTED_JOURNAL_NO_NEW_PROTECTED_MUTATION'
-    Write-Result 'DEGRADED_ROLLBACK_RECOVERY_REQUIRED' 'A protected sensor update journal is pending validation. Protected sensors were not modified; a verified recovery procedure is required.' 'NOT_STARTED' $null $false $false $false
+    Write-Log ('R311_PENDING_PROTECTED_JOURNAL_NO_MUTATION '+$_.Exception.Message)
+    Write-Result 'DEGRADED_ROLLBACK_RECOVERY_REQUIRED' 'A protected sensor update journal is not safely terminal, and must be recovered under its verified owner account. No new protected sensor mutation was started.' 'NOT_STARTED' $null $false $false $false
     exit 0
 }
 
@@ -1265,18 +1303,32 @@ if($taskInstalled -and -not$SupervisorHealthy -and -not$rebootRequired){
 }
 
 if($RollbackPerformed){
-    if($RollbackSucceeded){
-        Clear-SensorRollbackBuffer
-        Write-Log 'R21_INSTALL_DEGRADED_ROLLED_BACK'
-        Write-Result 'DEGRADED_ROLLED_BACK' 'R21 protected sensor validation did not pass, so the previous protected sensor layer was restored automatically. The main application remains usable; use Repair protected sensors to retry R21 later.' $pawnStatus $pawnExit $false $false $false
-    }else{
-        Write-Log 'R21_INSTALL_DEGRADED_ROLLBACK_FAILED'
-        Write-Result 'DEGRADED_ROLLBACK_FAILED' 'R21 protected sensor validation did not pass and automatic rollback also failed. The main application remains usable, but protected telemetry requires repair.' $pawnStatus $pawnExit $false $false $false
-    }
+    # The in-memory rollback may have returned success, but its old task XML
+    # has NOT yet been independently verified by a cold privileged process.
+    # Keep PREPARED and its prior bytes; do not assert ROLLED_BACK or delete.
+    Write-Log ('R311_INPROCESS_ROLLBACK_JOURNAL_PENDING verifiedInMemory='+$RollbackSucceeded)
+    Clear-SensorRollbackBuffer
+    Write-Result 'DEGRADED_ROLLBACK_RECOVERY_REQUIRED' 'Protected sensor installation attempted rollback, but durable previous task and file recovery is not yet independently verified. The journal was retained for verified recovery; per-user monitoring remains usable.' $pawnStatus $pawnExit $false $false $false
     exit 0
 }
-
-# Retire the in-memory snapshot after a successful terminal path.
+if(-not $taskInstalled -or -not $SupervisorHealthy){
+    # No claim that a partially installed protected layer is committed.
+    Write-Log 'R311_PROTECTED_HEALTH_NOT_COMMITTED_KEEP_READY'
+    Clear-SensorRollbackBuffer
+    Write-Result 'DEGRADED_ROLLBACK_RECOVERY_REQUIRED' 'Protected sensor activation was not verified healthy; the rollback snapshot is retained rather than incorrectly committed or discarded.' $pawnStatus $pawnExit $false $false $false
+    exit 0
+}
+try{
+    Complete-HealthySensorJournal $SensorJournalRoot $validatedSensorSid $taskInstalled $SupervisorHealthy
+    Write-Log 'R311_PROTECTED_JOURNAL_COMMITTED_AND_RETIRED'
+}catch{
+    Write-Log ('R311_TERMINAL_COMMIT_CLEANUP_DEGRADED '+$_.Exception.Message)
+    Clear-SensorRollbackBuffer
+    Write-Result 'DEGRADED_ROLLBACK_RECOVERY_REQUIRED' 'Protected sensors reached their health check, but the journal terminal completion could not be verified. The retained journal must be reconciled before another protected update.' $pawnStatus $pawnExit $false $false $false
+    exit 0
+}
+# Verified protected healthy path completed and the durable terminal
+# snapshot was retired; now release its redundant in-memory backup.
 Clear-SensorRollbackBuffer
 if($SupervisorHealthy -and $healthy){
     Write-Log "R21_SENSOR_READY cpu=$currentC"
