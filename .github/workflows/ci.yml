@@ -192,3 +192,22 @@ jobs:
       - name: Print build manifest
         shell: pwsh
         run: Get-Content ./artifacts/BUILD_MANIFEST.json
+
+  public-v178-provenance:
+    name: Verify public v1.7.8 SLSA provenance (read only)
+    if: github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/heads/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - name: Checkout exact verification script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Verify pinned public installer and exact trusted CI builder
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/verify-public-v178-provenance.sh
