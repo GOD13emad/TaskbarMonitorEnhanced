@@ -953,6 +953,137 @@ function Assert-SensorTrustedOldTaskXml(
  return $true
 }
 
+# R314: isolated experimental cold replay of a fully validated PREPARED
+# journal and its prior ScheduledTask XML. The production entrypoint remains
+# fail-closed until a separate actual elevated-helper death test is accepted.
+function Test-SensorOwnedTaskRegistration(
+    [string]$TaskName,[string]$ExpectedSid,[string]$TrustedBrokerRoot,[string]$TrustedAppRoot
+){
+    if([string]::IsNullOrWhiteSpace($TaskName) -or $TaskName.Length -gt 100 -or
+       $TaskName -notmatch '^[A-Za-z0-9 _-]+$'){
+        throw 'SENSOR_COLD_TASK_INVALID_NAME'
+    }
+    Import-Module ScheduledTasks -ErrorAction Stop
+    $existing=@(Get-ScheduledTask -TaskPath '\' -TaskName $TaskName -ErrorAction SilentlyContinue|
+        Where-Object {$null -ne $_})
+    if($existing.Count -gt 1){throw 'SENSOR_COLD_TASK_DUPLICATE_NAME'}
+    if($existing.Count -eq 0){return $false}
+    $task=$existing[0]
+    $sid=Resolve-SensorPriorTaskPrincipalSid ([string]$task.Principal.UserId)
+    if($sid -cne $ExpectedSid -or
+       @($task.Actions).Count -ne 1 -or
+       @($task.Triggers).Count -ne 1){
+        throw 'SENSOR_COLD_TASK_PRINCIPAL_OR_SHAPE_MISMATCH'
+    }
+    $expectedExe=Join-Path $TrustedBrokerRoot 'TaskbarMonitorSensorSupervisor.exe'
+    $expectedArgs='--broker "'+(Join-Path $TrustedBrokerRoot 'TaskbarMonitorSensorBroker.exe')+
+        '" --output "'+(Join-Path $TrustedAppRoot 'cpu_temp_broker.json')+'"'
+    if(-not [string]::Equals([string]$task.Actions[0].Execute,$expectedExe,[StringComparison]::OrdinalIgnoreCase) -or
+       -not [string]::Equals([string]$task.Actions[0].Arguments,$expectedArgs,[StringComparison]::OrdinalIgnoreCase)){
+        throw 'SENSOR_COLD_TASK_UNTRUSTED_EXISTING_ACTION'
+    }
+    # Export and validate all privilege-bearing XML fields, including
+    # highest runlevel, interactive logon and trigger UserId.
+    $currentXml=[string](Export-ScheduledTask -TaskPath '\' -TaskName $TaskName -ErrorAction Stop)
+    if($TaskName -cne 'TaskbarMonitorEnhanced Sensor Broker'){
+        # Test-only URI variation: the real task must always use its fixed
+        # URI; hosted ephemeral tests are named explicitly and never started.
+        $xmlDoc=[Xml.XmlDocument]::new()
+        $xmlDoc.XmlResolver=$null
+        $settings=[Xml.XmlReaderSettings]::new()
+        $settings.DtdProcessing=[Xml.DtdProcessing]::Prohibit
+        $settings.XmlResolver=$null
+        $settings.MaxCharactersInDocument=262144
+        $sr=[IO.StringReader]::new($currentXml)
+        $reader=$null
+        try{
+            $reader=[Xml.XmlReader]::Create($sr,$settings)
+            $xmlDoc.Load($reader)
+        }finally{if($reader){$reader.Dispose()};$sr.Dispose()}
+        $namespace=[Xml.XmlNamespaceManager]::new($xmlDoc.NameTable)
+        $namespace.AddNamespace('t','http://schemas.microsoft.com/windows/2004/02/mit/task')
+        $uri=$xmlDoc.SelectSingleNode('/t:Task/t:RegistrationInfo/t:URI',$namespace)
+        if($uri -and [string]$uri.InnerText -cne ('\'+$TaskName)){
+            throw 'SENSOR_COLD_TASK_EPHEMERAL_URI_MISMATCH'
+        }
+        # Drop only the Scheduler-generated URI before passing it through
+        # the exact production policy. No other XML fields are changed.
+        if($uri){[void]$uri.ParentNode.RemoveChild($uri)}
+        $currentXml=$xmlDoc.OuterXml
+    }
+    if(-not (Assert-SensorTrustedOldTaskXml $currentXml $ExpectedSid $TrustedBrokerRoot $TrustedAppRoot)){
+        throw 'SENSOR_COLD_TASK_EXPORTED_XML_UNTRUSTED'
+    }
+    return $true
+}
+function Restore-SensorJournalPriorLayerAndTask(
+    [string]$Journal,[string]$ExpectedSid,[string]$LiveBrokerRoot,
+    [string]$TrustedAppRoot,[string]$TaskName
+){
+    # Trusted production code passes the fixed TaskName. The alternate
+    # prefix is reserved exclusively for bounded disposable test fixtures;
+    # never register a task under arbitrary string input.
+    if($TaskName -cne 'TaskbarMonitorEnhanced Sensor Broker' -and
+       $TaskName -cnotmatch '^TBME-R314-Disposable-[0-9]{5,20}-[AB]$'){
+        throw 'SENSOR_COLD_TASK_NAME_NOT_ALLOWLISTED'
+    }
+    $effective=[Security.Principal.WindowsIdentity]::GetCurrent()
+    if($null -eq $effective -or $null -eq $effective.User -or
+       -not [string]::Equals([string]$effective.User.Value,$ExpectedSid,[StringComparison]::OrdinalIgnoreCase)){
+        throw 'SENSOR_COLD_JOURNAL_EFFECTIVE_SID_MISMATCH'
+    }
+    if((Get-SensorJournalTerminal $Journal $ExpectedSid) -cne 'PREPARED'){
+        throw 'SENSOR_COLD_JOURNAL_NOT_PREPARED'
+    }
+    $record=Assert-SensorDurableJournal $Journal $ExpectedSid
+    $savedXmlFile=Join-Path $Journal 'task.xml'
+    Assert-SensorJournalTrustedAcl $savedXmlFile $false
+    $xmlBytes=[IO.File]::ReadAllBytes($savedXmlFile)
+    if($xmlBytes.Length -gt 262144 -or
+       (Get-SensorJournalHash $xmlBytes) -cne [string]$record.TaskHash){
+        throw 'SENSOR_COLD_SAVED_TASK_XML_HASH_MISMATCH'
+    }
+    $oldXml=[Text.Encoding]::UTF8.GetString($xmlBytes)
+    if([bool]$record.TaskPresent){
+        if(-not (Assert-SensorTrustedOldTaskXml $oldXml $ExpectedSid $LiveBrokerRoot $TrustedAppRoot)){
+            throw 'SENSOR_COLD_PRIOR_XML_POLICY_INVALID'
+        }
+    }elseif($oldXml.Length -gt 0){
+        throw 'SENSOR_COLD_UNEXPECTED_SAVED_TASK_XML'
+    }
+    # Reject a foreign or altered live task BEFORE any files are changed.
+    $previousTaskPresent=Test-SensorOwnedTaskRegistration $TaskName $ExpectedSid $LiveBrokerRoot $TrustedAppRoot
+    # R309 prevalidates every saved file/hash, XML and all current live
+    # member names before the first synthetic file write. Retrying after a
+    # crash is safe for the same allowlisted bytes and expected task.
+    $decoded=Restore-SensorJournalOldFilesOnly $Journal $ExpectedSid $LiveBrokerRoot
+    if(-not [string]::Equals($decoded,$oldXml,[StringComparison]::Ordinal)){
+        throw 'SENSOR_COLD_REPLAY_XML_DATA_CHANGED'
+    }
+    if([bool]$record.TaskPresent){
+        if(-not $previousTaskPresent){
+            # A unique known task name is required absent, and we never
+            # use -Force (which could overwrite an unrelated task).
+            Register-ScheduledTask -TaskPath '\' -TaskName $TaskName -Xml $oldXml -ErrorAction Stop|Out-Null
+        }
+        if(-not (Test-SensorOwnedTaskRegistration $TaskName $ExpectedSid $LiveBrokerRoot $TrustedAppRoot)){
+            throw 'SENSOR_COLD_REGISTERED_TASK_READBACK_INVALID'
+        }
+    }else{
+        if($previousTaskPresent){
+            Unregister-ScheduledTask -TaskPath '\' -TaskName $TaskName -Confirm:$false -ErrorAction Stop
+        }
+        if(Test-SensorOwnedTaskRegistration $TaskName $ExpectedSid $LiveBrokerRoot $TrustedAppRoot){
+            throw 'SENSOR_COLD_ABSENT_TASK_NOT_RESTORED'
+        }
+    }
+    Write-SensorJournalTerminal $Journal $ExpectedSid 'ROLLED_BACK'
+    Finish-SensorTerminalJournal $Journal $ExpectedSid
+    if([IO.Directory]::Exists($Journal) -or [IO.Directory]::Exists($Journal+'-retired')){
+        throw 'SENSOR_COLD_ROLLBACK_JOURNAL_RESIDUE'
+    }
+}
+
 function Capture-PreviousSensorLayer {
     try{
         Clear-SensorRollbackBuffer
