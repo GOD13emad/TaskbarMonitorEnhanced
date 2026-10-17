@@ -956,3 +956,82 @@ jobs:
             ${{ runner.temp }}/R316_${{ matrix.host }}_${{ github.run_id }}/R316_TRUSTED_APPROOT_RECEIPT.json
             ${{ runner.temp }}/R317_${{ matrix.host }}_${{ github.run_id }}/R317_ENCODED_CLEANUP_RECEIPT.json
             ${{ runner.temp }}/R318_${{ matrix.host }}_${{ github.run_id }}/R318_INPROCESS_SHORTCUT_RECEIPT.json
+
+
+  fresh-install-uninstall:
+    name: R319 fresh private install then uninstall on isolated ${{ matrix.host }}
+    needs: candidate
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: A
+            os: windows-2025
+          - host: B
+            os: windows-2022
+    steps:
+      - name: Checkout exact private candidate source, new isolated host
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Retrieve private not-for-release binaries only
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: R286-PRIVATE-NOT-PUBLIC-RELEASE
+          path: _r284_private_candidate
+      - name: R319 fresh Windows host safety and PowerShell 5.1 syntax preflight
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:COMPUTERNAME -match '(?i)EMAD-PC' -or
+             (git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R319_NOT_EXACT_DISPOSABLE_SOURCE'}
+          $test=(Resolve-Path build/Test-R319-ActualHostedInstallUninstall-Native.ps1).Path
+          $t=$null;$e=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($test,[ref]$t,[ref]$e)
+          if(@($e).Count){$e|ForEach-Object {$_.Message};throw 'R319_NATIVE_PS51_SYNTAX_INVALID'}
+          if(!(Test-Path '_r284_private_candidate/CANDIDATE.json')){throw 'R319_PRIVATE_MANIFEST_MISSING'}
+          $c=Get-Content '_r284_private_candidate/CANDIDATE.json' -Raw|ConvertFrom-Json
+          if($c.Commit -cne $env:GITHUB_SHA -or $c.Private -ne $true -or
+             $c.NotForPublicInstallation -ne $true){throw 'R319_UNTRUSTED_OR_PUBLIC_CANDIDATE'}
+          'R319_NEW_HOST_STRICT_PREFLIGHT_PASS'
+      - name: R319 run actual private 1.7.8 install uninstall and deferred cleanup on new Windows guest
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Test-R319-ActualHostedInstallUninstall-Native.ps1 -HostLabel '${{ matrix.host }}' -CandidateDir (Resolve-Path _r284_private_candidate).Path
+          $receipt=Join-Path $env:RUNNER_TEMP ('R319_${{ matrix.host }}_'+$env:GITHUB_RUN_ID+'/R319_PRIVATE_INSTALL_UNINSTALL_RECEIPT.json')
+          if(!(Test-Path -LiteralPath $receipt)){throw 'R319_TYPED_RAW_RECEIPT_ABSENT'}
+          $r=Get-Content -LiteralPath $receipt -Raw|ConvertFrom-Json
+          if($r.Schema -ne 1 -or $r.Revision -cne 'R319' -or
+             $r.Status -cne 'PASS_REAL_PRIVATE_INSTALL_UNINSTALL_ON_DISPOSABLE_HOST' -or
+             $r.Host -cne '${{ matrix.host }}' -or $r.SourceCommit -cne $env:GITHUB_SHA -or
+             $r.PrivateCandidateOnly -ne $true -or $r.OriginalOwnerComputerTouched -ne $false -or
+             $r.ActualWindowsHostedInstallExecuted -ne $true -or
+             $r.ActualWindowsHostedUninstallExecuted -ne $true -or
+             $r.ActualProductUserRootRemoved -ne $true -or
+             $r.ActualProtectedTaskAbsent -ne $true -or
+             $r.ActualProtectedBrokerAbsent -ne $true -or
+             $r.ActualShortcutLinksRemoved -ne $true -or
+             $r.ConfirmedNoBundledPawnIODriverLaunched -ne $true -or
+             $r.TrueUACPromptInteractionTested -ne $false -or
+             $r.InstallExitCode -ne 0 -or $r.UninstallExitCode -ne 0 -or
+             $r.MainInstalledSHA256 -cne $r.MainExpectedSHA256 -or
+             $r.UninstallerInstalledSHA256 -cne $r.SetupExpectedSHA256 -or
+             [string]::IsNullOrWhiteSpace([string]$r.SensorStatus) -or
+             $r.DeferredCleanupSeconds -gt 70 -or $r.Failure -or
+             @($r.Checks).Count -ne 18){throw 'R319_REAL_HOSTED_INSTALL_UNINSTALL_RECEIPT_GATES_FAILED'}
+          'R319_PRIVATE_HOSTED_INSTALL_UNINSTALL_SUCCESS_NON_RELEASE'
+      - name: Preserve bounded R319 guest receipt even on failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R319-new-host-${{ matrix.host }}-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/R319_${{ matrix.host }}_${{ github.run_id }}/R319_PRIVATE_INSTALL_UNINSTALL_RECEIPT.json
