@@ -2,7 +2,9 @@ param(
     [Parameter(Mandatory=$true)][ValidateSet('Install','Uninstall')][string]$Mode,
     [Parameter(Mandatory=$true)][string]$PayloadDir,
     [Parameter(Mandatory=$true)][string]$AppRoot,
-    [Parameter(Mandatory=$true)][string]$UserId
+    [Parameter(Mandatory=$true)][string]$UserId,
+    [string]$ExpectedBrokerSHA256='',
+    [string]$ExpectedSupervisorSHA256=''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -305,6 +307,28 @@ if($Mode -eq 'Uninstall'){
     }
 }
 
+# R294: one exclusive read; installed bytes are the same verified buffer.
+function Get-VerifiedSensorPayloadBytes([string]$File,[string]$Expected,[long]$MaxBytes){
+    if($Expected -cnotmatch '^[A-F0-9]{64}$'){throw 'SENSOR_PAYLOAD_SHA_NOT_PINNED'}
+    Assert-SensorBoundaryNoReparse $File
+    $stream=[IO.FileStream]::new($File,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
+    try{
+        if($stream.Length -lt 1 -or $stream.Length -gt $MaxBytes){throw 'SENSOR_PAYLOAD_SIZE_INVALID'}
+        $buffer=[byte[]]::new([int]$stream.Length)
+        $offset=0
+        while($offset -lt $buffer.Length){
+            $count=$stream.Read($buffer,$offset,$buffer.Length-$offset)
+            if($count -le 0){throw 'SENSOR_PAYLOAD_SHORT_READ'}
+            $offset+=$count
+        }
+        $sha=[Security.Cryptography.SHA256]::Create()
+        try{$actual=[BitConverter]::ToString($sha.ComputeHash($buffer)).Replace('-','')}
+        finally{$sha.Dispose()}
+        if($actual -cne $Expected){throw 'SENSOR_PAYLOAD_EMBEDDED_SHA_MISMATCH'}
+        return ,$buffer
+    }finally{$stream.Dispose()}
+}
+
 $BrokerPayload=Join-Path $PayloadDir 'TaskbarMonitorSensorBroker.exe'
 $SupervisorPayload=Join-Path $PayloadDir 'TaskbarMonitorSensorSupervisor.exe'
 $PawnPayload=Join-Path $PayloadDir 'PawnIO_setup.exe'
@@ -344,6 +368,15 @@ if(-not $pawnAlreadyCompatible -and !(Test-Path -LiteralPath $PawnPayload -PathT
     exit 0
 }
 
+# R294: Verify pinned embedded identity before touching protected services.
+try{
+    $VerifiedBrokerBytes=Get-VerifiedSensorPayloadBytes $BrokerPayload $ExpectedBrokerSHA256 16777216
+    $VerifiedSupervisorBytes=Get-VerifiedSensorPayloadBytes $SupervisorPayload $ExpectedSupervisorSHA256 16777216
+}catch{
+    Write-Log ('SENSOR_PAYLOAD_PROVENANCE_REFUSED '+$_.Exception.Message)
+    Write-Result 'DEGRADED' 'Protected sensor payload provenance not verified; prior service preserved.' 'NOT_STARTED' $null $false $false $false
+    exit 0
+}
 if(-not(Capture-PreviousSensorLayer)){
     $ActiveArchitecture='PREVIOUS_SENSOR_LAYER_UNCHANGED'
     Write-Result 'DEGRADED' 'Setup could not capture a rollback snapshot of the existing protected sensor layer, so it did not modify that layer.' 'NOT_STARTED' $null $false $false $false
@@ -408,8 +441,8 @@ try{
     Remove-Item -LiteralPath $LiveJson,$GpuJson,$StorageJson,$SupervisorState -Force -ErrorAction SilentlyContinue
 
     New-Item -ItemType Directory -Force -Path $BrokerRoot|Out-Null
-    Copy-Item -LiteralPath $BrokerPayload -Destination (Join-Path $BrokerRoot 'TaskbarMonitorSensorBroker.exe') -Force
-    Copy-Item -LiteralPath $SupervisorPayload -Destination (Join-Path $BrokerRoot 'TaskbarMonitorSensorSupervisor.exe') -Force
+    [IO.File]::WriteAllBytes((Join-Path $BrokerRoot 'TaskbarMonitorSensorBroker.exe'),$VerifiedBrokerBytes)
+    [IO.File]::WriteAllBytes((Join-Path $BrokerRoot 'TaskbarMonitorSensorSupervisor.exe'),$VerifiedSupervisorBytes)
 
     Get-ChildItem -LiteralPath $BackendRoot -File -Recurse | ForEach-Object {
         $relative=$_.FullName.Substring($BackendRoot.Length).TrimStart('\')

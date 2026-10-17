@@ -117,6 +117,10 @@ internal static partial class SetupProgram
     {
         if(mode!="Install" && mode!="Uninstall")
             throw new InvalidDataException("Unexpected elevated sensor mode.");
+        string brokerHash=Sha256Resource("Payload.TaskbarMonitorSensorBroker.exe");
+        string supervisorHash=Sha256Resource("Payload.TaskbarMonitorSensorSupervisor.exe");
+        if(brokerHash.Length!=64 || supervisorHash.Length!=64)
+            throw new InvalidDataException("Protected sensor resource hash unavailable.");
         string packed;
         using(Stream resource=Resource("Payload.TBME_Setup_Elevated_Helper.ps1"))
         {
@@ -147,11 +151,11 @@ internal static partial class SetupProgram
           "$payload=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(payload)+"'))\n"+
           "$app=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(appRoot)+"'))\n"+
           "$user=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(user)+"'))\n"+
-          "& ([ScriptBlock]::Create($code)) -Mode '"+mode+"' -PayloadDir $payload -AppRoot $app -UserId $user\n";
+          "& ([ScriptBlock]::Create($code)) -Mode '"+mode+"' -PayloadDir $payload -AppRoot $app -UserId $user -ExpectedBrokerSHA256 '"+brokerHash+"' -ExpectedSupervisorSHA256 '"+supervisorHash+"'\n";
         string encoded=Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
         // Windows CreateProcess has a 32,767-character maximum; leave margin.
         // Fail closed instead of falling back to unsafe -File or user-writable scripts.
-        if(encoded.Length>30000)
+        if(encoded.Length>31500)
             throw new InvalidDataException("Trusted sensor helper command exceeds safe limit.");
         return "-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "+encoded;
     }
