@@ -368,7 +368,7 @@ internal static partial class SetupProgram
     // R323: remove only shortcuts that still point at this product and retain
     // their exact product arguments. A same-name user shortcut is not ours.
     // This is a same-user guard, not an atomic defence against rename races.
-    static bool DeleteOwnedShortcut(string path,string expectedTarget,string expectedArguments)
+    static bool IsOwnedShortcut(string path,string expectedTarget,string expectedArguments)
     {
         if(String.IsNullOrWhiteSpace(path) || String.IsNullOrWhiteSpace(expectedTarget) ||
            !Path.IsPathRooted(path) || !Path.IsPathRooted(expectedTarget) ||
@@ -419,8 +419,8 @@ internal static partial class SetupProgram
             if(!owned || !File.Exists(link) ||
                (File.GetAttributes(link)&FileAttributes.ReparsePoint)!=0)
                 return false;
-            File.Delete(link);
-            return !File.Exists(link);
+            return true;
+
         }
         catch
         {
@@ -428,6 +428,57 @@ internal static partial class SetupProgram
             // deletion of user-owned content or an elevated fallback.
             return false;
         }
+    }
+
+    static bool DeleteOwnedShortcut(string path,string expectedTarget,string expectedArguments)
+    {
+        if(!IsOwnedShortcut(path,expectedTarget,expectedArguments))
+            return false;
+        try
+        {
+            File.Delete(Path.GetFullPath(path));
+            return !File.Exists(path);
+        }
+        catch{return false;}
+    }
+
+    // R324: even a dangling reparse link occupies its exact name.
+    // Detect a file-system entry without following its target for ownership.
+    static bool ShortcutNameOccupied(string path)
+    {
+        try{File.GetAttributes(path);return true;}
+        catch(FileNotFoundException){return false;}
+        catch(DirectoryNotFoundException){return false;}
+    }
+
+    // R324: the user may have an unrelated existing shortcut with this name.
+    // Existing owned shortcuts can be refreshed, but foreign ones are immutable.
+    static void AssertOwnedOrAbsentShortcut(string path,string target,string args)
+    {
+        if(ShortcutNameOccupied(path) && !IsOwnedShortcut(path,target,args))
+            throw new IOException("FOREIGN_SHORTCUT_NAME_CONFLICT: refusing to overwrite another shortcut.");
+    }
+
+    // No installation root exists at this point. No current shortcut may be
+    // attributed to this fresh installation, even if it claims our target.
+    static void AssertFreshShortcutNameUnused(string path)
+    {
+        if(ShortcutNameOccupied(path))
+            throw new IOException("FOREIGN_SHORTCUT_NAME_CONFLICT: fresh install cannot replace an existing shortcut.");
+    }
+
+    static void AssertFreshInstallShortcutPreflight(bool desktop,bool startup)
+    {
+        string programs=Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+        AssertFreshShortcutNameUnused(Path.Combine(programs,Product+".lnk"));
+        AssertFreshShortcutNameUnused(Path.Combine(programs,Product+" - Repair Hardware Sensors.lnk"));
+        if(desktop)
+            AssertFreshShortcutNameUnused(Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),Product+".lnk"));
+        if(startup)
+            AssertFreshShortcutNameUnused(Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.Startup),
+                "Taskbar Monitor Enhanced Startup Recovery.lnk"));
     }
 
     static void Shortcut(string path,string target)
@@ -452,6 +503,8 @@ internal static partial class SetupProgram
         // user-local directory reparse races remain a separate security gate.
         if(File.Exists(linkPath) && (File.GetAttributes(linkPath)&FileAttributes.ReparsePoint)!=0)
             throw new IOException("Shortcut destination is a reparse point.");
+        // Refuse an unexpected same-name shortcut before COM Save can overwrite it.
+        AssertOwnedOrAbsentShortcut(linkPath,targetPath,arguments);
         Type shellType=Type.GetTypeFromProgID("WScript.Shell",true);
         object shell=null;
         object shortcut=null;
@@ -470,6 +523,9 @@ internal static partial class SetupProgram
             shortcutType.InvokeMember("IconLocation",set,null,shortcut,new object[]{AppExe+",0"});
             shortcutType.InvokeMember("Description",set,null,shortcut,new object[]{description??""});
             shortcutType.InvokeMember("WindowStyle",set,null,shortcut,new object[]{1});
+            // Recheck immediately before COM Save: fail closed if another
+            // same-name shortcut appeared while its object was prepared.
+            AssertOwnedOrAbsentShortcut(linkPath,targetPath,arguments);
             shortcutType.InvokeMember("Save",BindingFlags.InvokeMethod,null,shortcut,new object[0]);
             if(!File.Exists(linkPath))
                 throw new IOException("Windows Script Host did not persist the shortcut.");
@@ -800,6 +856,8 @@ internal static partial class SetupProgram
         // product or user-owned files. Existing roots must use /update.
         if(Directory.Exists(AppRoot) || ExistingRegistered())
             throw new InvalidOperationException("Existing installation detected; use the guarded in-place updater.");
+        // Ownership conflicts are detected before touching Main, processes or AppRoot.
+        AssertFreshInstallShortcutPreflight(desktop,startup);
         StopProcess("TaskbarMonitorEnhanced");
 
         Directory.CreateDirectory(AppRoot);
@@ -847,7 +905,7 @@ internal static partial class SetupProgram
         Shortcut(startLink,AppExe);
         Shortcut(repairLink,uninstaller,"/repair-sensors","Repair or retry Taskbar Monitor Enhanced hardware sensors");
         if(desktop)Shortcut(desktopLink,AppExe);
-        else try{DeleteOwnedShortcut(desktopLink,AppExe,"");}catch{}
+        // Fresh install with desktop disabled does not touch any existing link.
 
         string recoveryLink=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup),"Taskbar Monitor Enhanced Startup Recovery.lnk");
         using(RegistryKey run=Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run")){
@@ -855,7 +913,7 @@ internal static partial class SetupProgram
             else run.DeleteValue("TaskbarMonitorEnhanced",false);
         }
         if(startup)Shortcut(recoveryLink,AppExe,"--startup-recovery","Delayed recovery launcher for Taskbar Monitor Enhanced Start-with-Windows.");
-        else try{DeleteOwnedShortcut(recoveryLink,AppExe,"--startup-recovery");}catch{}
+        // Fresh install with startup disabled does not touch any existing link.
 
         using(RegistryKey key=Registry.CurrentUser.CreateSubKey(UninstallKey)){
             key.SetValue("DisplayName",Product);
