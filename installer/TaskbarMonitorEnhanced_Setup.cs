@@ -336,13 +336,10 @@ internal static partial class SetupProgram
         // This user-writable staging file is bound to the PE embedded ZIP hash
         // before any elevated service changes; it is deleted with this payload.
         Extract("Payload.LibreHardwareMonitor.zip",Path.Combine(payload,"LibreHardwareMonitor.zip"));
-        // The official PawnIO binary is separately licensed. Public OSS Setup never embeds it.
-        // A previously installed PawnIO 2.2.0 may be reused; otherwise the sensor helper degrades
-        // safely and offers upstream manual installation, without silent driver downloads.
-        using(Stream pawn=Resource("Payload.PawnIO_setup.exe")){
-            if(pawn!=null && pawn.Length>0)
-                Extract("Payload.PawnIO_setup.exe",Path.Combine(payload,"PawnIO_setup.exe"));
-        }
+        // R297: never stage or elevate a third-party executable in user-writable
+        // Temp, even if an optional private PE contains a PawnIO resource.
+        // Reuse compatible preinstalled PawnIO, otherwise require separate
+        // official installation with explicit owner consent.
         return payload;
     }
 

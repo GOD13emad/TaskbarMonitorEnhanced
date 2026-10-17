@@ -103,7 +103,6 @@ function Assert-SensorPrivilegedBoundary(
        (Join-Path $payload 'TBME_Setup_Elevated_Helper.ps1'),
        (Join-Path $payload 'TaskbarMonitorSensorBroker.exe'),
        (Join-Path $payload 'TaskbarMonitorSensorSupervisor.exe'),
-       (Join-Path $payload 'PawnIO_setup.exe'),
        (Join-Path $brokerRoot 'TaskbarMonitorSensorBroker.exe'),
        (Join-Path $brokerRoot 'TaskbarMonitorSensorSupervisor.exe')
     )
@@ -442,7 +441,6 @@ function Get-VerifiedSensorBackendEntries([string]$ZipFile,[string]$ExpectedZipS
 
 $BrokerPayload=Join-Path $PayloadDir 'TaskbarMonitorSensorBroker.exe'
 $SupervisorPayload=Join-Path $PayloadDir 'TaskbarMonitorSensorSupervisor.exe'
-$PawnPayload=Join-Path $PayloadDir 'PawnIO_setup.exe'
 $BackendRoot=Join-Path $AppRoot 'SensorBackend\LibreHardwareMonitor-0.9.6'
 $LiveJson=Join-Path $AppRoot 'cpu_temp_broker.json'
 $GpuJson=Join-Path $AppRoot 'gpu_temp_broker.json'
@@ -464,17 +462,19 @@ if(-not$requiredOk){
     exit 0
 }
 
-# Public OSS Setup never bundles the separately licensed official PawnIO installer.
-# Reuse an already installed compatible PawnIO; otherwise degrade before any service
-# mutation, UAC driver installation, network request or host rollback snapshot.
+# R297: NEVER execute a user-writable PawnIO installer from Temp under UAC.
+# A forged PawnIO_setup.exe can be created after payload extraction, even if
+# the official open-source PE carries no proprietary PawnIO resource.
+# Only an already installed compatible PawnIO is reused; otherwise fail closed
+# and request a separate, explicit upstream installer with user consent.
 $existingPawn=Get-PawnIOVersion
 $pawnAlreadyCompatible=$false
 if($existingPawn){
     try{if([version]$existingPawn -ge [version]'2.2.0'){$pawnAlreadyCompatible=$true}}catch{}
 }
-if(-not $pawnAlreadyCompatible -and !(Test-Path -LiteralPath $PawnPayload -PathType Leaf)){
+if(-not $pawnAlreadyCompatible){
     $ActiveArchitecture='PAWNIO_EXTERNAL_INSTALL_REQUIRED'
-    Write-Log 'PAWNIO_UPSTREAM_EXTERNAL_INSTALL_REQUIRED no bundled proprietary binary and no silent driver download'
+    Write-Log 'PAWNIO_UPSTREAM_EXTERNAL_INSTALL_REQUIRED never executing mutable Temp PawnIO binary under UAC'
     Write-Result 'DEGRADED' ('Optional protected hardware sensors require the official PawnIO 2.2.0 driver, installed separately with user consent from https://github.com/namazso/PawnIO.Setup/releases/tag/2.2.0 . The main application works without it and unavailable temperatures show N/A. No driver or protected sensor service was modified.') 'EXTERNAL_INSTALL_REQUIRED' $null $false $false $false
     exit 0
 }
@@ -498,44 +498,7 @@ if(-not(Capture-PreviousSensorLayer)){
 $pawnStatus='ALREADY_PRESENT'
 $pawnExit=$null
 $rebootRequired=$false
-$installedPawn=Get-PawnIOVersion
-$needPawn=$true
-if($installedPawn){
-    try{
-        if([version]$installedPawn -ge [version]'2.2.0'){$needPawn=$false}
-    }catch{}
-}
-
-if($needPawn){
-    $pawnStatus='STARTING'
-    Write-Log 'PAWNIO_INSTALL_START timeoutSec=60'
-    try{
-        $pawnProcess=Start-Process -FilePath $PawnPayload -ArgumentList '-install -silent' -PassThru
-        if(-not $pawnProcess.WaitForExit(60000)){
-            Write-Log "PAWNIO_TIMEOUT pid=$($pawnProcess.Id)"
-            try{Stop-Process -Id $pawnProcess.Id -Force -ErrorAction SilentlyContinue}catch{}
-            $pawnStatus='TIMEOUT'
-        }else{
-            $pawnExit=[int]$pawnProcess.ExitCode
-            if($pawnExit -eq 0){
-                $pawnStatus='INSTALLED'
-                Write-Log 'PAWNIO_INSTALL_PASS exit=0'
-            }elseif($pawnExit -eq 3010){
-                $pawnStatus='REBOOT_REQUIRED'
-                $rebootRequired=$true
-                Write-Log 'PAWNIO_INSTALL_REBOOT_REQUIRED exit=3010'
-            }else{
-                $pawnStatus='FAILED'
-                Write-Log "PAWNIO_INSTALL_FAILED exit=$pawnExit"
-            }
-        }
-    }catch{
-        $pawnStatus='EXCEPTION'
-        Write-Log ('PAWNIO_INSTALL_EXCEPTION '+$_.Exception.ToString())
-    }
-}else{
-    Write-Log "PAWNIO_ALREADY_PRESENT version=$installedPawn"
-}
+Write-Log "PAWNIO_ALREADY_PRESENT version=$existingPawn"
 
 $taskInstalled=$false
 try{
