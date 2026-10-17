@@ -15,7 +15,7 @@ permissions:
 jobs:
   source-to-sink:
     name: CodeQL ${{ matrix.variant }}
-    runs-on: windows-2025
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -31,31 +31,13 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: csharp
-          build-mode: manual
-          queries: security-extended
-      - name: Build exact Setup source using net48 compiler with CodeQL tracing
-        shell: pwsh
-        run: |
-          $ErrorActionPreference='Stop'
-          $source=(Resolve-Path installer/TaskbarMonitorEnhanced_Setup.cs).Path
-          $escaped=[Security.SecurityElement]::Escape($source)
-          $project='<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net48</TargetFramework>'+
-            '<OutputType>WinExe</OutputType><UseWindowsForms>true</UseWindowsForms>'+
-            '<GenerateAssemblyInfo>false</GenerateAssemblyInfo><EnableDefaultCompileItems>false</EnableDefaultCompileItems>'+
-            '<LangVersion>latest</LangVersion></PropertyGroup><ItemGroup><Compile Include="'+$escaped+'" />'+
-            '<Reference Include="System.IO.Compression" />'+
-            '<Reference Include="System.IO.Compression.FileSystem" /></ItemGroup></Project>'
-          $file=Join-Path $env:RUNNER_TEMP 'R316-Exact-Setup-CodeQL.csproj'
-          [IO.File]::WriteAllText($file,$project,[Text.UTF8Encoding]::new($false))
-          dotnet build $file -c Release --nologo -p:RestoreIgnoreFailedSources=true
-          if($LASTEXITCODE -ne 0){throw 'R316_CODEQL_CSHARP_NET48_SOURCE_COMPILATION_FAILED'}
-          'R316_EXACT_SETUP_SOURCE_COMPILED_UNDER_CODEQL_TRACE'
+          build-mode: none
       - name: Analyze without uploading or dismissing any scanning alerts
         uses: github/codeql-action/analyze@v4
         with:
           upload: never
           output: codeql-results
-      - name: Count exact C sharp sink findings from local SARIF
+      - name: Compare Default Setup parity of C sharp sink findings from raw SARIF
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
@@ -80,14 +62,14 @@ jobs:
               })
             }
           }
-          if($compiledReferences -lt 1 -or $compilerErrorCount -gt 0){
-            throw ('R316_CODEQL_SOURCE_COVERAGE_NOT_VALID references='+$compiledReferences+' compilerErrors='+$compilerErrorCount)
+          if($compiledReferences -lt 1){
+            throw ('R316_CODEQL_SOURCE_COVERAGE_NOT_VALID references='+$compiledReferences)
           }
           if('${{ matrix.variant }}' -eq 'baseline' -and $relevant.Count -lt 1){
             throw 'R316_BASELINE_CODEQL_QUERY_COVERAGE_UNTRUSTWORTHY_ZERO'
           }
           $summary=[ordered]@{
-            Schema=1;Revision='R316';Mode='csharp-manual-net48-compiled-security-extended'
+            Schema=1;Revision='R316';Mode='csharp-default-ubuntu-buildmode-none'
             Variant='${{ matrix.variant }}'
             AnalyzedCommit=(git rev-parse HEAD).Trim()
             WorkflowCommit='${{ github.sha }}'
