@@ -499,6 +499,59 @@ jobs:
              $r.MainConfigStateAndMarkerUnchanged -ne $true -or
              @($r.Checks).Count -lt 11){throw 'R305_TYPED_NATIVE_TOKEN_SID_ACCEPTANCE_FAILED'}
           'R305_EFFECTIVE_TOKEN_SID_PREWRITE_BOUNDARY=PASS'
+      - name: R306 synthetic protected rollback journal crash and recovery model
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $src=(Resolve-Path build/Test-R306-DurableRollbackModel.ps1).Path
+          $tok=$null;$err=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($src,[ref]$tok,[ref]$err)
+          if(@($err).Count){$err|ForEach-Object {$_.Message};throw 'R306_PS51_MODEL_PARSER_INVALID'}
+          $prior=Join-Path $env:RUNNER_TEMP ('R305_${{ matrix.host }}_'+$env:GITHUB_RUN_ID+'/R305_ELEVATED_TOKEN_SID_RECEIPT.json')
+          $p=Get-Content -LiteralPath $prior -Raw|ConvertFrom-Json
+          if($p.SourceCommit -cne $env:GITHUB_SHA -or
+             $p.Host -cne '${{ matrix.host }}' -or
+             $p.Status -cne 'PASS_EFFECTIVE_PROCESS_TOKEN_SID_BOUND_TO_REQUESTED_USER'){
+             throw 'R306_PRIOR_NATIVE_SID_EVIDENCE_NOT_EXACT'
+          }
+          $main=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced/TaskbarMonitorEnhanced.exe'
+          $before=(Get-FileHash -LiteralPath $main -Algorithm SHA256).Hash
+          $native=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell/v1.0/powershell.exe'
+          $lines=@(& $native -NoLogo -NoProfile -NonInteractive -File $src -Mode Driver)
+          if($LASTEXITCODE -ne 0){throw 'R306_MODEL_PROCESS_FAILED'}
+          $witness=($lines|Where-Object {$_ -like 'R306_PROTOTYPE_PASS Receipt=*'}|Select-Object -Last 1)
+          if(!$witness){throw 'R306_MODEL_POSITIVE_WITNESS_MISSING'}
+          $origin=[string]$witness.Substring('R306_PROTOTYPE_PASS Receipt='.Length).Trim()
+          $tempPrefix=[IO.Path]::GetFullPath($env:TEMP).TrimEnd('\')+'\R306_DISPOSABLE_'
+          if(-not $origin.StartsWith($tempPrefix,[StringComparison]::OrdinalIgnoreCase)){
+             throw 'R306_RESULT_OUTSIDE_SYNTHETIC_TEMP'
+          }
+          $r=Get-Content -LiteralPath $origin -Raw|ConvertFrom-Json
+          if($r.Schema -ne 1 -or $r.Revision -cne 'R306-PROTOTYPE' -or
+             $r.Commit -cne $env:GITHUB_SHA -or
+             $r.Status -cne 'PASS_SYNTHETIC_DURABLE_SNAPSHOT_KILL_RESTORE_AND_TAMPER_REFUSAL' -or
+             $r.OriginalProtectedServicesTouched -ne $false -or $r.UACInvoked -ne $false -or
+             $r.ProgramFilesWritten -ne $false -or $r.ActualProofWorkerKilled -ne $true -or
+             $r.SameUserFreshProcessRestore -ne $true -or
+             $r.CrossSidRefusedBeforeWrite -ne $true -or $r.MissingReadyMarkerRefused -ne $true -or
+             $r.PreWriteSnapshotHashValidation -ne $true -or
+             $r.ActualSensorHelperKilled -ne $false -or
+             $r.ExternalCanaryPreserved -ne $true){
+             throw 'R306_SYNTHETIC_RECEIPT_NOT_ACCEPTED'
+          }
+          $dest=Join-Path $env:RUNNER_TEMP ('R306_${{ matrix.host }}_'+$env:GITHUB_RUN_ID)
+          if(Test-Path -LiteralPath $dest){throw 'R306_TYPED_RECEIPT_DEST_EXISTS'}
+          [void][IO.Directory]::CreateDirectory($dest)
+          $copy=Join-Path $dest 'R306_ROLLBACK_MODEL_RECEIPT.json'
+          [IO.File]::Copy($origin,$copy,$false)
+          if((Get-FileHash -LiteralPath $origin -Algorithm SHA256).Hash -cne
+             (Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash){
+             throw 'R306_RAW_RECEIPT_COPY_SHA_MISMATCH'
+          }
+          if((Get-FileHash -LiteralPath $main -Algorithm SHA256).Hash -cne $before){
+             throw 'R306_GUEST_INSTALLED_MAIN_CHANGED'
+          }
+          'R306_SYNTHETIC_JOURNAL_ACTUAL_WORKER_KILL_PASS_NOT_PRODUCTION_ACCEPTANCE'
       - name: Preserve bounded guest evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -524,3 +577,4 @@ jobs:
             ${{ runner.temp }}/R303_${{ matrix.host }}_${{ github.run_id }}/R303_PROTECTED_SENSOR_OWNER_RECEIPT.json
             ${{ runner.temp }}/R304_${{ matrix.host }}_${{ github.run_id }}/R304_LONG_POWERSHELL_TRANSPORT_RECEIPT.json
             ${{ runner.temp }}/R305_${{ matrix.host }}_${{ github.run_id }}/R305_ELEVATED_TOKEN_SID_RECEIPT.json
+            ${{ runner.temp }}/R306_${{ matrix.host }}_${{ github.run_id }}/R306_ROLLBACK_MODEL_RECEIPT.json
