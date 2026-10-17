@@ -18,11 +18,11 @@ if (-not (Test-Path -LiteralPath $resolved -PathType Leaf)) {
 }
 $length = (Get-Item -LiteralPath $resolved).Length
 if ($length -ne $expectedLength) {
-    throw "PUBLIC_V178_INVALID_SIZE:expected=$expectedLength:actual=$length"
+    throw "PUBLIC_V178_INVALID_SIZE:expected=${expectedLength}:actual=$length"
 }
 $actualDigest = (Get-FileHash -LiteralPath $resolved -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actualDigest -cne $expectedDigest) {
-    throw "PUBLIC_V178_DIGEST_MISMATCH:expected=$expectedDigest:actual=$actualDigest"
+    throw "PUBLIC_V178_DIGEST_MISMATCH:expected=${expectedDigest}:actual=$actualDigest"
 }
 Write-Output 'PUBLIC_V178_LOCAL_SHA256_PASS'
 
@@ -53,7 +53,7 @@ $match = [regex]::Match($versionLine, '^gh version (\d+\.\d+\.\d+)')
 if (-not $match.Success) { throw "GH_VERSION_UNRECOGNIZED:$versionLine" }
 $version = [version]$match.Groups[1].Value
 if ($version -lt [version]'2.102.0') {
-    throw "GH_CLI_VULNERABLE_VERSION:$version:requires>=2.102.0"
+    throw "GH_CLI_VULNERABLE_VERSION:${version}:requires>=2.102.0"
 }
 Write-Output "PUBLIC_V178_GH_VERSION_PASS:$version"
 
