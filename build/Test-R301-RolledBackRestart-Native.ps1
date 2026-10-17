@@ -88,6 +88,8 @@ foreach($item in $targets){
  $rel=[string]$field.GetValue($item)
  $full=Join-Path $app ($rel.Replace('/',[IO.Path]::DirectorySeparatorChar))
  $previous=Hash $full
+ if($previous -ceq 'MISSING'){$previous='-'}
+ elseif($previous -cnotmatch '^[0-9A-F]{64}$'){throw 'R301_BAD_HASH_GENERATED'}
  # Existing source hashes are real, new-only files are represented by '-'.
  $rows.Add($rel+'|'+$previous+'|-')
 }
