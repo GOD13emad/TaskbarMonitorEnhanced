@@ -645,6 +645,183 @@ function Restore-SensorJournalOldFilesOnly(
     return [Text.Encoding]::UTF8.GetString($xml)
 }
 
+# R310: terminal journal cleanup is a separate, bounded state machine.
+# Never recursively delete or follow a reparse member. Retire the complete
+# terminal journal to a fixed sibling before deleting any saved old bytes.
+function Assert-SensorRetiredJournalSafe([string]$Retired,[string]$Sid){
+    Assert-SensorJournalTrustedAcl $Retired $true
+    $effective=[Security.Principal.WindowsIdentity]::GetCurrent()
+    if($null -eq $effective -or $null -eq $effective.User -or
+       -not [string]::Equals($effective.User.Value,$Sid,[StringComparison]::OrdinalIgnoreCase)){
+        throw 'SENSOR_RETIRED_JOURNAL_WRONG_EFFECTIVE_TOKEN'
+    }
+    $members=@([IO.Directory]::GetFileSystemEntries($Retired))
+    if($members.Count -eq 0){return $null}
+    $phase=''
+    $marker=''
+    foreach($p in @('COMMITTED','ROLLED_BACK')){
+        $file=Join-Path $Retired ($p+'.terminal')
+        Assert-SensorBoundaryNoReparse $file
+        if(-not [IO.File]::Exists($file)){continue}
+        Assert-SensorJournalTrustedAcl $file $false
+        if([IO.File]::ReadAllText($file,[Text.Encoding]::ASCII) -cne
+           ('TBME_SENSOR_'+$p+'_V1')){
+            throw 'SENSOR_RETIRED_JOURNAL_BAD_TERMINAL'
+        }
+        if($phase){throw 'SENSOR_RETIRED_JOURNAL_TWO_TERMINALS'}
+        $phase=$p
+        $marker=$file
+    }
+    if(!$phase){throw 'SENSOR_RETIRED_JOURNAL_NO_TERMINAL'}
+    $allowed=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    [void]$allowed.Add($marker)
+    $manifestFile=Join-Path $Retired 'manifest.json'
+    $saved=@()
+    if([IO.File]::Exists($manifestFile)){
+        Assert-SensorJournalTrustedAcl $manifestFile $false
+        if(([IO.FileInfo]::new($manifestFile)).Length -gt 65536){
+            throw 'SENSOR_RETIRED_JOURNAL_MANIFEST_OVERSIZE'
+        }
+        $m=[IO.File]::ReadAllText($manifestFile,[Text.Encoding]::UTF8)|ConvertFrom-Json
+        if($m.Schema -ne 1 -or $m.Phase -cne 'PREPARED' -or
+           $m.Sid -cne $Sid){throw 'SENSOR_RETIRED_JOURNAL_MANIFEST_OWNER_PHASE'}
+        if(@($m.Files).Count -gt 128 -or @($m.ExpectedNewFiles).Count -gt 64){
+            throw 'SENSOR_RETIRED_JOURNAL_INVENTORY_SIZE'
+        }
+        $known=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        $paths=[Collections.Generic.List[string]]::new()
+        foreach($row in @($m.Files)){
+            $rel=[string]$row.Rel
+            Assert-SensorJournalRelative $rel
+            if(-not $known.Add($rel)){throw 'SENSOR_RETIRED_JOURNAL_DUPLICATE_ENTRY'}
+            $path=Join-Path (Join-Path $Retired 'files') $rel
+            $paths.Add($path)
+            [void]$allowed.Add($path)
+            $dir=[IO.Path]::GetDirectoryName($path)
+            $prefix=(Join-Path $Retired 'files')
+            while($dir.StartsWith($prefix+'\', [StringComparison]::OrdinalIgnoreCase)){
+                [void]$allowed.Add($dir)
+                $dir=[IO.Path]::GetDirectoryName($dir)
+            }
+        }
+        $saved=@($paths.ToArray())
+        foreach($name in @('manifest.json','task.xml','READY','files')){
+            [void]$allowed.Add((Join-Path $Retired $name))
+        }
+        # Terminal phase is published only after a fully verified snapshot.
+        # During cleanup any subset of previously saved files may be absent,
+        # but an unknown added file must still prevent destructive progress.
+    }
+    # Validate every present member before deleting anything.
+    $stack=[Collections.Generic.List[string]]::new()
+    $stack.Add($Retired)
+    while($stack.Count){
+        $dir=$stack[$stack.Count-1]
+        $stack.RemoveAt($stack.Count-1)
+        Assert-SensorBoundaryNoReparse $dir
+        foreach($item in [IO.Directory]::GetFileSystemEntries($dir)){
+            $full=[IO.Path]::GetFullPath($item)
+            $attributes=[IO.File]::GetAttributes($full)
+            if(($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){
+                throw 'SENSOR_RETIRED_JOURNAL_REPARSE_REFUSED'
+            }
+            if(-not $allowed.Contains($full)){
+                throw 'SENSOR_RETIRED_JOURNAL_UNKNOWN_MEMBER'
+            }
+            Assert-SensorJournalTrustedAcl $full $false
+            if(($attributes -band [IO.FileAttributes]::Directory) -ne 0){
+                $stack.Add($full)
+            }
+        }
+    }
+    return [pscustomobject]@{Phase=$phase;Marker=$marker;Manifest=[IO.File]::Exists($manifestFile);Saved=$saved}
+}
+function Finish-SensorRetiredJournal([string]$Retired,[string]$Sid){
+    if(-not [IO.Directory]::Exists($Retired)){return}
+    $info=Assert-SensorRetiredJournalSafe $Retired $Sid
+    if($null -eq $info){
+        [IO.Directory]::Delete($Retired,$false)
+        return
+    }
+    if($info.Manifest){
+        foreach($path in @($info.Saved)){
+            Assert-SensorBoundaryNoReparse $path
+            if([IO.File]::Exists($path)){
+                Assert-SensorJournalTrustedAcl $path $false
+                [IO.File]::Delete($path)
+            }
+        }
+        $files=Join-Path $Retired 'files'
+        if([IO.Directory]::Exists($files)){
+            $folders=[Collections.Generic.List[string]]::new()
+            $pending=[Collections.Generic.List[string]]::new()
+            $pending.Add($files)
+            while($pending.Count){
+                $current=$pending[$pending.Count-1]
+                $pending.RemoveAt($pending.Count-1)
+                $folders.Add($current)
+                foreach($entry in [IO.Directory]::GetFileSystemEntries($current)){
+                    $attrs=[IO.File]::GetAttributes($entry)
+                    if(($attrs -band [IO.FileAttributes]::ReparsePoint) -ne 0){
+                        throw 'SENSOR_RETIRED_JOURNAL_REPARSE_REFUSED'
+                    }
+                    if(($attrs -band [IO.FileAttributes]::Directory) -ne 0){
+                        $pending.Add($entry)
+                    }else{
+                        throw 'SENSOR_RETIRED_JOURNAL_NONEMPTY_FILES_DIR'
+                    }
+                }
+            }
+            $order=@($folders|Sort-Object Length -Descending)
+            foreach($dir in $order){
+                Assert-SensorBoundaryNoReparse $dir
+                [IO.Directory]::Delete($dir,$false)
+            }
+        }
+        foreach($name in @('task.xml','READY','manifest.json')){
+            $path=Join-Path $Retired $name
+            Assert-SensorBoundaryNoReparse $path
+            if([IO.File]::Exists($path)){
+                Assert-SensorJournalTrustedAcl $path $false
+                [IO.File]::Delete($path)
+            }
+        }
+    }
+    # Once manifest is gone ONLY the verified terminal marker may remain.
+    $remaining=@([IO.Directory]::GetFileSystemEntries($Retired))
+    if($remaining.Count -ne 1 -or
+       -not [string]::Equals($remaining[0],$info.Marker,[StringComparison]::OrdinalIgnoreCase)){
+        throw 'SENSOR_RETIRED_JOURNAL_CLEANUP_HAS_UNKNOWN_RESIDUE'
+    }
+    Assert-SensorJournalTrustedAcl $info.Marker $false
+    [IO.File]::Delete($info.Marker)
+    [IO.Directory]::Delete($Retired,$false)
+}
+function Finish-SensorTerminalJournal([string]$Root,[string]$Sid){
+    $root=[IO.Path]::GetFullPath($Root)
+    $retired=$root+'-retired'
+    if(-not [string]::Equals([IO.Path]::GetDirectoryName($root),
+                            [IO.Path]::GetDirectoryName($retired),
+                            [StringComparison]::OrdinalIgnoreCase)){
+        throw 'SENSOR_JOURNAL_RETIRED_DIFFERENT_PARENT'
+    }
+    Assert-SensorBoundaryNoReparse $root
+    Assert-SensorBoundaryNoReparse $retired
+    # Always finish a previously retired journal first. If it fails, do not
+    # touch active journal or any protected Broker bytes.
+    if([IO.Directory]::Exists($retired)){
+        Finish-SensorRetiredJournal $retired $Sid
+    }
+    if(-not [IO.Directory]::Exists($root)){return}
+    $terminal=Get-SensorJournalTerminal $root $Sid
+    if($terminal -ne 'COMMITTED' -and $terminal -ne 'ROLLED_BACK'){
+        throw 'SENSOR_JOURNAL_NOT_TERMINAL_DO_NOT_RETIRE'
+    }
+    if([IO.Directory]::Exists($retired)){throw 'SENSOR_JOURNAL_RETIRED_COLLISION'}
+    [IO.Directory]::Move($root,$retired)
+    Finish-SensorRetiredJournal $retired $Sid
+}
+
 function Capture-PreviousSensorLayer {
     try{
         Clear-SensorRollbackBuffer
