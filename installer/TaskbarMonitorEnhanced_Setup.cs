@@ -63,7 +63,55 @@ internal static partial class SetupProgram
       "Payload.TaskbarMonitorEnhanced_Setup.cs"
     };
 
-    static string AppRoot { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),AppFolder); } }
+    // R316: the account-scoped installation must never follow a redirected
+    // or linked LocalAppData directory into another user's/system tree.
+    // Validate OS known-folder identity and ancestors before any I/O sink.
+    static string CanonicalAppRootFromKnownFolders(string knownLocal,string knownProfile)
+    {
+        if(String.IsNullOrWhiteSpace(knownLocal) || String.IsNullOrWhiteSpace(knownProfile) ||
+           !Path.IsPathRooted(knownLocal) || !Path.IsPathRooted(knownProfile))
+            throw new InvalidDataException("Canonical user profile or LocalAppData unavailable.");
+        string profile=Path.GetFullPath(knownProfile);
+        string local=Path.GetFullPath(knownLocal);
+        if(profile.StartsWith(@"\\",StringComparison.Ordinal) || local.StartsWith(@"\\",StringComparison.Ordinal) ||
+           String.Equals(profile,Path.GetPathRoot(profile),StringComparison.OrdinalIgnoreCase) ||
+           String.Equals(local,Path.GetPathRoot(local),StringComparison.OrdinalIgnoreCase) ||
+           !Regex.IsMatch(profile,@"^[A-Za-z]:\\") ||
+           !Regex.IsMatch(local,@"^[A-Za-z]:\\"))
+            throw new InvalidDataException("Canonical per-user installation rejects UNC or root-only paths.");
+        profile=profile.TrimEnd(Path.DirectorySeparatorChar);
+        local=local.TrimEnd(Path.DirectorySeparatorChar);
+        string expected=Path.GetFullPath(Path.Combine(profile,"AppData","Local")).TrimEnd(Path.DirectorySeparatorChar);
+        if(!String.Equals(local,expected,StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("LocalAppData is not the canonical local folder of this user's profile.");
+        string app=Path.GetFullPath(Path.Combine(local,AppFolder));
+        string prefix=local+Path.DirectorySeparatorChar;
+        if(app.Length>1024 || !app.StartsWith(prefix,StringComparison.OrdinalIgnoreCase) ||
+           !String.Equals(Path.GetFileName(app),AppFolder,StringComparison.Ordinal))
+            throw new InvalidDataException("Application path escaped the per-user LocalAppData root.");
+        CheckRootAncestorsNoReparse(app);
+        return app;
+    }
+    static void CheckRootAncestorsNoReparse(string absolutePath)
+    {
+        string cursor=Path.GetFullPath(absolutePath);
+        while(!String.IsNullOrEmpty(cursor))
+        {
+            try{
+                if((File.GetAttributes(cursor)&FileAttributes.ReparsePoint)!=0)
+                    throw new IOException("Canonical user installation path contains a reparse point.");
+            }catch(FileNotFoundException){}catch(DirectoryNotFoundException){}
+            string parent=Path.GetDirectoryName(cursor);
+            if(String.IsNullOrEmpty(parent) || String.Equals(parent,cursor,StringComparison.OrdinalIgnoreCase))
+                break;
+            cursor=parent;
+        }
+    }
+    static string AppRoot {
+        get { return CanonicalAppRootFromKnownFolders(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)); }
+    }
     static string AppExe { get { return Path.Combine(AppRoot,"TaskbarMonitorEnhanced.exe"); } }
     static string SensorResultPath { get { return Path.Combine(AppRoot,"Logs","sensor_install_result.json"); } }
     static string MainLaunchMode="PENDING";
