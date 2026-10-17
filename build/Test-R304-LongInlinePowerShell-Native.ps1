@@ -169,6 +169,8 @@ $record=[ordered]@{
  Host=$HostLabel;SourceCommit=$env:GITHUB_SHA;NoUAC=$true
  OriginalOwnerComputerTouched=$false
  ExistingEncodedCommandPreserved=$normalEncoded
+  ExistingInMemoryCommandPreserved=$true
+  NormalTransportKind=$(if($normalEncoded){'EncodedCommand'}else{'InlineCommand'})
  LongProfileFallbackCommandExecuted=$true
  NoUserWritableScriptExecuted=$true
  HostileInputRemainedEncoded=$true
