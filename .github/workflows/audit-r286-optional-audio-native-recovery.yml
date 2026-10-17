@@ -709,7 +709,7 @@ jobs:
              $r.WrongSidReparseUnknownRefused -ne $true -or
              $r.ActualTaskXmlColdRestoreDone -ne $false -or
              $r.InstalledOwnerDataUnchanged -ne $true -or
-             @($r.Checks).Count -ne 17){throw 'R311_NATIVE_ACCEPTANCE_GATES_UNMET'}
+             @($r.Checks).Count -ne 18){throw 'R311_NATIVE_ACCEPTANCE_GATES_UNMET'}
           'R311_HEALTHY_COMMIT_AND_PENDING_PREPARED_FAIL_CLOSED=PASS'
       - name: Preserve bounded guest evidence
         if: always()
