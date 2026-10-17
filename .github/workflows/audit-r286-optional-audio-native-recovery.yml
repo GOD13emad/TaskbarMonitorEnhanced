@@ -159,6 +159,31 @@ jobs:
              $r.InstalledMainAndConfigUnchanged -ne $true -or
              $r.NoStageOrLinkResidue -ne $true){throw 'R290_TYPED_NATIVE_REPARSE_RECEIPT_INVALID'}
           'R290_NATIVE_CHILD_REPARSE_GUARDS_PASS'
+      - name: R291 reject untrusted paths before elevated sensor helper writes
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $p=(Resolve-Path build/Test-R291-SensorHelperBoundary-Native.ps1).Path
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){$errors|ForEach-Object{$_.Message};throw 'R291_PS51_NATIVE_HARNESS_PARSE_INVALID'}
+          ./build/Test-R291-SensorHelperBoundary-Native.ps1 -HostLabel '${{ matrix.host }}' -CandidateDir (Resolve-Path _r284_private_candidate).Path
+          $p=Join-Path $env:RUNNER_TEMP ('R291_${{ matrix.host }}_'+$env:GITHUB_RUN_ID+'/R291_BOUNDARY_RECEIPT.json')
+          if(!(Test-Path -LiteralPath $p)){throw 'R291_RECEIPT_MISSING'}
+          $r=Get-Content -LiteralPath $p -Raw|ConvertFrom-Json
+          if($r.Schema -ne 1 -or $r.Revision -cne 'R291' -or
+             $r.Status -cne 'PASS_PRIVILEGED_HELPER_BOUNDARY_NATIVE' -or
+             $r.SourceCommit -cne $env:GITHUB_SHA -or
+             $r.Host -cne '${{ matrix.host }}' -or
+             $r.OriginalOwnerComputerTouched -ne $false -or
+             $r.ProtectedServicesOrUACInvoked -ne $false -or
+             $r.RealWindowsJunctionUsed -ne $true -or
+             $r.PositiveAndNegativePathChecksPassed -ne $true -or
+             $r.DanglingJunctionRejected -ne $true -or
+             $r.EmbeddedHelperSourceMatched -ne $true -or
+             $r.InstalledMainUnchanged -ne $true -or
+             $r.CheckCount -lt 11){throw 'R291_TYPED_BOUNDARY_RECEIPT_INVALID'}
+          'R291_NATIVE_ELEVATED_SENSOR_BOUNDARY_GUARDS_PASS'
       - name: Preserve bounded guest evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -170,3 +195,4 @@ jobs:
             ${{ runner.temp }}/R286_${{ matrix.host }}_${{ github.run_id }}/R286_RECOVERY_RECEIPT.json
             ${{ runner.temp }}/R286_${{ matrix.host }}_${{ github.run_id }}/ARMED.json
             ${{ runner.temp }}/R290_${{ matrix.host }}_${{ github.run_id }}/R290_REPARSE_RECEIPT.json
+            ${{ runner.temp }}/R291_${{ matrix.host }}_${{ github.run_id }}/R291_BOUNDARY_RECEIPT.json

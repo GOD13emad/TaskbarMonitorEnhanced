@@ -7,6 +7,98 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 
+# R291: privileged sensor preflight runs before ANY result/log creation.
+# Ordinary per-user Setup stays unelevated; only optional sensors use UAC.
+function Assert-SensorBoundaryNoReparse([string]$Path){
+    if([string]::IsNullOrWhiteSpace($Path)){throw 'SENSOR_BOUNDARY_EMPTY_PATH'}
+    $cursor=[IO.Path]::GetFullPath($Path)
+    while(-not [string]::IsNullOrEmpty($cursor)){
+        try{
+            if(([IO.File]::GetAttributes($cursor) -band [IO.FileAttributes]::ReparsePoint) -ne 0){
+                throw [IO.IOException]::new('SENSOR_BOUNDARY_REPARSE_REFUSED: '+$cursor)
+            }
+        }catch [IO.FileNotFoundException]{
+            # Absent output may be created later; other I/O errors fail closed.
+        }catch [IO.DirectoryNotFoundException]{
+        }
+        $parent=[IO.Path]::GetDirectoryName($cursor)
+        if([string]::IsNullOrEmpty($parent) -or $parent -ceq $cursor){break}
+        $cursor=$parent
+    }
+}
+function Assert-SensorPrivilegedBoundary(
+    [string]$RequestedMode,[string]$RequestedPayload,[string]$RequestedAppRoot,[string]$RequestedUser
+){
+    if($RequestedMode -cne 'Install' -and $RequestedMode -cne 'Uninstall'){
+        throw 'SENSOR_BOUNDARY_INVALID_MODE'
+    }
+    if([string]::IsNullOrWhiteSpace($RequestedUser)){throw 'SENSOR_BOUNDARY_EMPTY_USER'}
+    $sid=if($RequestedUser -match '^S-1-5-21-(?:\d+-){3}\d+$'){
+        $RequestedUser
+    }else{
+        [string]([Security.Principal.NTAccount]::new($RequestedUser)).Translate(
+            [Security.Principal.SecurityIdentifier]
+        ).Value
+    }
+    if($sid -cnotmatch '^S-1-5-21-(?:\d+-){3}\d+$'){
+        throw 'SENSOR_BOUNDARY_USER_PROFILE_NOT_INTERACTIVE'
+    }
+    $profileKey='HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\'+$sid
+    $entry=Get-ItemProperty -LiteralPath $profileKey -ErrorAction Stop
+    if([string]::IsNullOrWhiteSpace([string]$entry.ProfileImagePath)){
+        throw 'SENSOR_BOUNDARY_PROFILE_MISSING'
+    }
+    $profile=[IO.Path]::GetFullPath(
+        [Environment]::ExpandEnvironmentVariables([string]$entry.ProfileImagePath)
+    ).TrimEnd([IO.Path]::DirectorySeparatorChar)
+    if($profile.StartsWith('\\') -or [IO.Path]::GetPathRoot($profile) -ceq $profile){
+        throw 'SENSOR_BOUNDARY_PROFILE_NOT_LOCAL'
+    }
+    $expectedRoot=[IO.Path]::GetFullPath((Join-Path $profile 'AppData\Local\TaskbarMonitorEnhanced'))
+    if(-not [IO.Path]::IsPathRooted($RequestedAppRoot) -or
+       -not [string]::Equals([IO.Path]::GetFullPath($RequestedAppRoot),
+               $expectedRoot,[StringComparison]::OrdinalIgnoreCase)){
+        throw 'SENSOR_BOUNDARY_APP_ROOT_OUTSIDE_USER_PROFILE'
+    }
+    if(-not [IO.Path]::IsPathRooted($RequestedPayload)){
+        throw 'SENSOR_BOUNDARY_PAYLOAD_NOT_ABSOLUTE'
+    }
+    $payload=[IO.Path]::GetFullPath($RequestedPayload)
+    $name=[IO.Path]::GetFileName($payload.TrimEnd([IO.Path]::DirectorySeparatorChar))
+    $prefix=if($RequestedMode -ceq 'Install'){'tbme_setup_'}else{'tbme_uninstall_'}
+    if(-not $payload.StartsWith(($profile+[IO.Path]::DirectorySeparatorChar),
+                                [StringComparison]::OrdinalIgnoreCase) -or
+       $name -cnotmatch ('^'+$prefix+'[0-9a-f]{32}$')){
+        throw 'SENSOR_BOUNDARY_PAYLOAD_OUTSIDE_USER_TEMP'
+    }
+    $trustedProgramFiles=[Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles)
+    if(-not [string]::Equals([IO.Path]::GetFullPath($trustedProgramFiles),
+              [IO.Path]::GetFullPath($env:ProgramFiles),[StringComparison]::OrdinalIgnoreCase)){
+        throw 'SENSOR_BOUNDARY_PROGRAMFILES_REDIRECT'
+    }
+    $brokerRoot=Join-Path $trustedProgramFiles 'TaskbarMonitorEnhanced\SensorBroker'
+    $candidates=@(
+       $profile,$expectedRoot,$payload,$brokerRoot,
+       (Join-Path $expectedRoot 'Logs'),
+       (Join-Path $expectedRoot 'Logs\sensor_install.log'),
+       (Join-Path $expectedRoot 'Logs\sensor_install_result.json'),
+       (Join-Path $expectedRoot 'SensorBackend\LibreHardwareMonitor-0.9.6\LibreHardwareMonitorLib.dll'),
+       (Join-Path $expectedRoot 'cpu_temp_broker.json'),
+       (Join-Path $expectedRoot 'gpu_temp_broker.json'),
+       (Join-Path $expectedRoot 'storage_temp_broker.json'),
+       (Join-Path $expectedRoot 'sensor_supervisor_state.json'),
+       (Join-Path $payload 'TBME_Setup_Elevated_Helper.ps1'),
+       (Join-Path $payload 'TaskbarMonitorSensorBroker.exe'),
+       (Join-Path $payload 'TaskbarMonitorSensorSupervisor.exe'),
+       (Join-Path $payload 'PawnIO_setup.exe'),
+       (Join-Path $brokerRoot 'TaskbarMonitorSensorBroker.exe'),
+       (Join-Path $brokerRoot 'TaskbarMonitorSensorSupervisor.exe')
+    )
+    foreach($path in $candidates){Assert-SensorBoundaryNoReparse $path}
+    return $sid
+}
+$validatedSensorSid=Assert-SensorPrivilegedBoundary $Mode $PayloadDir $AppRoot $UserId
+
 $TaskName='TaskbarMonitorEnhanced Sensor Broker'
 $BrokerRoot=Join-Path $env:ProgramFiles 'TaskbarMonitorEnhanced\SensorBroker'
 $LogsRoot=Join-Path $AppRoot 'Logs'
