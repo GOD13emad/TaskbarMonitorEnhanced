@@ -123,7 +123,7 @@ $checks.Add('EXACT_PE_HELPER_AND_PREVIOUS_HOST_RECEIPT')
 $helperText=[IO.File]::ReadAllText($helper)
 $ownerAt=$helperText.IndexOf('# R264-SENSOR-GUARD-BOUNDARY-END',[StringComparison]::Ordinal)
 $hookAt=$helperText.IndexOf('Resume-SensorPendingJournal $SensorJournalRoot $validatedSensorSid $BrokerRoot $AppRoot $TaskName',[StringComparison]::Ordinal)
-$uninstallAt=$helperText.IndexOf("if($Mode -eq 'Uninstall')",[StringComparison]::Ordinal)
+$uninstallAt=$helperText.IndexOf('if($Mode -eq ''Uninstall'')',[StringComparison]::Ordinal)
 $writeAt=$helperText.IndexOf('New-SensorDurableJournal $SensorJournalRoot $validatedSensorSid ',[StringComparison]::Ordinal)
 if($ownerAt -lt 0 -or $hookAt -le $ownerAt -or $uninstallAt -le $hookAt -or
    $writeAt -le $uninstallAt){throw 'R315_HELPER_COLD_ENTRYPOINT_ORDER_INVALID'}
