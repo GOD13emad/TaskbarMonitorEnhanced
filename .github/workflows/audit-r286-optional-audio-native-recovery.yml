@@ -414,6 +414,7 @@ jobs:
              $r.Host -cne '${{ matrix.host }}' -or $r.SourceCommit -cne $env:GITHUB_SHA -or
              $r.OriginalOwnerComputerTouched -ne $false -or
              $r.UnmodifiedCandidateSetupExecuted -ne $true -or
+             $r.NativeExactSetupSuspendedBoundBeforeResume -ne $true -or
              $r.ActualSetupProcessTerminated -ne $true -or
              $r.RecoveredBySecondActualSetupProcess -ne $true -or
              $r.MainSetupConfigStateAndRegistryPreserved -ne $true -or

@@ -74,6 +74,69 @@ using System;
 using System.IO;
 using System.Diagnostics;
 using System.Threading;
+using System.Text;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+// R320 test-only: create the UNMODIFIED candidate Setup suspended, arm and
+// bind the watcher to its exact process ID, then resume. IDLE priority gives
+// the watcher a better chance to preempt fast NTFS cleanup on Windows 2022.
+public static class R320SuspendedSetupLauncher {
+ [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)]
+ private struct STARTUPINFO {
+   public uint cb;public string lpReserved;public string lpDesktop;public string lpTitle;
+   public uint dwX;public uint dwY;public uint dwXSize;public uint dwYSize;
+   public uint dwXCountChars;public uint dwYCountChars;public uint dwFillAttribute;
+   public uint dwFlags;public ushort wShowWindow;public ushort cbReserved2;
+   public IntPtr lpReserved2;public IntPtr hStdInput;public IntPtr hStdOutput;public IntPtr hStdError;
+ }
+ [StructLayout(LayoutKind.Sequential)]
+ private struct PROCESS_INFORMATION {
+   public IntPtr hProcess;public IntPtr hThread;public uint dwProcessId;public uint dwThreadId;
+ }
+ [DllImport("kernel32.dll",EntryPoint="CreateProcessW",CharSet=CharSet.Unicode,SetLastError=true)]
+ private static extern bool CreateProcess(string app,StringBuilder command,
+    IntPtr procSecurity,IntPtr threadSecurity,bool inheritHandles,uint flags,
+    IntPtr environment,string workingDir,ref STARTUPINFO startup,out PROCESS_INFORMATION process);
+ [DllImport("kernel32.dll",SetLastError=true)]
+ private static extern uint ResumeThread(IntPtr thread);
+ [DllImport("kernel32.dll",SetLastError=true)]
+ private static extern bool TerminateProcess(IntPtr process,uint exit);
+ [DllImport("kernel32.dll",SetLastError=true)]
+ private static extern bool CloseHandle(IntPtr handle);
+ public static Process StartOriginalSuspended(string setup,string args,string directory,R302RealSetupDeleteWatcher watcher){
+   if(watcher==null || String.IsNullOrWhiteSpace(setup) ||
+      !Path.IsPathRooted(setup) || !File.Exists(setup) ||
+      args!="/update /quiet" || !Directory.Exists(directory) ||
+      !String.Equals(Path.GetDirectoryName(Path.GetFullPath(setup)),Path.GetFullPath(directory),
+                     StringComparison.OrdinalIgnoreCase))
+     throw new InvalidOperationException("R320_TEST_ONLY_UNTRUSTED_SETUP_LAUNCH_ARGUMENT");
+   STARTUPINFO si=new STARTUPINFO();
+   si.cb=(uint)Marshal.SizeOf(typeof(STARTUPINFO));
+   PROCESS_INFORMATION pi;
+   StringBuilder line=new StringBuilder("\""+Path.GetFullPath(setup)+"\" "+args);
+   const uint CREATE_SUSPENDED=0x00000004,IDLE_PRIORITY_CLASS=0x00000040,CREATE_NO_WINDOW=0x08000000;
+   if(!CreateProcess(Path.GetFullPath(setup),line,IntPtr.Zero,IntPtr.Zero,false,
+                     CREATE_SUSPENDED|IDLE_PRIORITY_CLASS|CREATE_NO_WINDOW,
+                     IntPtr.Zero,directory,ref si,out pi))
+     throw new Win32Exception(Marshal.GetLastWin32Error(),"R320_ORIGINAL_SETUP_CREATE_SUSPENDED_FAILED");
+   bool resumed=false;Process child=null;
+   try{
+     child=Process.GetProcessById(checked((int)pi.dwProcessId));
+     watcher.Bind(child); // guaranteed before the suspended primary thread runs
+     uint previous=ResumeThread(pi.hThread);
+     if(previous!=1)throw new Win32Exception(Marshal.GetLastWin32Error(),"R320_ORIGINAL_SETUP_RESUME_FAILED");
+     resumed=true;
+     return child;
+   }finally{
+     if(!resumed){
+       if(pi.hProcess!=IntPtr.Zero)TerminateProcess(pi.hProcess,125);
+       if(child!=null)child.Dispose();
+     }
+     if(pi.hThread!=IntPtr.Zero)CloseHandle(pi.hThread);
+     if(pi.hProcess!=IntPtr.Zero)CloseHandle(pi.hProcess);
+   }
+ }
+}
 public sealed class R302RealSetupDeleteWatcher : IDisposable {
   public readonly ManualResetEventSlim TerminatedEvent = new ManualResetEventSlim(false);
   private FileSystemWatcher oldWatcher, newWatcher;
@@ -188,10 +251,11 @@ try {
  $psi.UseShellExecute=$false
  $psi.CreateNoWindow=$true
  $psi.WorkingDirectory=[IO.Path]::GetDirectoryName($setup)
- $native=[Diagnostics.Process]::Start($psi)
+  $native=[R320SuspendedSetupLauncher]::StartOriginalSuspended(
+    $setup,'/update /quiet',[IO.Path]::GetDirectoryName($setup),$watcher)
  if(!$native){throw 'R302_ORIGINAL_SETUP_FAILED_TO_START'}
  $realSetupPid=$native.Id
- $watcher.Bind($native)
+  $checks.Add('R320_EXACT_ORIGINAL_SETUP_LAUNCHED_SUSPENDED_WATCHER_BOUND_BEFORE_RESUME')
  $clock=[Diagnostics.Stopwatch]::StartNew()
  while(-not $watcher.TerminatedEvent.Wait(75) -and $clock.ElapsedMilliseconds -lt 45000){
   $native.Refresh()
@@ -245,6 +309,7 @@ try {
   Schema=1;Revision='R302';Status='PASS_NATIVE_SETUP_KILLED_DURING_STAGE_CLEANUP_RECOVERED'
   Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
   OriginalOwnerComputerTouched=$false;UnmodifiedCandidateSetupExecuted=$true
+   NativeExactSetupSuspendedBoundBeforeResume=$true
   ActualSetupPid=$realSetupPid;ActualSetupProcessTerminated=$true
   DeletedStageFileTrigger=$watcher.TriggerFile
   FileDeletionNotifications=$watcher.Notifications
