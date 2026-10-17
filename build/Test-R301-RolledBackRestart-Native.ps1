@@ -36,6 +36,8 @@ function Start-ProofChild([string]$code){
  $psi.Arguments='-NoProfile -NonInteractive -EncodedCommand '+$encoded
  $psi.UseShellExecute=$false
  $psi.CreateNoWindow=$true
+ $psi.RedirectStandardOutput=$true
+ $psi.RedirectStandardError=$true
  return [Diagnostics.Process]::Start($psi)
 }
 $app=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
@@ -175,7 +177,9 @@ $retry=Start-ProofChild $retryCode
 if(!$retry){throw 'R301_RESTART_WORKER_NOT_STARTED'}
 try{
  if(!$retry.WaitForExit(18000) -or !$retry.HasExited -or $retry.ExitCode -ne 0){
-  throw ('R301_RECOVERY_WORKER_FAILED exit='+$(if($retry.HasExited){$retry.ExitCode}else{'RUNNING'}))
+   $errorText=if($retry.HasExited){$retry.StandardError.ReadToEnd()}else{'CHILD_TIMEOUT'}
+   if($errorText.Length -gt 2500){$errorText=$errorText.Substring(0,2500)}
+   throw ('R301_RECOVERY_WORKER_FAILED exit='+$(if($retry.HasExited){$retry.ExitCode}else{'RUNNING'})+' stderr='+$errorText)
  }
 }finally{
  if(!$retry.HasExited){$retry.Kill();[void]$retry.WaitForExit(10000)}
