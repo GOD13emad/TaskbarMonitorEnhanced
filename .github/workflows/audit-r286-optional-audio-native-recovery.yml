@@ -207,7 +207,9 @@ jobs:
              $r.InvalidAppRootRejectedBeforeWrite -ne $true -or
              $r.InstalledMainUnchanged -ne $true -or
              $r.BoundedEncodedCommandLength -lt 1000 -or $r.BoundedEncodedCommandLength -gt 30000 -or
-             @($r.Checks).Count -lt 6){throw 'R293_NATIVE_INMEMORY_RECEIPT_REJECTED'}
+             @($r.Checks).Count -lt 9 -or
+             @($r.Checks|Where-Object {$_ -ceq 'QUOTED_HOSTILE_USER_INPUT_ENCODED_AS_DATA'}).Count -ne 1 -or
+             @($r.Checks|Where-Object {$_ -ceq 'COMMAND_LINE_INJECTION_SENTINEL_NOT_EXECUTED'}).Count -ne 1){throw 'R293_NATIVE_INMEMORY_RECEIPT_REJECTED'}
           'R293_TRUSTED_INMEMORY_HELPER_NEGATIVE=PASS'
       - name: Preserve bounded guest evidence
         if: always()

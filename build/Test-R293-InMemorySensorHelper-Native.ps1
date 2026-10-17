@@ -135,6 +135,44 @@ try{
     }
     $checks.Add('REAL_POWERSHELL_51_INLINE_PREWRITE_REFUSAL')
     $checks.Add('ROGUE_WRITABLE_HELPER_IGNORED')
+    # R293B: an adversarial account argument contains literal PowerShell tokens.
+    # It must be data in the inline command, never executed as PowerShell code.
+    $evilUser=$user+"'; [IO.File]::WriteAllText('"+$sentinel+"','R293_INJECTION'); #"
+    $args4[3]=[string]$evilUser
+    $evilCmd=[string]$m.Invoke($null,$args4)
+    if(-not $evilCmd.StartsWith($prefix,[StringComparison]::Ordinal)){throw 'R293_INJECTED_COMMAND_NOT_ENCODED'}
+    $evilBootstrap=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($evilCmd.Substring($prefix.Length)))
+    if($evilBootstrap.Contains($evilUser) -or $evilBootstrap.Contains($sentinel)){
+       throw 'R293_CALLER_ARGUMENT_WAS_INTERPOLATED_AS_SCRIPT_SOURCE'
+    }
+    $checks.Add('QUOTED_HOSTILE_USER_INPUT_ENCODED_AS_DATA')
+    $evilProcess=[Diagnostics.ProcessStartInfo]::new()
+    $evilProcess.FileName='powershell.exe'
+    $evilProcess.Arguments=$evilCmd
+    $evilProcess.UseShellExecute=$false
+    $evilProcess.CreateNoWindow=$true
+    $evilProcess.RedirectStandardOutput=$true
+    $evilProcess.RedirectStandardError=$true
+    $evil=[Diagnostics.Process]::Start($evilProcess)
+    if(!$evil){throw 'R293_HOSTILE_INJECTION_PROBE_PROCESS_MISSING'}
+    try{
+        $evilStdout=$evil.StandardOutput.ReadToEndAsync()
+        $evilStderr=$evil.StandardError.ReadToEndAsync()
+        if(-not $evil.WaitForExit(20000)){
+            try{$evil.Kill()}catch{}
+            throw 'R293_INJECTED_COMMAND_PROCESS_TIMEOUT'
+        }
+        $evilOut=$evilStdout.GetAwaiter().GetResult()
+        $evilErr=$evilStderr.GetAwaiter().GetResult()
+        $evilExit=$evil.ExitCode
+    }finally{$evil.Dispose()}
+    if($evilExit -eq 0 -or
+       ($evilOut+$evilErr) -notmatch 'SENSOR_BOUNDARY_USER_ID_UNRESOLVABLE' -or
+       (Test-Path -LiteralPath $sentinel) -or
+       (Hash $rogue) -cne $rogueBefore){
+        throw 'R293_COMMAND_INJECTION_NEGATIVE_PROBE_NOT_FAIL_CLOSED'
+    }
+    $checks.Add('COMMAND_LINE_INJECTION_SENTINEL_NOT_EXECUTED')
     $checks.Add('NO_UAC_PROTECTED_SERVICE_MUTATION')
     if((Hash $live) -cne $mainBefore){
         throw 'R293_GUEST_INSTALLED_MAIN_CHANGED'
