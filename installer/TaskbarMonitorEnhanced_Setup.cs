@@ -1587,22 +1587,83 @@ internal static partial class SetupProgram
         return parsed;
     }
 
+    // R299: do not recursively delete a user-writable upgrade journal. A
+    // junction inserted after the preflight must not turn cleanup into a
+    // recursive deletion of unrelated user files.
     static void CleanOwnedStage(List<StageEntry> rows)
     {
-        HashSet<string> known=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string root=Path.GetFullPath(UpgradeRoot).TrimEnd(Path.DirectorySeparatorChar);
+        string prefix=root+Path.DirectorySeparatorChar;
+        CheckNoReparse(root);
+        HashSet<string> knownFiles=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach(string filename in new string[]{"owner.txt","phase.txt","index.txt","phase.tmp","previous_version.txt"})
-            known.Add(Path.GetFullPath(Path.Combine(UpgradeRoot,filename)));
+            knownFiles.Add(Path.GetFullPath(Path.Combine(root,filename)));
         foreach(StageEntry r in rows){
-            known.Add(Path.GetFullPath(Stage("old",r.Rel)));
-            known.Add(Path.GetFullPath(Stage("new",r.Rel)));
+            knownFiles.Add(Path.GetFullPath(Stage("old",r.Rel)));
+            knownFiles.Add(Path.GetFullPath(Stage("new",r.Rel)));
         }
-        foreach(string path in Directory.GetFiles(UpgradeRoot,"*",SearchOption.AllDirectories))
-            if(!known.Contains(Path.GetFullPath(path)))
-                throw new InvalidOperationException("Unknown file inside update stage; leave stage intact: "+path);
-        foreach(string path in Directory.GetDirectories(UpgradeRoot,"*",SearchOption.AllDirectories))
-            if((File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0)
-                throw new IOException("Unexpected upgrade stage reparse directory.");
-        Directory.Delete(UpgradeRoot,true);
+        HashSet<string> knownDirs=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        knownDirs.Add(root);
+        foreach(string filename in knownFiles){
+            if(!filename.StartsWith(prefix,StringComparison.OrdinalIgnoreCase))
+                throw new IOException("Upgrade cleanup path escaped canonical stage.");
+            string directory=Path.GetDirectoryName(filename);
+            while(!String.Equals(directory,root,StringComparison.OrdinalIgnoreCase)){
+                if(String.IsNullOrEmpty(directory) || !directory.StartsWith(prefix,StringComparison.OrdinalIgnoreCase))
+                    throw new IOException("Upgrade cleanup directory escaped canonical stage.");
+                knownDirs.Add(directory);
+                directory=Path.GetDirectoryName(directory);
+            }
+        }
+        // Enumerate one directory at a time: reject unexpected empty dirs as
+        // well as files and reparse entries BEFORE deleting any known member.
+        List<string> pending=new List<string>();pending.Add(root);
+        while(pending.Count>0){
+            string directory=pending[pending.Count-1];pending.RemoveAt(pending.Count-1);
+            CheckNoReparse(directory);
+            foreach(string entry in Directory.GetFileSystemEntries(directory)){
+                string full=Path.GetFullPath(entry);
+                if(!full.StartsWith(prefix,StringComparison.OrdinalIgnoreCase))
+                    throw new IOException("Upgrade cleanup observed path escape.");
+                FileAttributes attributes=File.GetAttributes(full);
+                if((attributes&FileAttributes.ReparsePoint)!=0)
+                    throw new IOException("Upgrade cleanup refuses reparse member: "+full);
+                if((attributes&FileAttributes.Directory)!=0){
+                    if(!knownDirs.Contains(full))
+                        throw new IOException("Unknown directory inside update stage; leave stage intact: "+full);
+                    pending.Add(full);
+                }else if(!knownFiles.Contains(full)){
+                    throw new IOException("Unknown file inside update stage; leave stage intact: "+full);
+                }
+            }
+        }
+        // Unlink only exact known files; remove directories with recursive=false.
+        // Keep owner/index/phase markers until descendants have been removed.
+        string[] metadata=new string[]{"phase.tmp","previous_version.txt","index.txt","phase.txt","owner.txt"};
+        HashSet<string> metadataPaths=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach(string name in metadata)metadataPaths.Add(Path.Combine(root,name));
+        foreach(string filename in knownFiles){
+            if(metadataPaths.Contains(filename))continue;
+            CheckNoReparse(filename);
+            if(File.Exists(filename))File.Delete(filename);
+        }
+        List<string> directories=knownDirs.Where(d=>!String.Equals(d,root,StringComparison.OrdinalIgnoreCase)).ToList();
+        directories.Sort(delegate(string a,string b){
+            int c=b.Length.CompareTo(a.Length);
+            return c!=0?c:StringComparer.OrdinalIgnoreCase.Compare(a,b);
+        });
+        foreach(string directory in directories){
+            CheckNoReparse(directory);
+            if(Directory.Exists(directory))Directory.Delete(directory,false);
+        }
+        // Unknown files or directories cannot be silently removed by this path.
+        foreach(string name in metadata){
+            string filename=Path.Combine(root,name);
+            CheckNoReparse(filename);
+            if(File.Exists(filename))File.Delete(filename);
+        }
+        CheckNoReparse(root);
+        Directory.Delete(root,false);
     }
 
     static void RestoreInterruptedUpgrade(List<StageEntry> rows)
