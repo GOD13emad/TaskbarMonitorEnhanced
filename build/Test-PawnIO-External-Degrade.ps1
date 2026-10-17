@@ -1,17 +1,22 @@
-# R85 hermetic negative runtime test: a missing proprietary PawnIO binary cannot install
-# driver/services or mutate the real host. An isolated copy only mocks the read-only
-# PawnIO version discovery function so installed PawnIO on the developer PC is untouched.
+# R85 disposable GitHub Windows negative runtime test: absent PawnIO must degrade
+# without privileged driver/service mutation. Use a profile-canonical guest AppRoot
+# because the real R291 elevated-helper boundary must not be bypassed in tests.
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+# Never write even a test config to a real owner's user profile.
+if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+   $env:RUNNER_OS -cne 'Windows' -or $env:COMPUTERNAME -match '(?i)EMAD-PC' -or
+   [string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)){throw 'R85_ONLY_DISPOSABLE_GITHUB_WINDOWS'}
 $Root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $Helper=Join-Path $Root 'installer\TBME_Setup_Elevated_Helper.ps1'
 $Base=Join-Path $Root 'artifacts\_r85_external_degrade_test'
-$Payload=Join-Path $Base 'payload'
-$App=Join-Path $Base 'local_app'
+$Payload=Join-Path ([IO.Path]::GetTempPath()) ('tbme_setup_'+[guid]::NewGuid().ToString('N'))
+$App=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
 $Mock=Join-Path $Base 'helper_mocked_pawnio_discovery.ps1'
 $Result=Join-Path $App 'Logs\sensor_install_result.json'
 $Log=Join-Path $App 'Logs\sensor_install.log'
-if(Test-Path -LiteralPath $Base){throw 'R85 UNSAFE FIXTURE REUSE'}
+if((Test-Path -LiteralPath $Base) -or (Test-Path -LiteralPath $Payload) -or
+   (Test-Path -LiteralPath $App)){throw 'R85 GUEST_FIXTURE_COLLISION_NO_USER_DATA_TOUCH'}
 if(!(Test-Path -LiteralPath $Helper -PathType Leaf)){throw 'R85 HELPER MISSING'}
 $source=Get-Content -LiteralPath $Helper -Raw
 $guardAt=$source.IndexOf('PAWNIO_UPSTREAM_EXTERNAL_INSTALL_REQUIRED',[StringComparison]::Ordinal)
@@ -47,22 +52,35 @@ try {
     }
     $lograw=Get-Content -LiteralPath $Log -Raw
     if($lograw -match 'PAWNIO_INSTALL_START|ROLLBACK_CAPTURE|SENSOR_PROCESS_DRAIN|REGISTER_TASK'){throw 'R85 PROTECTED MUTATION WAS ATTEMPTED'}
-    $files=@(Get-ChildItem -LiteralPath $Base -Recurse -File)
+    $files=@(Get-ChildItem -LiteralPath $Base -Recurse -File) +
+           @(Get-ChildItem -LiteralPath $Payload -Recurse -File) +
+           @(Get-ChildItem -LiteralPath $App -Recurse -File)
     $allowed=@(
-      'payload\TaskbarMonitorSensorBroker.exe','payload\TaskbarMonitorSensorSupervisor.exe',
-      'local_app\SensorBackend\LibreHardwareMonitor-0.9.6\LibreHardwareMonitorLib.dll',
-      'local_app\Logs\sensor_install_result.json','local_app\Logs\sensor_install.log',
-      'helper_mocked_pawnio_discovery.ps1')
-    if($files.Count -ne $allowed.Count -or @($files|Where-Object {$_.FullName.Substring($Base.Length+1) -notin $allowed}).Count -ne 0){throw 'R85 UNKNOWN FIXTURE FILES'}
+      $Mock,
+      (Join-Path $Payload 'TaskbarMonitorSensorBroker.exe'),
+      (Join-Path $Payload 'TaskbarMonitorSensorSupervisor.exe'),
+      (Join-Path $App 'SensorBackend\LibreHardwareMonitor-0.9.6\LibreHardwareMonitorLib.dll'),
+      $Result,$Log
+    )
+    $observed=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach($file in $files){[void]$observed.Add([IO.Path]::GetFullPath($file.FullName))}
+    if($files.Count -ne 6 -or $observed.Count -ne 6 -or $allowed.Count -ne 6){
+      throw 'R85 UNEXPECTED_DISPOSABLE_GUEST_FIXTURE_FILE_COUNT'
+    }
+    foreach($expected in $allowed){
+      if(-not $observed.Contains([IO.Path]::GetFullPath($expected))){throw 'R85 UNSAFE_OR_MISSING_FIXTURE_FILE'}
+    }
     Write-Output 'R85_MISSING_PAWNIO_DEGRADED_FAIL_CLOSED_NO_DRIVER_INSTALL_NO_ROLLBACK_NO_OS_CHANGE=PASS'
     $done=$true
 } finally {
     if($done){
-        # Only this preflight-owned, exact-path fixture tree is removed.
-        Remove-Item -LiteralPath $Base -Recurse -Force -ErrorAction Stop
-        if(Test-Path -LiteralPath $Base){throw 'R85 FIXTURE CLEANUP FAILED'}
+        # Three exact guest fixture roots were absent before the test.
+        foreach($owned in @($Payload,$App,$Base)){
+          Remove-Item -LiteralPath $owned -Recurse -Force -ErrorAction Stop
+          if(Test-Path -LiteralPath $owned){throw 'R85 GUEST FIXTURE CLEANUP FAILED'}
+        }
     }else{
-        Write-Warning ('R85 TEST FAILED; exact diagnostic fixture preserved at '+$Base)
+        Write-Warning ('R85 GUEST FAILURE: fixtures preserved in '+$Base+' ; '+$Payload+' ; '+$App)
     }
 }
 exit 0
