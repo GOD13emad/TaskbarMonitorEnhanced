@@ -381,6 +381,55 @@ internal static partial class SetupProgram
         }
     }
 
+    // R321: hold a Windows read-only, no-write/no-delete sharing handle
+    // over the hash check AND Process.Start. A writable user-local executable
+    // cannot be replaced by a second handle during this bounded interval.
+    // This is not a proof against hostile parent-directory rename races.
+    static FileStream OpenPinnedVerifiedMainForLaunch(
+        string candidate,string expectedRoot,string embeddedMainSHA)
+    {
+        if(String.IsNullOrWhiteSpace(candidate) ||
+           String.IsNullOrWhiteSpace(expectedRoot) ||
+           !Path.IsPathRooted(candidate) || !Path.IsPathRooted(expectedRoot) ||
+           !Regex.IsMatch(embeddedMainSHA??"",@"^[0-9A-F]{64}$"))
+            throw new InvalidDataException("Installed Main launch identity is incomplete.");
+        string root=Path.GetFullPath(expectedRoot).TrimEnd(Path.DirectorySeparatorChar);
+        string path=Path.GetFullPath(candidate);
+        string expected=Path.Combine(root,"TaskbarMonitorEnhanced.exe");
+        if(root.StartsWith(@"\\",StringComparison.Ordinal) ||
+           path.StartsWith(@"\\",StringComparison.Ordinal) ||
+           !String.Equals(path,expected,StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Installed Main launch path escaped the trusted root.");
+        CheckRootAncestorsNoReparse(path);
+        FileAttributes attrs=File.GetAttributes(path);
+        if((attrs&FileAttributes.ReparsePoint)!=0 || (attrs&FileAttributes.Directory)!=0)
+            throw new InvalidDataException("Installed Main launch executable is linked or not a file.");
+        FileStream pinned=null;
+        try
+        {
+            // Open sharing READ only; forbid unrelated write/delete opens
+            // while the Setup process starts the exact validated Main.
+            pinned=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.Read);
+            if(pinned.Length<1024 || pinned.Length>134217728)
+                throw new InvalidDataException("Installed Main executable length out of bounds.");
+            using(SHA256 hasher=SHA256.Create())
+            {
+                byte[] hash=hasher.ComputeHash(pinned);
+                StringBuilder result=new StringBuilder();
+                foreach(byte item in hash)result.Append(item.ToString("X2"));
+                if(!String.Equals(result.ToString(),embeddedMainSHA,StringComparison.Ordinal))
+                    throw new InvalidDataException("Installed Main does not match the immutable Setup PE resource.");
+            }
+            pinned.Position=0;
+            return pinned;
+        }
+        catch
+        {
+            if(pinned!=null)pinned.Dispose();
+            throw;
+        }
+    }
+
     static string Sha256Resource(string resourceName)
     {
         using(Stream s=Resource(resourceName))
@@ -718,7 +767,13 @@ internal static partial class SetupProgram
         {
             try
             {
-                Process.Start(AppExe);
+                // The read-sharing handle pins the same trusted bytes over
+                // validation and the subsequent process creation.
+                using(FileStream pinned=OpenPinnedVerifiedMainForLaunch(
+                    AppExe,AppRoot,Sha256Resource("Payload.TaskbarMonitorEnhanced.exe")))
+                {
+                    Process.Start(AppExe);
+                }
                 MainLaunchMode="LAUNCHED_NON_ELEVATED_SETUP";
             }
             catch
