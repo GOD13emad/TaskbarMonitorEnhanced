@@ -1233,17 +1233,23 @@ internal static partial class SetupProgram
         string root=Path.GetFullPath(AppRoot).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
         if(!path.StartsWith(root,StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Upgrade refused path outside canonical app root.");
+        // Path.GetFullPath is lexical only; reject junctions/links before any live I/O.
+        CheckNoReparse(path);
         return path;
     }
 
     static void CheckNoReparse(string path)
     {
         string root=Path.GetFullPath(AppRoot);
-        string current=path;
+        string current=Path.GetFullPath(path);
         while(!String.IsNullOrEmpty(current)){
-            if((File.Exists(current)||Directory.Exists(current)) &&
-              (File.GetAttributes(current)&FileAttributes.ReparsePoint)!=0)
-                throw new IOException("Upgrade refuses an app component symlink/junction: "+current);
+            // File.Exists can hide inaccessible or dangling reparse paths.
+            // Only genuinely absent components may be skipped; all other I/O
+            // errors must fail closed before a rollback/write/delete.
+            try{
+                if((File.GetAttributes(current)&FileAttributes.ReparsePoint)!=0)
+                    throw new IOException("Upgrade refuses an app component symlink/junction: "+current);
+            }catch(FileNotFoundException){}catch(DirectoryNotFoundException){}
             if(String.Equals(current,root,StringComparison.OrdinalIgnoreCase))break;
             current=Path.GetDirectoryName(current);
         }
@@ -1372,7 +1378,15 @@ internal static partial class SetupProgram
     static string Stage(string part,string rel)
     {
         if(part!="new" && part!="old")throw new InvalidDataException("Unexpected stage area.");
-        return Path.Combine(UpgradeRoot,part,rel.Replace('/',Path.DirectorySeparatorChar));
+        if(String.IsNullOrWhiteSpace(rel) || Path.IsPathRooted(rel) || rel.Contains("..") ||
+           rel.Contains(":") || rel.StartsWith("/") || rel.StartsWith("\\"))
+            throw new InvalidDataException("Upgrade refused unsafe staged resource path.");
+        string path=Path.GetFullPath(Path.Combine(UpgradeRoot,part,rel.Replace('/',Path.DirectorySeparatorChar)));
+        string root=Path.GetFullPath(UpgradeRoot).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
+        if(!path.StartsWith(root,StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Upgrade refused stage escape.");
+        CheckNoReparse(path);
+        return path;
     }
 
     static void WritePhase(string phase)
@@ -1554,8 +1568,20 @@ internal static partial class SetupProgram
     {
         if(!Directory.Exists(UpgradeRoot))return;
         CheckNoReparse(UpgradeRoot);
+        // Interrupted journals are writable in the user's AppData. Before
+        // reading them or mutating ANY managed file, reject their descendant
+        // links, including link-shaped phase/index files and stage subtrees.
+        foreach(string name in new string[]{"owner.txt","phase.txt","phase.tmp",
+                  "index.txt","previous_version.txt","old","new"})
+            CheckNoReparse(Path.Combine(UpgradeRoot,name));
         string phase=GetPhase();
         List<StageEntry> rows=ReadStageIndex();
+        foreach(StageEntry r in rows){
+            UPath(r.Rel);
+            Stage("old",r.Rel);
+            Stage("new",r.Rel);
+            if(r.Previous!="-")Stage("old",r.Rel+".restore");
+        }
         if(phase=="PREPARED"){
             // No managed target is modified before COMMITTING is durably written.
             CleanOwnedStage(rows);return;

@@ -130,6 +130,34 @@ jobs:
              ($r.NativeSetupProcessActuallyKilled -ne $true -or
               $r.NativeSetupManagedNoteDeletionWitnessed -ne $true)){throw 'R286_REAL_SETUP_KILL_NOT_WITNESSED'}
           'R286_GUEST_TYPED_RECOVERY_PASS'
+      - name: R290 reject native child junctions before any recovery mutation
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $p=(Resolve-Path build/Test-R290-ReparseRecovery-Native.ps1).Path
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){$errors|ForEach-Object{$_.Message};throw 'R290_NATIVE_TEST_PARSER_INVALID'}
+          ./build/Test-R290-ReparseRecovery-Native.ps1 -HostLabel '${{ matrix.host }}' -CandidateDir (Resolve-Path _r284_private_candidate).Path
+          if($LASTEXITCODE -ne 0){throw 'R290_NATIVE_TEST_FAILED'}
+          $p=Join-Path $env:RUNNER_TEMP ('R290_${{ matrix.host }}_'+$env:GITHUB_RUN_ID+'/R290_REPARSE_RECEIPT.json')
+          if(!(Test-Path $p)){throw 'R290_GUEST_RECEIPT_MISSING'}
+          $r=Get-Content $p -Raw|ConvertFrom-Json
+          if($r.Schema -ne 1 -or $r.Revision -cne 'R290' -or
+             $r.Status -cne 'PASS_NATIVE_UPGRADE_CHILD_REPARSE_FAIL_CLOSED' -or
+             $r.Host -cne '${{ matrix.host }}' -or
+             $r.SourceCommit -cne $env:GITHUB_SHA -or
+             $r.OriginalOwnerComputerTouched -ne $false -or
+             $r.NativeWindowsJunctionCreated -ne $true -or
+             $r.NormalPathAcceptance -ne $true -or
+             $r.ParentTraversalRejected -ne $true -or
+             $r.LiveChildJunctionRejected -ne $true -or
+             $r.StageOldJunctionRejected -ne $true -or
+             $r.RecoverPreMutationRejected -ne $true -or
+             $r.NoExternalCanaryMutation -ne $true -or
+             $r.InstalledMainAndConfigUnchanged -ne $true -or
+             $r.NoStageOrLinkResidue -ne $true){throw 'R290_TYPED_NATIVE_REPARSE_RECEIPT_INVALID'}
+          'R290_NATIVE_CHILD_REPARSE_GUARDS_PASS'
       - name: Preserve bounded guest evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -140,3 +168,4 @@ jobs:
           path: |
             ${{ runner.temp }}/R286_${{ matrix.host }}_${{ github.run_id }}/R286_RECOVERY_RECEIPT.json
             ${{ runner.temp }}/R286_${{ matrix.host }}_${{ github.run_id }}/ARMED.json
+            ${{ runner.temp }}/R290_${{ matrix.host }}_${{ github.run_id }}/R290_REPARSE_RECEIPT.json
