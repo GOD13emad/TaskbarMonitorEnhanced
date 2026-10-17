@@ -522,9 +522,19 @@ jobs:
           $witness=($lines|Where-Object {$_ -like 'R306_PROTOTYPE_PASS Receipt=*'}|Select-Object -Last 1)
           if(!$witness){throw 'R306_MODEL_POSITIVE_WITNESS_MISSING'}
           $origin=[string]$witness.Substring('R306_PROTOTYPE_PASS Receipt='.Length).Trim()
-          $tempPrefix=[IO.Path]::GetFullPath($env:TEMP).TrimEnd('\')+'\R306_DISPOSABLE_'
-          if(-not $origin.StartsWith($tempPrefix,[StringComparison]::OrdinalIgnoreCase)){
-             throw 'R306_RESULT_OUTSIDE_SYNTHETIC_TEMP'
+          $actualFile=[IO.Path]::GetFullPath($origin)
+          $actualDir=[IO.Path]::GetDirectoryName($actualFile)
+          $actualParent=[IO.Path]::GetDirectoryName($actualDir)
+          if([IO.Path]::GetFileName($actualFile) -cne 'R306_RECEIPT.json' -or
+             [IO.Path]::GetFileName($actualDir) -cnotmatch '^R306_DISPOSABLE_[0-9a-f]{32}$'){
+             throw 'R306_RESULT_SYNTHETIC_LAYOUT_UNTRUSTED'
+          }
+          $allowed=@($env:TEMP,$env:TMP,$env:RUNNER_TEMP,[IO.Path]::GetTempPath())
+          $valid=@($allowed|Where-Object {$_ -and
+             [string]::Equals([IO.Path]::GetFullPath($_).TrimEnd([IO.Path]::DirectorySeparatorChar),
+                              $actualParent,[StringComparison]::OrdinalIgnoreCase)})
+          if($valid.Count -lt 1){
+             throw ('R306_RESULT_OUTSIDE_SYNTHETIC_TEMP parent='+$actualParent+' allowed='+($allowed -join ';'))
           }
           $r=Get-Content -LiteralPath $origin -Raw|ConvertFrom-Json
           if($r.Schema -ne 1 -or $r.Revision -cne 'R306-PROTOTYPE' -or
