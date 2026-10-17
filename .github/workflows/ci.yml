@@ -86,6 +86,11 @@ jobs:
         run: |
           & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File ./build/Test-BackendArchiveHash-R324.ps1
           if ($LASTEXITCODE -ne 0) { throw 'R324 archive SHA integrity and old backend preservation regression failed.' }
+      - name: R326 exact Main CreateProcess without ShellExecute and arguments (native)
+        shell: pwsh
+        run: |
+          & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File ./build/Test-R326-DirectMainProcess-Native.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R326 pinned Main direct CreateProcess native security tests failed.' }
       - name: Verify deterministic clean-clone build
         shell: pwsh
         run: ./build/Verify-Determinism.ps1

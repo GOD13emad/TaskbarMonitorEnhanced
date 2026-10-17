@@ -616,6 +616,31 @@ internal static partial class SetupProgram
         }
     }
 
+    // R326: .NET Framework defaults UseShellExecute=true for Process.Start(path).
+    // Explicitly create the exact SHA-verified Main as a process with no
+    // arguments, no shell association, and no implicit executable search.
+    // Pinned file bytes are guarded by OpenPinnedVerifiedMainForLaunch.
+    // User-writable ancestor directory swap races remain a distinct gate.
+    static ProcessStartInfo BuildPinnedMainProcessInfo(FileStream pinned,string expectedRoot)
+    {
+        if(pinned==null || !pinned.CanRead || String.IsNullOrWhiteSpace(expectedRoot) ||
+           !Path.IsPathRooted(expectedRoot))
+            throw new InvalidDataException("Pinned Main process identity is unavailable.");
+        string root=Path.GetFullPath(expectedRoot).TrimEnd(Path.DirectorySeparatorChar);
+        string path=Path.GetFullPath(pinned.Name);
+        if(root.StartsWith(@"\\",StringComparison.Ordinal) ||
+           path.StartsWith(@"\\",StringComparison.Ordinal) ||
+           !String.Equals(path,Path.Combine(root,"TaskbarMonitorEnhanced.exe"),
+                          StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Pinned Main process path escaped its installation root.");
+        ProcessStartInfo psi=new ProcessStartInfo();
+        psi.FileName=path;
+        psi.WorkingDirectory=root;
+        psi.Arguments=String.Empty;
+        psi.UseShellExecute=false;
+        psi.ErrorDialog=false;
+        return psi;
+    }
     static string Sha256Resource(string resourceName)
     {
         using(Stream s=Resource(resourceName))
@@ -956,7 +981,15 @@ internal static partial class SetupProgram
                 using(FileStream pinned=OpenPinnedVerifiedMainForLaunch(
                     AppExe,AppRoot,Sha256Resource("Payload.TaskbarMonitorEnhanced.exe")))
                 {
-                    Process.Start(AppExe);
+                    // R326: use CreateProcess, not ShellExecute's file/verb
+                    // handling. The executable path comes from the SHA-pinned
+                    // open file; no user-supplied command-line arguments exist.
+                    ProcessStartInfo direct=BuildPinnedMainProcessInfo(pinned,AppRoot);
+                    using(Process started=Process.Start(direct))
+                    {
+                        if(started==null)
+                            throw new IOException("Pinned Main could not be started.");
+                    }
                 }
                 MainLaunchMode="LAUNCHED_NON_ELEVATED_SETUP";
             }

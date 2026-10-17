@@ -57,10 +57,12 @@ if((& $normal $embedded) -cne (& $normal ([IO.File]::ReadAllText($source)))){
 }
 $code=[IO.File]::ReadAllText($source)
 $start=$code.IndexOf('using(FileStream pinned=OpenPinnedVerifiedMainForLaunch(',[StringComparison]::Ordinal)
-$launch=$code.IndexOf('Process.Start(AppExe)',[StringComparison]::Ordinal)
+$builder=$code.IndexOf('BuildPinnedMainProcessInfo(pinned,AppRoot)',[StringComparison]::Ordinal)
+$launch=$code.IndexOf('Process.Start(direct)',[StringComparison]::Ordinal)
 $finish=$code.IndexOf('MainLaunchMode="LAUNCHED_NON_ELEVATED_SETUP"', [StringComparison]::Ordinal)
-if($start -lt 0 -or $launch -le $start -or $finish -le $launch){
- throw 'R321_GUARD_NOT_BOUND_ACROSS_PROCESS_START'
+if($start -lt 0 -or $builder -le $start -or $launch -le $builder -or
+   $finish -le $launch -or $code.Contains('Process.Start(AppExe)')){
+ throw 'R321_R326_GUARD_NOT_BOUND_ACROSS_DIRECT_CREATEPROCESS'
 }
 $checks.Add('EXACT_EMBEDDED_SOURCE_AND_REAL_LAUNCH_GUARD_ORDER')
 $resource=$assembly.GetManifestResourceStream('Payload.TaskbarMonitorEnhanced.exe')
