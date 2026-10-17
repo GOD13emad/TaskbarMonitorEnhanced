@@ -104,13 +104,131 @@ internal static partial class SetupProgram
         }catch{}
     }
 
-    static int ElevatedHelper(string helper,string args,int timeoutMs)
+    // R293: PowerShell code is transported from this immutable, embedded PE resource
+    // via an in-memory command. Never elevate a .ps1 from writable Temp.
+    static string Base64Utf8Argument(string value)
+    {
+        if(String.IsNullOrWhiteSpace(value) || value.Length>4096)
+            throw new InvalidDataException("Sensor helper argument missing or too long.");
+        return Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
+    }
+
+    // R295: compact only transport text, not the readable embedded .ps1 source.
+    // Refuse here-strings and continuation tokens that need verbatim whitespace.
+    static string CompactTrustedHelperSource(string source)
+    {
+        if(String.IsNullOrWhiteSpace(source) ||
+           source.IndexOf("@'",StringComparison.Ordinal)>=0 ||
+           source.IndexOf("@\"",StringComparison.Ordinal)>=0)
+            throw new InvalidDataException("Trusted sensor helper contains unsupported multiline text.");
+        StringBuilder compact=new StringBuilder();
+        foreach(string raw in source.Replace("\r\n","\n").Split('\n'))
+        {
+            string line=raw.Trim();
+            if(line.Length==0 || line.StartsWith("#",StringComparison.Ordinal))continue;
+            if(line.EndsWith("`",StringComparison.Ordinal))
+                throw new InvalidDataException("Trusted sensor helper cannot compact continuation lines.");
+            compact.Append(line).Append('\n');
+        }
+        return compact.ToString();
+    }
+
+    static string BuildElevatedHelperCommand(string mode,string payload,string appRoot,string user)
+    {
+        if(mode!="Install" && mode!="Uninstall")
+            throw new InvalidDataException("Unexpected elevated sensor mode.");
+        string brokerHash=Sha256Resource("Payload.TaskbarMonitorSensorBroker.exe");
+        string supervisorHash=Sha256Resource("Payload.TaskbarMonitorSensorSupervisor.exe");
+        string backendZipHash=Sha256Resource("Payload.LibreHardwareMonitor.zip");
+        if(brokerHash.Length!=64 || supervisorHash.Length!=64 || backendZipHash.Length!=64)
+            throw new InvalidDataException("Protected sensor resource hash unavailable.");
+        string packed;
+        using(Stream resource=Resource("Payload.TBME_Setup_Elevated_Helper.ps1"))
+        {
+            if(resource==null)throw new InvalidDataException("Trusted embedded sensor helper missing.");
+            using(StreamReader reader=new StreamReader(resource,Encoding.UTF8,true))
+            {
+                string source=CompactTrustedHelperSource(reader.ReadToEnd());
+                byte[] textBytes=Encoding.UTF8.GetBytes(source);
+                if(textBytes.Length<1000 || textBytes.Length>120000)
+                    throw new InvalidDataException("Unexpected sensor helper source size.");
+                using(MemoryStream buffer=new MemoryStream())
+                {
+                    using(GZipStream zipper=new GZipStream(buffer,CompressionMode.Compress,true))
+                        zipper.Write(textBytes,0,textBytes.Length);
+                    packed=Convert.ToBase64String(buffer.ToArray());
+                }
+            }
+        }
+        // Every caller-supplied parameter is separately base64-encoded as data.
+        // In particular, a quoted Windows user/path cannot inject PowerShell syntax.
+        string script=
+          "$ErrorActionPreference='Stop'\n"+
+          "$blob=[Convert]::FromBase64String('"+packed+"')\n"+
+          "$ms=[IO.MemoryStream]::new($blob)\n"+
+          "$gzip=[IO.Compression.GZipStream]::new($ms,[IO.Compression.CompressionMode]::Decompress)\n"+
+          "$reader=[IO.StreamReader]::new($gzip,[Text.Encoding]::UTF8)\n"+
+          "try{$code=$reader.ReadToEnd()}finally{$reader.Dispose();$gzip.Dispose();$ms.Dispose()}\n"+
+          "$payload=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(payload)+"'))\n"+
+          "$app=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(appRoot)+"'))\n"+
+          "$user=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(user)+"'))\n"+
+          "& ([ScriptBlock]::Create($code)) -Mode '"+mode+"' -PayloadDir $payload -AppRoot $app -UserId $user -ExpectedBrokerSHA256 '"+brokerHash+"' -ExpectedSupervisorSHA256 '"+supervisorHash+"' -ExpectedBackendZipSHA256 '"+backendZipHash+"'\n";
+        string encoded=Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+        // Preserve the established UTF-16 EncodedCommand path when it fits.
+        // Windows Process creation caps the entire command line at 32,767 chars.
+        if(encoded.Length<=32000)
+            return "-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "+encoded;
+        // R304: the SAME in-memory, PE-embedded trusted helper can be transported
+        // as a constant PowerShell -Command string for long profile names.
+        // Variable caller input is only UTF-8/Base64 data; mode is whitelisted
+        // and resource digests are SHA-256 hex. No user-controlled quote or
+        // PowerShell tokens can enter this command source. Never use -File.
+        if(script.IndexOf('"')>=0 || script.IndexOf('\0')>=0)
+            throw new InvalidDataException("Unexpected quote or null in trusted helper bootstrap.");
+        string fallback="-NoProfile -NonInteractive -WindowStyle Hidden -Command \"& { "+script+" }\"";
+        // Leave margin for the executable path and OS quoting. A truly huge
+        // value must still fail closed instead of truncating or using Temp.
+        if(fallback.Length>30000)
+            throw new InvalidDataException("Trusted sensor helper command exceeds safe limit.");
+        return fallback;
+    }
+
+    // R298: runas uses ShellExecuteEx, which searches the current directory,
+    // Windows and PATH for an unqualified executable. Pin the native OS host.
+    static string TrustedSystemPowerShellPath()
+    {
+        string system=Path.GetFullPath(Environment.SystemDirectory);
+        if(!Path.IsPathRooted(system) || !Directory.Exists(system))
+            throw new InvalidOperationException("Trusted Windows system directory unavailable.");
+        string first=Path.Combine(system,"WindowsPowerShell");
+        string folder=Path.Combine(first,"v1.0");
+        string exe=Path.Combine(folder,"powershell.exe");
+        if(!Directory.Exists(first) || !Directory.Exists(folder) || !File.Exists(exe))
+            throw new InvalidOperationException("Trusted Windows PowerShell executable missing.");
+        foreach(string candidate in new string[]{system,first,folder,exe})
+        {
+            if((File.GetAttributes(candidate)&FileAttributes.ReparsePoint)!=0)
+                throw new InvalidOperationException("Trusted PowerShell host is a reparse path.");
+        }
+        return exe;
+    }
+
+    // Kept separate from Process.Start so the exact runas target can be
+    // inspected in disposable Windows without granting UAC or starting it.
+    static ProcessStartInfo BuildElevatedSensorProcessInfo(string mode,string payload,string appRoot,string user)
     {
         ProcessStartInfo psi=new ProcessStartInfo();
-        psi.FileName="powershell.exe";
-        psi.Arguments="-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \""+helper+"\" "+args;
+        psi.FileName=TrustedSystemPowerShellPath();
+        psi.WorkingDirectory=Path.GetDirectoryName(psi.FileName);
+        psi.Arguments=BuildElevatedHelperCommand(mode,payload,appRoot,user);
         psi.UseShellExecute=true;
         psi.Verb="runas";
+        return psi;
+    }
+
+    static int ElevatedHelper(string mode,string payload,string appRoot,string user,int timeoutMs)
+    {
+        ProcessStartInfo psi=BuildElevatedSensorProcessInfo(mode,payload,appRoot,user);
 
         Process elevated=null;
         Exception launchError=null;
@@ -256,14 +374,13 @@ internal static partial class SetupProgram
         Directory.CreateDirectory(payload);
         Extract("Payload.TaskbarMonitorSensorBroker.exe",Path.Combine(payload,"TaskbarMonitorSensorBroker.exe"));
         Extract("Payload.TaskbarMonitorSensorSupervisor.exe",Path.Combine(payload,"TaskbarMonitorSensorSupervisor.exe"));
-        // The official PawnIO binary is separately licensed. Public OSS Setup never embeds it.
-        // A previously installed PawnIO 2.2.0 may be reused; otherwise the sensor helper degrades
-        // safely and offers upstream manual installation, without silent driver downloads.
-        using(Stream pawn=Resource("Payload.PawnIO_setup.exe")){
-            if(pawn!=null && pawn.Length>0)
-                Extract("Payload.PawnIO_setup.exe",Path.Combine(payload,"PawnIO_setup.exe"));
-        }
-        Extract("Payload.TBME_Setup_Elevated_Helper.ps1",Path.Combine(payload,"TBME_Setup_Elevated_Helper.ps1"));
+        // This user-writable staging file is bound to the PE embedded ZIP hash
+        // before any elevated service changes; it is deleted with this payload.
+        Extract("Payload.LibreHardwareMonitor.zip",Path.Combine(payload,"LibreHardwareMonitor.zip"));
+        // R297: never stage or elevate a third-party executable in user-writable
+        // Temp, even if an optional private PE contains a PawnIO resource.
+        // Reuse compatible preinstalled PawnIO, otherwise require separate
+        // official installation with explicit owner consent.
         return payload;
     }
 
@@ -392,13 +509,10 @@ internal static partial class SetupProgram
             Directory.CreateDirectory(Path.Combine(AppRoot,"Logs"));
             try{File.Delete(SensorResultPath);}catch{}
             payload=PrepareSensorPayload();
-            string helper=Path.Combine(payload,"TBME_Setup_Elevated_Helper.ps1");
             string user=WindowsIdentity.GetCurrent().Name;
             int helperExit;
             try{
-                helperExit=ElevatedHelper(helper,
-                  "-Mode Install -PayloadDir \""+payload+"\" -AppRoot \""+AppRoot+"\" -UserId \""+user+"\"",
-                  110000);
+                helperExit=ElevatedHelper("Install",payload,AppRoot,user,110000);
             }catch(Exception ex){
                 outcome.Status="DEGRADED";
                 outcome.Message="The application installed successfully. The protected sensor supervisor did not report ready before Setup finished. "+ex.Message+" It will continue starting in the background; protected temperature fields may briefly show N/A.";
@@ -557,13 +671,9 @@ internal static partial class SetupProgram
 
         string payload=Path.Combine(Path.GetTempPath(),"tbme_uninstall_"+Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(payload);
-        string helper=Path.Combine(payload,"TBME_Setup_Elevated_Helper.ps1");
-        Extract("Payload.TBME_Setup_Elevated_Helper.ps1",helper);
         string user=WindowsIdentity.GetCurrent().Name;
 
-        int helperExit=ElevatedHelper(helper,
-          "-Mode Uninstall -PayloadDir \""+payload+"\" -AppRoot \""+AppRoot+"\" -UserId \""+user+"\"",
-          90000);
+        int helperExit=ElevatedHelper("Uninstall",payload,AppRoot,user,90000);
         if(helperExit!=0)
             throw new InvalidOperationException("Protected sensor removal failed. Exit code: "+helperExit);
 
@@ -1233,17 +1343,23 @@ internal static partial class SetupProgram
         string root=Path.GetFullPath(AppRoot).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
         if(!path.StartsWith(root,StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Upgrade refused path outside canonical app root.");
+        // Path.GetFullPath is lexical only; reject junctions/links before any live I/O.
+        CheckNoReparse(path);
         return path;
     }
 
     static void CheckNoReparse(string path)
     {
         string root=Path.GetFullPath(AppRoot);
-        string current=path;
+        string current=Path.GetFullPath(path);
         while(!String.IsNullOrEmpty(current)){
-            if((File.Exists(current)||Directory.Exists(current)) &&
-              (File.GetAttributes(current)&FileAttributes.ReparsePoint)!=0)
-                throw new IOException("Upgrade refuses an app component symlink/junction: "+current);
+            // File.Exists can hide inaccessible or dangling reparse paths.
+            // Only genuinely absent components may be skipped; all other I/O
+            // errors must fail closed before a rollback/write/delete.
+            try{
+                if((File.GetAttributes(current)&FileAttributes.ReparsePoint)!=0)
+                    throw new IOException("Upgrade refuses an app component symlink/junction: "+current);
+            }catch(FileNotFoundException){}catch(DirectoryNotFoundException){}
             if(String.Equals(current,root,StringComparison.OrdinalIgnoreCase))break;
             current=Path.GetDirectoryName(current);
         }
@@ -1369,10 +1485,19 @@ internal static partial class SetupProgram
     }
 
     static string UpgradeRoot {get{return Path.Combine(AppRoot,UpgradeStageName);}}
+    static string RetiredUpgradeRoot {get{return Path.Combine(AppRoot,UpgradeStageName+"-retired");}}
     static string Stage(string part,string rel)
     {
         if(part!="new" && part!="old")throw new InvalidDataException("Unexpected stage area.");
-        return Path.Combine(UpgradeRoot,part,rel.Replace('/',Path.DirectorySeparatorChar));
+        if(String.IsNullOrWhiteSpace(rel) || Path.IsPathRooted(rel) || rel.Contains("..") ||
+           rel.Contains(":") || rel.StartsWith("/") || rel.StartsWith("\\"))
+            throw new InvalidDataException("Upgrade refused unsafe staged resource path.");
+        string path=Path.GetFullPath(Path.Combine(UpgradeRoot,part,rel.Replace('/',Path.DirectorySeparatorChar)));
+        string root=Path.GetFullPath(UpgradeRoot).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
+        if(!path.StartsWith(root,StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Upgrade refused stage escape.");
+        CheckNoReparse(path);
+        return path;
     }
 
     static void WritePhase(string phase)
@@ -1469,27 +1594,130 @@ internal static partial class SetupProgram
               (parts[1]!="-" && !Regex.IsMatch(parts[1],"^[0-9A-F]{64}$")) ||
               (parts[2]!="-" && !Regex.IsMatch(parts[2],"^[0-9A-F]{64}$")))
                 throw new InvalidDataException("Upgrade journal path or digest modified.");
-            parsed.Add(new StageEntry(parts[0],parts[1],parts[2]));
+            // Convert the validated on-disk label back to the compiled-in target before filesystem use.
+            parsed.Add(new StageEntry(UpgradeTargets[i].Rel,parts[1],parts[2]));
         }
         return parsed;
     }
 
+    // R299: do not recursively delete a user-writable upgrade journal. A
+    // junction inserted after the preflight must not turn cleanup into a
+    // recursive deletion of unrelated user files.
     static void CleanOwnedStage(List<StageEntry> rows)
     {
-        HashSet<string> known=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string root=Path.GetFullPath(UpgradeRoot).TrimEnd(Path.DirectorySeparatorChar);
+        string prefix=root+Path.DirectorySeparatorChar;
+        CheckNoReparse(root);
+        string retired=Path.GetFullPath(RetiredUpgradeRoot);
+        CheckNoReparse(retired);
+        if(Directory.Exists(retired) || File.Exists(retired))
+            throw new IOException("Prior retired upgrade journal must be recovered first.");
+        HashSet<string> knownFiles=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach(string filename in new string[]{"owner.txt","phase.txt","index.txt","phase.tmp","previous_version.txt"})
-            known.Add(Path.GetFullPath(Path.Combine(UpgradeRoot,filename)));
+            knownFiles.Add(Path.GetFullPath(Path.Combine(root,filename)));
         foreach(StageEntry r in rows){
-            known.Add(Path.GetFullPath(Stage("old",r.Rel)));
-            known.Add(Path.GetFullPath(Stage("new",r.Rel)));
+            knownFiles.Add(Path.GetFullPath(Stage("old",r.Rel)));
+            knownFiles.Add(Path.GetFullPath(Stage("new",r.Rel)));
         }
-        foreach(string path in Directory.GetFiles(UpgradeRoot,"*",SearchOption.AllDirectories))
-            if(!known.Contains(Path.GetFullPath(path)))
-                throw new InvalidOperationException("Unknown file inside update stage; leave stage intact: "+path);
-        foreach(string path in Directory.GetDirectories(UpgradeRoot,"*",SearchOption.AllDirectories))
-            if((File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0)
-                throw new IOException("Unexpected upgrade stage reparse directory.");
-        Directory.Delete(UpgradeRoot,true);
+        HashSet<string> knownDirs=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        knownDirs.Add(root);
+        foreach(string filename in knownFiles){
+            if(!filename.StartsWith(prefix,StringComparison.OrdinalIgnoreCase))
+                throw new IOException("Upgrade cleanup path escaped canonical stage.");
+            string directory=Path.GetDirectoryName(filename);
+            while(!String.Equals(directory,root,StringComparison.OrdinalIgnoreCase)){
+                if(String.IsNullOrEmpty(directory) || !directory.StartsWith(prefix,StringComparison.OrdinalIgnoreCase))
+                    throw new IOException("Upgrade cleanup directory escaped canonical stage.");
+                knownDirs.Add(directory);
+                directory=Path.GetDirectoryName(directory);
+            }
+        }
+        // Enumerate one directory at a time: reject unexpected empty dirs as
+        // well as files and reparse entries BEFORE deleting any known member.
+        List<string> pending=new List<string>();pending.Add(root);
+        while(pending.Count>0){
+            string directory=pending[pending.Count-1];pending.RemoveAt(pending.Count-1);
+            CheckNoReparse(directory);
+            foreach(string entry in Directory.GetFileSystemEntries(directory)){
+                string full=Path.GetFullPath(entry);
+                if(!full.StartsWith(prefix,StringComparison.OrdinalIgnoreCase))
+                    throw new IOException("Upgrade cleanup observed path escape.");
+                FileAttributes attributes=File.GetAttributes(full);
+                if((attributes&FileAttributes.ReparsePoint)!=0)
+                    throw new IOException("Upgrade cleanup refuses reparse member: "+full);
+                if((attributes&FileAttributes.Directory)!=0){
+                    if(!knownDirs.Contains(full))
+                        throw new IOException("Unknown directory inside update stage; leave stage intact: "+full);
+                    pending.Add(full);
+                }else if(!knownFiles.Contains(full)){
+                    throw new IOException("Unknown file inside update stage; leave stage intact: "+full);
+                }
+            }
+        }
+        // Unlink only exact known files; remove directories with recursive=false.
+        // Keep owner/index/phase markers until descendants have been removed.
+        string[] metadata=new string[]{"phase.tmp","previous_version.txt","index.txt","phase.txt","owner.txt"};
+        HashSet<string> metadataPaths=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach(string name in metadata)metadataPaths.Add(Path.Combine(root,name));
+        foreach(string filename in knownFiles){
+            if(metadataPaths.Contains(filename))continue;
+            CheckNoReparse(filename);
+            if(File.Exists(filename))File.Delete(filename);
+        }
+        List<string> directories=knownDirs.Where(d=>!String.Equals(d,root,StringComparison.OrdinalIgnoreCase)).ToList();
+        directories.Sort(delegate(string a,string b){
+            int c=b.Length.CompareTo(a.Length);
+            return c!=0?c:StringComparer.OrdinalIgnoreCase.Compare(a,b);
+        });
+        foreach(string directory in directories){
+            CheckNoReparse(directory);
+            if(Directory.Exists(directory))Directory.Delete(directory,false);
+        }
+        // Keep index, phase, prior-version and ownership metadata in the
+        // active journal until a same-parent move retires that whole journal.
+        // Interruption before the move resumes original recovery; after it
+        // only a fixed, bounded metadata tombstone remains.
+        CheckNoReparse(root);
+        CheckNoReparse(retired);
+        Directory.Move(root,retired);
+        FinishRetiredUpgradeStageIfAny();
+    }
+
+    // R300: retryable, nonrecursive cleanup of exact retired metadata only.
+    static void FinishRetiredUpgradeStageIfAny()
+    {
+        string root=Path.GetFullPath(RetiredUpgradeRoot);
+        CheckNoReparse(root);
+        if(File.Exists(root))
+            throw new IOException("Retired upgrade path is not a directory.");
+        if(!Directory.Exists(root))return;
+        string owner=Path.Combine(root,"owner.txt");
+        string[] metadata=new string[]{"phase.tmp","previous_version.txt","index.txt","phase.txt","owner.txt"};
+        HashSet<string> names=new HashSet<string>(metadata,StringComparer.OrdinalIgnoreCase);
+        string[] entries=Directory.GetFileSystemEntries(root);
+        foreach(string entry in entries){
+            string full=Path.GetFullPath(entry);
+            if(!String.Equals(Path.GetDirectoryName(full),root,StringComparison.OrdinalIgnoreCase) ||
+               !names.Contains(Path.GetFileName(full)))
+                throw new IOException("Unknown retired upgrade member; preserve for review: "+full);
+            CheckNoReparse(full);
+            FileAttributes attributes=File.GetAttributes(full);
+            if((attributes&(FileAttributes.Directory|FileAttributes.ReparsePoint))!=0)
+                throw new IOException("Retired upgrade member is not an ordinary file: "+full);
+        }
+        // Owner is last; if it is absent, only an empty directory is safe.
+        if(File.Exists(owner)){
+            if(File.ReadAllText(owner,Encoding.ASCII)!=UpgradeStageMarker)
+                throw new IOException("Retired upgrade ownership marker mismatch.");
+        }else if(entries.Length!=0)
+            throw new IOException("Retired upgrade journal lost its ownership marker.");
+        foreach(string name in metadata){
+            string file=Path.Combine(root,name);
+            CheckNoReparse(file);
+            if(File.Exists(file))File.Delete(file);
+        }
+        CheckNoReparse(root);
+        Directory.Delete(root,false);
     }
 
     static void RestoreInterruptedUpgrade(List<StageEntry> rows)
@@ -1549,18 +1777,72 @@ internal static partial class SetupProgram
         }
     }
 
+    // R301: COMMITTING rollback needs a separate durable success marker.
+    // Otherwise a crash during backup cleanup makes the next COMMITTING
+    // replay require already-deleted old snapshots. ROLLED_BACK is written
+    // only after the old live file hashes and HKCU version have been restored.
+    static void VerifyRolledBackUpgrade(List<StageEntry> rows)
+    {
+        string versionPath=Path.Combine(UpgradeRoot,"previous_version.txt");
+        CheckNoReparse(versionPath);
+        if(!File.Exists(versionPath))
+            throw new IOException("Rolled-back upgrade version missing; retain stage.");
+        string oldVersion=File.ReadAllText(versionPath,Encoding.ASCII);
+        if(oldVersion!=InstalledV16 && oldVersion!=InstalledV170 &&
+           oldVersion!=InstalledV171 && oldVersion!=InstalledV172 &&
+           oldVersion!=InstalledV173 && oldVersion!=InstalledV174 &&
+           oldVersion!=InstalledV175 && oldVersion!=InstalledV176 &&
+           oldVersion!=InstalledV177 && oldVersion!=Version)
+            throw new IOException("Rolled-back upgrade version is not pinned.");
+        using(RegistryKey key=Registry.CurrentUser.OpenSubKey(UninstallKey,false)){
+            if(key==null || !String.Equals(Convert.ToString(key.GetValue("DisplayVersion")),
+                                            oldVersion,StringComparison.Ordinal))
+                throw new IOException("Rolled-back uninstall registration mismatch.");
+        }
+        foreach(StageEntry row in rows){
+            string live=UPath(row.Rel);
+            if(row.Previous=="-"){
+                if(File.Exists(live))
+                    throw new IOException("Rolled-back new component unexpectedly remains: "+row.Rel);
+            }else if(!File.Exists(live) || UpgradeHash(live)!=row.Previous){
+                throw new IOException("Rolled-back previous SHA mismatch: "+row.Rel);
+            }
+        }
+    }
+
     static void RecoverUpgradeStageIfAny()
     {
+        FinishRetiredUpgradeStageIfAny();
         if(!Directory.Exists(UpgradeRoot))return;
         CheckNoReparse(UpgradeRoot);
+        // Interrupted journals are writable in the user's AppData. Before
+        // reading them or mutating ANY managed file, reject their descendant
+        // links, including link-shaped phase/index files and stage subtrees.
+        foreach(string name in new string[]{"owner.txt","phase.txt","phase.tmp",
+                  "index.txt","previous_version.txt","old","new"})
+            CheckNoReparse(Path.Combine(UpgradeRoot,name));
         string phase=GetPhase();
         List<StageEntry> rows=ReadStageIndex();
+        foreach(StageEntry r in rows){
+            UPath(r.Rel);
+            Stage("old",r.Rel);
+            Stage("new",r.Rel);
+            if(r.Previous!="-")Stage("old",r.Rel+".restore");
+        }
         if(phase=="PREPARED"){
             // No managed target is modified before COMMITTING is durably written.
             CleanOwnedStage(rows);return;
         }
         if(phase=="COMMITTING"){
             RestoreInterruptedUpgrade(rows);
+            WritePhase("ROLLED_BACK");
+            CleanOwnedStage(rows);return;
+        }
+        if(phase=="ROLLED_BACK"){
+            // A previous rollback already succeeded; its old snapshots may
+            // have been removed before process death. Verify the exact live
+            // old version rather than attempting to consume them again.
+            VerifyRolledBackUpgrade(rows);
             CleanOwnedStage(rows);return;
         }
         if(phase=="COMMITTED"){
