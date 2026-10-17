@@ -947,7 +947,7 @@ jobs:
              $r.ActualUACInvoked -ne $false -or
              $r.SecurityCodeQLAccepted -ne $false -or
              $r.GuestMainAndUserSettingsPreserved -ne $true -or
-             @($r.Checks).Count -ne 13){throw 'R321_TYPED_PINNED_MAIN_PROOF_FAILED'}
+             @($r.Checks).Count -ne 14){throw 'R321_TYPED_PINNED_MAIN_PROOF_FAILED'}
           'R321_PINNED_IMMUTABLE_MAIN_HANDLE_BOUNDED=PASS_NOT_SECURITY_FINAL'
       - name: Preserve bounded guest evidence
         if: always()
