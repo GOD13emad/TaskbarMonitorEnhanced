@@ -66,6 +66,11 @@ jobs:
         shell: pwsh
         run: ./build/Build.ps1
 
+      - name: R322 embedded backend ZIP archive/hostile entries (native .NET Framework)
+        shell: pwsh
+        run: |
+          & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File ./build/Test-BackendZip-R322.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R322 backend ZIP / PE-resource hostile-archive regression failed.' }
       - name: Verify deterministic clean-clone build
         shell: pwsh
         run: ./build/Verify-Determinism.ps1

@@ -142,6 +142,55 @@ internal static partial class SetupProgram
             input.CopyTo(output);
     }
 
+    // R322: consume only the PE-embedded ZIP stream, never a replaceable Temp ZIP.
+    // Validate the complete archive before modifying the existing user backend.
+    static void ExtractBackendFromArchive(Stream zipStream,string backendRoot)
+    {
+        if(zipStream==null || !zipStream.CanRead || !zipStream.CanSeek ||
+           zipStream.Length>10L*1024*1024)
+            throw new InvalidDataException("SENSOR_BACKEND_ARCHIVE_UNREADABLE");
+        using(ZipArchive archive=new ZipArchive(zipStream,ZipArchiveMode.Read,true))
+        {
+            HashSet<string> seen=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string root=Path.GetFullPath(backendRoot).TrimEnd(Path.DirectorySeparatorChar);
+            string prefix=root+Path.DirectorySeparatorChar;
+            long total=0;
+            foreach(ZipArchiveEntry entry in archive.Entries)
+            {
+                string name=entry.FullName;
+                if(String.IsNullOrEmpty(name) || name.StartsWith("/",StringComparison.Ordinal) ||
+                   name.EndsWith("/",StringComparison.Ordinal) || name.IndexOf('\\')>=0 ||
+                   name.IndexOf(':')>=0)
+                    throw new InvalidDataException("SENSOR_BACKEND_ARCHIVE_PATH_REFUSED");
+                foreach(string segment in name.Split('/'))
+                    if(String.IsNullOrEmpty(segment) || segment=="." || segment==".." ||
+                       segment.EndsWith(".",StringComparison.Ordinal) ||
+                       segment.EndsWith(" ",StringComparison.Ordinal) ||
+                       segment.IndexOfAny(Path.GetInvalidFileNameChars())>=0)
+                        throw new InvalidDataException("SENSOR_BACKEND_ARCHIVE_PATH_REFUSED");
+                string target=Path.GetFullPath(Path.Combine(root,
+                    name.Replace('/',Path.DirectorySeparatorChar)));
+                if(!target.StartsWith(prefix,StringComparison.OrdinalIgnoreCase) ||
+                   !seen.Add(name))
+                    throw new InvalidDataException("SENSOR_BACKEND_ARCHIVE_PATH_OR_DUPLICATE");
+                int unixType=(entry.ExternalAttributes>>16)&0xF000;
+                int winFlags=(entry.ExternalAttributes>>16)&(int)FileAttributes.ReparsePoint;
+                if(unixType==0xA000 || winFlags!=0)
+                    throw new InvalidDataException("SENSOR_BACKEND_ARCHIVE_LINK_REFUSED");
+                if(entry.Length<0 || entry.Length>8L*1024*1024 ||
+                   total+entry.Length>12203773L)
+                    throw new InvalidDataException("SENSOR_BACKEND_ARCHIVE_SIZE_REFUSED");
+                total+=entry.Length;
+            }
+            if(archive.Entries.Count!=43 || seen.Count!=43 || total!=12203773L)
+                throw new InvalidDataException("SENSOR_BACKEND_ARCHIVE_PIN_MISMATCH");
+            CheckRootAncestorsNoReparse(root);
+            if(Directory.Exists(root))Directory.Delete(root,true);
+            Directory.CreateDirectory(root);
+            archive.ExtractToDirectory(root);
+        }
+    }
+
     static void StopProcess(string name)
     {
         try{
@@ -716,12 +765,8 @@ internal static partial class SetupProgram
             Extract("Payload."+doc,Path.Combine(AppRoot,"Docs",doc));
 
         string backendRoot=Path.Combine(AppRoot,"SensorBackend","LibreHardwareMonitor-0.9.6");
-        if(Directory.Exists(backendRoot))Directory.Delete(backendRoot,true);
-        Directory.CreateDirectory(backendRoot);
-        string lhmZip=Path.Combine(Path.GetTempPath(),"tbme_lhm_"+Guid.NewGuid().ToString("N")+".zip");
-        Extract("Payload.LibreHardwareMonitor.zip",lhmZip);
-        ZipFile.ExtractToDirectory(lhmZip,backendRoot);
-        try{File.Delete(lhmZip);}catch{}
+        using(Stream backendZip=Resource("Payload.LibreHardwareMonitor.zip"))
+            ExtractBackendFromArchive(backendZip,backendRoot);
         WriteBackendState(backendRoot);
 
         SensorOutcome sensorOutcome;
