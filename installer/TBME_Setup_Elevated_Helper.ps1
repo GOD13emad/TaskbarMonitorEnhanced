@@ -1084,6 +1084,47 @@ function Restore-SensorJournalPriorLayerAndTask(
     }
 }
 
+# R315: verified cold replay is now callable from the trusted PE entrypoint
+# before new protected sensor install/uninstall mutation. The operation stays
+# fail-closed on another account, foreign global task, invalid journal or
+# path/reparse ambiguity; no automatic destructive retry from user Temp.
+function Resume-SensorPendingJournal(
+    [string]$Journal,[string]$Sid,[string]$BrokerRoot,
+    [string]$AppRoot,[string]$OwnedTaskName
+){
+    $effective=[Security.Principal.WindowsIdentity]::GetCurrent()
+    if($null -eq $effective -or $null -eq $effective.User -or
+       -not [string]::Equals([string]$effective.User.Value,$Sid,[StringComparison]::OrdinalIgnoreCase)){
+        throw 'SENSOR_COLD_ENTRYPOINT_EFFECTIVE_TOKEN_SID_MISMATCH'
+    }
+    Assert-SensorBoundaryNoReparse $Journal
+    Assert-SensorBoundaryNoReparse ($Journal+'-retired')
+    if(-not [IO.Directory]::Exists($Journal)){
+        # Only a fully terminal, trusted retired stage may be removed.
+        Resume-SensorCompletedJournal $Journal $Sid
+        return 'NONE_OR_TERMINAL_COMPLETED'
+    }
+    $phase=Get-SensorJournalTerminal $Journal $Sid
+    if($phase -ne 'PREPARED'){
+        Resume-SensorCompletedJournal $Journal $Sid
+        return 'TERMINAL_COMPLETED'
+    }
+    $parent=[IO.Path]::GetDirectoryName($Journal)
+    Assert-SensorJournalTrustedAcl $parent $false
+    Assert-SensorBoundaryNoReparse $BrokerRoot
+    if([IO.Directory]::Exists($BrokerRoot)){
+        Assert-SensorJournalTrustedAcl $BrokerRoot $false
+    }
+    # The R314 replay function validates every saved file and the prior XML,
+    # refuses alternate task actions/principal, restores old bytes, confirms
+    # real Scheduler state, publishes ROLLED_BACK and retires known files.
+    Restore-SensorJournalPriorLayerAndTask $Journal $Sid $BrokerRoot $AppRoot $OwnedTaskName
+    if([IO.Directory]::Exists($Journal) -or [IO.Directory]::Exists($Journal+'-retired')){
+        throw 'SENSOR_COLD_ENTRYPOINT_RESIDUAL_JOURNAL'
+    }
+    return 'PREVIOUS_LAYER_RESTORED'
+}
+
 function Capture-PreviousSensorLayer {
     try{
         Clear-SensorRollbackBuffer
@@ -1200,15 +1241,21 @@ try{
 }
 # R264-SENSOR-GUARD-BOUNDARY-END
 
-# R311: before protected changes finish only already-terminal,
-# same-owner, SHA-validated journals. PREPARED remains fail-closed until
-# actual prior task/file cold recovery is independently proven.
+# R315: BEFORE new install/uninstall mutations, restore an interrupted
+# PREPARED previous protected layer only under exact same-account proof.
+# The old saved task/files are independently authenticated before replay.
 try{
-    Resume-SensorCompletedJournal $SensorJournalRoot $validatedSensorSid
+    $resumeResult=Resume-SensorPendingJournal $SensorJournalRoot $validatedSensorSid $BrokerRoot $AppRoot $TaskName
+    if($resumeResult -ceq 'PREVIOUS_LAYER_RESTORED'){
+        $script:ActiveArchitecture='PREVIOUS_PROTECTED_SENSOR_LAYER_RESTORED'
+        Write-Log 'R315_PRIOR_PROTECTED_SENSOR_COLD_RECOVERY_COMPLETE'
+        Write-Result 'DEGRADED_PREVIOUS_LAYER_RESTORED' 'The interrupted protected sensor update was rolled back to the previous verified owner task and exact prior binaries. The per-user application remains available; run Repair sensors again for a new update.' 'NOT_STARTED' $null $false $false $false
+        exit 0
+    }
 }catch{
     $script:ActiveArchitecture='PROTECTED_JOURNAL_RECOVERY_REQUIRED'
-    Write-Log ('R311_PENDING_PROTECTED_JOURNAL_NO_MUTATION '+$_.Exception.Message)
-    Write-Result 'DEGRADED_ROLLBACK_RECOVERY_REQUIRED' 'A protected sensor update journal is not safely terminal, and must be recovered under its verified owner account. No new protected sensor mutation was started.' 'NOT_STARTED' $null $false $false $false
+    Write-Log ('R315_PENDING_PROTECTED_JOURNAL_COLD_RESTORE_NOT_COMPLETE '+$_.Exception.Message)
+    Write-Result 'DEGRADED_ROLLBACK_RECOVERY_REQUIRED' 'Protected sensor recovery could not be fully verified; the prior journal was retained, and no subsequent new protected installation was started. A verified same-owner recovery is required.' 'NOT_STARTED' $null $false $false $false
     exit 0
 }
 
