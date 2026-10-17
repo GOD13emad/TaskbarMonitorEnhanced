@@ -6,7 +6,7 @@ https://github.com/GOD13emad/TaskbarMonitorEnhanced
 
 ## Owner-authorized unsigned distribution
 
-The owner explicitly accepted official unsigned distribution. The current release channel has no claimed SignPath or other public-trust publisher signature. Check the actual installer signature and versioned hashes on [the official latest Release](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/latest). `NotSigned` is disclosed rather than treated as a trusted signature. Previously published 1.7.0 and 1.7.1 remain immutable unsigned historical releases.
+The owner explicitly accepted official unsigned distribution. The current release channel has no claimed SignPath or other public-trust publisher signature. Check the actual installer signature and versioned hashes on [the official latest Release](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/latest). `NotSigned` is disclosed rather than treated as a trusted signature. Previous releases through the independently observed **v1.7.8** remain immutable, including their owner-accepted unsigned installers.
 
 Any future trusted signing must use a new independently versioned release. Hash verification and GitHub artifact attestations establish file provenance, not antivirus clearance or publisher Authenticode signing.
 
@@ -26,7 +26,7 @@ The following exact wording is required by the SignPath Foundation code-signing 
 
 The open-source maintainer, reviewers and signing approver are identified in the **Team roles** section below; project privacy and user-controlled network activity are documented in [PRIVACY.md](PRIVACY.md). See the [SignPath Foundation code of conduct](https://signpath.org/terms.html). Public-trust signing additionally requires identical project/product-version metadata for artifacts submitted together, verified GitHub-hosted source-build origin, and explicit approval for each production signing request. Untrusted self-signed development certificates must never be used as public-publisher proof.
 
-The v1.6.0 release line is treated as unsigned unless its exact artifact carries an independently verifiable Authenticode signature from a publicly trusted provider. Release evidence records `PublicTrust=UNSIGNED_PENDING_EXTERNAL_PROVIDER`; Windows may show **Unknown publisher**. Repository-side readiness is not provider acceptance or a trusted signature.
+Historical release lines, including v1.6.0 and the public v1.7.8 installer, are treated as unsigned unless their **exact** artifact has an independently verifiable Authenticode signature from a publicly trusted provider. Release evidence records `PublicTrust=UNSIGNED_PENDING_EXTERNAL_PROVIDER`; Windows may show **Unknown publisher**. Repository-side readiness is not provider acceptance or a trusted signature.
 
 ## Official release artifacts
 
@@ -70,6 +70,19 @@ The application does not upload monitoring telemetry, configuration data, or per
 Signed status is only one release gate. Users and maintainers must also verify the release tag and commit, published SHA-256 values, SBOM and provenance evidence, and runtime acceptance for the same release identity.
 
 Until a qualified trusted signing provider actually signs a separately versioned release, public-trust signing remains **UNAVAILABLE / NOT APPROVED** even when repository-side release gates pass.
+
+## Provider eligibility checkpoints (17 October 2026)
+
+The latest independently observed public release is **v1.7.8**. Its release channel contains an explicit owner-accepted unsigned-installation evidence record. The release manifest, SHA-256 values, SPDX SBOM and source archive support file/source verification; **none of these makes its existing Windows installer Authenticode-signed**. No historical release bytes will be replaced under an existing tag.
+
+- **SignPath Foundation:** an earlier application was declined. The repository already offers an OSI-approved GPL-3.0 license, a versioned public Windows installer, a source archive, an SPDX SBOM, and independent GitHub provenance/testing evidence. It also documents upstream attribution and explicitly excludes the separately licensed protected PawnIO binary from the project OSS installer. This technical preparation does not resolve the Foundation's independent **public reputation/adoption** criterion. No acceptance or issue of a SignPath Foundation signing credential exists; a new provider review would be required.
+- **Certum Open Source Code Signing:** a different potential issuer route for individual, genuinely noncommercial open-source distribution. This is **not** a universal certificate for proprietary, commercially distributed or unrelated projects. Certificate issuance requires identity and project verification. Certum's SimplySign cloud listing currently says `out of stock`; lawful issuance to an applicant genuinely resident in Iran, SimplySign activation there, payment availability and the certificate's exact permitted scope **have not been confirmed**. Do not order or upload identity documents before receiving a binding eligibility/fulfillment response.
+- **Commercial Standard certificate:** a lawfully issued public-trust certificate could potentially sign multiple of the individual's first-party applications within its licensed scope. Provider-specific Iranian-residency compliance, identity, sanctions/export, custody, price and device/cloud availability remain unresolved.
+- **Microsoft Store MSIX:** Store signing is limited to an app accepted into that distribution model. It does not sign or convert existing EXE installers, and legal/account eligibility for the actual applicant's country requires independent confirmation.
+
+For a future newly versioned, genuinely approved release, stage the exact first-party artifacts and verify Windows Authenticode publisher/chain, timestamp, filenames and post-sign hashes independently. Never sign embedded third-party components as though they were original project binaries. Do not treat GitHub/Sigstore provenance, SHA-256 hashes or development self-signed certificates as publicly trusted Authenticode.
+
+Primary requirements: [SignPath Foundation terms](https://signpath.org/terms.html), [Certum Open Source product](https://shop.certum.eu/open-source-code-signing-on-simplysign.html), [Certum certificate verification](https://support.certum.eu/en/code-signing-required-documents/) and [Microsoft Windows signing options](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/code-signing-options).
 
 ## Security reporting
 
