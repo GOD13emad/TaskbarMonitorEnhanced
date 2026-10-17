@@ -562,6 +562,38 @@ jobs:
              throw 'R306_GUEST_INSTALLED_MAIN_CHANGED'
           }
           'R306_SYNTHETIC_JOURNAL_ACTUAL_WORKER_KILL_PASS_NOT_PRODUCTION_ACCEPTANCE'
+      - name: R307 verify owner-protected durable journal DACL with hostile Windows paths
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $test=(Resolve-Path build/Test-R307-ProtectedJournalAcl-Native.ps1).Path
+          $t=$null;$e=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($test,[ref]$t,[ref]$e)
+          if(@($e).Count){$e|ForEach-Object {$_.Message};throw 'R307_WINDOWS_PS51_TEST_PARSE_FAILED'}
+          $old=Join-Path $env:RUNNER_TEMP ('R306_${{ matrix.host }}_'+$env:GITHUB_RUN_ID+'/R306_ROLLBACK_MODEL_RECEIPT.json')
+          $prior=Get-Content -LiteralPath $old -Raw|ConvertFrom-Json
+          if($prior.Commit -cne $env:GITHUB_SHA -or
+             $prior.Status -cne 'PASS_SYNTHETIC_DURABLE_SNAPSHOT_KILL_RESTORE_AND_TAMPER_REFUSAL' -or
+             $prior.ActualProofWorkerKilled -ne $true){throw 'R307_PRIOR_MODEL_EVIDENCE_NOT_EXACT'}
+          $main=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced/TaskbarMonitorEnhanced.exe'
+          $before=(Get-FileHash -LiteralPath $main -Algorithm SHA256).Hash
+          ./build/Test-R307-ProtectedJournalAcl-Native.ps1 -HostLabel '${{ matrix.host }}'
+          $path=Join-Path $env:RUNNER_TEMP ('R307_${{ matrix.host }}_'+$env:GITHUB_RUN_ID+'/R307_PROTECTED_JOURNAL_ACL_RECEIPT.json')
+          if(!(Test-Path -LiteralPath $path)){throw 'R307_TYPED_NATIVE_RECEIPT_MISSING'}
+          $r=Get-Content -LiteralPath $path -Raw|ConvertFrom-Json
+          if($r.Schema -ne 1 -or $r.Revision -cne 'R307-PROTOTYPE' -or
+             $r.Status -cne 'PASS_PROTECTED_JOURNAL_ACL_TRUST_BOUNDARY_SYNTHETIC' -or
+             $r.SourceCommit -cne $env:GITHUB_SHA -or $r.Host -cne '${{ matrix.host }}' -or
+             $r.OwnerComputerTouched -ne $false -or $r.ActualProtectedSensorTaskTouched -ne $false -or
+             $r.RealProgramFilesWritten -ne $false -or $r.ExplicitProtectedDaclCreated -ne $true -or
+             $r.OwnerTrustedAdministrators -ne $true -or $r.SystemAdminAccessVerified -ne $true -or
+             $r.UserWritableRootRejected -ne $true -or $r.NativeJunctionRejected -ne $true -or
+             $r.FlushedManifestHashMatched -ne $true -or $r.OutsideCanaryPreserved -ne $true -or
+             @($r.Checks).Count -ne 6){throw 'R307_NATIVE_ACL_PROOF_NOT_ACCEPTED'}
+          if((Get-FileHash -LiteralPath $main -Algorithm SHA256).Hash -cne $before){
+             throw 'R307_INSTALLED_DISPOSABLE_GUEST_MAIN_CHANGED'
+          }
+          'R307_SYNTHETIC_PROTECTED_JOURNAL_ACL_PASS_NOT_PRODUCTION_RECOVERY'
       - name: Preserve bounded guest evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -588,3 +620,4 @@ jobs:
             ${{ runner.temp }}/R304_${{ matrix.host }}_${{ github.run_id }}/R304_LONG_POWERSHELL_TRANSPORT_RECEIPT.json
             ${{ runner.temp }}/R305_${{ matrix.host }}_${{ github.run_id }}/R305_ELEVATED_TOKEN_SID_RECEIPT.json
             ${{ runner.temp }}/R306_${{ matrix.host }}_${{ github.run_id }}/R306_ROLLBACK_MODEL_RECEIPT.json
+            ${{ runner.temp }}/R307_${{ matrix.host }}_${{ github.run_id }}/R307_PROTECTED_JOURNAL_ACL_RECEIPT.json
