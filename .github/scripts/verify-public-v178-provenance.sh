@@ -53,3 +53,51 @@ echo "PUBLIC_V178_INSTALLER_SHA256_PASS"
   --deny-self-hosted-runners \
   --predicate-type 'https://slsa.dev/provenance/v1'
 echo "PUBLIC_V178_EXACT_SLSA_PROVENANCE_VERIFIED"
+
+# A broken trust-root or API connection must never be misclassified as a
+# successful tamper test. Only the exact changed-subject 404 is accepted.
+tampered="$work/TaskbarMonitorEnhanced_Setup_1.7.8.tampered.exe"
+cp -- "$installer" "$tampered"
+printf '\x7f' >> "$tampered"
+tampered_sha="$(sha256sum "$tampered" | awk '{print $1}')"
+[[ "$tampered_sha" != "$installer_sha" ]] || { echo 'TAMPER_DIGEST_NOT_CHANGED' >&2; exit 1; }
+if "$gh_binary" attestation verify "$tampered" \
+    --repo 'GOD13emad/TaskbarMonitorEnhanced' \
+    --signer-workflow "$signer" \
+    --source-ref refs/heads/main \
+    --source-digest "$source_sha" \
+    --deny-self-hosted-runners \
+    --predicate-type 'https://slsa.dev/provenance/v1' \
+    > "$work/tamper.log" 2>&1; then
+  echo 'CRITICAL_TAMPERED_SUBJECT_ACCEPTED' >&2
+  exit 1
+fi
+if ! grep -Fq 'HTTP 404: Not Found' "$work/tamper.log" ||
+   ! grep -Fq "/attestations/sha256:$tampered_sha" "$work/tamper.log"; then
+  echo 'INCONCLUSIVE_TAMPER_REJECTION' >&2
+  tail -n 10 "$work/tamper.log" >&2
+  exit 1
+fi
+echo "PUBLIC_V178_TAMPERED_INSTALLER_REJECTED"
+
+# Valid bytes with an explicitly wrong source commit must also be rejected.
+wrong_source_sha='0000000000000000000000000000000000000000'
+[[ "$wrong_source_sha" != "$source_sha" ]] || exit 1
+if "$gh_binary" attestation verify "$installer" \
+    --repo 'GOD13emad/TaskbarMonitorEnhanced' \
+    --signer-workflow "$signer" \
+    --source-ref refs/heads/main \
+    --source-digest "$wrong_source_sha" \
+    --deny-self-hosted-runners \
+    --predicate-type 'https://slsa.dev/provenance/v1' \
+    > "$work/wrong-source.log" 2>&1; then
+  echo 'CRITICAL_WRONG_SOURCE_SHA_ACCEPTED' >&2
+  exit 1
+fi
+if ! grep -Fq "expected SourceRepositoryDigest to be $wrong_source_sha, got $source_sha" "$work/wrong-source.log"; then
+  echo 'INCONCLUSIVE_SOURCE_DIGEST_REJECTION' >&2
+  tail -n 10 "$work/wrong-source.log" >&2
+  exit 1
+fi
+echo "PUBLIC_V178_WRONG_SOURCE_COMMIT_REJECTED"
+echo "PUBLIC_V178_NEGATIVE_GATES_PASS"
