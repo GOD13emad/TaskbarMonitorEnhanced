@@ -34,6 +34,9 @@ internal static partial class SetupProgram
     const string AppFolder="TaskbarMonitorEnhanced";
     const string UninstallKey=@"Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced";
     const int CompatibleSensorStateFreshSeconds=15;
+    // SHA-256 from build/dependencies.lock.json. Unlike a digest derived from
+    // the same unsigned PE at runtime, this rejects corrupted embedded ZIP bytes.
+    const string PinnedBackendZipSHA256="086D9F1B5A99E643EDC2CFAAAC16051685B551E4C5AC0B32A57C58C0E529C001";
 
     static readonly string[] RequiredResources=new string[] {
       "Payload.TaskbarMonitorEnhanced.exe",
@@ -184,6 +187,19 @@ internal static partial class SetupProgram
             }
             if(archive.Entries.Count!=43 || seen.Count!=43 || total!=12203773L)
                 throw new InvalidDataException("SENSOR_BACKEND_ARCHIVE_PIN_MISMATCH");
+
+            // R324: .NET Framework ZIP extraction does not authenticate the
+            // stored CRC or decompressed bytes. Reject any archive whose exact
+            // compressed bytes differ from the pinned dependency BEFORE
+            // deleting the previous per-user backend.
+            zipStream.Position=0;
+            using(SHA256 sha=SHA256.Create())
+            {
+                string actual=BitConverter.ToString(sha.ComputeHash(zipStream)).Replace("-","");
+                if(!String.Equals(actual,PinnedBackendZipSHA256,StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("SENSOR_BACKEND_ARCHIVE_SHA_REFUSED");
+            }
+            zipStream.Position=0;
             CheckRootAncestorsNoReparse(root);
             if(Directory.Exists(root))Directory.Delete(root,true);
             Directory.CreateDirectory(root);

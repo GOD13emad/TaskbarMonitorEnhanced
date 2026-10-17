@@ -81,6 +81,11 @@ jobs:
         run: |
           & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File ./build/Test-ShortcutCreation-R324.ps1
           if ($LASTEXITCODE -ne 0) { throw 'R324 shortcut ownership-before-Save regression failed.' }
+      - name: R324 SHA-pinned ZIP integrity preflight before backend mutation (native)
+        shell: pwsh
+        run: |
+          & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File ./build/Test-BackendArchiveHash-R324.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R324 archive SHA integrity and old backend preservation regression failed.' }
       - name: Verify deterministic clean-clone build
         shell: pwsh
         run: ./build/Verify-Determinism.ps1
