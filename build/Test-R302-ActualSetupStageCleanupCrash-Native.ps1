@@ -103,6 +103,16 @@ public static class R320SuspendedSetupLauncher {
  private static extern bool TerminateProcess(IntPtr process,uint exit);
  [DllImport("kernel32.dll",SetLastError=true)]
  private static extern bool CloseHandle(IntPtr handle);
+ [DllImport("kernel32.dll",SetLastError=true)]
+ private static extern bool GetExitCodeProcess(IntPtr handle,out uint exitCode);
+ public static bool NonzeroNativeExitCode(Process process) {
+   if(process==null || !process.HasExited)
+      throw new InvalidOperationException("R320_NATIVE_EXIT_QUERY_BEFORE_TERMINATION");
+   uint exit;
+   if(!GetExitCodeProcess(process.Handle,out exit))
+      throw new Win32Exception(Marshal.GetLastWin32Error(),"R320_NATIVE_EXITCODE_QUERY_FAILED");
+   return exit!=0 && exit!=259; // STILL_ACTIVE and success are not kill witnesses
+ }
  public static Process StartOriginalSuspended(string setup,string args,string directory,R302RealSetupDeleteWatcher watcher){
    if(watcher==null || String.IsNullOrWhiteSpace(setup) ||
       !Path.IsPathRooted(setup) || !File.Exists(setup) ||
@@ -122,6 +132,10 @@ public static class R320SuspendedSetupLauncher {
    bool resumed=false;Process child=null;
    try{
      child=Process.GetProcessById(checked((int)pi.dwProcessId));
+     // Materialize and retain the actual native handle before resuming, so
+     // GetExitCodeProcess remains usable after this short-lived process dies.
+     if(child.Handle==IntPtr.Zero)
+        throw new InvalidOperationException("R320_PROCESS_HANDLE_NOT_PINNED");
      watcher.Bind(child); // guaranteed before the suspended primary thread runs
      uint previous=ResumeThread(pi.hThread);
      if(previous!=1)throw new Win32Exception(Marshal.GetLastWin32Error(),"R320_ORIGINAL_SETUP_RESUME_FAILED");
@@ -179,7 +193,7 @@ public sealed class R302RealSetupDeleteWatcher : IDisposable {
       process.Refresh();
       if(process.HasExited) throw new Exception("SETUP_ALREADY_EXITED");
       process.Kill();
-      Killed=process.WaitForExit(10000) && process.HasExited && process.ExitCode!=0;
+      Killed=process.WaitForExit(10000) && process.HasExited && R320SuspendedSetupLauncher.NonzeroNativeExitCode(process);
       if(!Killed) Failure="SETUP_KILL_NOT_CONFIRMED";
     }catch(Exception error){Failure=error.GetType().Name+":"+error.Message;}
     finally{TerminatedEvent.Set();}
@@ -267,7 +281,7 @@ try {
      $watcher.Failure+' events='+$watcher.Notifications+
      ' setupExited='+$native.HasExited)
  }
- if(!$native.HasExited -or $native.ExitCode -eq 0){
+ if(!$native.HasExited -or -not [R320SuspendedSetupLauncher]::NonzeroNativeExitCode($native)){
   throw 'R302_ACTUAL_SETUP_PID_TERMINATION_NOT_PROVEN'
  }
  $checks.Add('REAL_ORIGINAL_SETUP_PID_KILLED_BY_NATIVE_FILE_DELETION_EVENT')
