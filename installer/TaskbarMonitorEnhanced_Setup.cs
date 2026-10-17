@@ -113,13 +113,34 @@ internal static partial class SetupProgram
         return Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
     }
 
+    // R295: compact only transport text, not the readable embedded .ps1 source.
+    // Refuse here-strings and continuation tokens that need verbatim whitespace.
+    static string CompactTrustedHelperSource(string source)
+    {
+        if(String.IsNullOrWhiteSpace(source) ||
+           source.IndexOf("@'",StringComparison.Ordinal)>=0 ||
+           source.IndexOf("@\"",StringComparison.Ordinal)>=0)
+            throw new InvalidDataException("Trusted sensor helper contains unsupported multiline text.");
+        StringBuilder compact=new StringBuilder();
+        foreach(string raw in source.Replace("\r\n","\n").Split('\n'))
+        {
+            string line=raw.Trim();
+            if(line.Length==0 || line.StartsWith("#",StringComparison.Ordinal))continue;
+            if(line.EndsWith("`",StringComparison.Ordinal))
+                throw new InvalidDataException("Trusted sensor helper cannot compact continuation lines.");
+            compact.Append(line).Append('\n');
+        }
+        return compact.ToString();
+    }
+
     static string BuildElevatedHelperCommand(string mode,string payload,string appRoot,string user)
     {
         if(mode!="Install" && mode!="Uninstall")
             throw new InvalidDataException("Unexpected elevated sensor mode.");
         string brokerHash=Sha256Resource("Payload.TaskbarMonitorSensorBroker.exe");
         string supervisorHash=Sha256Resource("Payload.TaskbarMonitorSensorSupervisor.exe");
-        if(brokerHash.Length!=64 || supervisorHash.Length!=64)
+        string backendZipHash=Sha256Resource("Payload.LibreHardwareMonitor.zip");
+        if(brokerHash.Length!=64 || supervisorHash.Length!=64 || backendZipHash.Length!=64)
             throw new InvalidDataException("Protected sensor resource hash unavailable.");
         string packed;
         using(Stream resource=Resource("Payload.TBME_Setup_Elevated_Helper.ps1"))
@@ -127,7 +148,7 @@ internal static partial class SetupProgram
             if(resource==null)throw new InvalidDataException("Trusted embedded sensor helper missing.");
             using(StreamReader reader=new StreamReader(resource,Encoding.UTF8,true))
             {
-                string source=reader.ReadToEnd();
+                string source=CompactTrustedHelperSource(reader.ReadToEnd());
                 byte[] textBytes=Encoding.UTF8.GetBytes(source);
                 if(textBytes.Length<1000 || textBytes.Length>120000)
                     throw new InvalidDataException("Unexpected sensor helper source size.");
@@ -151,7 +172,7 @@ internal static partial class SetupProgram
           "$payload=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(payload)+"'))\n"+
           "$app=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(appRoot)+"'))\n"+
           "$user=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(user)+"'))\n"+
-          "& ([ScriptBlock]::Create($code)) -Mode '"+mode+"' -PayloadDir $payload -AppRoot $app -UserId $user -ExpectedBrokerSHA256 '"+brokerHash+"' -ExpectedSupervisorSHA256 '"+supervisorHash+"'\n";
+          "& ([ScriptBlock]::Create($code)) -Mode '"+mode+"' -PayloadDir $payload -AppRoot $app -UserId $user -ExpectedBrokerSHA256 '"+brokerHash+"' -ExpectedSupervisorSHA256 '"+supervisorHash+"' -ExpectedBackendZipSHA256 '"+backendZipHash+"'\n";
         string encoded=Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
         // Windows CreateProcess has a 32,767-character maximum; leave margin.
         // Fail closed instead of falling back to unsafe -File or user-writable scripts.
@@ -312,6 +333,9 @@ internal static partial class SetupProgram
         Directory.CreateDirectory(payload);
         Extract("Payload.TaskbarMonitorSensorBroker.exe",Path.Combine(payload,"TaskbarMonitorSensorBroker.exe"));
         Extract("Payload.TaskbarMonitorSensorSupervisor.exe",Path.Combine(payload,"TaskbarMonitorSensorSupervisor.exe"));
+        // This user-writable staging file is bound to the PE embedded ZIP hash
+        // before any elevated service changes; it is deleted with this payload.
+        Extract("Payload.LibreHardwareMonitor.zip",Path.Combine(payload,"LibreHardwareMonitor.zip"));
         // The official PawnIO binary is separately licensed. Public OSS Setup never embeds it.
         // A previously installed PawnIO 2.2.0 may be reused; otherwise the sensor helper degrades
         // safely and offers upstream manual installation, without silent driver downloads.

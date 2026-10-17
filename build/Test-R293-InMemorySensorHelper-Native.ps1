@@ -84,12 +84,15 @@ try{
     if(!$resource){throw 'R293_MISSING_SETUP_RESOURCE'}
     $textReader=[IO.StreamReader]::new($resource,[Text.Encoding]::UTF8)
     try{$source=$textReader.ReadToEnd()}finally{$textReader.Dispose()}
-    $crlf=[string][char]13+[string][char]10
-    $lf=[string][char]10
-    if($code.Replace($crlf,$lf).TrimEnd() -cne $source.Replace($crlf,$lf).TrimEnd()){
-        throw 'R293_PACKED_SOURCE_DIFFERS_FROM_SETUP_RESOURCE'
+    # R295 transports a comment/indentation-compacted representation of the
+    # exact source PE resource, not an independently writable source file.
+    $compactor=$type.GetMethod('CompactTrustedHelperSource',[Reflection.BindingFlags]'NonPublic,Static')
+    if(!$compactor){throw 'R295_TRUSTED_SOURCE_COMPACTOR_MISSING'}
+    $expected=[string]$compactor.Invoke($null,([object[]]@([string]$source)))
+    if($code -cne $expected){
+        throw 'R295_PACKED_SOURCE_DIFFERS_FROM_COMPACTED_SETUP_RESOURCE'
     }
-    $checks.Add('DECOMPRESSED_RESOURCE_EXACT_TO_SETUP')
+    $checks.Add('DECOMPRESSED_RESOURCE_EXACT_TO_COMPACTED_SETUP')
     if(@($script|Select-String -Pattern ([regex]::Escape($args4[2]))).Count){
         throw 'R293_UNTRUSTED_PATH_EMBEDDED_AS_RAW_SCRIPT_LITERAL'
     }

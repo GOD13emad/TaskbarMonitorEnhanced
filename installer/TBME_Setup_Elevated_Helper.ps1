@@ -4,7 +4,8 @@ param(
     [Parameter(Mandatory=$true)][string]$AppRoot,
     [Parameter(Mandatory=$true)][string]$UserId,
     [string]$ExpectedBrokerSHA256='',
-    [string]$ExpectedSupervisorSHA256=''
+    [string]$ExpectedSupervisorSHA256='',
+    [string]$ExpectedBackendZipSHA256=''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -329,6 +330,58 @@ function Get-VerifiedSensorPayloadBytes([string]$File,[string]$Expected,[long]$M
     }finally{$stream.Dispose()}
 }
 
+# R295: only the PE-pinned, single-read ZIP buffer supplies protected dependency bytes.
+function Get-VerifiedSensorBackendEntries([string]$ZipFile,[string]$ExpectedZipSHA256){
+    $bytes=Get-VerifiedSensorPayloadBytes $ZipFile $ExpectedZipSHA256 16777216
+    Add-Type -AssemblyName System.IO.Compression
+    $mem=[IO.MemoryStream]::new([byte[]]$bytes)
+    $archive=[IO.Compression.ZipArchive]::new($mem,[IO.Compression.ZipArchiveMode]::Read,$false)
+    $names=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $result=[Collections.Generic.List[object]]::new()
+    [long]$sum=0
+    try{
+        if($archive.Entries.Count -ne 43){throw 'SENSOR_BACKEND_ZIP_ENTRY_COUNT'}
+        foreach($entry in $archive.Entries){
+            $name=[string]$entry.FullName
+            if([string]::IsNullOrWhiteSpace($name) -or $name.Contains('\') -or
+               $name.Contains(':') -or $name.StartsWith('/') -or
+               [IO.Path]::IsPathRooted($name)){throw 'SENSOR_BACKEND_ZIP_UNSAFE_ENTRY'}
+            $parts=@($name.Split('/'))
+            foreach($part in $parts){
+                if($part -ceq '.' -or $part -ceq '..' -or
+                   $part.EndsWith('.') -or $part.EndsWith(' ') -or
+                   $part -cnotmatch '^[A-Za-z0-9_.-]+$'){
+                    throw 'SENSOR_BACKEND_ZIP_UNSAFE_ENTRY'
+                }
+            }
+            if(-not $names.Add($name)){throw 'SENSOR_BACKEND_ZIP_DUPLICATE_ENTRY'}
+            $fileType=($entry.ExternalAttributes -shr 16) -band 0xF000
+            if($fileType -eq 0xA000){throw 'SENSOR_BACKEND_ZIP_LINK_REFUSED'}
+            if($entry.Length -le 0 -or $entry.Length -gt 8388608){
+                throw 'SENSOR_BACKEND_ZIP_FILE_SIZE'
+            }
+            $sum+=$entry.Length
+            if($sum -gt 33554432){throw 'SENSOR_BACKEND_ZIP_TOTAL_SIZE'}
+            $buffer=[byte[]]::new([int]$entry.Length)
+            $input=$entry.Open()
+            try{
+                $offset=0
+                while($offset -lt $buffer.Length){
+                    $read=$input.Read($buffer,$offset,$buffer.Length-$offset)
+                    if($read -le 0){throw 'SENSOR_BACKEND_ZIP_TRUNCATED_ENTRY'}
+                    $offset+=$read
+                }
+                if($input.ReadByte() -ne -1){throw 'SENSOR_BACKEND_ZIP_UNDECLARED_EXTRA_DATA'}
+            }finally{$input.Dispose()}
+            $result.Add([pscustomobject]@{Rel=$name;Bytes=$buffer})
+        }
+        if(-not $names.Contains('LibreHardwareMonitorLib.dll')){
+            throw 'SENSOR_BACKEND_ZIP_MISSING_LIBRARY'
+        }
+        return ,$result.ToArray()
+    }finally{$archive.Dispose();$mem.Dispose()}
+}
+
 $BrokerPayload=Join-Path $PayloadDir 'TaskbarMonitorSensorBroker.exe'
 $SupervisorPayload=Join-Path $PayloadDir 'TaskbarMonitorSensorSupervisor.exe'
 $PawnPayload=Join-Path $PayloadDir 'PawnIO_setup.exe'
@@ -372,6 +425,7 @@ if(-not $pawnAlreadyCompatible -and !(Test-Path -LiteralPath $PawnPayload -PathT
 try{
     $VerifiedBrokerBytes=Get-VerifiedSensorPayloadBytes $BrokerPayload $ExpectedBrokerSHA256 16777216
     $VerifiedSupervisorBytes=Get-VerifiedSensorPayloadBytes $SupervisorPayload $ExpectedSupervisorSHA256 16777216
+    $VerifiedBackendEntries=Get-VerifiedSensorBackendEntries (Join-Path $PayloadDir 'LibreHardwareMonitor.zip') $ExpectedBackendZipSHA256
 }catch{
     Write-Log ('SENSOR_PAYLOAD_PROVENANCE_REFUSED '+$_.Exception.Message)
     Write-Result 'DEGRADED' 'Protected sensor payload provenance not verified; prior service preserved.' 'NOT_STARTED' $null $false $false $false
@@ -444,12 +498,13 @@ try{
     [IO.File]::WriteAllBytes((Join-Path $BrokerRoot 'TaskbarMonitorSensorBroker.exe'),$VerifiedBrokerBytes)
     [IO.File]::WriteAllBytes((Join-Path $BrokerRoot 'TaskbarMonitorSensorSupervisor.exe'),$VerifiedSupervisorBytes)
 
-    Get-ChildItem -LiteralPath $BackendRoot -File -Recurse | ForEach-Object {
-        $relative=$_.FullName.Substring($BackendRoot.Length).TrimStart('\')
-        $destination=Join-Path $BrokerRoot $relative
+    foreach($verified in $VerifiedBackendEntries){
+        $destination=Join-Path $BrokerRoot ($verified.Rel.Replace('/','\'))
+        Assert-SensorBoundaryNoReparse $destination
         $parent=Split-Path -Parent $destination
         if($parent){New-Item -ItemType Directory -Force -Path $parent|Out-Null}
-        Copy-Item -LiteralPath $_.FullName -Destination $destination -Force
+        Assert-SensorBoundaryNoReparse $destination
+        [IO.File]::WriteAllBytes($destination,[byte[]]$verified.Bytes)
     }
 
     Import-Module ScheduledTasks
