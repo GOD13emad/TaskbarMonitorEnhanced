@@ -336,6 +336,19 @@ function Assert-SensorDurableJournal([string]$Root,[string]$ExpectedSid){
     $allowed=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach($n in @('READY','manifest.json','task.xml')){[void]$allowed.Add((Join-Path $Root $n))}
     [void]$allowed.Add((Join-Path $Root 'files'))
+    # R309 terminal markers are known members, but only a valid bounded
+    # marker and exact protected ownership may be accepted.
+    foreach($phase in @('COMMITTED','ROLLED_BACK')){
+        $p=Join-Path $Root ($phase+'.terminal')
+        if([IO.File]::Exists($p)){
+            Assert-SensorJournalTrustedAcl $p $false
+            if([IO.File]::ReadAllText($p,[Text.Encoding]::ASCII) -cne
+               ('TBME_SENSOR_'+$phase+'_V1')){
+                throw 'SENSOR_JOURNAL_UNKNOWN_TERMINAL_MARKER'
+            }
+            [void]$allowed.Add($p)
+        }
+    }
     $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     if(@($manifest.Files).Count -gt 128){throw 'SENSOR_JOURNAL_SNAPSHOT_COUNT_INVALID'}
     [long]$total=0
@@ -457,6 +470,179 @@ function New-SensorDurableJournal(
     Write-SensorJournalUnique $Root 'READY' ([Text.Encoding]::ASCII.GetBytes('TBME_SENSOR_READY_V1'))
     $verified=Assert-SensorDurableJournal $Root $Sid
     if($verified.Phase -cne 'PREPARED'){throw 'SENSOR_JOURNAL_READY_READBACK_FAILED'}
+}
+
+# R309: terminal state and byte-exact file replay are designed as replayable,
+# bounded operations. Scheduled Task XML restoration/actual protected UAC
+# recovery are separate acceptance gates; this file-only primitive must
+# never be interpreted as proof of task/service recovery.
+function Get-SensorJournalTerminal([string]$Root,[string]$Sid){
+    # R309: bind all phase/replay calls to the actual effective Windows
+    # token, not merely to a caller-provided or journal-stored SID.
+    $effective=[Security.Principal.WindowsIdentity]::GetCurrent()
+    if($null -eq $effective -or $null -eq $effective.User -or
+       -not [string]::Equals([string]$effective.User.Value,$Sid,[StringComparison]::OrdinalIgnoreCase)){
+        throw 'SENSOR_JOURNAL_EFFECTIVE_TOKEN_SID_MISMATCH'
+    }
+    [void](Assert-SensorDurableJournal $Root $Sid)
+    $found=''
+    foreach($phase in @('COMMITTED','ROLLED_BACK')){
+        $path=Join-Path $Root ($phase+'.terminal')
+        if(-not [IO.File]::Exists($path)){continue}
+        Assert-SensorJournalTrustedAcl $path $false
+        $expected='TBME_SENSOR_'+$phase+'_V1'
+        if([IO.File]::ReadAllText($path,[Text.Encoding]::ASCII) -cne $expected){
+            throw 'SENSOR_JOURNAL_UNTRUSTED_TERMINAL_MARKER'
+        }
+        if($found){throw 'SENSOR_JOURNAL_CONFLICTING_TERMINAL_PHASE'}
+        $found=$phase
+    }
+    if(!$found){return 'PREPARED'}
+    return $found
+}
+function Write-SensorJournalTerminal([string]$Root,[string]$Sid,[string]$Phase){
+    if($Phase -cne 'COMMITTED' -and $Phase -cne 'ROLLED_BACK'){
+        throw 'SENSOR_JOURNAL_TERMINAL_PHASE_NOT_ALLOWED'
+    }
+    $current=Get-SensorJournalTerminal $Root $Sid
+    if($current -ceq $Phase){return}
+    if($current -cne 'PREPARED'){throw 'SENSOR_JOURNAL_TERMINAL_CONFLICT'}
+    $target=Join-Path $Root ($Phase+'.terminal')
+    $bytes=[Text.Encoding]::ASCII.GetBytes('TBME_SENSOR_'+$Phase+'_V1')
+    Write-SensorJournalUnique $Root ($Phase+'.terminal') $bytes
+    if([IO.File]::ReadAllText($target,[Text.Encoding]::ASCII) -cne
+       ('TBME_SENSOR_'+$Phase+'_V1')){
+        throw 'SENSOR_JOURNAL_TERMINAL_DURABLE_READBACK'
+    }
+    if((Get-SensorJournalTerminal $Root $Sid) -cne $Phase){
+        throw 'SENSOR_JOURNAL_TERMINAL_STATE_READBACK'
+    }
+}
+function Restore-SensorJournalOldFilesOnly(
+    [string]$Root,[string]$Sid,[string]$LiveRoot
+){
+    $state=Get-SensorJournalTerminal $Root $Sid
+    if($state -cne 'PREPARED' -and $state -cne 'ROLLED_BACK'){
+        throw 'SENSOR_JOURNAL_REPLAY_REQUIRES_PREPARED_STATE'
+    }
+    $manifest=Assert-SensorDurableJournal $Root $Sid
+    # Cache and verify every snapshot and prior task XML BEFORE any live
+    # synthetic file changes. Never reread saved bytes after validation.
+    $prior=[Collections.Generic.List[object]]::new()
+    $original=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    [long]$total=0
+    foreach($row in @($manifest.Files)){
+        $rel=[string]$row.Rel
+        Assert-SensorJournalRelative $rel
+        if(-not $original.Add($rel)){throw 'SENSOR_JOURNAL_DUPLICATE_ORIGINAL'}
+        $path=Join-Path (Join-Path $Root 'files') $rel
+        Assert-SensorJournalTrustedAcl $path $false
+        $fs=[IO.FileStream]::new($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
+        try{
+            if($fs.Length -ne [long]$row.Length -or $fs.Length -gt 16777216){
+                throw 'SENSOR_JOURNAL_REPLAY_SIZE_INVALID'
+            }
+            $total+=$fs.Length
+            if($total -gt 67108864){throw 'SENSOR_JOURNAL_REPLAY_TOTAL_INVALID'}
+            $bytes=[byte[]]::new([int]$fs.Length)
+            $position=0
+            while($position -lt $bytes.Length){
+                $got=$fs.Read($bytes,$position,$bytes.Length-$position)
+                if($got -lt 1){throw 'SENSOR_JOURNAL_REPLAY_SHORT_READ'}
+                $position+=$got
+            }
+            if((Get-SensorJournalHash $bytes) -cne [string]$row.Hash){
+                throw 'SENSOR_JOURNAL_REPLAY_SHA_MISMATCH'
+            }
+            $prior.Add([pscustomobject]@{Rel=$rel;Bytes=$bytes;Sha=[string]$row.Hash})
+        }finally{$fs.Dispose()}
+    }
+    $xmlPath=Join-Path $Root 'task.xml'
+    Assert-SensorJournalTrustedAcl $xmlPath $false
+    $xml=[IO.File]::ReadAllBytes($xmlPath)
+    if($xml.Length -gt 262144 -or
+       (Get-SensorJournalHash $xml) -cne [string]$manifest.TaskHash){
+        throw 'SENSOR_JOURNAL_REPLAY_XML_SHA_INVALID'
+    }
+    # Validate an EXACT allowlist for the live tree before a single delete
+    # or overwrite. Real privileged service/task mutation is never executed
+    # by this primitive and must be guarded at its own ownership boundary.
+    $known=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach($item in @($manifest.ExpectedNewFiles)){
+        $rel=[string]$item
+        Assert-SensorJournalRelative $rel
+        if(-not $known.Add($rel)){throw 'SENSOR_JOURNAL_REPLAY_DUPLICATE_NEW'}
+    }
+    foreach($item in $prior){[void]$known.Add([string]$item.Rel)}
+    $dirs=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach($rel in $known){
+        $parts=$rel.Split('\')
+        for($k=1;$k -lt $parts.Length;$k++){
+            [void]$dirs.Add(($parts[0..($k-1)] -join '\'))
+        }
+    }
+    Assert-SensorBoundaryNoReparse $LiveRoot
+    if([IO.Directory]::Exists($LiveRoot)){
+        $prefix=[IO.Path]::GetFullPath($LiveRoot).TrimEnd('\')+'\'
+        $pending=[Collections.Generic.List[string]]::new()
+        $pending.Add($LiveRoot)
+        while($pending.Count){
+            $directory=$pending[$pending.Count-1]
+            $pending.RemoveAt($pending.Count-1)
+            Assert-SensorBoundaryNoReparse $directory
+            foreach($member in [IO.Directory]::GetFileSystemEntries($directory)){
+                $full=[IO.Path]::GetFullPath($member)
+                $attrs=[IO.File]::GetAttributes($full)
+                if(($attrs -band [IO.FileAttributes]::ReparsePoint) -ne 0){
+                    throw 'SENSOR_JOURNAL_REPLAY_LIVE_REPARSE_REFUSED'
+                }
+                if(-not $full.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)){
+                    throw 'SENSOR_JOURNAL_REPLAY_LIVE_PATH_ESCAPE'
+                }
+                $rel=$full.Substring($prefix.Length)
+                if(($attrs -band [IO.FileAttributes]::Directory) -ne 0){
+                    if(-not $dirs.Contains($rel)){
+                        throw 'SENSOR_JOURNAL_REPLAY_UNKNOWN_DIRECTORY'
+                    }
+                    $pending.Add($full)
+                }elseif(-not $known.Contains($rel)){
+                    throw 'SENSOR_JOURNAL_REPLAY_UNKNOWN_FILE'
+                }
+            }
+        }
+    }
+    # Stage validated originals back into the live synthetic tree.
+    # A process death mid-copy leaves READY and intact old snapshots, so a
+    # subsequent same-account invocation can resume. This isn't an atomic
+    # multi-file transaction or proof of OS power-cut durability.
+    if(-not [IO.Directory]::Exists($LiveRoot)){
+        [void][IO.Directory]::CreateDirectory($LiveRoot)
+    }
+    foreach($entry in $prior){
+        $dest=Join-Path $LiveRoot $entry.Rel
+        $parent=[IO.Path]::GetDirectoryName($dest)
+        Assert-SensorBoundaryNoReparse $dest
+        [void][IO.Directory]::CreateDirectory($parent)
+        Assert-SensorBoundaryNoReparse $dest
+        [IO.File]::WriteAllBytes($dest,[byte[]]$entry.Bytes)
+        if((Get-SensorJournalHash ([IO.File]::ReadAllBytes($dest))) -cne $entry.Sha){
+            throw 'SENSOR_JOURNAL_REPLAY_WRITE_SHA_FAILED'
+        }
+    }
+    foreach($rel in $known){
+        if($original.Contains($rel)){continue}
+        $dest=Join-Path $LiveRoot $rel
+        Assert-SensorBoundaryNoReparse $dest
+        if([IO.File]::Exists($dest)){[IO.File]::Delete($dest)}
+    }
+    foreach($entry in $prior){
+        $dest=Join-Path $LiveRoot $entry.Rel
+        if(-not [IO.File]::Exists($dest) -or
+           (Get-SensorJournalHash ([IO.File]::ReadAllBytes($dest))) -cne $entry.Sha){
+            throw 'SENSOR_JOURNAL_REPLAY_FINAL_SHA_FAILED'
+        }
+    }
+    return [Text.Encoding]::UTF8.GetString($xml)
 }
 
 function Capture-PreviousSensorLayer {
