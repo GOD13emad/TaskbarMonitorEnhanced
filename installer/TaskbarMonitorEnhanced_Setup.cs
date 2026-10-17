@@ -325,6 +325,19 @@ internal static partial class SetupProgram
 
         public void PersistAsInvoker()
         {
+            PersistToUserRoot(AppRoot);
+        }
+
+        // Kept internal for the exact native Windows regression to exercise
+        // the *same* persistence logic on a new disposable test-owned directory.
+        // The production asInvoker caller always uses its real AppRoot.
+        internal void PersistToUserRoot(string userRoot)
+        {
+            if(String.IsNullOrWhiteSpace(userRoot) || !Path.IsPathRooted(userRoot))
+                throw new InvalidDataException("Sensor status destination root invalid.");
+            string canonical=Path.GetFullPath(userRoot).TrimEnd(Path.DirectorySeparatorChar);
+            if(canonical.Length<4)
+                throw new InvalidDataException("Sensor status destination root unsafe.");
             if(message==null)throw new InvalidDataException("No verified sensor status frame.");
             string[] parts=message.Split('|');
             if(parts.Length!=4 || parts[0]!="TBME80" ||
@@ -336,11 +349,11 @@ internal static partial class SetupProgram
                !json.TrimStart().StartsWith("{",StringComparison.Ordinal) ||
                String.IsNullOrWhiteSpace(JsonString(json,"Status")))
                 throw new InvalidDataException("Sensor IPC decoded result exceeds schema or size.");
-            string logRoot=Path.Combine(AppRoot,"Logs");
+            string logRoot=Path.Combine(canonical,"Logs");
             Directory.CreateDirectory(logRoot);
             if(logs.Length>0)
                 File.AppendAllText(Path.Combine(logRoot,"sensor_install.log"),logs+"\n",Encoding.UTF8);
-            File.WriteAllText(SensorResultPath,json,Encoding.UTF8);
+            File.WriteAllText(Path.Combine(logRoot,"sensor_install_result.json"),json,Encoding.UTF8);
         }
 
         public void Dispose() {stream.Dispose();}

@@ -127,35 +127,52 @@ function Verify-One([string]$kind) {
    'R080_REAL_HELPER_FUNCTION_STATUS_FRAME=PASS'
    'R080_POLL_WITH_OS_PID_NONCE_SESSION=PASS'
    'R080_NO_PRIVILEGED_PERUSER_WRITES=TRUE'
-   if(-not $LocalFixture){
-     # The Windows-latest user is disposable. Refuse any existing installation
-     # rather than deleting or overwriting a pre-existing AppRoot.
-     $appRoot=[string]$t.GetProperty('AppRoot',[Reflection.BindingFlags]'NonPublic,Static').GetValue($null,$null)
-     if(Test-Path -LiteralPath $appRoot){throw 'R080_RUNNER_APP_ALREADY_EXISTS'}
-     try{
-       $persist=$receiverType.GetMethod('PersistAsInvoker',$flags)
-       [void]$persist.Invoke($receiver,[object[]]::new(0))
-       $resultFile=Join-Path $appRoot 'Logs/sensor_install_result.json'
-       $logFile=Join-Path $appRoot 'Logs/sensor_install.log'
-       if(-not(Test-Path -LiteralPath $resultFile -PathType Leaf) -or
-          -not(Test-Path -LiteralPath $logFile -PathType Leaf)){
-          throw 'R080_USER_LEVEL_STATUS_PERSIST_MISSING'
-       }
-       $saved=Get-Content -LiteralPath $resultFile -Raw|ConvertFrom-Json
-       if($saved.Status -cne 'DEGRADED' -or
-          $saved.Message -cne 'R080_HARMLESS_NONADMIN' -or
-          -not ([IO.File]::ReadAllText($logFile).Contains('R080_TEST_ONLY'))){
-          throw 'R080_USER_LEVEL_STATUS_CONTENT_WRONG'
-       }
-       'R080_HOSTED_NORMAL_USER_STATUS_LOG_AND_JSON_PERSIST=PASS'
-     }finally{
-       if(Test-Path -LiteralPath $appRoot){
-          # Only delete the fixture created under this runner when this test
-          # previously proved it was not present.
-          [IO.Directory]::Delete($appRoot,$true)
-       }
-     }
-   }
+    # Never create/delete the installed AppRoot, even on the hosted runner:
+    # Build and Verification may have populated it earlier in this same job.
+    # Exercise the *actual* refactored persistence method in a fresh, explicitly
+    # test-owned RUNNER_TEMP/OS-TEMP direct child, including schema verification.
+    $testBase=if($LocalFixture){[IO.Path]::GetTempPath()}else{$env:RUNNER_TEMP}
+    if([string]::IsNullOrWhiteSpace($testBase) -or
+       -not [IO.Path]::IsPathRooted($testBase)){
+      throw 'R080_DISPOSABLE_TEST_ROOT_UNAVAILABLE'
+    }
+    $baseCanonical=[IO.Path]::GetFullPath($testBase).TrimEnd([IO.Path]::DirectorySeparatorChar)
+    $fixture=Join-Path $baseCanonical ('tbme_r080_owned_'+[guid]::NewGuid().ToString('N'))
+    if((Test-Path -LiteralPath $fixture) -or
+       -not [string]::Equals([IO.Path]::GetDirectoryName($fixture),
+                          $baseCanonical,[StringComparison]::OrdinalIgnoreCase)){
+      throw 'R080_FIXTURE_NOT_NEW_DIRECT_TEMP_CHILD'
+    }
+    $normalApp=[string]$t.GetProperty('AppRoot',[Reflection.BindingFlags]'NonPublic,Static').GetValue($null,$null)
+    if([string]::Equals($fixture,$normalApp,[StringComparison]::OrdinalIgnoreCase) -or
+       $fixture.StartsWith($normalApp+[IO.Path]::DirectorySeparatorChar,
+                            [StringComparison]::OrdinalIgnoreCase)){
+      throw 'R080_TEST_WOULD_TOUCH_REAL_INSTALLED_APP_ROOT'
+    }
+    try{
+      $persist=$receiverType.GetMethod('PersistToUserRoot',
+                          [Reflection.BindingFlags]'NonPublic,Instance')
+      if(!$persist){throw 'R080_ACTUAL_PERSISTENCE_METHOD_MISSING'}
+      [void]$persist.Invoke($receiver,([object[]]@([string]$fixture)))
+      $resultFile=Join-Path $fixture 'Logs/sensor_install_result.json'
+      $logFile=Join-Path $fixture 'Logs/sensor_install.log'
+      if(-not(Test-Path -LiteralPath $resultFile -PathType Leaf) -or
+         -not(Test-Path -LiteralPath $logFile -PathType Leaf)){
+        throw 'R080_ISOLATED_USER_STATUS_PERSIST_MISSING'
+      }
+      $saved=Get-Content -LiteralPath $resultFile -Raw|ConvertFrom-Json
+      if($saved.Status -cne 'DEGRADED' -or
+         $saved.Message -cne 'R080_HARMLESS_NONADMIN' -or
+         -not([IO.File]::ReadAllText($logFile).Contains('R080_TEST_ONLY'))){
+        throw 'R080_ISOLATED_USER_STATUS_CONTENT_WRONG'
+      }
+      'R080_ISOLATED_NORMAL_USER_LOG_AND_RESULT_PERSIST=PASS'
+    }finally{
+      if(Test-Path -LiteralPath $fixture){
+        # Narrow owner-known fixture cleanup; never use the user AppRoot.
+        [IO.Directory]::Delete($fixture,$true)
+      }
+    }
    }
   }finally{
   if($client){
@@ -168,6 +185,6 @@ function Verify-One([string]$kind) {
 Verify-One 'valid'
 Verify-One 'wrong_nonce'
 Verify-One 'wrong_expected_pid'
-if($LocalFixture){'R080_NO_PERSIST_ASINVOKER_METHOD_CALLED=TRUE'}
+'R080_REAL_INSTALLED_APP_ROOT_NOT_MUTATED_BY_TEST=TRUE'
 'R080_OS_UAC_OR_SETUP_INSTALL_RUN=FALSE'
 'R080_REAL_HELPER_SOURCE_SHA256='+((Get-FileHash $helper -Algorithm SHA256).Hash)
