@@ -321,28 +321,52 @@ internal static partial class SetupProgram
         Shortcut(path,target,"","Live system monitor integrated into the Windows taskbar");
     }
 
+    // R318: WScript.Shell COM is invoked directly inside the Setup PE.
+    // Never generate or execute writable Temp scripts to create shortcuts.
     static void Shortcut(string path,string target,string arguments,string description)
     {
-        string temp=Path.Combine(Path.GetTempPath(),"tbme_shortcut_"+Guid.NewGuid().ToString("N")+".ps1");
-        string text=
-          "$ErrorActionPreference='Stop'\r\n"+
-          "$w=New-Object -ComObject WScript.Shell\r\n"+
-          "$s=$w.CreateShortcut('"+path.Replace("'","''")+"')\r\n"+
-          "$s.TargetPath='"+target.Replace("'","''")+"'\r\n"+
-          "$s.Arguments='"+arguments.Replace("'","''")+"'\r\n"+
-          "$s.WorkingDirectory='"+AppRoot.Replace("'","''")+"'\r\n"+
-          "$s.IconLocation='"+AppExe.Replace("'","''")+",0'\r\n"+
-          "$s.Description='"+description.Replace("'","''")+"'\r\n"+
-          "$s.WindowStyle=1\r\n$s.Save()\r\n";
-        File.WriteAllText(temp,text,Encoding.UTF8);
-        try{
-            ProcessStartInfo psi=new ProcessStartInfo("powershell.exe","-NoProfile -ExecutionPolicy Bypass -File \""+temp+"\"");
-            psi.UseShellExecute=false;psi.CreateNoWindow=true;
-            Process p=Process.Start(psi);
-            if(p==null || !p.WaitForExit(15000) || p.ExitCode!=0)
-                throw new InvalidOperationException("Shortcut creation failed.");
+        if(String.IsNullOrWhiteSpace(path) || String.IsNullOrWhiteSpace(target) ||
+           !Path.IsPathRooted(path) || !Path.IsPathRooted(target) ||
+           !String.Equals(Path.GetExtension(path),".lnk",StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Shortcut requires absolute .lnk and target paths.");
+        string linkPath=Path.GetFullPath(path);
+        string targetPath=Path.GetFullPath(target);
+        string linkDirectory=Path.GetDirectoryName(linkPath);
+        if(String.IsNullOrWhiteSpace(linkDirectory) || !Directory.Exists(linkDirectory))
+            throw new DirectoryNotFoundException("Shortcut directory is not available.");
+        // Block an existing malicious linked destination before opening it;
+        // user-local directory reparse races remain a separate security gate.
+        if(File.Exists(linkPath) && (File.GetAttributes(linkPath)&FileAttributes.ReparsePoint)!=0)
+            throw new IOException("Shortcut destination is a reparse point.");
+        Type shellType=Type.GetTypeFromProgID("WScript.Shell",true);
+        object shell=null;
+        object shortcut=null;
+        try
+        {
+            shell=Activator.CreateInstance(shellType);
+            shortcut=shell.GetType().InvokeMember("CreateShortcut",
+                BindingFlags.InvokeMethod,null,shell,new object[]{linkPath});
+            if(shortcut==null)
+                throw new InvalidOperationException("Windows Script Host did not create a shortcut object.");
+            Type shortcutType=shortcut.GetType();
+            BindingFlags set=BindingFlags.SetProperty;
+            shortcutType.InvokeMember("TargetPath",set,null,shortcut,new object[]{targetPath});
+            shortcutType.InvokeMember("Arguments",set,null,shortcut,new object[]{arguments??""});
+            shortcutType.InvokeMember("WorkingDirectory",set,null,shortcut,new object[]{AppRoot});
+            shortcutType.InvokeMember("IconLocation",set,null,shortcut,new object[]{AppExe+",0"});
+            shortcutType.InvokeMember("Description",set,null,shortcut,new object[]{description??""});
+            shortcutType.InvokeMember("WindowStyle",set,null,shortcut,new object[]{1});
+            shortcutType.InvokeMember("Save",BindingFlags.InvokeMethod,null,shortcut,new object[0]);
+            if(!File.Exists(linkPath))
+                throw new IOException("Windows Script Host did not persist the shortcut.");
         }
-        finally{try{File.Delete(temp);}catch{}}
+        finally
+        {
+            if(shortcut!=null && System.Runtime.InteropServices.Marshal.IsComObject(shortcut))
+                System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shortcut);
+            if(shell!=null && System.Runtime.InteropServices.Marshal.IsComObject(shell))
+                System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell);
+        }
     }
 
     static string Sha256File(string path)

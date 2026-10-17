@@ -888,6 +888,36 @@ jobs:
              $r.TrueUninstallCleanupEndToEndProven -ne $false -or
              @($r.Checks).Count -ne 23){throw 'R317_TYPED_SAFE_UNINSTALL_TRANSPORT_GATES_NOT_MET'}
           'R317_PRIVATE_PE_CLEANUP_TRANSPORT_SYNTHETIC_PASS_REAL_UNINSTALL_OPEN'
+      - name: R318 create and inspect COM shortcut without Temp PowerShell script
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=(Resolve-Path build/Test-R318-InProcessShortcut-Native.ps1).Path
+          $tok=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($proof,[ref]$tok,[ref]$errors)
+          if(@($errors).Count){$errors|ForEach-Object {$_.Message};throw 'R318_PS51_TEST_SYNTAX_INVALID'}
+          ./build/Test-R318-InProcessShortcut-Native.ps1 -HostLabel '${{ matrix.host }}' -CandidateDir (Resolve-Path _r284_private_candidate).Path
+          $receipt=Join-Path $env:RUNNER_TEMP ('R318_${{ matrix.host }}_'+$env:GITHUB_RUN_ID+'/R318_INPROCESS_SHORTCUT_RECEIPT.json')
+          if(-not (Test-Path -LiteralPath $receipt)){throw 'R318_RAW_COM_RECEIPT_MISSING'}
+          $r=Get-Content -LiteralPath $receipt -Raw|ConvertFrom-Json
+          if($r.Schema -ne 1 -or $r.Revision -cne 'R318' -or
+             $r.Status -cne 'PASS_EXACT_PE_INPROCESS_COM_SHORTCUT_AND_NO_TEMP_SCRIPT' -or
+             $r.SourceCommit -cne $env:GITHUB_SHA -or $r.Host -cne '${{ matrix.host }}' -or
+             $r.OriginalOwnerComputerTouched -ne $false -or
+             $r.ActualProgramFilesWritten -ne $false -or
+             $r.ActualUACInvoked -ne $false -or
+             $r.OriginalProtectedSensorTaskTouched -ne $false -or
+             $r.ActualInstalledShortcutChanged -ne $false -or
+             $r.ExactPeSourceAndCOMMethodVerified -ne $true -or
+             $r.WScriptShortcutCreatedReadAndRemoved -ne $true -or
+             $r.AllShortcutPropertiesRoundtripped -ne $true -or
+             $r.PowerShellTempScriptEliminated -ne $true -or
+             $r.MetacharactersTreatedAsData -ne $true -or
+             $r.RelativeAndInvalidPathsRefused -ne $true -or
+             $r.RealInstalledUserDataUnchanged -ne $true -or
+             $r.RealOwnerInstallationOrUninstallInvoked -ne $false -or
+             @($r.Checks).Count -ne 18){throw 'R318_TYPED_NATIVE_SHORTCUT_PROOF_GATES_NOT_MET'}
+          'R318_COM_SHORTCUT_NO_TEMP_SCRIPT_NATIVE_SYNTHETIC_PASS'
       - name: Preserve bounded guest evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -925,3 +955,4 @@ jobs:
             ${{ runner.temp }}/R315_${{ matrix.host }}_${{ github.run_id }}/R315_TASK_COLD_RESTORE_RECEIPT.json
             ${{ runner.temp }}/R316_${{ matrix.host }}_${{ github.run_id }}/R316_TRUSTED_APPROOT_RECEIPT.json
             ${{ runner.temp }}/R317_${{ matrix.host }}_${{ github.run_id }}/R317_ENCODED_CLEANUP_RECEIPT.json
+            ${{ runner.temp }}/R318_${{ matrix.host }}_${{ github.run_id }}/R318_INPROCESS_SHORTCUT_RECEIPT.json
