@@ -105,7 +105,7 @@ internal static partial class SetupProgram
     }
 
     // R293: PowerShell code is transported from this immutable, embedded PE resource
-    // via one in-memory EncodedCommand. Never elevate a .ps1 from writable Temp.
+    // via an in-memory command. Never elevate a .ps1 from writable Temp.
     static string Base64Utf8Argument(string value)
     {
         if(String.IsNullOrWhiteSpace(value) || value.Length>4096)
@@ -174,11 +174,23 @@ internal static partial class SetupProgram
           "$user=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(user)+"'))\n"+
           "& ([ScriptBlock]::Create($code)) -Mode '"+mode+"' -PayloadDir $payload -AppRoot $app -UserId $user -ExpectedBrokerSHA256 '"+brokerHash+"' -ExpectedSupervisorSHA256 '"+supervisorHash+"' -ExpectedBackendZipSHA256 '"+backendZipHash+"'\n";
         string encoded=Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
-        // Windows CreateProcess has a 32,767-character maximum; leave margin.
-        // Fail closed instead of falling back to unsafe -File or user-writable scripts.
-        if(encoded.Length>32000)
+        // Preserve the established UTF-16 EncodedCommand path when it fits.
+        // Windows Process creation caps the entire command line at 32,767 chars.
+        if(encoded.Length<=32000)
+            return "-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "+encoded;
+        // R304: the SAME in-memory, PE-embedded trusted helper can be transported
+        // as a constant PowerShell -Command string for long profile names.
+        // Variable caller input is only UTF-8/Base64 data; mode is whitelisted
+        // and resource digests are SHA-256 hex. No user-controlled quote or
+        // PowerShell tokens can enter this command source. Never use -File.
+        if(script.IndexOf('"')>=0 || script.IndexOf('\0')>=0)
+            throw new InvalidDataException("Unexpected quote or null in trusted helper bootstrap.");
+        string fallback="-NoProfile -NonInteractive -WindowStyle Hidden -Command \"& { "+script+" }\"";
+        // Leave margin for the executable path and OS quoting. A truly huge
+        // value must still fail closed instead of truncating or using Temp.
+        if(fallback.Length>30000)
             throw new InvalidDataException("Trusted sensor helper command exceeds safe limit.");
-        return "-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "+encoded;
+        return fallback;
     }
 
     // R298: runas uses ShellExecuteEx, which searches the current directory,
