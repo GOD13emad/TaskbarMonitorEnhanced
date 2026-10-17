@@ -207,3 +207,70 @@ jobs:
       - name: Print build manifest
         shell: pwsh
         run: Get-Content ./artifacts/BUILD_MANIFEST.json
+
+  r324-fresh-shortcut:
+    name: R324 genuine fresh Windows shortcut negative ${{ matrix.host }}
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: A
+            os: windows-2025
+          - host: B
+            os: windows-2022
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact disposable test source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Download exact private build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8
+        with:
+          name: build-evidence
+          path: r324_built_private
+      - name: Original Setup must refuse foreign Start shortcut before any app root write
+        shell: powershell
+        env:
+          TBME_R324_RUN_FRESH_HOST_NEGATIVE: 'true'
+          R324_HOST_LABEL: ${{ matrix.host }}
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             (git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA) {throw 'R324_GUEST_SOURCE_NOT_PINNED'}
+          $files=@(Get-ChildItem r324_built_private -Recurse -File)
+          $mf=@($files|Where-Object Name -eq 'BUILD_MANIFEST.json')
+          $sx=@($files|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $mx=@($files|Where-Object Name -eq 'TaskbarMonitorEnhanced.exe')
+          if($mf.Count -ne 1 -or $sx.Count -ne 1 -or $mx.Count -ne 1){throw 'R324_UNEXPECTED_CANDIDATE_FILES'}
+          $manifest=Get-Content -LiteralPath $mf[0].FullName -Raw|ConvertFrom-Json
+          $sm=@($manifest.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $mm=@($manifest.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced.exe')
+          if($sm.Count -ne 1 -or $mm.Count -ne 1 -or
+             (Get-FileHash $sx[0].FullName -Algorithm SHA256).Hash -cne [string]$sm[0].SHA256 -or
+             (Get-FileHash $mx[0].FullName -Algorithm SHA256).Hash -cne [string]$mm[0].SHA256){
+            throw 'R324_CANDIDATE_BINARY_DIGEST_MISMATCH'
+          }
+          & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File ./build/Test-ShortcutCreation-R324.ps1 -SetupPath $sx[0].FullName -MainPath $mx[0].FullName
+          if($LASTEXITCODE -ne 0){throw 'R324_REAL_SETUP_NEGATIVE_FAILED'}
+          $proof=Join-Path $env:RUNNER_TEMP ('R324_'+$env:R324_HOST_LABEL+'_'+$env:GITHUB_RUN_ID+'\R324_HOSTED_SHORTCUT_RECEIPT.json')
+          $r=Get-Content -LiteralPath $proof -Raw|ConvertFrom-Json
+          if($r.SourceCommit -cne $env:GITHUB_SHA -or $r.Host -cne $env:R324_HOST_LABEL -or
+             $r.Status -cne 'PASS_REAL_FRESH_SETUP_REFUSES_FOREIGN_START_SHORTCUT_BEFORE_APPROOT' -or
+             !$r.UserAppRootAbsentBeforeAndAfter -or !$r.SameStartShortcutSHA256Preserved -or
+             !$r.UnownedLinkRemovedAfterWitness -or $r.NativeReflectionChecksPassed -ne 8){
+            throw 'R324_TYPED_RECEIPT_CONTRACT_FAILED'
+          }
+      - name: Preserve bounded raw hosted negative receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: R324-fresh-guest-${{ matrix.host }}-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 7
+          path: ${{ runner.temp }}/R324_${{ matrix.host }}_${{ github.run_id }}/R324_HOSTED_SHORTCUT_RECEIPT.json

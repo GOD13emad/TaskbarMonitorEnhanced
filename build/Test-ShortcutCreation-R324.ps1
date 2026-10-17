@@ -113,8 +113,11 @@ try{
     if(Test-Path -LiteralPath $root){[IO.Directory]::Delete($root,$true)}
 }
 
-if($env:GITHUB_ACTIONS -eq 'true'){
-    if($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+# Real /install negative is isolated to a dedicated fresh hosted Windows job.
+# The general build job may have already created product test state.
+if($env:TBME_R324_RUN_FRESH_HOST_NEGATIVE -eq 'true'){
+    if($env:GITHUB_ACTIONS -cne 'true' -or
+       $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
        $env:RUNNER_OS -cne 'Windows' -or
        $env:COMPUTERNAME -match '(?i)EMAD-PC') {
         throw 'R324_FRESH_INSTALL_NEGATIVE_GITHUB_DISPOSABLE_ONLY'
@@ -161,4 +164,34 @@ if($env:GITHUB_ACTIONS -eq 'true'){
         }
         if($null -ne $userShell){[void][Runtime.InteropServices.Marshal]::ReleaseComObject($userShell)}
     }
+    if((Test-Path -LiteralPath $appRoot) -or (Test-Path -LiteralPath $existing) -or
+       !$created -or $code -eq 0 -or $env:R324_HOST_LABEL -cnotin @('A','B') -or
+       [string]::IsNullOrWhiteSpace($env:GITHUB_RUN_ID) -or
+       [string]::IsNullOrWhiteSpace($env:GITHUB_SHA)){
+        throw 'R324_GUEST_CLEANUP_OR_SOURCE_WITNESS_INVALID'
+    }
+    $proofDir=Join-Path $env:RUNNER_TEMP ('R324_'+$env:R324_HOST_LABEL+'_'+$env:GITHUB_RUN_ID)
+    [IO.Directory]::CreateDirectory($proofDir)|Out-Null
+    $evidence=[ordered]@{
+        Schema=1
+        Revision='R324'
+        Status='PASS_REAL_FRESH_SETUP_REFUSES_FOREIGN_START_SHORTCUT_BEFORE_APPROOT'
+        Host=$env:R324_HOST_LABEL
+        SourceCommit=$env:GITHUB_SHA
+        HostedWindows=$env:RUNNER_OS
+        RealSetupExecuted=$true
+        SetupNonzeroExitCode=[int]$code
+        ExistingStartShortcutSHA256=[string]$sentinelHash
+        SameStartShortcutSHA256Preserved=$true
+        UserAppRootAbsentBeforeAndAfter=$true
+        UnownedLinkRemovedAfterWitness=$true
+        NoUacHelperStarted=$true
+        SetupSHA256=(Get-FileHash -LiteralPath $setupExe -Algorithm SHA256).Hash
+        MainSHA256=(Get-FileHash -LiteralPath $main -Algorithm SHA256).Hash
+        NativeReflectionChecksPassed=8
+        RecordedUtc=[DateTime]::UtcNow.ToString('o')
+    }
+    [IO.File]::WriteAllText((Join-Path $proofDir 'R324_HOSTED_SHORTCUT_RECEIPT.json'),
+        ($evidence|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
+    Write-Output 'R324_HOSTED_SHORTCUT_CLEANUP_AND_TYPED_RECEIPT=PASS'
 }
