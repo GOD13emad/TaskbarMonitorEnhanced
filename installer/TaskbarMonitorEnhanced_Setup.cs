@@ -495,12 +495,30 @@ internal static partial class SetupProgram
         catch{return false;}
     }
 
-    // R324: even a dangling reparse link occupies its exact name.
-    // Detect a file-system entry without following its target for ownership.
+    // R333: lexical parent enumeration sees *all* occupied entries, including
+    // dangling reparse names that File.Exists/Directory.Exists can both miss.
+    // Match the exact leaf after enumeration; never follow a foreign link for
+    // ownership. Unexpected access/IO errors fail closed by propagating.
     static bool ShortcutNameOccupied(string path)
     {
-        try{File.GetAttributes(path);return true;}
-        catch(FileNotFoundException){return false;}
+        if(String.IsNullOrWhiteSpace(path) || !Path.IsPathRooted(path))
+            throw new InvalidDataException("Shortcut occupancy requires an absolute link path.");
+        string full=Path.GetFullPath(path);
+        string parent=Path.GetDirectoryName(full);
+        string leaf=Path.GetFileName(full);
+        if(String.IsNullOrWhiteSpace(parent) || String.IsNullOrWhiteSpace(leaf) ||
+           !String.Equals(Path.GetExtension(leaf),".lnk",StringComparison.OrdinalIgnoreCase) ||
+           leaf.IndexOfAny(Path.GetInvalidFileNameChars())>=0)
+            throw new InvalidDataException("Shortcut occupancy requires a literal .lnk leaf.");
+        try
+        {
+            // Nonrecursive, literal pattern, exact-case-insensitive comparison.
+            // Enumeration includes files, directories and dangling reparse links.
+            foreach(FileSystemInfo entry in new DirectoryInfo(parent).GetFileSystemInfos(leaf))
+                if(String.Equals(entry.Name,leaf,StringComparison.OrdinalIgnoreCase))
+                    return true;
+            return false;
+        }
         catch(DirectoryNotFoundException){return false;}
     }
 
