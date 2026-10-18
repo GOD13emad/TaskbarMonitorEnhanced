@@ -792,6 +792,28 @@ function Restore-SensorJournalOldFilesOnly(
             throw 'SENSOR_JOURNAL_REPLAY_FINAL_SHA_FAILED'
         }
     }
+    # R337: a first protected-sensor installation has NO previous BrokerRoot.
+    # A killed helper may leave only newly added nested files and directories.
+    # After validated snapshot replay and allowlisted file deletion, remove
+    # ONLY now-empty known directories, deepest first, using nonrecursive
+    # Directory.Delete. Refuse any surprise member or reparse point. Keeping
+    # an empty unowned BrokerRoot would block the next same-owner repair.
+    if(-not [bool]$manifest.OldRootPresent){
+        if($prior.Count -ne 0){
+            throw 'SENSOR_JOURNAL_ABSENT_OLD_ROOT_HAS_SNAPSHOT_FILES'
+        }
+        foreach($relDir in @($dirs | Sort-Object Length -Descending)){
+            $emptyDir=Join-Path $LiveRoot $relDir
+            Assert-SensorBoundaryNoReparse $emptyDir
+            if([IO.Directory]::Exists($emptyDir)){
+                [IO.Directory]::Delete($emptyDir,$false)
+            }
+        }
+        Assert-SensorBoundaryNoReparse $LiveRoot
+        if([IO.Directory]::Exists($LiveRoot)){
+            [IO.Directory]::Delete($LiveRoot,$false)
+        }
+    }
     return [Text.Encoding]::UTF8.GetString($xml)
 }
 
