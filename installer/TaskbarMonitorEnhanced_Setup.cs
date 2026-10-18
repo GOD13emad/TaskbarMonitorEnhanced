@@ -271,7 +271,7 @@ internal static partial class SetupProgram
     {
         if(String.IsNullOrWhiteSpace(source))
             throw new InvalidDataException("Trusted sensor helper source unavailable.");
-        const string nativeOpen="Add-Type -ReferencedAssemblies @('System.dll','System.Core.dll') -TypeDefinition @'";
+        const string nativeOpen="Add-Type -TypeDefinition @'";
         int opened=0,closed=0;
         bool inNative=false;
         StringBuilder compact=new StringBuilder();
