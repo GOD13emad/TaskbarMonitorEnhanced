@@ -812,12 +812,44 @@ internal static partial class SetupProgram
         return p+4<=json.Length && String.Equals(json.Substring(p,4),"true",StringComparison.OrdinalIgnoreCase);
     }
 
+    // R332: reuse of an optional elevated sensor layer is allowed only
+    // under the OS known ProgramFiles and verified same-user app root.
+    // Refuse observed reparse points before reusing protected hashes or
+    // user profile health state. These checks are path-based, not atomic.
+    static string ValidatedSensorReuseRoot(string knownProgramFiles,string knownLocal,string knownProfile)
+    {
+        if(String.IsNullOrWhiteSpace(knownProgramFiles) ||
+           !Path.IsPathRooted(knownProgramFiles))
+            throw new InvalidDataException("Trusted ProgramFiles root unavailable.");
+        string pf=Path.GetFullPath(knownProgramFiles).TrimEnd(Path.DirectorySeparatorChar);
+        if(pf.StartsWith(@"\\",StringComparison.Ordinal) ||
+           !Regex.IsMatch(pf,@"^[A-Za-z]:\\") ||
+           String.Equals(pf,Path.GetPathRoot(pf),StringComparison.OrdinalIgnoreCase) ||
+           pf.Length>512)
+            throw new InvalidDataException("Protected sensor reuse refuses UNC or root-only ProgramFiles.");
+        string userRoot=CanonicalAppRootFromKnownFolders(knownLocal,knownProfile);
+        string sensorRoot=Path.GetFullPath(Path.Combine(pf,AppFolder,"SensorBroker"));
+        string expectedParent=Path.GetFullPath(Path.Combine(pf,AppFolder));
+        if(!String.Equals(Path.GetDirectoryName(sensorRoot),expectedParent,
+                          StringComparison.OrdinalIgnoreCase) ||
+           sensorRoot.Length>1024)
+            throw new InvalidDataException("Protected sensor reuse escaped ProgramFiles.");
+        CheckRootAncestorsNoReparse(sensorRoot);
+        CheckRootAncestorsNoReparse(Path.Combine(sensorRoot,"TaskbarMonitorSensorBroker.exe"));
+        CheckRootAncestorsNoReparse(Path.Combine(sensorRoot,"TaskbarMonitorSensorSupervisor.exe"));
+        CheckRootAncestorsNoReparse(Path.Combine(userRoot,"sensor_supervisor_state.json"));
+        return sensorRoot;
+    }
+
     static bool TryReuseCompatibleSensorLayer(out SensorOutcome outcome)
     {
         outcome=null;
         try
         {
-            string sensorRoot=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"TaskbarMonitorEnhanced","SensorBroker");
+            string sensorRoot=ValidatedSensorReuseRoot(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
             string broker=Path.Combine(sensorRoot,"TaskbarMonitorSensorBroker.exe");
             string supervisor=Path.Combine(sensorRoot,"TaskbarMonitorSensorSupervisor.exe");
             string statePath=Path.Combine(AppRoot,"sensor_supervisor_state.json");
