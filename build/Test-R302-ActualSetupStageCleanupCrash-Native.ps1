@@ -152,53 +152,125 @@ public static class R320SuspendedSetupLauncher {
  }
 }
 public sealed class R302RealSetupDeleteWatcher : IDisposable {
-  public readonly ManualResetEventSlim TerminatedEvent = new ManualResetEventSlim(false);
+  public readonly ManualResetEventSlim TerminatedEvent=new ManualResetEventSlim(false);
   private FileSystemWatcher oldWatcher, newWatcher;
   private Process child;
-  private int once, notifications;
-  public string TriggerFile = "";
-  public string Failure = "";
-  public bool Killed = false;
+  private int once, notifications, nativeObservations, disposed;
+  private IntPtr nativeNotify=IntPtr.Zero;
+  private Thread nativeObserver;
+  private string[] ownedStageFiles;
+  public string TriggerFile="";
+  public string TriggerOrigin="";
+  public string Failure="";
+  public bool Killed=false;
   public int Notifications { get { return notifications; } }
-  public void Arm(string oldPath, string newPath) {
-    oldWatcher = Make(oldPath);
-    newWatcher = Make(newPath);
+  public int NativeKnownDeleteObservations { get { return nativeObservations; } }
+  [DllImport("kernel32.dll",EntryPoint="FindFirstChangeNotificationW",CharSet=CharSet.Unicode,SetLastError=true)]
+  private static extern IntPtr FindFirstChangeNotification(string path,bool subtree,uint filter);
+  [DllImport("kernel32.dll",SetLastError=true)]
+  private static extern bool FindNextChangeNotification(IntPtr handle);
+  [DllImport("kernel32.dll",SetLastError=true)]
+  private static extern bool FindCloseChangeNotification(IntPtr handle);
+  [DllImport("kernel32.dll",SetLastError=true)]
+  private static extern uint WaitForSingleObject(IntPtr handle,uint milliseconds);
+  private static bool KnownLeaf(string path){
+    string ext=Path.GetExtension(path).ToLowerInvariant();
+    return ext==".exe" || ext==".cs" || ext==".md" ||
+           ext==".json" || ext==".config" || ext==".ico";
+  }
+  public void Arm(string oldPath,string newPath){
+    if(!Directory.Exists(oldPath) || !Directory.Exists(newPath) ||
+       !String.Equals(Path.GetDirectoryName(Path.GetFullPath(oldPath)),
+                      Path.GetDirectoryName(Path.GetFullPath(newPath)),
+                      StringComparison.OrdinalIgnoreCase))
+      throw new InvalidOperationException("R330_NATIVE_WATCH_PATHS_NOT_SIBLINGS");
+    var originals=new System.Collections.Generic.List<string>();
+    foreach(string directory in new string[]{oldPath,newPath})
+      foreach(string file in Directory.GetFiles(directory,"*",SearchOption.AllDirectories))
+        if(KnownLeaf(file)) originals.Add(Path.GetFullPath(file));
+    if(originals.Count<20 || originals.Count>100)
+      throw new InvalidOperationException("R330_STAGE_LEAF_COUNT_OUT_OF_BOUNDS");
+    ownedStageFiles=originals.ToArray();
+    oldWatcher=CreateManagedObserver(oldPath);
+    newWatcher=CreateManagedObserver(newPath);
+    // The Win32 directory notification is armed before resuming the original
+    // test-only Setup. Managed FileSystemWatcher callback delivery can be late.
+    string parent=Path.GetDirectoryName(Path.GetFullPath(oldPath));
+    nativeNotify=FindFirstChangeNotification(parent,true,0x00000001u|0x00000002u);
+    if(nativeNotify==IntPtr.Zero || nativeNotify==new IntPtr(-1))
+      throw new Win32Exception(Marshal.GetLastWin32Error(),"R330_NATIVE_DIR_NOTIFY_ARM_FAILED");
     oldWatcher.EnableRaisingEvents=true;
     newWatcher.EnableRaisingEvents=true;
   }
-  private FileSystemWatcher Make(string path) {
-    FileSystemWatcher watcher = new FileSystemWatcher(path);
+  private FileSystemWatcher CreateManagedObserver(string path){
+    var watcher=new FileSystemWatcher(path);
     watcher.IncludeSubdirectories=true;
     watcher.Filter="*";
     watcher.NotifyFilter=NotifyFilters.FileName | NotifyFilters.DirectoryName;
     watcher.InternalBufferSize=32768;
-    watcher.Deleted += OnDeleted;
+    watcher.Deleted+=OnDeleted;
     return watcher;
   }
-  public void Bind(Process p) {
-    Interlocked.Exchange(ref child, p);
+  public void Bind(Process p){
+    if(p==null || ownedStageFiles==null || nativeNotify==IntPtr.Zero)
+      throw new InvalidOperationException("R330_NATIVE_OBSERVER_NOT_ARMED");
+    Interlocked.Exchange(ref child,p);
+    nativeObserver=new Thread(NativeObserveKnownStageDeletion);
+    nativeObserver.IsBackground=true;
+    nativeObserver.Priority=ThreadPriority.Highest;
+    nativeObserver.Start();
   }
-  private void OnDeleted(object sender, FileSystemEventArgs e) {
+  private void NativeObserveKnownStageDeletion(){
+    while(Interlocked.CompareExchange(ref disposed,0,0)==0 &&
+          Interlocked.CompareExchange(ref once,0,0)==0){
+      uint result=WaitForSingleObject(nativeNotify,200);
+      if(result==0x00000102u)continue; // WAIT_TIMEOUT
+      if(result!=0){Failure="NATIVE_NOTIFY_WAIT_FAILED_"+result;break;}
+      foreach(string file in ownedStageFiles){
+        if(File.Exists(file))continue;
+        Interlocked.Increment(ref nativeObservations);
+        AttemptTerminateExactChild(file,"NATIVE_KNOWN_STAGE_LEAF_DELETION");
+        return;
+      }
+      if(!FindNextChangeNotification(nativeNotify)){
+        Failure="NATIVE_NOTIFY_REARM_FAILED_"+Marshal.GetLastWin32Error();
+        break;
+      }
+    }
+  }
+  private void OnDeleted(object sender,FileSystemEventArgs e){
     Interlocked.Increment(ref notifications);
-    string path=e.FullPath;
-    string extension=Path.GetExtension(path).ToLowerInvariant();
-    // A known leaf deletion, not a directory deletion or metadata preflight.
-    if(extension!=".exe" && extension!=".cs" && extension!=".md" &&
-       extension!=".json" && extension!=".config" && extension!=".ico") return;
-    if(Interlocked.CompareExchange(ref once,1,0)!=0) return;
-    TriggerFile=Path.GetFileName(path);
-    try {
-      Process process=child;
-      if(process==null) throw new Exception("PROCESS_NOT_BOUND");
-      process.Refresh();
-      if(process.HasExited) throw new Exception("SETUP_ALREADY_EXITED");
-      process.Kill();
-      Killed=process.WaitForExit(10000) && process.HasExited && R320SuspendedSetupLauncher.NonzeroNativeExitCode(process);
-      if(!Killed) Failure="SETUP_KILL_NOT_CONFIRMED";
-    }catch(Exception error){Failure=error.GetType().Name+":"+error.Message;}
+    if(!KnownLeaf(e.FullPath))return;
+    bool owned=false;
+    foreach(string original in ownedStageFiles)
+      if(String.Equals(original,e.FullPath,StringComparison.OrdinalIgnoreCase)){
+        owned=true;break;
+      }
+    if(owned)AttemptTerminateExactChild(e.FullPath,"FILESYSTEMWATCHER_KNOWN_STAGE_LEAF_DELETION");
+  }
+  private void AttemptTerminateExactChild(string knownStageFile,string mechanism){
+    if(Interlocked.CompareExchange(ref once,1,0)!=0)return;
+    TriggerFile=Path.GetFileName(knownStageFile);
+    TriggerOrigin=mechanism;
+    try{
+      Process exact=child;
+      if(exact==null)throw new Exception("PROCESS_NOT_BOUND");
+      exact.Refresh();
+      if(exact.HasExited)throw new Exception("SETUP_ALREADY_EXITED");
+      exact.Kill();
+      Killed=exact.WaitForExit(10000) && exact.HasExited &&
+             R320SuspendedSetupLauncher.NonzeroNativeExitCode(exact);
+      if(!Killed)Failure="EXACT_CHILD_TERMINATION_UNCONFIRMED";
+    }catch(Exception err){Failure=err.GetType().Name+":"+err.Message;}
     finally{TerminatedEvent.Set();}
   }
   public void Dispose(){
+    Interlocked.Exchange(ref disposed,1);
+    if(nativeObserver!=null && !nativeObserver.Join(2000))
+      throw new InvalidOperationException("R330_NATIVE_OBSERVER_THREAD_NOT_STOPPED");
+    if(nativeNotify!=IntPtr.Zero && nativeNotify!=new IntPtr(-1)){
+      FindCloseChangeNotification(nativeNotify);nativeNotify=IntPtr.Zero;
+    }
     if(oldWatcher!=null){oldWatcher.EnableRaisingEvents=false;oldWatcher.Dispose();}
     if(newWatcher!=null){newWatcher.EnableRaisingEvents=false;newWatcher.Dispose();}
   }
@@ -327,6 +399,8 @@ try {
   ActualSetupPid=$realSetupPid;ActualSetupProcessTerminated=$true
   DeletedStageFileTrigger=$watcher.TriggerFile
   FileDeletionNotifications=$watcher.Notifications
+  NativeKnownDeletedLeafObservations=$watcher.NativeKnownDeleteObservations
+  NativeWatcherOrFileSystemWatcherOrigin=$watcher.TriggerOrigin
   JournalFilesAfterKill=($activeRemaining+$retiredRemaining)
   RecoveredBySecondActualSetupProcess=$true;SecondSetupPid=$retryPid
   MainSetupConfigStateAndRegistryPreserved=$true

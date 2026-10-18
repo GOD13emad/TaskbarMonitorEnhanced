@@ -421,7 +421,10 @@ jobs:
              $r.NoStageOrRetiredResidue -ne $true -or
              $r.ActualSetupPid -le 0 -or $r.SecondSetupPid -le 0 -or
              $r.ActualSetupPid -eq $r.SecondSetupPid -or
-             $r.JournalFilesAfterKill -lt 1 -or
+             $r.DeletedStageFileTrigger -cnotmatch '\.(exe|cs|md|json|config|ico)$' -or
+             $r.NativeWatcherOrFileSystemWatcherOrigin -cnotin @(
+               'NATIVE_KNOWN_STAGE_LEAF_DELETION','FILESYSTEMWATCHER_KNOWN_STAGE_LEAF_DELETION') -or
+             ($r.FileDeletionNotifications + $r.NativeKnownDeletedLeafObservations) -lt 1 -or             $r.JournalFilesAfterKill -lt 1 -or
              @($r.Tests).Count -lt 5){throw 'R302_NATIVE_ACCEPTANCE_FAILED'}
           'R302_EXACT_NATIVE_SETUP_PROCESS_KILL_AND_RECOVERY_PASS'
       - name: R303 reject foreign protected broker owners and permit same-user crash repair
