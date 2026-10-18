@@ -263,26 +263,52 @@ internal static partial class SetupProgram
         return Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
     }
 
-    // R295: compact only transport text, not the readable embedded .ps1 source.
-    // Refuse here-strings and continuation tokens that need verbatim whitespace.
+    // R335: only compact trusted code OUTSIDE its exact native Add-Type
+    // here-string. Preserve every byte/line inside the C# literal so the
+    // unchanged OS-PowerShell helper retains syntactically valid source.
+    // No caller-controlled text is interpolated into this trusted resource.
     static string CompactTrustedHelperSource(string source)
     {
-        if(String.IsNullOrWhiteSpace(source) ||
-           source.IndexOf("@'",StringComparison.Ordinal)>=0 ||
-           source.IndexOf("@\"",StringComparison.Ordinal)>=0)
-            throw new InvalidDataException("Trusted sensor helper contains unsupported multiline text.");
+        if(String.IsNullOrWhiteSpace(source))
+            throw new InvalidDataException("Trusted sensor helper source unavailable.");
+        const string nativeOpen="Add-Type -ReferencedAssemblies @('System.dll','System.Core.dll') -TypeDefinition @'";
+        int opened=0,closed=0;
+        bool inNative=false;
         StringBuilder compact=new StringBuilder();
         foreach(string raw in source.Replace("\r\n","\n").Split('\n'))
         {
             string line=raw.Trim();
+            if(inNative)
+            {
+                // PS 5.1 requires the closing delimiter at column zero.
+                compact.Append(raw).Append('\n');
+                if(String.Equals(raw,"'@",StringComparison.Ordinal))
+                {
+                    inNative=false;
+                    closed++;
+                }
+                continue;
+            }
             if(line.Length==0 || line.StartsWith("#",StringComparison.Ordinal))continue;
-            if(line.EndsWith("`",StringComparison.Ordinal))
+            if(line.EndsWith("@'",StringComparison.Ordinal) ||
+               line.EndsWith("@\"",StringComparison.Ordinal))
+            {
+                if(!String.Equals(line,nativeOpen,StringComparison.Ordinal) || opened!=0)
+                    throw new InvalidDataException("Unexpected trusted sensor helper here-string.");
+                opened++;
+                inNative=true;
+            }
+            if(String.Equals(line,"'@",StringComparison.Ordinal) ||
+               String.Equals(line,"\"@",StringComparison.Ordinal))
+                throw new InvalidDataException("Unexpected trusted sensor helper here-string terminator.");
+            if(line[line.Length-1]==(char)0x60)
                 throw new InvalidDataException("Trusted sensor helper cannot compact continuation lines.");
             compact.Append(line).Append('\n');
         }
+        if(inNative || opened!=closed || opened>1)
+            throw new InvalidDataException("Trusted native helper literal not balanced.");
         return compact.ToString();
     }
-
     static string BuildElevatedHelperCommand(string mode,string payload,string appRoot,string user)
     {
         if(mode!="Install" && mode!="Uninstall")

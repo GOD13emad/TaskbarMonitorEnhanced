@@ -27,6 +27,10 @@ Pass 'EXACT_SETUP_PE_EMBEDS_TRUSTED_HELPER_SOURCE'
 $tokens=$null;$parseErrors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile($helper,[ref]$tokens,[ref]$parseErrors)
 if(@($parseErrors).Count -ne 0){throw 'R328_TRUSTED_HELPER_AST_PARSE_ERRORS'}
+$native=[regex]::Matches($source,'(?s)Add-Type -ReferencedAssemblies @\(''System.dll'',''System.Core.dll''\) -TypeDefinition @''\r?\n(.*?)\r?\n''@')
+if($native.Count -ne 1){throw 'R335_NATIVE_CLASS_SOURCE_NOT_UNIQUE'}
+Add-Type -ReferencedAssemblies @('System.dll','System.Core.dll') -TypeDefinition $native[0].Groups[1].Value
+if($null -eq ('TBMEScopedUserLogLease' -as [type])){throw 'R335_EXPECTED_PRODUCTION_CLASS_NOT_COMPILED'}
 foreach($fn in @('Assert-SensorBoundaryNoReparse','Assert-SensorUserLogSink','Write-Log','Write-Result')){
     $definition=@($ast.FindAll({param($x) $x -is [Management.Automation.Language.FunctionDefinitionAst]},$true)|
         Where-Object Name -EQ $fn)
@@ -35,8 +39,10 @@ foreach($fn in @('Assert-SensorBoundaryNoReparse','Assert-SensorUserLogSink','Wr
 }
 $base=Join-Path ([IO.Path]::GetTempPath()) ('tbme_r328_logs_'+[Guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($base)|Out-Null
-$AppRoot=Join-Path $base 'isolated profile with & $special'
+$profile=Join-Path $base 'isolated profile with & $special'
+$AppRoot=Join-Path $profile 'AppData\Local\TaskbarMonitorEnhanced'
 [IO.Directory]::CreateDirectory($AppRoot)|Out-Null
+$script:ValidatedSensorProfileRoot=$profile
 $LogsRoot=Join-Path $AppRoot 'Logs'
 [IO.Directory]::CreateDirectory($LogsRoot)|Out-Null
 $ResultPath=Join-Path $LogsRoot 'sensor_install_result.json'
