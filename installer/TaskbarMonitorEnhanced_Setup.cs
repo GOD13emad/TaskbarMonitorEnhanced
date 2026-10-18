@@ -115,6 +115,43 @@ internal static partial class SetupProgram
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)); }
     }
+    // R327: elevated Sensor Helper accepts only direct children of the
+    // known profile's AppData\Local\Temp. Do not use mutable TEMP/TMP env.
+    // Reparse checks are fail-closed at these instants, not an atomic
+    // defence against concurrent same-user directory replacement.
+    static string CanonicalSensorTempFromKnownFolders(string knownLocal,string knownProfile)
+    {
+        string app=CanonicalAppRootFromKnownFolders(knownLocal,knownProfile);
+        string local=Path.GetDirectoryName(app);
+        if(String.IsNullOrWhiteSpace(local))
+            throw new InvalidDataException("Canonical user Temp parent is unavailable.");
+        string temp=Path.GetFullPath(Path.Combine(local,"Temp"));
+        if(temp.Length>1024 ||
+           !String.Equals(Path.GetDirectoryName(temp),local,StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Canonical sensor Temp directory escaped its profile.");
+        CheckRootAncestorsNoReparse(temp);
+        return temp;
+    }
+
+    static string CreatePrivateSensorPayloadDirectory(string prefix)
+    {
+        if(prefix!="tbme_setup_" && prefix!="tbme_uninstall_")
+            throw new InvalidDataException("Unexpected private sensor payload prefix.");
+        string root=CanonicalSensorTempFromKnownFolders(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+        Directory.CreateDirectory(root);
+        CheckRootAncestorsNoReparse(root);
+        string payload=Path.GetFullPath(Path.Combine(root,prefix+Guid.NewGuid().ToString("N")));
+        if(!String.Equals(Path.GetDirectoryName(payload),root,StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Private sensor payload escaped canonical Temp.");
+        CheckRootAncestorsNoReparse(payload);
+        if(File.Exists(payload) || Directory.Exists(payload))
+            throw new IOException("Private sensor payload name already exists.");
+        Directory.CreateDirectory(payload);
+        CheckRootAncestorsNoReparse(payload);
+        return payload;
+    }
     static string AppExe { get { return Path.Combine(AppRoot,"TaskbarMonitorEnhanced.exe"); } }
     static string SensorResultPath { get { return Path.Combine(AppRoot,"Logs","sensor_install_result.json"); } }
     static string MainLaunchMode="PENDING";
@@ -703,8 +740,7 @@ internal static partial class SetupProgram
 
     static string PrepareSensorPayload()
     {
-        string payload=Path.Combine(Path.GetTempPath(),"tbme_setup_"+Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(payload);
+        string payload=CreatePrivateSensorPayloadDirectory("tbme_setup_");
         Extract("Payload.TaskbarMonitorSensorBroker.exe",Path.Combine(payload,"TaskbarMonitorSensorBroker.exe"));
         Extract("Payload.TaskbarMonitorSensorSupervisor.exe",Path.Combine(payload,"TaskbarMonitorSensorSupervisor.exe"));
         // This user-writable staging file is bound to the PE embedded ZIP hash
@@ -1143,8 +1179,7 @@ foreach($dir in ($dirs|Sort-Object Length -Descending)){
 
         StopProcess("TaskbarMonitorEnhanced");
 
-        string payload=Path.Combine(Path.GetTempPath(),"tbme_uninstall_"+Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(payload);
+        string payload=CreatePrivateSensorPayloadDirectory("tbme_uninstall_");
         string user=WindowsIdentity.GetCurrent().Name;
 
         int helperExit=ElevatedHelper("Uninstall",payload,AppRoot,user,90000);
