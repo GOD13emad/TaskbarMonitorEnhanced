@@ -123,9 +123,9 @@ $validatedSensorSid=Assert-SensorPrivilegedBoundary $Mode $PayloadDir $AppRoot $
 # R335: native in-memory handle guards pin canonical per-user profile
 # ancestry and exact file handles across log/result writes. Refuse reparse
 # points by handle, never create a user-writable script or change UAC policy.
-Add-Type -ReferencedAssemblies @('System.dll','System.Core.dll') -TypeDefinition @'
+Add-Type -TypeDefinition @'
 using System;
-using System.Collections.Generic;
+
 using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
@@ -146,7 +146,8 @@ public sealed class TBMEScopedUserLogLease : IDisposable {
   public struct TagInfo { public uint FileAttributes; public uint ReparseTag; }
   [DllImport("kernel32.dll",SetLastError=true)]
   static extern bool GetFileInformationByHandleEx(SafeFileHandle handle,int kind,out TagInfo data,uint size);
-  readonly List<SafeFileHandle> guard=new List<SafeFileHandle>();
+  readonly SafeFileHandle[] guard=new SafeFileHandle[5];
+  int guardCount=0;
   FileStream stream;
   bool disposed;
   static SafeFileHandle OpenChecked(string path,uint access,uint share,uint disposition,uint flags,bool isDirectory){
@@ -189,8 +190,9 @@ public sealed class TBMEScopedUserLogLease : IDisposable {
     }
     try{
       foreach(string dir in new string[]{p,appdata,local,expected,logs}){
-        guard.Add(OpenChecked(dir,FILE_LIST_DIRECTORY,FILE_SHARE_READ|FILE_SHARE_WRITE,
-                              OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,true));
+        SafeFileHandle parent=OpenChecked(dir,FILE_LIST_DIRECTORY,FILE_SHARE_READ|FILE_SHARE_WRITE,
+                              OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,true);
+        guard[guardCount++]=parent;
       }
       SafeFileHandle h=OpenChecked(file,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ,
                          OPEN_ALWAYS,FILE_FLAG_OPEN_REPARSE_POINT,false);
@@ -223,8 +225,8 @@ public sealed class TBMEScopedUserLogLease : IDisposable {
     if(disposed)return;
     disposed=true;
     if(stream!=null){stream.Dispose();stream=null;}
-    for(int i=guard.Count-1;i>=0;i--)guard[i].Dispose();
-    guard.Clear();
+    for(int i=guardCount-1;i>=0;i--)if(guard[i]!=null)guard[i].Dispose();
+    guardCount=0;
   }
 }
 '@

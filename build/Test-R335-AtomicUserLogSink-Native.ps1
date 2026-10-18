@@ -17,9 +17,9 @@ $helperPath=(Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\installer\TB
 $production=[IO.File]::ReadAllText($helperPath,[Text.Encoding]::UTF8)
 $normalize={param($x) $x.Replace(([string][char]13+[string][char]10),[string][char]10).TrimStart([char]0xFEFF).TrimEnd()}
 if((& $normalize $production) -cne (& $normalize $embedded)){throw 'R335_COMPILED_PE_HELPER_SOURCE_NOT_EXACT'}
-$cls=[regex]::Matches($production,'(?s)Add-Type -ReferencedAssemblies @\(''System.dll'',''System.Core.dll''\) -TypeDefinition @''\r?\n(.*?)\r?\n''@')
+$cls=[regex]::Matches($production,'(?s)Add-Type -TypeDefinition @''\r?\n(.*?)\r?\n''@')
 if($cls.Count -ne 1 -or !$cls[0].Groups[1].Value.Contains('public sealed class TBMEScopedUserLogLease : IDisposable')){throw 'R335_REAL_PRODUCTION_HANDLE_CLASS_NOT_UNIQUE'}
-Add-Type -ReferencedAssemblies @('System.dll','System.Core.dll') -TypeDefinition $cls[0].Groups[1].Value -ErrorAction Stop
+Add-Type -TypeDefinition $cls[0].Groups[1].Value -ErrorAction Stop
 if($null -eq ('TBMEScopedUserLogLease' -as [type])){throw 'R335_PRODUCTION_HANDLE_CLASS_NOT_LOADED'}
 $checks=[Collections.Generic.List[string]]::new()
 function Pass([string]$name){$script:checks.Add($name);Write-Output ('PASS '+$name)}
