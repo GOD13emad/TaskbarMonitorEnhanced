@@ -126,7 +126,12 @@ $script:SensorJournalRoot=Join-Path ([Environment]::GetFolderPath([Environment+S
 $LogsRoot=Join-Path $AppRoot 'Logs'
 $ResultPath=Join-Path $LogsRoot 'sensor_install_result.json'
 $LogPath=Join-Path $LogsRoot 'sensor_install.log'
+# R328: the user owns this tree and can replace its directories between
+# the original privileged preflight and its later log/result writes.
+# Recheck immediately around creation; this does not close atomic races.
+Assert-SensorBoundaryNoReparse $LogsRoot
 New-Item -ItemType Directory -Force -Path $LogsRoot | Out-Null
+Assert-SensorBoundaryNoReparse $LogsRoot
 
 # R21 health channels are initialized before any early-return/uninstall branch so
 # Write-Result can always emit a stable schema under StrictMode.
@@ -143,7 +148,36 @@ $RollbackFiles=@()
 $RollbackTaskXmlText=$null
 $RollbackCaptured=$false
 
+# Fail closed when a user-writable profile log path was replaced after the
+# initial elevated token/boundary verification. Write-time inspection is
+# not an atomic handle-bound proof against concurrent rename/symlink swaps.
+function Assert-SensorUserLogSink([string]$Target){
+    if([string]::IsNullOrWhiteSpace($Target) -or
+       [string]::IsNullOrWhiteSpace($AppRoot)){
+        throw 'SENSOR_LOG_BOUNDARY_MISSING'
+    }
+    $expectedRoot=[IO.Path]::GetFullPath((Join-Path $AppRoot 'Logs')).TrimEnd('\')
+    $actualRoot=[IO.Path]::GetFullPath($LogsRoot).TrimEnd('\')
+    if(-not [string]::Equals($expectedRoot,$actualRoot,[StringComparison]::OrdinalIgnoreCase)){
+        throw 'SENSOR_LOG_BOUNDARY_CHANGED_ROOT'
+    }
+    $actual=[IO.Path]::GetFullPath($Target)
+    $log=[IO.Path]::GetFullPath((Join-Path $expectedRoot 'sensor_install.log'))
+    $result=[IO.Path]::GetFullPath((Join-Path $expectedRoot 'sensor_install_result.json'))
+    if(-not([string]::Equals($actual,$log,[StringComparison]::OrdinalIgnoreCase) -or
+             [string]::Equals($actual,$result,[StringComparison]::OrdinalIgnoreCase))){
+        throw 'SENSOR_LOG_BOUNDARY_CHANGED_TARGET'
+    }
+    Assert-SensorBoundaryNoReparse $AppRoot
+    Assert-SensorBoundaryNoReparse $actualRoot
+    Assert-SensorBoundaryNoReparse $actual
+    if(-not [IO.Directory]::Exists($actualRoot)){
+        throw 'SENSOR_LOG_BOUNDARY_MISSING_LOG_DIRECTORY'
+    }
+}
+
 function Write-Log([string]$Message){
+    Assert-SensorUserLogSink $LogPath
     $line=(Get-Date).ToString('o')+' '+$Message
     $line | Add-Content -LiteralPath $LogPath -Encoding UTF8
 }
@@ -156,6 +190,7 @@ function Write-Result(
     [bool]$TaskInstalled,
     [bool]$SensorHealthy
 ){
+    Assert-SensorUserLogSink $ResultPath
     [ordered]@{
         Status=$Status
         Message=$Message

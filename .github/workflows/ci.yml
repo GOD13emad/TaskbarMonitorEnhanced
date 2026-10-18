@@ -96,6 +96,11 @@ jobs:
         run: |
           & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File ./build/Test-R327-CanonicalSensorTemp-Native.ps1
           if ($LASTEXITCODE -ne 0) { throw 'R327 canonical sensor Temp, reparse and environment-negative tests failed.' }
+      - name: R328 protected Helper post-preflight log/result boundary (native)
+        shell: pwsh
+        run: |
+          & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File ./build/Test-R328-HelperLogBoundary-Native.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R328 Sensor Helper user log/result reparse boundary checks failed.' }
       - name: Verify deterministic clean-clone build
         shell: pwsh
         run: ./build/Verify-Determinism.ps1
