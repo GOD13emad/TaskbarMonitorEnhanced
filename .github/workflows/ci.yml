@@ -111,6 +111,12 @@ jobs:
         run: |
           & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File ./build/Test-R330-NativeStageDeleteObserver-Native.ps1
           if ($LASTEXITCODE -ne 0) { throw 'R330 synthetic exact-PID NativeKnownStageDelete observer regression failed.' }
+      - name: R331 no runner-controlled diagnostic writes in shipped Setup PE (native)
+        shell: pwsh
+        run: |
+          & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File ./build/Test-R331-NoHostedDiagnosticWrite-Native.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'R331 fail-closed Setup minus hosted diagnostic sink native regression failed.' }
+
       - name: Verify deterministic clean-clone build
         shell: pwsh
         run: ./build/Verify-Determinism.ps1
@@ -297,6 +303,46 @@ jobs:
              !$r.UnownedLinkRemovedAfterWitness -or $r.NativeReflectionChecksPassed -ne 8){
             throw 'R324_TYPED_RECEIPT_CONTRACT_FAILED'
           }
+      - name: R331 real Setup refuses environment-spoofed diagnostic writes on guest ${{ matrix.host }}
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or (git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){
+            throw 'R331_REFUSE_NON_DISPOSABLE_HOST_OR_SOURCE'
+          }
+          $setups=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $manifests=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'BUILD_MANIFEST.json')
+          if($setups.Count -ne 1 -or $manifests.Count -ne 1){throw 'R331_EXACT_PRIVATE_BIN_NOT_UNIQUE'}
+          $buildManifest=Get-Content $manifests[0].FullName -Raw|ConvertFrom-Json
+          $setupEntry=@($buildManifest.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          if($setupEntry.Count -ne 1 -or
+             (Get-FileHash $setups[0].FullName -Algorithm SHA256).Hash -cne $setupEntry[0].SHA256){
+            throw 'R331_HOSTED_SETUP_BINARY_NOT_MANIFEST_PINNED'
+          }
+          & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File ./build/Test-R331-NoHostedDiagnosticWrite-Native.ps1 -SetupPath $setups[0].FullName -HostedFresh -HostLabel '${{ matrix.host }}'
+          if($LASTEXITCODE -ne 0){throw 'R331_REAL_NEGATIVE_GUEST_TEST_FAILED'}
+          $receipt=Join-Path $env:RUNNER_TEMP ('R331_${{ matrix.host }}_'+$env:GITHUB_RUN_ID+'/R331_HOSTED_DIAGNOSTIC_REMOVAL_RECEIPT.json')
+          if(!(Test-Path $receipt -PathType Leaf)){throw 'R331_HOSTED_TYPED_RECEIPT_MISSING'}
+          $r=Get-Content $receipt -Raw|ConvertFrom-Json
+          if($r.Schema -ne 1 -or $r.Revision -cne 'R331' -or $r.Host -cne '${{ matrix.host }}' -or
+             $r.SourceCommit -cne $env:GITHUB_SHA -or $r.SetupSHA256 -cne $setupEntry[0].SHA256 -or
+             $r.Status -cne 'PASS_FRESH_REAL_SETUP_FAIL_CLOSED_WITHOUT_HOSTED_DIAGNOSTIC_WRITE' -or
+             $r.RealSetupExecuted -ne $true -or $r.SetupExit -ne 34 -or
+             $r.DiagnosticOutputAbsent -ne $true -or $r.CanaryPreserved -ne $true -or
+             $r.InstalledAppUntouched -ne $true -or $r.OwnerMachineTouched -ne $false -or
+             $r.MainWasNotLaunched -ne $true -or $r.ElevatedUACNotInvoked -ne $true -or
+             $r.SecurityFinalAccepted -ne $false -or @($r.Checks).Count -ne 12){
+            throw 'R331_HOSTED_NEGATIVE_RECEIPT_IDENTITY_FAILED'
+          }
+      - name: Preserve bounded raw R331 guest diagnostic-negative receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: R331-diag-guest-${{ matrix.host }}-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 7
+          path: ${{ runner.temp }}/R331_${{ matrix.host }}_${{ github.run_id }}/R331_HOSTED_DIAGNOSTIC_REMOVAL_RECEIPT.json
+
       - name: Preserve bounded raw hosted negative receipt
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
