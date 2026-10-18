@@ -130,7 +130,7 @@ try{
 }finally{
   $receiptData=[ordered]@{
     Schema=1;Revision='R337';Host=$HostLabel;Variant=$Variant
-    SourceCommit=(git rev-parse HEAD).Trim()
+    SourceCommit=(git -C $ProductRoot rev-parse HEAD).Trim()
     SetupSHA256=if(Test-Path -LiteralPath $SetupPath){Hash $SetupPath}else{'MISSING'}
     Status=if(!$failure){if($Variant -ceq 'baseline'){'PASS_REPRODUCED_EMPTY_BROKER_ORPHAN'}else{'PASS_RECOVERY_LEAVES_NO_EMPTY_BROKER_ROOT'}}else{'FAIL'}
     ActualElevatedUacPerformed=$false
