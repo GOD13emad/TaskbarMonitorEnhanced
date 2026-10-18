@@ -11,7 +11,8 @@ $Root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $Helper=Join-Path $Root 'installer\TBME_Setup_Elevated_Helper.ps1'
 $Base=Join-Path $Root 'artifacts\_r85_external_degrade_test'
 $Payload=Join-Path $Base 'payload'
-$App=Join-Path $Base 'local_app'
+$Profile=Join-Path $Base 'isolated-profile'
+$App=Join-Path $Profile 'AppData\Local\TaskbarMonitorEnhanced'
 $Mock=Join-Path $Base 'helper_mocked_pawnio_discovery.ps1'
 $Result=Join-Path $App 'Logs\sensor_install_result.json'
 $Log=Join-Path $App 'Logs\sensor_install.log'
@@ -36,6 +37,7 @@ $preflight=$source.IndexOf('$validatedSensorSid=Assert-SensorPrivilegedBoundary'
 $logWrite=$source.IndexOf('New-Item -ItemType Directory -Force -Path $LogsRoot',[StringComparison]::Ordinal)
 if($preflight -lt 0 -or $logWrite -le $preflight){throw 'R85_UNMODIFIED_PRODUCTION_GUARD_MISSING'}
 $escapeApp=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([IO.Path]::GetFullPath($App)))
+$escapeProfile=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([IO.Path]::GetFullPath($Profile)))
 $escapePayload=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([IO.Path]::GetFullPath($Payload)))
 $escapeUser=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([Security.Principal.WindowsIdentity]::GetCurrent().Name))
 $escapeSid=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([Security.Principal.WindowsIdentity]::GetCurrent().User.Value))
@@ -44,18 +46,21 @@ function Assert-SensorPrivilegedBoundary([string]$RequestedMode,[string]$Request
     if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
        $env:RUNNER_OS -cne 'Windows'){throw 'R85_MOCK_ONLY_HOSTED_DISPOSABLE'}
     $app=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__APP__'))
+    $profile=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__PROFILE__'))
     $payload=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__PAYLOAD__'))
     $user=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__USER__'))
     $sid=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__SID__'))
     if($RequestedMode -cne 'Install' -or $RequestedUser -cne $user -or
        -not [string]::Equals([IO.Path]::GetFullPath($RequestedAppRoot),$app,[StringComparison]::OrdinalIgnoreCase) -or
+       -not [string]::Equals($app,[IO.Path]::GetFullPath((Join-Path $profile 'AppData\Local\TaskbarMonitorEnhanced')),[StringComparison]::OrdinalIgnoreCase) -or
        -not [string]::Equals([IO.Path]::GetFullPath($RequestedPayload),$payload,[StringComparison]::OrdinalIgnoreCase)){
        throw 'R85_MOCK_REJECTS_OUTSIDE_OWNED_FIXTURE'
     }
+    $script:ValidatedSensorProfileRoot=$profile
     return $sid
 }
 '@
-$mockBoundary=$mockBoundary.Replace('__APP__',$escapeApp).Replace('__PAYLOAD__',$escapePayload).Replace('__USER__',$escapeUser).Replace('__SID__',$escapeSid)
+$mockBoundary=$mockBoundary.Replace('__APP__',$escapeApp).Replace('__PROFILE__',$escapeProfile).Replace('__PAYLOAD__',$escapePayload).Replace('__USER__',$escapeUser).Replace('__SID__',$escapeSid)
 $mocked=$source
 foreach($fn in @($funcs|Sort-Object {$_.Extent.StartOffset} -Descending)){
     $replacement=if($fn.Name -ceq 'Get-PawnIOVersion'){"function Get-PawnIOVersion { return '' }"}else{$mockBoundary}
@@ -88,8 +93,8 @@ try {
     $files=@(Get-ChildItem -LiteralPath $Base -Recurse -File)
     $allowed=@(
       'payload\TaskbarMonitorSensorBroker.exe','payload\TaskbarMonitorSensorSupervisor.exe',
-      'local_app\SensorBackend\LibreHardwareMonitor-0.9.6\LibreHardwareMonitorLib.dll',
-      'local_app\Logs\sensor_install_result.json','local_app\Logs\sensor_install.log',
+      'isolated-profile\AppData\Local\TaskbarMonitorEnhanced\SensorBackend\LibreHardwareMonitor-0.9.6\LibreHardwareMonitorLib.dll',
+      'isolated-profile\AppData\Local\TaskbarMonitorEnhanced\Logs\sensor_install_result.json','isolated-profile\AppData\Local\TaskbarMonitorEnhanced\Logs\sensor_install.log',
       'helper_mocked_pawnio_discovery.ps1')
     if($files.Count -ne $allowed.Count -or @($files|Where-Object {$_.FullName.Substring($Base.Length+1) -notin $allowed}).Count -ne 0){throw 'R85_UNKNOWN_FIXTURE_FILES'}
     Write-Output 'R85_MISSING_PAWNIO_DEGRADED_FAIL_CLOSED_NO_DRIVER_INSTALL_NO_ROLLBACK_NO_OS_CHANGE=PASS'
