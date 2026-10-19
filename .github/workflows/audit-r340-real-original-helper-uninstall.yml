@@ -1,4 +1,4 @@
-name: R340-R342 nominal early and posttask original Helper (hosted Windows)
+name: R340-R343 original Helper nominal, early, post-task, post-file (hosted Windows)
 on:
   push:
     branches: [audit/r340-real-helper-uninstall-death]
@@ -11,13 +11,13 @@ permissions:
   actions: read
 jobs:
   original-helper-uninstall:
-    name: R340-R342 ${{ matrix.mode }} exact PE Helper ${{ matrix.host }}
+    name: R340-R343 ${{ matrix.mode }} exact PE Helper ${{ matrix.host }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
-        mode: [nominal, killed, posttask]
+        mode: [nominal, killed, posttask, postfile]
         host: [A, B]
         include:
           - host: A
@@ -78,6 +78,7 @@ jobs:
           $nativeArgs=@('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$script,'-HostLabel','${{ matrix.host }}','-SourceRoot',$source)
           if('${{ matrix.mode }}' -ceq 'killed'){$nativeArgs+='-KillBeforeMutation'}
           if('${{ matrix.mode }}' -ceq 'posttask'){$nativeArgs+='-KillAfterTaskRemoval'}
+          if('${{ matrix.mode }}' -ceq 'postfile'){$nativeArgs+='-KillAfterBrokerRemoval'}
           & $native @nativeArgs
           if($LASTEXITCODE -ne 0){
             throw 'R340_ORIGINAL_ELEVATED_HELPER_PROTECTED_UNINSTALL_FAILED'

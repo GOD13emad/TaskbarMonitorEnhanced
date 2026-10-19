@@ -3,14 +3,19 @@ param(
   [Parameter(Mandatory=$true)][ValidateSet('A','B')][string]$HostLabel,
   [Parameter(Mandatory=$true)][string]$SourceRoot,
   [switch]$KillBeforeMutation,
-  [switch]$KillAfterTaskRemoval
+  [switch]$KillAfterTaskRemoval,
+  [switch]$KillAfterBrokerRemoval
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 # R340 does NOT exercise real interactive UAC or install any driver.
 # Run only on fresh hosted disposable Windows (the hosted runner already owns
 # an administrator token), never on the maintainer desktop or existing sensor.
-if($KillAfterTaskRemoval -and $KillBeforeMutation){throw 'R342_DEATH_CHECKPOINTS_MUTUALLY_EXCLUSIVE'}
+if(($KillBeforeMutation -and $KillAfterTaskRemoval) -or
+   ($KillBeforeMutation -and $KillAfterBrokerRemoval) -or
+   ($KillAfterTaskRemoval -and $KillAfterBrokerRemoval)){
+  throw 'R343_DEATH_CHECKPOINTS_MUTUALLY_EXCLUSIVE'
+}
 if($PSVersionTable.PSEdition -cne 'Desktop' -or
    $env:GITHUB_ACTIONS -cne 'true' -or
    $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
@@ -63,6 +68,7 @@ $logsRemoved=$false;$appRemoved=$false;$childPid=0
 $nativeRunas=$false;$usesRealUnmodifiedResource=$false
 $deliberateKill=$false;$killedFirstPid=0;$originalTaskIntactAtKill=$false
 $deliberatePostTaskKill=$false;$taskRemovedAtKill=$false;$resultAbsentAtKill=$false;$postKilledPid=0
+$deliberatePostFileKill=$false;$fileRemovedAtKill=$false;$taskGoneAtFileKill=$false;$protectedRootPresentAtFileKill=$null;$ownerMarkerPresentAtFileKill=$null;$fileKilledPid=0
 function Hash([string]$file){return (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash}
 function Check([string]$check){$script:checks.Add($check);Write-Output ('PASS '+$check)}
 function TaskExists(){
@@ -217,10 +223,12 @@ try{
  $nativeRunas=$true
  # R342: bounded, in-memory high-priority witness of exact owned Task
  # Scheduler's physical entry removal, *not* a process-name-based kill.
- if($KillAfterTaskRemoval){
-   $taskFile=Join-Path $env:windir 'System32\Tasks\TaskbarMonitorEnhanced Sensor Broker'
+ if($KillAfterTaskRemoval -or $KillAfterBrokerRemoval){
+   $taskFile=if($KillAfterTaskRemoval){
+     Join-Path $env:windir 'System32\Tasks\TaskbarMonitorEnhanced Sensor Broker'
+   }else{$protectedB}
    if(![IO.File]::Exists($taskFile)){
-     throw 'R342_DISABLED_GLOBAL_TASK_BACKING_FILE_NOT_PRESENT'
+     throw 'R343_EXPECTED_REAL_PROTECTED_WATCH_FILE_NOT_PRESENT'
    }
    Add-Type -TypeDefinition @'
 using System;
@@ -335,6 +343,33 @@ public sealed class R342TaskFileRemovalKill {
    $child=[Diagnostics.Process]::Start($psi)
    if(!$child){throw 'R341_SECOND_IDENTICAL_UNMODIFIED_HELPER_NOT_STARTED'}
  }
+ if($KillAfterBrokerRemoval){
+   $phase='KILL_EXACT_ORIGINAL_HELPER_AFTER_PROTECTED_BROKER_EXE_DELETE'
+   $first=$child;$fileKilledPid=$first.Id
+   try{
+     $watcher=[R342TaskFileRemovalKill]::new()
+     $watcher.Start($first,$taskFile,$resultPath)
+     if(!$watcher.Wait(39000)){throw 'R343_BOUNDED_FILE_DELETE_WATCHER_TIMEOUT'}
+     if(!$watcher.Deleted -or !$watcher.Killed -or $watcher.ResultExistedAtKill -or $watcher.Error){
+       throw ('R343_REAL_BROKER_EXECUTABLE_DELETE_KILL_NOT_ACCEPTED_'+$watcher.Error)
+     }
+     $fileRemovedAtKill=(![IO.File]::Exists($protectedB))
+     $taskGoneAtFileKill=(!(TaskExists))
+     $protectedRootPresentAtFileKill=[IO.Directory]::Exists($broker)
+     $ownerMarkerPresentAtFileKill=[IO.File]::Exists($owner)
+     if(!$fileRemovedAtKill -or !$taskGoneAtFileKill -or [IO.File]::Exists($resultPath)){
+       throw 'R343_ORIGINAL_HELPER_NOT_STOPPED_AFTER_BROKER_FILE_DELETE_BEFORE_RESULT'
+     }
+     $deliberatePostFileKill=$true
+   }finally{
+     try{if(!$first.HasExited){$first.Kill();[void]$first.WaitForExit(8000)}}catch{}
+     $first.Dispose()
+   }
+   Check 'ORIGINAL_HELPER_KILLED_AFTER_ACTUAL_BROKER_EXECUTABLE_DELETE_BEFORE_RESULT'
+   $phase='RETRY_UNMODIFIED_PRODUCTION_HELPER_AFTER_PROTECTED_FILE_MUTATION'
+   $child=[Diagnostics.Process]::Start($psi)
+   if(!$child){throw 'R343_SECOND_ORIGINAL_HELPER_PROCESS_FAILED_TO_START'}
+ }
  try{
    $childPid=$child.Id
    if(!$child.WaitForExit(55000)){
@@ -417,14 +452,15 @@ public sealed class R342TaskFileRemovalKill {
  if($createdPayload -and !$payloadRemoved){$failure+=' TEMP_PAYLOAD_RESIDUE'}
  if(!$logsRemoved -or !$appRemoved){$failure+=' LOCALAPP_OWNED_RESIDUE'}
  $neededChecks=9
- if($KillBeforeMutation -or $KillAfterTaskRemoval){$neededChecks=10}
+ if($KillBeforeMutation -or $KillAfterTaskRemoval -or $KillAfterBrokerRemoval){$neededChecks=10}
  $status=if(!$failure -and $checks.Count -eq $neededChecks -and $taskRemoved -and $brokerRemoved -and $protectedRemoved){
-   if($KillAfterTaskRemoval){'PASS_KILLED_ORIGINAL_HELPER_AFTER_TASK_UNREGISTER_BEFORE_RESULT_THEN_RETRIED'}
+   if($KillAfterBrokerRemoval){'PASS_KILLED_ORIGINAL_HELPER_AFTER_BROKER_EXE_DELETE_BEFORE_RESULT_THEN_RETRIED'}
+   elseif($KillAfterTaskRemoval){'PASS_KILLED_ORIGINAL_HELPER_AFTER_TASK_UNREGISTER_BEFORE_RESULT_THEN_RETRIED'}
    elseif($KillBeforeMutation){'PASS_KILLED_ORIGINAL_EMBEDDED_HELPER_BEFORE_SHARED_MUTATION_THEN_RECOVERED'}
    else{'PASS_REAL_UNMODIFIED_EMBEDDED_HELPER_RUNAS_UNINSTALL_PROTECTED_LAYER'}
  }else{'FAIL_R340_NOT_ACCEPTED'}
  $out=[ordered]@{
-  Schema=1;Revision=$(if($KillAfterTaskRemoval){'R342'}elseif($KillBeforeMutation){'R341'}else{'R340'});Status=$status;Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
+  Schema=1;Revision=$(if($KillAfterBrokerRemoval){'R343'}elseif($KillAfterTaskRemoval){'R342'}elseif($KillBeforeMutation){'R341'}else{'R340'});Status=$status;Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
   SetupSHA256=if([IO.File]::Exists($setup)){Hash $setup}else{'MISSING'}
   CandidateBrokerSHA256=$beforeB;CandidateSupervisorSHA256=$beforeS
   RealEmbeddedHelperBytesMatchSource=$usesRealUnmodifiedResource
@@ -439,11 +475,17 @@ public sealed class R342TaskFileRemovalKill {
   ScopedUserPayloadRemoved=$payloadRemoved
   ScopedTestLogsRemoved=$logsRemoved
   UserProfileExistingAppPreserved=!$createdApp
-  ActualHelperDeliberateKillTested=[bool]($deliberateKill -or $deliberatePostTaskKill)
-  DeliberateKillRequested=[bool]($KillBeforeMutation -or $KillAfterTaskRemoval)
+  ActualHelperDeliberateKillTested=[bool]($deliberateKill -or $deliberatePostTaskKill -or $deliberatePostFileKill)
+  DeliberateKillRequested=[bool]($KillBeforeMutation -or $KillAfterTaskRemoval -or $KillAfterBrokerRemoval)
   FirstKilledOriginalHelperPid=$killedFirstPid
   OriginalTaskAndBrokerUnchangedAtKill=$originalTaskIntactAtKill
-  RecoveryUsesIdenticalOriginalRunasProcessInfo=[bool](($deliberateKill -or $deliberatePostTaskKill) -and $nativeRunas)
+  RecoveryUsesIdenticalOriginalRunasProcessInfo=[bool](($deliberateKill -or $deliberatePostTaskKill -or $deliberatePostFileKill) -and $nativeRunas)
+  ActualHelperKilledAfterBrokerExecutableDeletion=$deliberatePostFileKill
+  ExactProtectedBrokerExecutableAbsentAtKill=$fileRemovedAtKill
+  TaskAlreadyUnregisteredAtFileKill=$taskGoneAtFileKill
+  ProtectedBrokerRootPresentAtFileKill=$protectedRootPresentAtFileKill
+  OwnerMarkerPresentAtFileKill=$ownerMarkerPresentAtFileKill
+  PostFileKilledOriginalHelperPid=$fileKilledPid
   ActualHelperKilledAfterProtectedTaskMutation=$deliberatePostTaskKill
   OriginalTaskUnregisteredAtKill=$taskRemovedAtKill
   ResultAbsentAtPostTaskKill=$resultAbsentAtKill
