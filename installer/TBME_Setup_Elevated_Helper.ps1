@@ -434,8 +434,11 @@ function Assert-SensorJournalTrustedAcl([string]$Path,[bool]$RequireProtected){
     if($RequireProtected -and -not $acl.AreAccessRulesProtected){
         throw 'SENSOR_JOURNAL_UNPROTECTED_DACL'
     }
+    # R344-F03: FileSystemRights.Modify includes ReadAndExecute.
+    # Bitwise testing the composite Modify value wrongly treated benign
+    # BUILTIN Users ReadAndExecute as a write ACE. Check only mutation
+    # capabilities; never loosen the trusted owner or SID allowlist.
     $write=[Security.AccessControl.FileSystemRights]::Write -bor
-        [Security.AccessControl.FileSystemRights]::Modify -bor
         [Security.AccessControl.FileSystemRights]::Delete -bor
         [Security.AccessControl.FileSystemRights]::DeleteSubdirectoriesAndFiles -bor
         [Security.AccessControl.FileSystemRights]::ChangePermissions -bor
