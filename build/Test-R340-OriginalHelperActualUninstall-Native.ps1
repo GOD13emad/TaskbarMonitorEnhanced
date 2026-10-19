@@ -194,8 +194,12 @@ try{
  $t=$asm.GetType('SetupProgram',$true)
  $method=$t.GetMethod('BuildElevatedSensorProcessInfo',[Reflection.BindingFlags]'Static,NonPublic')
  if(!$method){throw 'R340_SETUP_PE_RUNAS_HELPER_FACTORY_NOT_PRESENT'}
+ # R340-F02: unwrap PSObject arguments for private .NET Framework reflection.
+ $actualArgs=[string[]]@('Uninstall',$payload,$app,$sid)
  $arg=New-Object 'object[]' 4
- $arg[0]='Uninstall';$arg[1]=$payload;$arg[2]=$app;$arg[3]=$sid
+ for($i=0;$i -lt $actualArgs.Length;$i++){
+   $arg[$i]=$actualArgs[$i].PSObject.BaseObject
+ }
  $psi=[Diagnostics.ProcessStartInfo]$method.Invoke($null,$arg)
  $native=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
  if(!$psi.UseShellExecute -or $psi.Verb -cne 'runas' -or
