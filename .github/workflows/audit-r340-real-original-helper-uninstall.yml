@@ -5,6 +5,7 @@ on:
     paths:
       - build/Test-R340-OriginalHelperActualUninstall-Native.ps1
       - build/Test-R344-JournalAcl-MutationRights-Native.ps1
+      - build/Test-R344-UnownedSensorNoJournal-Native.ps1
       - installer/TBME_Setup_Elevated_Helper.ps1
       - .github/workflows/audit-r340-real-original-helper-uninstall.yml
   workflow_dispatch:
@@ -79,6 +80,16 @@ jobs:
           $source=(Resolve-Path .).Path
           & $native -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -HostLabel '${{ matrix.host }}' -SourceRoot $source
           if($LASTEXITCODE -ne 0){throw 'R344_ACTUAL_ACL_BIT_NEGATIVE_FAILED'}
+      - name: Refuse unowned or foreign protected Broker without a real journal
+        if: matrix.mode == 'nominal'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $native=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
+          $script=(Resolve-Path build/Test-R344-UnownedSensorNoJournal-Native.ps1).Path
+          $source=(Resolve-Path .).Path
+          & $native -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -HostLabel '${{ matrix.host }}' -SourceRoot $source
+          if($LASTEXITCODE -ne 0){throw 'R344_ORIGINAL_HELPER_UNOWNED_WITHOUT_JOURNAL_REFUSAL_FAILED'}
       - name: Launch exact unmodified RunAs production Helper on owned disabled test task
         shell: pwsh
         run: |
@@ -102,5 +113,6 @@ jobs:
           path: |
             ${{ runner.temp }}/R340_*/R340_REAL_PROTECTED_UNINSTALL_HELPER.json
             ${{ runner.temp }}/R344Acl_*/R344_JOURNAL_ACL_MASK.json
+            ${{ runner.temp }}/R344Neg_*/R344_UNOWNED_FOREIGN_WITHOUT_JOURNAL.json
           retention-days: 7
           if-no-files-found: warn
