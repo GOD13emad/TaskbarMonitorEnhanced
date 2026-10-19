@@ -5,6 +5,7 @@ on:
     paths:
       - build/Test-R340-OriginalHelperActualUninstall-Native.ps1
       - build/Test-R344-JournalAcl-MutationRights-Native.ps1
+      - installer/TBME_Setup_Elevated_Helper.ps1
       - .github/workflows/audit-r340-real-original-helper-uninstall.yml
   workflow_dispatch:
 permissions:

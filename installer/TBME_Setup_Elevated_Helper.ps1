@@ -252,13 +252,16 @@ $CpuTransportHealthy=$false
 $GpuTransportHealthy=$false
 $StorageTransportHealthy=$false
 $CpuDataAvailable=$false
-$RollbackPerformed=$false
-$RollbackSucceeded=$false
-$PreviousSensorLayerPresent=$false
-$ActiveArchitecture='R21_PROCESS_ISOLATED'
-$RollbackFiles=@()
-$RollbackTaskXmlText=$null
-$RollbackCaptured=$false
+# R344-F06: Setup executes the embedded Helper inside a nested scriptblock.
+# Later functions write $script: state; initialize those same variables in
+# script scope too, otherwise local bootstrap fields shadow the snapshots.
+$script:RollbackPerformed=$false
+$script:RollbackSucceeded=$false
+$script:PreviousSensorLayerPresent=$false
+$script:ActiveArchitecture='R21_PROCESS_ISOLATED'
+$script:RollbackFiles=@()
+$script:RollbackTaskXmlText=$null
+$script:RollbackCaptured=$false
 
 # Fail closed when a user-writable profile log path was replaced after the
 # initial elevated token/boundary verification. Write-time inspection is
