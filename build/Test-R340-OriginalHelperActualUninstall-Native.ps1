@@ -329,7 +329,7 @@ public static class R350HeldDelete {
 }
 '@
      $heldDelete=[R350HeldDelete]::Hold($protectedS)
-     if($heldDelete.IsInvalid -or $heldDelete.IsClosed -or (Hash $protectedS) -cne $beforeS){
+     if($heldDelete.IsInvalid -or $heldDelete.IsClosed){
        throw 'R350_ADMIN_DELETE_HANDLE_INVALID_OR_OLD_FILE_CHANGED'
      }
      $deleteHoldVerified=$true
@@ -436,15 +436,22 @@ public static class R350HeldDelete {
       ![IO.Directory]::Exists($journal) -or
       ![IO.File]::Exists((Join-Path $journal 'READY')) -or
       (TaskExists) -or
-      ![IO.File]::Exists($protectedS) -or (Hash $protectedS) -cne $beforeS -or
+      ![IO.File]::Exists($protectedS) -or
       ![IO.File]::Exists($protectedB) -or (Hash $protectedB) -cne $beforeB -or
       ![IO.File]::Exists($owner) -or (Hash $owner) -cne $ownerHash){
      throw ('R350_ORIGINAL_HELPER_DID_NOT_FAILCLOSED_OR_PRESERVE_SHA_'+[string]$negative.Status)
    }
-   $deleteRefusalVerified=$true;$deleteOldShaIntact=$true;$deleteJournalIntact=$true
+   $deleteRefusalVerified=$true;$deleteJournalIntact=$true
    Check 'EXACT_ORIGINAL_HELPER_REFUSES_REAL_PREPARED_REPLAY_WITH_HELD_ADMIN_DELETE'
    $phase='RELEASE_ONLY_TEST_ADMIN_DELETE_THEN_RELAUNCH_IDENTICAL_ORIGINAL_HELPER'
    $heldDelete.Dispose();$heldDelete=$null;$deleteHoldReleased=$true
+   # Only after releasing the real native DELETE handle may PowerShell
+   # reopen this exact leaf for a pathname-based SHA256 read.
+   if((Hash $protectedS) -cne $beforeS -or (Hash $protectedB) -cne $beforeB -or
+      (Hash $owner) -cne $ownerHash){
+     throw 'R350_PREPARED_OLD_PROTECTED_SHA_CHANGED_DURING_TEST_HELD_DELETE'
+   }
+   $deleteOldShaIntact=$true
    $recovery=[Diagnostics.Process]::Start($psi)
    if(!$recovery){throw 'R350_NEXT_ORIGINAL_HELPER_NOT_STARTED'}
    try{
