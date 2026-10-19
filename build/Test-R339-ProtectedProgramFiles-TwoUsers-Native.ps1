@@ -172,7 +172,7 @@ try{
   $secure=ConvertTo-SecureString $secret -AsPlainText -Force
   $credential=[Management.Automation.PSCredential]::new(($env:COMPUTERNAME+'\'+$name),$secure)
   $secret=$null
-  $account=New-LocalUser -Name $name -Password $secure -AccountNeverExpires -Description 'R339 disposable hosted VM cross-account ACL witness'
+  $account=New-LocalUser -Name $name -Password $secure -AccountNeverExpires -Description 'R339 disposable Windows ACL test'
   $accountCreated=$true
   $actorSid=[string]$account.SID.Value
   if($actorSid -cnotmatch '^S-1-5-21-' -or $actorSid -ceq $parentSid){throw 'R339_SECOND_WINDOWS_ACCOUNT_NOT_DISTINCT'}
