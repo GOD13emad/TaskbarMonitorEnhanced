@@ -191,7 +191,10 @@ try{
  if(@($parseErrors).Count -ne 0 -or
     !$decoded.Contains('TBME_CLEANUP_ANCESTOR_REPARSE') -or
     !$decoded.Contains('TBME_CLEANUP_CHILD_REPARSE') -or
-    !$decoded.Contains('[IO.Directory]::Delete($dir,$false)')){
+    !$decoded.Contains('$lease.DeletePinned($dir)') -or
+   !$decoded.Contains('SetFileInformationByHandle') -or
+   $decoded.Contains('$lease.Release($dir)') -or
+   $decoded.Contains('[IO.Directory]::Delete($dir,$false)')){
    throw 'R354_ORIGINAL_PE_CLEANUP_COMMAND_INCORRECT'
  }
  $decodedTransport=$true

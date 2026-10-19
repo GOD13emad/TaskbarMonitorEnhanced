@@ -192,7 +192,10 @@ Pass 'CLEANUP_ROOT_TRANSPORTED_ONLY_AS_UTF8_BASE64_DATA'
 if(!$decoded.Contains('TBME_CLEANUP_WRONG_EFFECTIVE_TOKEN') -or
    !$decoded.Contains('TBME_CLEANUP_ROOT_NOT_CANONICAL') -or
    !$decoded.Contains('TBME_CLEANUP_CHILD_REPARSE') -or
-   !$decoded.Contains('[IO.Directory]::Delete($dir,$false)')){
+   !$decoded.Contains('$lease.DeletePinned($dir)') -or
+   !$decoded.Contains('SetFileInformationByHandle') -or
+   $decoded.Contains('$lease.Release($dir)') -or
+   $decoded.Contains('[IO.Directory]::Delete($dir,$false)')){
  throw 'R334_CLEANUP_OWNER_SID_REPARSE_NONRECURSIVE_GUARDS_MISSING'
 }
 Pass 'CLEANUP_TOKEN_CANONICAL_ROOT_AND_NONRECURSIVE_GUARDS'
