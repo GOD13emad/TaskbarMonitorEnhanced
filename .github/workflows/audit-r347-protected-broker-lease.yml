@@ -83,6 +83,8 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: R347-${{ matrix.host }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/R347_*/R347_PINNED_DIRECTORY_LEASE.json
+          path: |
+            ${{ runner.temp }}/R347_*/R347_PINNED_DIRECTORY_LEASE.json
+            ${{ runner.temp }}/R347_*/OTHER_ADMIN_RENAME_RECEIPT.json
           retention-days: 7
           if-no-files-found: warn

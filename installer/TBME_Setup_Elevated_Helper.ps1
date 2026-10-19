@@ -232,7 +232,10 @@ public sealed class TBMEScopedUserLogLease : IDisposable {
 
     // R347: protected directory ancestor leases prohibit concurrent renames.
 public sealed class TBMEProtectedBrokerLease : IDisposable {
-    const uint FILE_READ_ATTRIBUTES=0x00000080;
+    // FILE_READ_ATTRIBUTES is exempt from CreateFile share-mode checks;
+    // request actual directory listing access so no FILE_SHARE_DELETE
+    // blocks rename/delete by a concurrent privileged process.
+    const uint FILE_LIST_DIRECTORY=0x00000001;
     const uint SHARE_READ=1, SHARE_WRITE=2, OPEN_EXISTING=3;
     const uint BACKUP_SEMANTICS=0x02000000, OPEN_REPARSE_POINT=0x00200000;
     const uint ATTR_DIRECTORY=0x10, ATTR_REPARSE=0x400;
@@ -249,7 +252,7 @@ public sealed class TBMEProtectedBrokerLease : IDisposable {
     bool disposed;
 
     static SafeFileHandle OpenExactDir(string path) {
-        SafeFileHandle h=OpenNative(path,FILE_READ_ATTRIBUTES,
+        SafeFileHandle h=OpenNative(path,FILE_LIST_DIRECTORY,
             SHARE_READ|SHARE_WRITE,IntPtr.Zero,OPEN_EXISTING,
             BACKUP_SEMANTICS|OPEN_REPARSE_POINT,IntPtr.Zero);
         if(h.IsInvalid) {
