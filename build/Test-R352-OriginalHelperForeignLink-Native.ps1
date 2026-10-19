@@ -565,7 +565,7 @@ public static class R352Links {
           $errorText=[string]$diag.StandardError.ReadToEnd()
           $standardText=[string]$diag.StandardOutput.ReadToEnd()
           if($foreignDiagnosticExit -ne 1 -or
-             !$errorText.Contains('SENSOR_BOUNDARY_REPARSE_REFUSED: '+$protectedS) -or
+             ![regex]::Replace($errorText,'\s','').Contains([regex]::Replace(('SENSOR_BOUNDARY_REPARSE_REFUSED: '+$protectedS),'\s','')) -or
              $standardText.Contains('UNINSTALLED')){
             $peek=(($errorText+' | '+$standardText) -replace '[\r\n]+',' ')
             if($peek.Length -gt 1200){$peek=$peek.Substring(0,1200)}
