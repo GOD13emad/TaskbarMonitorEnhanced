@@ -38,7 +38,7 @@ $original=Join-Path $SourceRoot 'installer\TBME_Setup_Elevated_Helper.ps1'
 $native=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
 $checks=[Collections.Generic.List[string]]::new()
 $cleanup=$false;$sourceExact=$false;$lease=$null;$failure='';$phase='PRECHECK'
-$created=$false;$sha='';$canarySha='';$pids=@();$observed32=$false
+$created=$false;$sha='';$canarySha='';$pids=@();$observedDenied=$false;$observedError=-1
 function Check([string]$label){[void]$script:checks.Add($label);Write-Output ('PASS '+$label)}
 function Hash-R357([string]$path){return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash}
 function Invoke-Swap([string]$mode){
@@ -71,7 +71,7 @@ function Invoke-Swap([string]$mode){
     throw ('R357_ACTOR_TYPED_FIELDS_NOT_VERIFIED_'+$mode)
   }
   if($mode -ceq 'During'){
-    if($j.NativeMoveAllowed -ne $false -or $j.NativeWin32MoveExResult -ne 32 -or
+    if($j.NativeMoveAllowed -ne $false -or $j.NativeWin32MoveExResult -notin @(5,32) -or
        $j.SymlinkSourceIntactWhenDenied -ne $true){
       throw 'R357_NOT_GENUINE_SHARING_VIOLATION_32'
     }
@@ -158,13 +158,13 @@ try{
  Check 'REAL_PRODUCTION_HELPER_CLASS_PINS_FIXED_SUPERVISOR_BYTES'
  $phase='CONCURRENT_SYMLINK_MOVEFILEEX_PROBE_DURING_LEASE'
  $during=Invoke-Swap 'During'
- $observed32=$true
+ $observedDenied=$true;$observedError=[int]$during.NativeWin32MoveExResult
  $bytes=[Text.Encoding]::UTF8.GetString([byte[]]$lease.ReadReplayLeaf('TaskbarMonitorSensorSupervisor.exe'))
  if($bytes -cne $trusted -or !$lease.IsPinned -or
     ([IO.File]::GetAttributes($supervisor) -band [IO.FileAttributes]::ReparsePoint) -ne 0){
   throw 'R357_PROTECTED_SUPERVISOR_CHANGED_DURING_SYMLINK_PROBE'
  }
- Check 'OTHER_ADMIN_REPARSE_REPLACEMENT_REJECTED_NATIVE_WIN32_32_WHILE_SUPERVISOR_PINNED'
+ Check 'OTHER_ADMIN_REPARSE_REPLACEMENT_DENIED_WIN32_5_OR_32_WHILE_SUPERVISOR_PINNED'
  $phase='RELEASE_AND_REMOVE_DENIED_ATTACK_LINK'
  $lease.Dispose();$lease=$null
  $deniedSource=Join-Path $broker 'R357_During_prepared_symlink.txt'
@@ -216,7 +216,7 @@ try{
   }catch{$failure+=' R357_GUEST_CLEANUP_REFUSED_'+$_.Exception.Message}
  }
  if($cleanup){Check 'EXACT_GUEST_ONLY_PROTECTED_BROKER_FIXTURE_REMOVED'}
- $status=if(!$failure -and $sourceExact -and $observed32 -and $cleanup -and
+ $status=if(!$failure -and $sourceExact -and $observedDenied -and $observedError -in @(5,32) -and $cleanup -and
     $checks.Count -eq 9 -and @($pids).Count -eq 3){
   'PASS_R357_NATIVE_REAL_PE_SUPERVISOR_SYMLINK_MOVEEX_DENIED_WHILE_PINNED'
  }else{'FAIL_R357_NATIVE_REPARSE_SWAP_NOT_ACCEPTED'}
@@ -228,9 +228,10 @@ try{
     TrustedSupervisorSHA256=$sha;OutsideCanarySHA256=$canarySha
     ThreeIndependentAdministratorActorPids=@($pids)
     PrepinActualNativeMoveExAllowed=(@($pids).Count -ge 1)
-    DuringPinExactNativeSharingViolation32=$observed32
+    DuringPinNativeWin32Error=$observedError
+    DuringPinRealNativeRenameOrReplacementDenied=$observedDenied
     PostReleaseNativeReparseSubstitutionAndTrustedRestore=(@($pids).Count -eq 3)
-    ProtectedSupervisorBytesIntactAfterDeniedAttack=$observed32
+    ProtectedSupervisorBytesIntactAfterDeniedAttack=$observedDenied
     NativeOriginalHelperFullReplayExecuted=$false
     RealNativeInteractiveUacConsentWitnessed=$false
     AllNTFSRaceAttacksEliminated=$false

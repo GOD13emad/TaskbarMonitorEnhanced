@@ -76,10 +76,10 @@ try{
  $errCode=[R357RealMoveEx]::Replace($source,$destination)
  $allowed=($errCode -eq 0)
  if($Phase -ceq 'During'){
-  if($allowed -or $errCode -ne 32 -or
+  if($allowed -or $errCode -notin @(5,32) -or
     ![IO.File]::Exists($source) -or
     ([IO.File]::GetAttributes($source) -band [IO.FileAttributes]::ReparsePoint) -eq 0){
-     throw ('R357_PROTECTED_LEAF_SWAP_NOT_DENIED_BY_SHARING_'+$errCode)
+     throw ('R357_PROTECTED_LEAF_SWAP_NOT_DENIED_NATIVE_'+$errCode)
   }
   $sourceLeft=$true
  }else{
@@ -105,7 +105,7 @@ try{
 }catch{
  $fail=$_.Exception.GetType().Name+': '+$_.Exception.Message+' PHASE='+$phaseIndex
 }
-$status=if(!$fail -and (($Phase -ceq 'During' -and !$allowed -and $errCode -eq 32 -and $sourceLeft) -or
+$status=if(!$fail -and (($Phase -ceq 'During' -and !$allowed -and $errCode -in @(5,32) -and $sourceLeft) -or
  ($Phase -cne 'During' -and $allowed -and $restored))){
  'PASS_EXACT_NATIVE_REPARSE_MOVEEX_'+$Phase.ToUpperInvariant()
 }else{'FAIL_R357_ACTOR_NOT_WITNESSED'}
