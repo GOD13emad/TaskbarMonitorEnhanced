@@ -55,6 +55,15 @@ jobs:
           if(!$who.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){
              throw 'R354_ALREADY_ADMIN_HOSTED_RUNNER_REQUIRED'
           }
+          $marker=Join-Path $env:RUNNER_TEMP 'R354_PREBUILD_FRESH_GUEST.json'
+          if(Test-Path -LiteralPath $marker){throw 'R354_PREBUILD_MARKER_PREEXISTS'}
+          $proof=[ordered]@{
+            Schema=1;Revision='R354';SourceCommit=$env:GITHUB_SHA
+            Host=$env:COMPUTERNAME
+            AppRootAbsentBeforeBuild=$true;ProtectedRootAbsentBeforeBuild=$true
+            TaskAbsentBeforeBuild=$true
+          }
+          [IO.File]::WriteAllText($marker,($proof|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
           'R354_FRESH_DISPOSABLE_WINDOWS_GUEST_PASS'
       - name: Install pinned .NET SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68

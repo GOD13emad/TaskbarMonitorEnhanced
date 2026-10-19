@@ -46,6 +46,33 @@ $setup='';$sourceExact=$false;$fixtureCreated=$false;$outsideSha=''
 $canaryUnchanged=$false;$reparseRefused=$false;$nominalDeleted=$false
 $testCleaned=$false;$parentPid=0;$parentTicks=0;$cleanupPid=0
 $compiledEmbeddedSource=$false;$decodedTransport=$false;$nativeOriginalProcessLaunched=$false
+$spillover='';$spilloverMoved=$false;$spilloverRestored=$false
+$spillBefore='';$spillAfter='';$syntheticGone=$false
+function FingerprintGuestApp([string]$base){
+ if(![IO.Directory]::Exists($base)){throw 'R354_SPILL_NOT_DIRECTORY'}
+ if(([IO.File]::GetAttributes($base) -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'R354_SPILL_ROOT_REPARSE'}
+ $members=@(Get-ChildItem -LiteralPath $base -Recurse -Force -ErrorAction Stop)
+ if($members.Count -gt 300){throw 'R354_SPILL_TOO_MANY_ENTRIES'}
+ $lines=[Collections.Generic.List[string]]::new()
+ [long]$total=0
+ foreach($item in $members){
+   if(($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'R354_SPILL_MEMBER_REPARSE'}
+   $rel=$item.FullName.Substring($base.TrimEnd('\').Length+1)
+   if($item.PSIsContainer){$lines.Add('D|'+$rel)}
+   else{
+     if($item.Length -gt 16777216){throw 'R354_SPILL_OVERSIZE_FILE'}
+     $total+=$item.Length
+     if($total -gt 67108864){throw 'R354_SPILL_TOO_MANY_BYTES'}
+     $lines.Add('F|'+$rel+'|'+$item.Length+'|'+(Hash $item.FullName))
+   }
+ }
+ $digest=[Security.Cryptography.SHA256]::Create()
+ try{
+   $joined=[string]::Join([string][char]10,[string[]]@($lines|Sort-Object -CaseSensitive))
+   return ([BitConverter]::ToString($digest.ComputeHash([Text.Encoding]::UTF8.GetBytes($joined)))).Replace('-','')
+ }finally{$digest.Dispose()}
+}
+
 function Check([string]$name){$script:checks.Add($name);Write-Output ('PASS '+$name)}
 function Hash([string]$p){return (Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash}
 function IsTaskPresent(){
@@ -64,9 +91,20 @@ try{
  $fresh.SensorTask=[bool](IsTaskPresent)
  $fresh.SensorProcessCount=@(Get-Process TaskbarMonitorEnhanced,TaskbarMonitorSensorBroker,TaskbarMonitorSensorSupervisor -ErrorAction SilentlyContinue).Count
  Write-Output ('R354_NATIVE_GUEST_FRESHNESS='+($fresh|ConvertTo-Json -Compress))
- if($fresh.AppDir -or $fresh.ProtectedDir -or $fresh.MainFile -or
+ $marker=Join-Path $env:RUNNER_TEMP 'R354_PREBUILD_FRESH_GUEST.json'
+ if(![IO.File]::Exists($marker)){throw 'R354_PREBUILD_FRESHNESS_PROOF_MISSING'}
+ $pre=Get-Content -LiteralPath $marker -Raw|ConvertFrom-Json
+ if($pre.Schema -ne 1 -or $pre.Revision -cne 'R354' -or
+    $pre.SourceCommit -cne $env:GITHUB_SHA -or
+    $pre.Host -cne $env:COMPUTERNAME -or
+    $pre.AppRootAbsentBeforeBuild -ne $true -or
+    $pre.ProtectedRootAbsentBeforeBuild -ne $true -or
+    $pre.TaskAbsentBeforeBuild -ne $true){
+   throw 'R354_BAD_PREBUILD_FRESHNESS_PROOF'
+ }
+ if($fresh.ProtectedDir -or $fresh.MainFile -or
     $fresh.SensorTask -or $fresh.SensorProcessCount -gt 0){
-   throw 'R354_PREEXISTING_OWNER_PRODUCT_OR_SENSOR_GUEST_REFUSED'
+   throw 'R354_POSTBUILD_REAL_PRODUCT_OR_SENSOR_REFUSED'
  }
  if(-not [string]::Equals([IO.Path]::GetFullPath($local),
    [IO.Path]::GetFullPath((Join-Path $profile 'AppData\Local')),[StringComparison]::OrdinalIgnoreCase)){
@@ -77,6 +115,19 @@ try{
  $outsideSha=Hash $canary
  Check 'REAL_GITHUB_HOSTED_WINDOWS_CLEAN_APP_TASK_AND_SENSORS_ABSENT'
  Check 'EXPECTED_OWNER_APP_ROOT_IS_CANONICAL_KNOWNFOLDER_NOT_ENV_OVERRIDE'
+ $phase='ISOLATE_KNOWN_BUILD_ONLY_APPROOT'
+ if($fresh.AppDir){
+   $spillover=Join-Path $local ('TaskbarMonitorEnhanced_R354_BUILD_SNAPSHOT_'+$HostLabel+'_'+$env:GITHUB_RUN_ID)
+   if(Test-Path -LiteralPath $spillover){throw 'R354_SPILL_PREEXISTS'}
+   $spillBefore=FingerprintGuestApp $app
+   [IO.Directory]::Move($app,$spillover)
+   $spilloverMoved=$true
+   if([IO.Directory]::Exists($app) -or
+      (FingerprintGuestApp $spillover) -cne $spillBefore){
+     throw 'R354_SPILL_MOVE_SHA_MISMATCH'
+   }
+ }
+ Check 'PREBUILD_FRESH_GUEST_BUILD_ONLY_APPDATA_ATOMICALLY_ISOLATED'
  $phase='REFLECT_EXACT_COMPILED_PRODUCTION_SETUP_PRIVATE_FACTORY'
  $setup=Join-Path $SourceRoot 'build\_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.8.exe'
  $source=Join-Path $SourceRoot 'installer\TaskbarMonitorEnhanced_Setup.cs'
@@ -243,10 +294,22 @@ try{
     [IO.File]::Delete($canary)
     [IO.Directory]::Delete($external,$false)
   }
-  $testCleaned=(![IO.Directory]::Exists($app) -and
+  $syntheticGone=(![IO.Directory]::Exists($app))
+  if($spilloverMoved -and $syntheticGone){
+    if(![IO.Directory]::Exists($spillover) -or
+       (FingerprintGuestApp $spillover) -cne $spillBefore){
+      throw 'R354_SPILL_CHANGED_BEFORE_RESTORE'
+    }
+    [IO.Directory]::Move($spillover,$app)
+    $spillAfter=FingerprintGuestApp $app
+    $spilloverRestored=($spillAfter -ceq $spillBefore -and ![IO.Directory]::Exists($spillover))
+    if(!$spilloverRestored){throw 'R354_BUILD_APPDATA_NOT_EXACTLY_RESTORED'}
+  }
+  $testCleaned=($syntheticGone -and
+    (!$spilloverMoved -or $spilloverRestored) -and
     ![IO.Directory]::Exists($external) -and ![IO.Directory]::Exists($protected) -and !(IsTaskPresent))
  }catch{$failure+=' R354_TEST_FIXTURE_CLEANUP_FAILED='+$_.Exception.Message}
- $accepted=(!$failure -and $checks.Count -eq 10 -and $testCleaned -and
+ $accepted=(!$failure -and $checks.Count -eq 11 -and $testCleaned -and
    $nativeOriginalProcessLaunched -and $canaryUnchanged -and
    ($nominalDeleted -or $reparseRefused))
  $status=if($accepted){'PASS_REAL_ORIGINAL_SETUP_DEFERRED_CLEANUP_'+$Mode.ToUpperInvariant()+'_SCOPED'}else{'FAIL_R354_NOT_ACCEPTED'}
@@ -262,6 +325,12 @@ try{
    ExpectedJunctionRefusalObserved=$reparseRefused;NormalSyntheticUninstallRemoved=$nominalDeleted
    ExternalCanarySHA256=$outsideSha;CanaryUnchanged=$canaryUnchanged
    ScopedTestCleanupComplete=$testCleaned
+   PreBuildGuestAppAbsent=$true
+   BuildGeneratedAppRootSeen=$fresh.AppDir
+   BuildGeneratedRootBackupRestored=$spilloverRestored
+   BuildGeneratedRootShaBefore=$spillBefore
+   BuildGeneratedRootShaAfter=$spillAfter
+   SyntheticFixtureRootFullyRemoved=$syntheticGone
    GuestFreshness=$fresh
    UserOwnerComputerTouched=$false;DriverOrBrokerSetupExecuted=$false
    InteractiveUacTested=$false;ConcurrentPathSwapTested=$false
