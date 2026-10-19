@@ -229,6 +229,74 @@ public sealed class TBMEScopedUserLogLease : IDisposable {
     guardCount=0;
   }
 }
+
+    // R347: protected directory ancestor leases prohibit concurrent renames.
+public sealed class TBMEProtectedBrokerLease : IDisposable {
+    const uint FILE_READ_ATTRIBUTES=0x00000080;
+    const uint SHARE_READ=1, SHARE_WRITE=2, OPEN_EXISTING=3;
+    const uint BACKUP_SEMANTICS=0x02000000, OPEN_REPARSE_POINT=0x00200000;
+    const uint ATTR_DIRECTORY=0x10, ATTR_REPARSE=0x400;
+    [DllImport("kernel32.dll",EntryPoint="CreateFileW",SetLastError=true,CharSet=CharSet.Unicode)]
+    static extern SafeFileHandle OpenNative(string path,uint access,uint share,IntPtr sec,
+                                            uint creation,uint flags,IntPtr template);
+    [StructLayout(LayoutKind.Sequential)]
+    struct FILE_ATTRIBUTE_TAG_INFO { public uint Attributes; public uint Tag; }
+    [DllImport("kernel32.dll",SetLastError=true)]
+    static extern bool GetFileInformationByHandleEx(SafeFileHandle handle,int kind,
+                                                     out FILE_ATTRIBUTE_TAG_INFO data,uint size);
+    readonly SafeFileHandle[] parents=new SafeFileHandle[3];
+    int count;
+    bool disposed;
+
+    static SafeFileHandle OpenExactDir(string path) {
+        SafeFileHandle h=OpenNative(path,FILE_READ_ATTRIBUTES,
+            SHARE_READ|SHARE_WRITE,IntPtr.Zero,OPEN_EXISTING,
+            BACKUP_SEMANTICS|OPEN_REPARSE_POINT,IntPtr.Zero);
+        if(h.IsInvalid) {
+            int error=Marshal.GetLastWin32Error();
+            h.Dispose();
+            throw new IOException("SENSOR_BROKER_DIRECTORY_LEASE_OPEN_FAILED_WIN32_"+error);
+        }
+        FILE_ATTRIBUTE_TAG_INFO info;
+        if(!GetFileInformationByHandleEx(h,9,out info,
+            (uint)Marshal.SizeOf(typeof(FILE_ATTRIBUTE_TAG_INFO)))) {
+            int error=Marshal.GetLastWin32Error(); h.Dispose();
+            throw new IOException("SENSOR_BROKER_DIRECTORY_LEASE_TAG_FAILED_WIN32_"+error);
+        }
+        if((info.Attributes&ATTR_DIRECTORY)==0||(info.Attributes&ATTR_REPARSE)!=0) {
+            h.Dispose();
+            throw new IOException("SENSOR_BROKER_DIRECTORY_LEASE_REPARSE_REFUSED");
+        }
+        return h;
+    }
+
+    public TBMEProtectedBrokerLease(string liveBroker) {
+        string program=Path.GetFullPath(Environment.GetFolderPath(
+            Environment.SpecialFolder.ProgramFiles)).TrimEnd(Path.DirectorySeparatorChar);
+        string root=Path.Combine(program,"TaskbarMonitorEnhanced");
+        string broker=Path.Combine(root,"SensorBroker");
+        if(String.IsNullOrWhiteSpace(liveBroker) ||
+           !String.Equals(Path.GetFullPath(liveBroker).TrimEnd(Path.DirectorySeparatorChar),
+                          broker,StringComparison.OrdinalIgnoreCase)) {
+            throw new IOException("SENSOR_BROKER_DIRECTORY_LEASE_NOT_EXACT_SYSTEM_PROGRAMFILES");
+        }
+        try {
+            parents[count++]=OpenExactDir(program);
+            parents[count++]=OpenExactDir(root);
+            // If a killed Helper removed the old Broker directory, the pinned
+            // parent prevents its replacement while recreating this fixed child.
+            if(!Directory.Exists(broker))Directory.CreateDirectory(broker);
+            parents[count++]=OpenExactDir(broker);
+        }catch {Dispose();throw;}
+    }
+    public bool IsPinned {get{return !disposed&&count==3;}}
+    public void Dispose() {
+        if(disposed)return;
+        disposed=true;
+        for(int i=count-1;i>=0;i--)if(parents[i]!=null)parents[i].Dispose();
+        count=0;
+    }
+}
 '@
 
 $TaskName='TaskbarMonitorEnhanced Sensor Broker'
@@ -1231,6 +1299,18 @@ function Restore-SensorJournalPriorLayerAndTask(
     }
     # Reject a foreign or altered live task BEFORE any files are changed.
     $previousTaskPresent=Test-SensorOwnedTaskRegistration $TaskName $ExpectedSid $LiveBrokerRoot $TrustedAppRoot
+    # R347: the original old protected tree is known from the validated
+    # journal. Pin ProgramFiles/product/Broker directory handles across both
+    # file replay and Task XML restoration; no DELETE sharing is granted.
+    # R337 first-install journals are intentionally excluded because the
+    # expected old BrokerRoot is absent and must be deleted on rollback.
+    $brokerDirectoryLease=$null
+    if($TaskName -ceq 'TaskbarMonitorEnhanced Sensor Broker' -and
+       [bool]$record.OldRootPresent){
+        $brokerDirectoryLease=[TBMEProtectedBrokerLease]::new($LiveBrokerRoot)
+        Assert-SensorJournalTrustedAcl $LiveBrokerRoot $false
+    }
+    try {
     # R309 prevalidates every saved file/hash, XML and all current live
     # member names before the first synthetic file write. Retrying after a
     # crash is safe for the same allowlisted bytes and expected task.
@@ -1259,6 +1339,9 @@ function Restore-SensorJournalPriorLayerAndTask(
     Finish-SensorTerminalJournal $Journal $ExpectedSid
     if([IO.Directory]::Exists($Journal) -or [IO.Directory]::Exists($Journal+'-retired')){
         throw 'SENSOR_COLD_ROLLBACK_JOURNAL_RESIDUE'
+    }
+    }finally{
+        if($null -ne $brokerDirectoryLease){$brokerDirectoryLease.Dispose()}
     }
 }
 

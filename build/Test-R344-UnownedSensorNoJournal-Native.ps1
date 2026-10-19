@@ -12,7 +12,7 @@ if($PSVersionTable.PSEdition -cne 'Desktop' -or
    $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
    $env:RUNNER_OS -cne 'Windows' -or
    $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
-   $env:GITHUB_REF -cne 'refs/heads/audit/r344-uninstall-prepared-journal-guard' -or
+   $env:GITHUB_REF -cne 'refs/heads/audit/r347-protected-broker-handle-lease' -or
    $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID|LAPTOP' -or
    $env:GITHUB_RUN_ID -cnotmatch '^\d{5,20}$' -or
    $env:GITHUB_SHA -cnotmatch '^[0-9a-f]{40}$' -or
