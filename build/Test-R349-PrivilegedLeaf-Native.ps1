@@ -52,8 +52,13 @@ function Cause([Exception]$error){
 }
 function Sharing([Exception]$error){
  $e=Cause $error
+ # The unchanged production native guard deliberately throws a fresh
+ # IOException carrying GetLastError=32 in its exact message; its HResult
+ # is the generic managed IOException code, not the source Win32 HResult.
+ # Restrict acceptance to this precise native sharing violation only.
  return ($e -is [IO.IOException] -or $e -is [UnauthorizedAccessException]) -and
-   ($e.HResult -in @(-2147024864,-2147024891))
+   (($e.HResult -in @(-2147024864,-2147024891)) -or
+    $e.Message -ceq 'SENSOR_REPLAY_LEAF_EXCLUSIVE_OPEN_FAILED_WIN32_32')
 }
 try{
  if([IO.Directory]::Exists($protected) -or [IO.Directory]::Exists($root) -or
