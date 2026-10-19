@@ -1,7 +1,7 @@
 name: R354 real production Setup deferred cleanup (disposable Windows)
 on:
   push:
-    branches: [audit/r350-original-helper-preopened-delete-recovery]
+    branches: [audit/r355-deferred-cleanup-directory-pins]
     paths:
       - build/Test-R354-OriginalDeferredCleanup-Native.ps1
       - installer/TaskbarMonitorEnhanced_Setup.cs

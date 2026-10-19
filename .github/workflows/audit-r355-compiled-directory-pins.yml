@@ -1,7 +1,7 @@
 name: R355 compiled Setup directory identity pins (disposable Windows)
 on:
   push:
-    branches: [audit/r350-original-helper-preopened-delete-recovery]
+    branches: [audit/r355-deferred-cleanup-directory-pins]
     paths:
       - build/Test-R355-CompiledDirectoryPin-Native.ps1
       - installer/TaskbarMonitorEnhanced_Setup.cs
