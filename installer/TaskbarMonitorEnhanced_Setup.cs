@@ -1162,6 +1162,63 @@ try{
     # Parent exited between process lookup and StartTime/WaitForExit.
 }
 if(-not [IO.Directory]::Exists($expectedRoot)){exit 0}
+
+# R355: acquire trusted directory handles without FILE_SHARE_DELETE before
+# reading inventory or deleting names, so an attacker cannot rename pinned
+# profile/LocalAppData/owned-tree ancestors while this cleanup is working.
+Add-Type -TypeDefinition @'
+using System;
+using System.IO;
+using System.Text;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+public sealed class TBMEDeferredDirectoryLeaseSet : IDisposable {
+ const uint LIST=1,SHARE_READ_WRITE=3,OPEN_EXISTING=3;
+ const uint BACKUP=0x02000000,OPEN_REPARSE=0x00200000,DIR=0x10,REPARSE=0x400;
+ [StructLayout(LayoutKind.Sequential)]
+ struct TAG {public uint Attributes;public uint ReparseTag;}
+ [DllImport(""kernel32.dll"",CharSet=CharSet.Unicode,EntryPoint=""CreateFileW"",SetLastError=true)]
+ static extern SafeFileHandle Create(string p,uint access,uint sharing,IntPtr sec,uint create,uint flags,IntPtr template);
+ [DllImport(""kernel32.dll"",SetLastError=true)]
+ static extern bool GetFileInformationByHandleEx(SafeFileHandle file,int kind,out TAG info,uint size);
+ [DllImport(""kernel32.dll"",CharSet=CharSet.Unicode,EntryPoint=""GetFinalPathNameByHandleW"",SetLastError=true)]
+ static extern uint Final(SafeFileHandle file,StringBuilder path,uint size,uint flags);
+ readonly Dictionary<string,SafeFileHandle> pins=new Dictionary<string,SafeFileHandle>(StringComparer.OrdinalIgnoreCase);
+ public void Pin(string path){
+  if(String.IsNullOrWhiteSpace(path))throw new IOException(""R355_PIN_EMPTY_DIRECTORY"");
+  string expected=Path.GetFullPath(path).TrimEnd('\\');
+  if(pins.ContainsKey(expected))return;
+  SafeFileHandle h=Create(expected,LIST,SHARE_READ_WRITE,IntPtr.Zero,OPEN_EXISTING,BACKUP|OPEN_REPARSE,IntPtr.Zero);
+  if(h.IsInvalid){int e=Marshal.GetLastWin32Error();h.Dispose();throw new IOException(""R355_PIN_CREATEFILE_WIN32_""+e);}
+  try{
+   TAG t;
+   if(!GetFileInformationByHandleEx(h,9,out t,(uint)Marshal.SizeOf(typeof(TAG))))
+     throw new IOException(""R355_PIN_TAG_WIN32_""+Marshal.GetLastWin32Error());
+   if((t.Attributes&DIR)==0||(t.Attributes&REPARSE)!=0)
+     throw new IOException(""R355_PIN_NON_DIRECTORY_OR_REPARSE"");
+   StringBuilder b=new StringBuilder(4096);
+   uint n=Final(h,b,(uint)b.Capacity,0);
+   if(n==0||n>=b.Capacity)throw new IOException(""R355_PIN_FINAL_PATH_WIN32_""+Marshal.GetLastWin32Error());
+   string actual=b.ToString();
+   if(actual.StartsWith(@""\\?\"",StringComparison.Ordinal))actual=actual.Substring(4);
+   if(!String.Equals(actual.TrimEnd('\\'),expected,StringComparison.OrdinalIgnoreCase))
+     throw new IOException(""R355_PIN_REDIRECTED_DIRECTORY"");
+   pins.Add(expected,h);
+  }catch{h.Dispose();throw;}
+ }
+ public void Release(string path){
+  string p=Path.GetFullPath(path).TrimEnd('\\');
+  SafeFileHandle h;
+  if(!pins.TryGetValue(p,out h))throw new IOException(""R355_PIN_RELEASE_UNKNOWN_DIRECTORY"");
+  pins.Remove(p);h.Dispose();
+ }
+ public void Dispose(){
+  foreach(SafeFileHandle h in pins.Values)h.Dispose();
+  pins.Clear();
+ }
+}
+'@
 # Reject every ancestor and descendant reparse point before deletion;
 # this is a path-based check, not proof against concurrent swaps.
 $cursor=$expectedRoot
@@ -1180,6 +1237,11 @@ $stack=[Collections.Generic.List[string]]::new()
 $dirs=[Collections.Generic.List[string]]::new()
 $files=[Collections.Generic.List[string]]::new()
 $stack.Add($expectedRoot)
+$lease=[TBMEDeferredDirectoryLeaseSet]::new()
+try{
+foreach($pinPath in @($profile,(Join-Path $profile 'AppData'),$local,$expectedRoot)){
+  $lease.Pin($pinPath)
+}
 $members=0
 while($stack.Count -gt 0){
     $dir=$stack[$stack.Count-1]
@@ -1189,6 +1251,7 @@ while($stack.Count -gt 0){
        ($attrs -band [IO.FileAttributes]::Directory) -eq 0){
         throw 'TBME_CLEANUP_CHANGED_DIRECTORY'
     }
+    $lease.Pin($dir)
     $dirs.Add($dir)
     foreach($entry in [IO.Directory]::GetFileSystemEntries($dir)){
         $members++
@@ -1220,12 +1283,14 @@ foreach($file in $files){
     [IO.File]::Delete($file)
 }
 foreach($dir in ($dirs|Sort-Object Length -Descending)){
+    $lease.Release($dir)
     $attrs=[IO.File]::GetAttributes($dir)
     if(($attrs -band [IO.FileAttributes]::ReparsePoint) -ne 0){
         throw 'TBME_CLEANUP_CHANGED_DIRECTORY'
     }
     [IO.Directory]::Delete($dir,$false)
 }
+}finally{$lease.Dispose()}
 ";
         script=script.Replace("__ROOT_B64__",rootBlob)
                      .Replace("__OWNER_SID__",sid)
