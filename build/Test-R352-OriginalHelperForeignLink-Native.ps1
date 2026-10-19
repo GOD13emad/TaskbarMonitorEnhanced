@@ -567,7 +567,9 @@ public static class R352Links {
           if($foreignDiagnosticExit -ne 1 -or
              !$errorText.Contains('SENSOR_BOUNDARY_REPARSE_REFUSED: '+$protectedS) -or
              $standardText.Contains('UNINSTALLED')){
-            throw 'R352_SYMLINK_EXACT_ORIGINAL_EARLY_REPARSE_ERROR_NOT_FOUND'
+            $peek=(($errorText+' | '+$standardText) -replace '[\r\n]+',' ')
+            if($peek.Length -gt 1200){$peek=$peek.Substring(0,1200)}
+            throw ('R352_SYMLINK_DIAGNOSTIC_UNMATCHED '+$peek)
           }
           $foreignDiagnosticMatched=$true
         }finally{$diag.Dispose()}

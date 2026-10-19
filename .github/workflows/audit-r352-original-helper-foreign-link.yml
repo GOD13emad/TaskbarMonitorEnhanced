@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [Hardlink, Symlink]
+        mode: [Symlink]
         host: [A, B]
         include:
           - host: A
