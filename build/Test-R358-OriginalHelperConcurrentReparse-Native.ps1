@@ -522,7 +522,7 @@ public static class R350HeldDelete {
            $raceEvidence.OriginalHelperStillAliveAtNativeSwap -ne $true -or
            $raceEvidence.TrustedPreparedJournalReadyAtNativeSwap -ne $true -or
            $raceEvidence.NativeMoveFileExAttempted -ne $true -or
-           $raceEvidence.OwnerMachineTouched -ne $false -or
+           $raceEvidence.OwnerComputerTouched -ne $false -or
            $raceEvidence.NativeSymlinkReplacementAllowed -ne $false -or
            $raceEvidence.NativeSourceSymlinkRetainedOnDenial -ne $true -or
            $raceEvidence.NativePositiveControlSymlinkReplacedBeforeHelper -ne $true -or
