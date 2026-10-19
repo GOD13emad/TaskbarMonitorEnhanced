@@ -5,7 +5,8 @@ param(
   [switch]$KillBeforeMutation,
   [switch]$KillAfterTaskRemoval,
   [switch]$KillAfterBrokerRemoval,
-  [switch]$HoldPriorDeleteDuringColdReplay
+  [switch]$HoldPriorDeleteDuringColdReplay,
+  [switch]$LiveAdminWriteRaceDuringColdReplay
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -13,6 +14,7 @@ $ErrorActionPreference='Stop'
 # Run only on fresh hosted disposable Windows (the hosted runner already owns
 # an administrator token), never on the maintainer desktop or existing sensor.
 if($HoldPriorDeleteDuringColdReplay -and -not $KillAfterTaskRemoval){throw 'R350_DELETE_HOLD_REQUIRES_POSTTASK_KILL'}
+if($LiveAdminWriteRaceDuringColdReplay -and -not $HoldPriorDeleteDuringColdReplay){throw 'R351_ACTIVE_WRITE_REQUIRES_R350_REAL_PREPARED_SETUP'}
 if(($KillBeforeMutation -and $KillAfterTaskRemoval) -or
    ($KillBeforeMutation -and $KillAfterBrokerRemoval) -or
    ($KillAfterTaskRemoval -and $KillAfterBrokerRemoval)){
@@ -73,6 +75,8 @@ $deliberatePostTaskKill=$false;$taskRemovedAtKill=$false;$resultAbsentAtKill=$fa
 $deliberatePostFileKill=$false;$fileRemovedAtKill=$false;$taskGoneAtFileKill=$false;$protectedRootPresentAtFileKill=$null;$ownerMarkerPresentAtFileKill=$null;$fileKilledPid=0
 $journalColdRestored=$false;$recoveryRunPid=0;$finalCleanupRunPid=0;$recoveryTaskXmlExact=$false;$recoveryTaskTrustMatch=$false;$firstHelperStatus='';$oldOwnedBrokerHashesRestored=$false
 $heldDelete=$null;$deleteHoldVerified=$false;$deleteHoldReleased=$false;$deleteRefusalVerified=$false;$deleteRefusalPid=0;$postDeleteRecoveryPid=0;$deleteOldShaIntact=$false;$deleteJournalIntact=$false
+$raceActor=$null;$raceActorPid=0;$raceActorSha='';$raceAttempts=0;$raceNativeDenied=$false;$racePriorOpenAllowed=$false
+$raceAuthority='';$raceReady='';$raceSignal='';$raceReceipt='';$raceNonce=''
 function Hash([string]$file){return (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash}
 function Check([string]$check){$script:checks.Add($check);Write-Output ('PASS '+$check)}
 function TaskExists(){
@@ -452,10 +456,79 @@ public static class R350HeldDelete {
      throw 'R350_PREPARED_OLD_PROTECTED_SHA_CHANGED_DURING_TEST_HELD_DELETE'
    }
    $deleteOldShaIntact=$true
+    if($LiveAdminWriteRaceDuringColdReplay){
+      $phase='R351_START_SEPARATE_ADMIN_CHILD_BEFORE_ORIGINAL_HELPER_RECOVERY'
+      $actorFile=Join-Path $SourceRoot 'build\Test-R351-PrivilegedReplayActor.ps1'
+      if(![IO.File]::Exists($actorFile)){throw 'R351_PINNED_ACTOR_SOURCE_MISSING'}
+      $raceAuthority=Join-Path $receiptsRoot 'R351_AUTHORITY.json'
+      $raceReady=Join-Path $receiptsRoot 'R351_ACTOR_READY.txt'
+      $raceSignal=Join-Path $receiptsRoot 'R351_HELPER_SIGNAL.json'
+      $raceReceipt=Join-Path $receiptsRoot 'R351_REAL_ADMIN_ACTOR.json'
+      foreach($item in @($actorFile,$raceAuthority,$raceReady,$raceSignal,$raceReceipt)){
+        if($item.Contains('"')){throw 'R351_QUOTED_PATH_REFUSED'}
+      }
+      $raceNonce=[guid]::NewGuid().ToString('N')
+      $raceProof=[ordered]@{
+        Schema=1;Revision='R351';SourceCommit=$env:GITHUB_SHA
+        Host=$HostLabel;HostedComputer=$env:COMPUTERNAME;ParentPid=$PID;Nonce=$raceNonce
+        ExpectedLeaf=$protectedS;ExpectedJournal=$journal
+      }
+      [IO.File]::WriteAllText($raceAuthority,($raceProof|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+      $actorPsi=[Diagnostics.ProcessStartInfo]::new()
+      $actorPsi.FileName=$native
+      $actorPsi.Arguments='-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "'+$actorFile+'" -AuthorityPath "'+$raceAuthority+'" -ReadyPath "'+$raceReady+'" -SignalPath "'+$raceSignal+'" -ReceiptPath "'+$raceReceipt+'"'
+      $actorPsi.CreateNoWindow=$true;$actorPsi.UseShellExecute=$false
+      $raceActor=[Diagnostics.Process]::Start($actorPsi)
+      if(!$raceActor){throw 'R351_SECOND_ADMIN_ACTOR_NOT_STARTED'}
+      $raceActorPid=$raceActor.Id
+      if($raceActorPid -le 0 -or $raceActorPid -eq $PID){throw 'R351_ACTOR_PID_NOT_INDEPENDENT'}
+      $readyTimer=[Diagnostics.Stopwatch]::StartNew()
+      while(![IO.File]::Exists($raceReady) -and !$raceActor.HasExited -and $readyTimer.ElapsedMilliseconds -lt 20000){
+        Start-Sleep -Milliseconds 5
+      }
+      if(![IO.File]::Exists($raceReady) -or
+         [IO.File]::ReadAllText($raceReady) -cne ('R351_ADMIN_ACTOR_READY_'+$raceNonce)){
+        throw 'R351_ACTOR_PRE_HELPER_WRITE_OPEN_PREFLIGHT_FAILED'
+      }
+    }
    $recovery=[Diagnostics.Process]::Start($psi)
    if(!$recovery){throw 'R350_NEXT_ORIGINAL_HELPER_NOT_STARTED'}
-   try{
-     $childPid=$recovery.Id;$postDeleteRecoveryPid=$childPid
+    if($LiveAdminWriteRaceDuringColdReplay){
+      $signalObj=[ordered]@{Nonce=$raceNonce;SourceCommit=$env:GITHUB_SHA;HelperPid=$recovery.Id}
+      [IO.File]::WriteAllText($raceSignal,($signalObj|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+    }
+    try{
+      if($LiveAdminWriteRaceDuringColdReplay){
+        $phase='R351_VERIFY_SEPARATE_REAL_ADMIN_ACTOR_DURING_LIVE_HELPER_REPLAY'
+        if(!$raceActor.WaitForExit(38000)){
+          if(!$raceActor.HasExited){$raceActor.Kill();[void]$raceActor.WaitForExit(5000)}
+          throw 'R351_ACTOR_WITNESS_TIMEOUT'
+        }
+        if($raceActor.ExitCode -ne 0 -or ![IO.File]::Exists($raceReceipt)){
+          throw ('R351_ACTOR_PROCESS_FAILED_'+$raceActor.ExitCode)
+        }
+        $raceEvidence=Get-Content -LiteralPath $raceReceipt -Raw|ConvertFrom-Json
+        $raceActorSha=Hash $raceReceipt
+        if($raceEvidence.Revision -cne 'R351' -or
+           $raceEvidence.SourceCommit -cne $env:GITHUB_SHA -or
+           $raceEvidence.Host -cne $HostLabel -or
+           $raceEvidence.ActorPid -ne $raceActorPid -or
+           $raceEvidence.HelperPid -ne $recovery.Id -or
+           $raceEvidence.Status -cne 'PASS_REAL_ORIGINAL_HELPER_CONCURRENT_ADMIN_WRITE_OPEN_DENIED' -or
+           $raceEvidence.SharingViolationWin32 -ne 32 -or
+           $raceEvidence.OriginalHelperLiveReplaySharingDenied -ne $true -or
+           $raceEvidence.AllowedWriteAccessOpenBeforeHelper -ne $true -or
+           $raceEvidence.ExactHelperStillAliveAtDenial -ne $true -or
+           $raceEvidence.TrustedPreparedJournalReadyAtDenial -ne $true -or
+           $raceEvidence.OpenOnlyNoWriteEverPerformed -ne $true -or
+           $raceEvidence.OwnerMachineTouched -ne $false -or
+           ![string]::IsNullOrEmpty([string]$raceEvidence.Failure)){
+          throw 'R351_ORIGINAL_HELPER_SEPARATE_ADMIN_WRITE_RACE_RECEIPT_INVALID'
+        }
+        $raceAttempts=[int]$raceEvidence.BoundedAttempts
+        $racePriorOpenAllowed=$true;$raceNativeDenied=$true
+      }
+      $childPid=$recovery.Id;$postDeleteRecoveryPid=$childPid
      if($postDeleteRecoveryPid -eq $deleteRefusalPid -or
         !$recovery.WaitForExit(55000)){
        if(!$recovery.HasExited){$recovery.Kill();[void]$recovery.WaitForExit(6000)}
@@ -465,6 +538,9 @@ public static class R350HeldDelete {
    }finally{$recovery.Dispose()}
    $helperExit=0
    Check 'TEST_ADMIN_RELEASED_DELETE_AND_NEXT_ORIGINAL_HELPER_COMPLETED_RECOVERY'
+    if($LiveAdminWriteRaceDuringColdReplay -and $raceNativeDenied -and $raceActorSha){
+      Check 'SEPARATE_REAL_ADMIN_WRITE_OPEN_DENIED_WHILE_ORIGINAL_HELPER_REPLAY_ACTIVE'
+    }
  }
  Check 'ACTUAL_COMPRESSED_PE_EMBEDDED_HELPER_PROCESS_RUNAS_WITHOUT_DRIVER_EXITS_ZERO'
  # R344: The exact original Helper must cold-restore the hash-bound old
@@ -550,6 +626,12 @@ public static class R350HeldDelete {
 }catch{
  $failure=$_.Exception.GetType().Name+': '+$_.Exception.Message+' PHASE='+$phase
  }finally{
+  # Reap independent native actor before any private fixture cleanup.
+  if($null -ne $raceActor){
+    try{if(!$raceActor.HasExited){$raceActor.Kill();[void]$raceActor.WaitForExit(5000)}}catch{$failure+=' R351_ACTOR_TERMINATION_FAILED'}
+    try{$raceActor.Dispose()}catch{$failure+=' R351_ACTOR_DISPOSE_FAILED'}
+    $raceActor=$null
+  }
  # Close test-owned DELETE handle before private fixture cleanup.
  if($null -ne $heldDelete){
    try{$heldDelete.Dispose()}catch{$failure+=' R350_DELETE_HANDLE_DISPOSE_FAILED'}
@@ -631,15 +713,17 @@ public static class R350HeldDelete {
  if($KillBeforeMutation -or $KillAfterTaskRemoval -or $KillAfterBrokerRemoval){$neededChecks=10}
  if($journalColdRestored){$neededChecks++}
  if($HoldPriorDeleteDuringColdReplay){$neededChecks+=3}
+  if($LiveAdminWriteRaceDuringColdReplay){$neededChecks++}
  $status=if(!$failure -and $checks.Count -eq $neededChecks -and $taskRemoved -and $brokerRemoved -and $protectedRemoved){
    if($KillAfterBrokerRemoval){'PASS_PREPARED_UNINSTALL_JOURNAL_RESTORED_AFTER_BROKER_FILE_DELETE_THEN_UNINSTALLED'}
+    elseif($LiveAdminWriteRaceDuringColdReplay){'PASS_FULL_ORIGINAL_HELPER_AND_DISTINCT_ADMIN_WRITE_RACE_THEN_COLD_RESTORED'}
    elseif($HoldPriorDeleteDuringColdReplay){'PASS_FULL_ORIGINAL_HELPER_FAILCLOSED_PREOPEN_DELETE_THEN_COLD_RESTORED_AND_UNINSTALLED'}
    elseif($KillAfterTaskRemoval){'PASS_KILLED_ORIGINAL_HELPER_AFTER_TASK_UNREGISTER_BEFORE_RESULT_THEN_RETRIED'}
    elseif($KillBeforeMutation){'PASS_KILLED_ORIGINAL_EMBEDDED_HELPER_BEFORE_SHARED_MUTATION_THEN_RECOVERED'}
    else{'PASS_REAL_UNMODIFIED_EMBEDDED_HELPER_RUNAS_UNINSTALL_PROTECTED_LAYER'}
  }else{'FAIL_R340_NOT_ACCEPTED'}
  $out=[ordered]@{
-  Schema=1;Revision=$(if($HoldPriorDeleteDuringColdReplay){'R350'}elseif($KillAfterBrokerRemoval){'R344'}elseif($KillAfterTaskRemoval){'R342'}elseif($KillBeforeMutation){'R341'}else{'R340'});Status=$status;Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
+  Schema=1;Revision=$(if($LiveAdminWriteRaceDuringColdReplay){'R351'}elseif($HoldPriorDeleteDuringColdReplay){'R350'}elseif($KillAfterBrokerRemoval){'R344'}elseif($KillAfterTaskRemoval){'R342'}elseif($KillBeforeMutation){'R341'}else{'R340'});Status=$status;Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
   SetupSHA256=if([IO.File]::Exists($setup)){Hash $setup}else{'MISSING'}
   CandidateBrokerSHA256=$beforeB;CandidateSupervisorSHA256=$beforeS
   RealEmbeddedHelperBytesMatchSource=$usesRealUnmodifiedResource
@@ -676,7 +760,12 @@ public static class R350HeldDelete {
   RefusalOriginalHelperPid=$deleteRefusalPid
   ColdRestoreHelperPidAfterRelease=$postDeleteRecoveryPid
   IndependentAdminTestParentPid=$PID
-  OriginalHelperConcurrentActiveLeafWriteNotTested=$true
+   OriginalHelperConcurrentActiveLeafWriteNotTested=(!$LiveAdminWriteRaceDuringColdReplay)
+   DistinctAdminWriterPid=$raceActorPid
+   DistinctAdminWriterRawSHA256=$raceActorSha
+   DistinctAdminWriterAttempts=$raceAttempts
+   DistinctAdminWriterWriteOpenWasAllowedBeforeRecovery=$racePriorOpenAllowed
+   DistinctAdminWriterNativeSharingDeniedDuringRealHelperRecovery=$raceNativeDenied
   OriginalPreparedJournalColdRecoveryObserved=$journalColdRestored
   OriginalHelperColdRecoveryFirstStatus=$firstHelperStatus
   ColdRecoveryHelperPid=$recoveryRunPid
