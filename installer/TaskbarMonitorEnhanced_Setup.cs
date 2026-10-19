@@ -1163,9 +1163,7 @@ try{
 }
 if(-not [IO.Directory]::Exists($expectedRoot)){exit 0}
 
-# R355: acquire trusted directory handles without FILE_SHARE_DELETE before
-# reading inventory or deleting names, so an attacker cannot rename pinned
-# profile/LocalAppData/owned-tree ancestors while this cleanup is working.
+# Pin exact native directory handles while removing known owned entries.
 Add-Type -TypeDefinition @'
 using System;
 using System.IO;
@@ -1174,10 +1172,13 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 public sealed class TBMEDeferredDirectoryLeaseSet : IDisposable {
- const uint LIST=1,SHARE_READ_WRITE=3,OPEN_EXISTING=3;
+ const uint LIST=1,DELETE=65536,SHARE_READ_WRITE=3,OPEN_EXISTING=3;
  const uint BACKUP=0x02000000,OPEN_REPARSE=0x00200000,DIR=0x10,REPARSE=0x400;
  [StructLayout(LayoutKind.Sequential)]
  struct TAG {public uint Attributes;public uint ReparseTag;}
+ [StructLayout(LayoutKind.Sequential)]struct DISP {public byte DeleteFile;}
+ [DllImport(""kernel32.dll"",SetLastError=true)]
+ static extern bool SetFileInformationByHandle(SafeFileHandle h,int cls,ref DISP info,uint size);
  [DllImport(""kernel32.dll"",CharSet=CharSet.Unicode,EntryPoint=""CreateFileW"",SetLastError=true)]
  static extern SafeFileHandle Create(string p,uint access,uint sharing,IntPtr sec,uint create,uint flags,IntPtr template);
  [DllImport(""kernel32.dll"",SetLastError=true)]
@@ -1185,11 +1186,12 @@ public sealed class TBMEDeferredDirectoryLeaseSet : IDisposable {
  [DllImport(""kernel32.dll"",CharSet=CharSet.Unicode,EntryPoint=""GetFinalPathNameByHandleW"",SetLastError=true)]
  static extern uint Final(SafeFileHandle file,StringBuilder path,uint size,uint flags);
  readonly Dictionary<string,SafeFileHandle> pins=new Dictionary<string,SafeFileHandle>(StringComparer.OrdinalIgnoreCase);
- public void Pin(string path){
+ public void Pin(string path){Pin(path,false);}
+ public void Pin(string path,bool canDelete){
   if(String.IsNullOrWhiteSpace(path))throw new IOException(""R355_PIN_EMPTY_DIRECTORY"");
   string expected=Path.GetFullPath(path).TrimEnd('\\');
   if(pins.ContainsKey(expected))return;
-  SafeFileHandle h=Create(expected,LIST,SHARE_READ_WRITE,IntPtr.Zero,OPEN_EXISTING,BACKUP|OPEN_REPARSE,IntPtr.Zero);
+  SafeFileHandle h=Create(expected,LIST|(canDelete?DELETE:0),SHARE_READ_WRITE,IntPtr.Zero,OPEN_EXISTING,BACKUP|OPEN_REPARSE,IntPtr.Zero);
   if(h.IsInvalid){int e=Marshal.GetLastWin32Error();h.Dispose();throw new IOException(""R355_PIN_CREATEFILE_WIN32_""+e);}
   try{
    TAG t;
@@ -1213,14 +1215,22 @@ public sealed class TBMEDeferredDirectoryLeaseSet : IDisposable {
   if(!pins.TryGetValue(p,out h))throw new IOException(""R355_PIN_RELEASE_UNKNOWN_DIRECTORY"");
   pins.Remove(p);h.Dispose();
  }
+ public void DeletePinned(string path){
+   string p=Path.GetFullPath(path).TrimEnd('\\');
+   SafeFileHandle h;
+   if(!pins.TryGetValue(p,out h))throw new IOException(""R356_PIN_NOT_FOUND"");
+   DISP d=new DISP();d.DeleteFile=1;
+   if(!SetFileInformationByHandle(h,4,ref d,(uint)Marshal.SizeOf(typeof(DISP))))
+     throw new IOException(""R356_PIN_DELETE_WIN32_""+Marshal.GetLastWin32Error());
+   pins.Remove(p);h.Dispose();
+  }
  public void Dispose(){
   foreach(SafeFileHandle h in pins.Values)h.Dispose();
   pins.Clear();
  }
 }
 '@
-# Reject every ancestor and descendant reparse point before deletion;
-# this is a path-based check, not proof against concurrent swaps.
+# Reject reparse points before inventory.
 $cursor=$expectedRoot
 while(-not [string]::IsNullOrEmpty($cursor)){
     if(([IO.File]::GetAttributes($cursor) -band [IO.FileAttributes]::ReparsePoint) -ne 0){
@@ -1230,8 +1240,7 @@ while(-not [string]::IsNullOrEmpty($cursor)){
     if([string]::IsNullOrEmpty($parent) -or $parent -ceq $cursor){break}
     $cursor=$parent
 }
-# Stage an exact non-following deletion inventory. Never ask .NET to
-# recursively delete a directory that might acquire a new junction.
+# Inventory exact user-owned entries only.
 $prefix=[IO.Path]::GetFullPath($expectedRoot).TrimEnd('\')+'\'
 $stack=[Collections.Generic.List[string]]::new()
 $dirs=[Collections.Generic.List[string]]::new()
@@ -1240,7 +1249,7 @@ $stack.Add($expectedRoot)
 $lease=[TBMEDeferredDirectoryLeaseSet]::new()
 try{
 foreach($pinPath in @($profile,(Join-Path $profile 'AppData'),$local,$expectedRoot)){
-  $lease.Pin($pinPath)
+  $lease.Pin($pinPath,($pinPath -ceq $expectedRoot))
 }
 $members=0
 while($stack.Count -gt 0){
@@ -1251,7 +1260,7 @@ while($stack.Count -gt 0){
        ($attrs -band [IO.FileAttributes]::Directory) -eq 0){
         throw 'TBME_CLEANUP_CHANGED_DIRECTORY'
     }
-    $lease.Pin($dir)
+    $lease.Pin($dir,$true)
     $dirs.Add($dir)
     foreach($entry in [IO.Directory]::GetFileSystemEntries($dir)){
         $members++
@@ -1271,9 +1280,7 @@ while($stack.Count -gt 0){
         }
     }
 }
-# Explicit leaf deletes, followed by empty directories deepest first.
-# Every unexpected new member makes Directory.Delete(...,false) fail
-# rather than following it. Native handle-bound race proof remains open.
+# Delete known files and then delete pinned empty directories by handle.
 foreach($file in $files){
     $attrs=[IO.File]::GetAttributes($file)
     if(($attrs -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
@@ -1283,12 +1290,10 @@ foreach($file in $files){
     [IO.File]::Delete($file)
 }
 foreach($dir in ($dirs|Sort-Object Length -Descending)){
-    $lease.Release($dir)
-    $attrs=[IO.File]::GetAttributes($dir)
-    if(($attrs -band [IO.FileAttributes]::ReparsePoint) -ne 0){
-        throw 'TBME_CLEANUP_CHANGED_DIRECTORY'
+    if(@([IO.Directory]::GetFileSystemEntries($dir)).Count -ne 0){
+        throw 'TBME_CLEANUP_UNEXPECTED_MEMBER'
     }
-    [IO.Directory]::Delete($dir,$false)
+    $lease.DeletePinned($dir)
 }
 }finally{$lease.Dispose()}
 ";
