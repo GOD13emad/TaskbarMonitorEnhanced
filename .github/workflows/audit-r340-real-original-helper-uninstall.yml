@@ -1,7 +1,7 @@
-name: R340-R343 original Helper nominal, early, post-task, post-file (hosted Windows)
+name: R344 authenticated protected uninstall journal original Helper (hosted Windows)
 on:
   push:
-    branches: [audit/r340-real-helper-uninstall-death]
+    branches: [audit/r344-uninstall-prepared-journal-guard]
     paths:
       - build/Test-R340-OriginalHelperActualUninstall-Native.ps1
       - .github/workflows/audit-r340-real-original-helper-uninstall.yml
@@ -11,7 +11,7 @@ permissions:
   actions: read
 jobs:
   original-helper-uninstall:
-    name: R340-R343 ${{ matrix.mode }} exact PE Helper ${{ matrix.host }}
+    name: R344 ${{ matrix.mode }} exact PE Helper ${{ matrix.host }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
     strategy:
@@ -36,7 +36,7 @@ jobs:
           $ErrorActionPreference='Stop'
           if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
              $env:RUNNER_OS -cne 'Windows' -or
-             $env:GITHUB_REF -cne 'refs/heads/audit/r340-real-helper-uninstall-death' -or
+             $env:GITHUB_REF -cne 'refs/heads/audit/r344-uninstall-prepared-journal-guard' -or
              $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
              $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID|LAPTOP' -or
              (git rev-parse HEAD).Trim() -cne '${{ github.sha }}'){

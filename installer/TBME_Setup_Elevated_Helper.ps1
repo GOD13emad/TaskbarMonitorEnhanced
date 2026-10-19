@@ -1387,13 +1387,37 @@ try{
             Preserve-OtherUserSensorLayer 'ANOTHER_ACCOUNT_OWNS_GLOBAL_SCHEDULED_TASK'
         }
     }elseif(Test-Path -LiteralPath $BrokerRoot){
-        # R303: an aborted same-user install may leave an existing protected
-        # BrokerRoot after task removal. Refuse absent/other-user ownership.
+        # R344: Uninstall can be killed after deleting the owner marker but
+        # before removing BrokerRoot (R343 native A/B reproduced this). Never
+        # trust a markerless tree merely because the caller requests Uninstall.
+        # Only an admin-owned, fully hashed PREPARED journal with the old owner
+        # marker itself among its verified snapshots proves this same-account
+        # partial deletion. Other modes/foreign roots continue to fail closed.
         Assert-SensorBoundaryNoReparse $SensorOwnerMarker
         if(-not (Test-Path -LiteralPath $SensorOwnerMarker -PathType Leaf)){
-            Preserve-OtherUserSensorLayer 'UNOWNED_SHARED_PROGRAMFILES_BROKER_WITHOUT_TASK'
-        }
-        if([IO.File]::ReadAllText($SensorOwnerMarker,[Text.Encoding]::ASCII).Trim() -cne $expectedUserSid){
+            $trustedPartialUninstall=$false
+            if($Mode -ceq 'Uninstall' -and
+               [IO.Directory]::Exists($SensorJournalRoot)){
+                $pending=Assert-SensorDurableJournal $SensorJournalRoot $expectedUserSid
+                $newList=@($pending.ExpectedNewFiles|Where-Object{$null -ne $_})
+                $ownerRecords=@($pending.Files|Where-Object{
+                    [string]$_.Rel -ceq '.tbme-owner.sid'
+                })
+                if([bool]$pending.OldRootPresent -and $newList.Count -eq 0 -and
+                   $ownerRecords.Count -eq 1 -and
+                   (Get-SensorJournalTerminal $SensorJournalRoot $expectedUserSid) -ceq 'PREPARED'){
+                    $savedMarker=Join-Path (Join-Path $SensorJournalRoot 'files') '.tbme-owner.sid'
+                    Assert-SensorJournalTrustedAcl $savedMarker $false
+                    if([IO.File]::ReadAllText($savedMarker,[Text.Encoding]::ASCII).Trim() -ceq $expectedUserSid){
+                        $trustedPartialUninstall=$true
+                    }
+                }
+            }
+            if(-not $trustedPartialUninstall){
+                Preserve-OtherUserSensorLayer 'UNOWNED_SHARED_PROGRAMFILES_BROKER_WITHOUT_TASK'
+            }
+            Write-Log 'R344_SAME_OWNER_PREPARED_UNINSTALL_SNAPSHOT_ACCEPTED'
+        }elseif([IO.File]::ReadAllText($SensorOwnerMarker,[Text.Encoding]::ASCII).Trim() -cne $expectedUserSid){
             Preserve-OtherUserSensorLayer 'PROTECTED_SENSOR_OWNER_MARKER_MISMATCH'
         }
         Write-Log 'PARTIAL_PROTECTED_SENSOR_BROKER_SAME_OWNER_ACCEPTED'
@@ -1433,10 +1457,53 @@ try{
 
 if($Mode -eq 'Uninstall'){
     try{
+        # R344: authenticated write-ahead snapshot before the FIRST task or
+        # protected Broker deletion. A torn uninstall must restore the exact
+        # previous owner task/files, not silently leave a markerless folder.
+        $oldRootPresent=[IO.Directory]::Exists($BrokerRoot)
+        $oldTaskPresent=@(Get-ScheduledTask -TaskPath '\' -TaskName $TaskName -ErrorAction SilentlyContinue |
+            Where-Object{$null -ne $_}).Count -ne 0
+        if($oldRootPresent -or $oldTaskPresent){
+            if(-not(Capture-PreviousSensorLayer)){
+                throw 'R344_UNINSTALL_PRIOR_OWNER_SNAPSHOT_NOT_CAPTURED'
+            }
+            $snapshotParent=[IO.Path]::GetDirectoryName($SensorJournalRoot)
+            Assert-SensorBoundaryNoReparse $snapshotParent
+            if(-not [IO.Directory]::Exists($snapshotParent)){
+                [void][IO.Directory]::CreateDirectory($snapshotParent)
+            }
+            Assert-SensorJournalTrustedAcl $snapshotParent $false
+            # Empty expected-new set distinguishes an uninstall snapshot
+            # from the existing install PREPARED journals. Hashes and SID are
+            # checked during markerless cold recovery before any mutation.
+            New-SensorDurableJournal $SensorJournalRoot $validatedSensorSid $RollbackFiles $RollbackTaskXmlText ([string[]]@()) $oldRootPresent
+            Write-Log 'R344_DURABLE_PREPARED_BEFORE_UNINSTALL_TASK_FILE_DELETION'
+        }
         Get-Process TaskbarMonitorSensorSupervisor,TaskbarMonitorSensorBroker -ErrorAction SilentlyContinue |
             Stop-Process -Force -ErrorAction SilentlyContinue
-        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
-        Remove-Item -LiteralPath $BrokerRoot -Recurse -Force -ErrorAction SilentlyContinue
+        $liveTasks=@(Get-ScheduledTask -TaskPath '\' -TaskName $TaskName -ErrorAction SilentlyContinue |
+            Where-Object{$null -ne $_})
+        if($liveTasks.Count -gt 1){throw 'R344_UNINSTALL_MULTIPLE_GLOBAL_TASKS'}
+        if($liveTasks.Count -eq 1){
+            Unregister-ScheduledTask -TaskPath '\' -TaskName $TaskName -Confirm:$false -ErrorAction Stop
+        }
+        Assert-SensorBoundaryNoReparse $BrokerRoot
+        if([IO.Directory]::Exists($BrokerRoot)){
+            Remove-Item -LiteralPath $BrokerRoot -Recurse -Force -ErrorAction Stop
+        }
+        if([IO.Directory]::Exists($BrokerRoot) -or
+           @((Get-ScheduledTask -TaskPath '\' -TaskName $TaskName -ErrorAction SilentlyContinue |
+               Where-Object{$null -ne $_})).Count){
+            throw 'R344_PROTECTED_UNINSTALL_POSTCONDITION_FAILED'
+        }
+        if([IO.Directory]::Exists($SensorJournalRoot)){
+            Write-SensorJournalTerminal $SensorJournalRoot $validatedSensorSid 'COMMITTED'
+            Finish-SensorTerminalJournal $SensorJournalRoot $validatedSensorSid
+        }
+        if([IO.Directory]::Exists($SensorJournalRoot) -or
+           [IO.Directory]::Exists($SensorJournalRoot+'-retired')){
+            throw 'R344_UNINSTALL_TERMINAL_JOURNAL_RESIDUE'
+        }
         Write-Log 'UNINSTALL protected sensor layer removed'
         Write-Result 'UNINSTALLED' 'Protected sensor layer removed.' 'NOT_APPLICABLE' $null $false $false $false
         exit 0

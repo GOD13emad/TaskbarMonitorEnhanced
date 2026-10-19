@@ -21,7 +21,7 @@ if($PSVersionTable.PSEdition -cne 'Desktop' -or
    $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
    $env:RUNNER_OS -cne 'Windows' -or
    $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
-   $env:GITHUB_REF -cne 'refs/heads/audit/r340-real-helper-uninstall-death' -or
+   $env:GITHUB_REF -cne 'refs/heads/audit/r344-uninstall-prepared-journal-guard' -or
    $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID|LAPTOP' -or
    $env:GITHUB_RUN_ID -cnotmatch '^[0-9]{5,20}$' -or
    $env:GITHUB_SHA -cnotmatch '^[0-9a-f]{40}$' -or
@@ -69,6 +69,7 @@ $nativeRunas=$false;$usesRealUnmodifiedResource=$false
 $deliberateKill=$false;$killedFirstPid=0;$originalTaskIntactAtKill=$false
 $deliberatePostTaskKill=$false;$taskRemovedAtKill=$false;$resultAbsentAtKill=$false;$postKilledPid=0
 $deliberatePostFileKill=$false;$fileRemovedAtKill=$false;$taskGoneAtFileKill=$false;$protectedRootPresentAtFileKill=$null;$ownerMarkerPresentAtFileKill=$null;$fileKilledPid=0
+$journalColdRestored=$false;$recoveryRunPid=0;$finalCleanupRunPid=0;$recoveryTaskXmlExact=$false;$recoveryTaskTrustMatch=$false;$firstHelperStatus='';$oldOwnedBrokerHashesRestored=$false
 function Hash([string]$file){return (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash}
 function Check([string]$check){$script:checks.Add($check);Write-Output ('PASS '+$check)}
 function TaskExists(){
@@ -380,6 +381,66 @@ public sealed class R342TaskFileRemovalKill {
  }finally{$child.Dispose()}
  if([int]$helperExit -ne 0){throw ('R340_ORIGINAL_HELPER_NONZERO_EXIT_'+$helperExit)}
  Check 'ACTUAL_COMPRESSED_PE_EMBEDDED_HELPER_PROCESS_RUNAS_WITHOUT_DRIVER_EXITS_ZERO'
+ # R344: The exact original Helper must cold-restore the hash-bound old
+ # protected Broker + disabled global task after interruption under PREPARED.
+ # The first new Helper intentionally exits DEGRADED_PREVIOUS_LAYER_RESTORED;
+ # only a THIRD identical original Helper run may finish requested Uninstall.
+ if(($KillBeforeMutation -or $KillAfterTaskRemoval -or $KillAfterBrokerRemoval) -and
+    [IO.File]::Exists($resultPath)){
+   $intermediate=Get-Content -LiteralPath $resultPath -Raw|ConvertFrom-Json
+   $firstHelperStatus=[string]$intermediate.Status
+   if($firstHelperStatus -ceq 'DEGRADED_PREVIOUS_LAYER_RESTORED'){
+     $phase='VERIFY_HASHED_PREPARED_UNINSTALL_COLD_RESTORATION'
+     if(!(TaskExists) -or
+        ![IO.File]::Exists($protectedB) -or
+        ![IO.File]::Exists($protectedS) -or
+        ![IO.File]::Exists($owner) -or
+        (Hash $protectedB) -cne $beforeB -or
+        (Hash $protectedS) -cne $beforeS -or
+        (Hash $owner) -cne $ownerHash){
+       throw 'R344_ORIGINAL_HELPER_COLD_REPLAY_PRIOR_OWNER_FILES_MISMATCH'
+     }
+     $oldOwnedBrokerHashesRestored=$true
+     $restored=Get-ScheduledTask -TaskName $task -TaskPath '\' -ErrorAction Stop
+     $recoveryTaskTrustMatch=($restored.Settings.Enabled -eq $false -and
+       (ResolveTaskSid ([string]$restored.Principal.UserId)) -ceq $sid -and
+       @($restored.Actions).Count -eq 1 -and
+       [string]::Equals([string]$restored.Actions[0].Execute,$protectedS,[StringComparison]::OrdinalIgnoreCase) -and
+       [string]::Equals([string]$restored.Actions[0].Arguments,$argsText,[StringComparison]::OrdinalIgnoreCase))
+     if(!$recoveryTaskTrustMatch){throw 'R344_PRIOR_SCHEDULED_TASK_ACTION_PRINCIPAL_NOT_RESTORED'}
+     $priorXml=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($exportedXmlHash))
+     $newXml=[string](Export-ScheduledTask -TaskPath '\' -TaskName $task -ErrorAction Stop)
+     $recoveryTaskXmlExact=[string]::Equals($priorXml,$newXml,[StringComparison]::Ordinal)
+     if([IO.Directory]::Exists($journal) -or [IO.Directory]::Exists($journal+'-retired')){
+       throw 'R344_PREPARED_JOURNAL_NOT_RETIRED_AFTER_COLD_REPLAY'
+     }
+     $journalColdRestored=$true
+     $recoveryRunPid=$childPid
+     Check 'VERIFIED_PRIOR_BROKER_MARKER_AND_TASK_COLD_RESTORED_FROM_REAL_PREPARED_JOURNAL'
+     $phase='THIRD_IDENTICAL_PE_HELPER_FINISHES_REQUESTED_UNINSTALL'
+     $finalChild=[Diagnostics.Process]::Start($psi)
+     if(!$finalChild){throw 'R344_THIRD_ORIGINAL_HELPER_NOT_STARTED'}
+     try{
+       $finalCleanupRunPid=$finalChild.Id
+       if($finalCleanupRunPid -eq $recoveryRunPid -or
+          $finalCleanupRunPid -eq $fileKilledPid -or
+          $finalCleanupRunPid -eq $postKilledPid){
+         throw 'R344_FINAL_ORIGINAL_HELPER_PID_COLLISION'
+       }
+       if(!$finalChild.WaitForExit(55000)){
+         if(!$finalChild.HasExited){$finalChild.Kill();[void]$finalChild.WaitForExit(6000)}
+         throw 'R344_FINAL_UNINSTALL_TIMEOUT'
+       }
+       if($finalChild.ExitCode -ne 0){throw ('R344_FINAL_UNINSTALL_NONZERO_'+$finalChild.ExitCode)}
+     }finally{$finalChild.Dispose()}
+     $childPid=$finalCleanupRunPid;$helperExit=0
+   }elseif($KillAfterTaskRemoval -or $KillAfterBrokerRemoval){
+     throw ('R344_TORN_UNINSTALL_DID_NOT_COLD_RESTORE_'+$firstHelperStatus)
+   }
+ }
+ if([IO.Directory]::Exists($journal) -or [IO.Directory]::Exists($journal+'-retired')){
+   throw 'R344_TERMINAL_UNINSTALL_JOURNAL_RESIDUE'
+ }
  $phase='VERIFY_REAL_PROTECTED_UNINSTALL_AND_WITNESS'
  $taskRemoved=!(TaskExists)
  $brokerRemoved=![IO.Directory]::Exists($broker)
@@ -453,14 +514,15 @@ public sealed class R342TaskFileRemovalKill {
  if(!$logsRemoved -or !$appRemoved){$failure+=' LOCALAPP_OWNED_RESIDUE'}
  $neededChecks=9
  if($KillBeforeMutation -or $KillAfterTaskRemoval -or $KillAfterBrokerRemoval){$neededChecks=10}
+ if($journalColdRestored){$neededChecks++}
  $status=if(!$failure -and $checks.Count -eq $neededChecks -and $taskRemoved -and $brokerRemoved -and $protectedRemoved){
-   if($KillAfterBrokerRemoval){'PASS_KILLED_ORIGINAL_HELPER_AFTER_BROKER_EXE_DELETE_BEFORE_RESULT_THEN_RETRIED'}
+   if($KillAfterBrokerRemoval){'PASS_PREPARED_UNINSTALL_JOURNAL_RESTORED_AFTER_BROKER_FILE_DELETE_THEN_UNINSTALLED'}
    elseif($KillAfterTaskRemoval){'PASS_KILLED_ORIGINAL_HELPER_AFTER_TASK_UNREGISTER_BEFORE_RESULT_THEN_RETRIED'}
    elseif($KillBeforeMutation){'PASS_KILLED_ORIGINAL_EMBEDDED_HELPER_BEFORE_SHARED_MUTATION_THEN_RECOVERED'}
    else{'PASS_REAL_UNMODIFIED_EMBEDDED_HELPER_RUNAS_UNINSTALL_PROTECTED_LAYER'}
  }else{'FAIL_R340_NOT_ACCEPTED'}
  $out=[ordered]@{
-  Schema=1;Revision=$(if($KillAfterBrokerRemoval){'R343'}elseif($KillAfterTaskRemoval){'R342'}elseif($KillBeforeMutation){'R341'}else{'R340'});Status=$status;Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
+  Schema=1;Revision=$(if($KillAfterBrokerRemoval){'R344'}elseif($KillAfterTaskRemoval){'R342'}elseif($KillBeforeMutation){'R341'}else{'R340'});Status=$status;Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
   SetupSHA256=if([IO.File]::Exists($setup)){Hash $setup}else{'MISSING'}
   CandidateBrokerSHA256=$beforeB;CandidateSupervisorSHA256=$beforeS
   RealEmbeddedHelperBytesMatchSource=$usesRealUnmodifiedResource
@@ -486,6 +548,14 @@ public sealed class R342TaskFileRemovalKill {
   ProtectedBrokerRootPresentAtFileKill=$protectedRootPresentAtFileKill
   OwnerMarkerPresentAtFileKill=$ownerMarkerPresentAtFileKill
   PostFileKilledOriginalHelperPid=$fileKilledPid
+  OriginalPreparedJournalColdRecoveryObserved=$journalColdRestored
+  OriginalHelperColdRecoveryFirstStatus=$firstHelperStatus
+  ColdRecoveryHelperPid=$recoveryRunPid
+  FinalOriginalHelperUninstallPid=$finalCleanupRunPid
+  RestoredOwnerMarkerAndProtectedBinarySHAExact=$oldOwnedBrokerHashesRestored
+  RestoredDisabledTaskPrincipalAndActionExact=$recoveryTaskTrustMatch
+  RestoredTaskExportedXmlByteExact=$recoveryTaskXmlExact
+  NoTerminalJournalResidueAfterFinal=$true
   ActualHelperKilledAfterProtectedTaskMutation=$deliberatePostTaskKill
   OriginalTaskUnregisteredAtKill=$taskRemovedAtKill
   ResultAbsentAtPostTaskKill=$resultAbsentAtKill
