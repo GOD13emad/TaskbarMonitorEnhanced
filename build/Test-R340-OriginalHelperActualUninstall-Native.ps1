@@ -4,13 +4,15 @@ param(
   [Parameter(Mandatory=$true)][string]$SourceRoot,
   [switch]$KillBeforeMutation,
   [switch]$KillAfterTaskRemoval,
-  [switch]$KillAfterBrokerRemoval
+  [switch]$KillAfterBrokerRemoval,
+  [switch]$HoldPriorDeleteDuringColdReplay
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 # R340 does NOT exercise real interactive UAC or install any driver.
 # Run only on fresh hosted disposable Windows (the hosted runner already owns
 # an administrator token), never on the maintainer desktop or existing sensor.
+if($HoldPriorDeleteDuringColdReplay -and -not $KillAfterTaskRemoval){throw 'R350_DELETE_HOLD_REQUIRES_POSTTASK_KILL'}
 if(($KillBeforeMutation -and $KillAfterTaskRemoval) -or
    ($KillBeforeMutation -and $KillAfterBrokerRemoval) -or
    ($KillAfterTaskRemoval -and $KillAfterBrokerRemoval)){
@@ -21,7 +23,7 @@ if($PSVersionTable.PSEdition -cne 'Desktop' -or
    $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
    $env:RUNNER_OS -cne 'Windows' -or
    $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
-   $env:GITHUB_REF -cne 'refs/heads/audit/r349-pinned-leaf-replay-handles' -or
+   $env:GITHUB_REF -cne 'refs/heads/audit/r350-original-helper-preopened-delete-recovery' -or
    $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID|LAPTOP' -or
    $env:GITHUB_RUN_ID -cnotmatch '^[0-9]{5,20}$' -or
    $env:GITHUB_SHA -cnotmatch '^[0-9a-f]{40}$' -or
@@ -70,6 +72,7 @@ $deliberateKill=$false;$killedFirstPid=0;$originalTaskIntactAtKill=$false
 $deliberatePostTaskKill=$false;$taskRemovedAtKill=$false;$resultAbsentAtKill=$false;$postKilledPid=0
 $deliberatePostFileKill=$false;$fileRemovedAtKill=$false;$taskGoneAtFileKill=$false;$protectedRootPresentAtFileKill=$null;$ownerMarkerPresentAtFileKill=$null;$fileKilledPid=0
 $journalColdRestored=$false;$recoveryRunPid=0;$finalCleanupRunPid=0;$recoveryTaskXmlExact=$false;$recoveryTaskTrustMatch=$false;$firstHelperStatus='';$oldOwnedBrokerHashesRestored=$false
+$heldDelete=$null;$deleteHoldVerified=$false;$deleteHoldReleased=$false;$deleteRefusalVerified=$false;$deleteRefusalPid=0;$postDeleteRecoveryPid=0;$deleteOldShaIntact=$false;$deleteJournalIntact=$false
 function Hash([string]$file){return (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash}
 function Check([string]$check){$script:checks.Add($check);Write-Output ('PASS '+$check)}
 function TaskExists(){
@@ -292,6 +295,46 @@ public sealed class R342TaskFileRemovalKill {
      $first.Dispose()
    }
    Check 'ACTUAL_ORIGINAL_HELPER_KILLED_AFTER_TASK_MUTATION_BEFORE_RESULT'
+   if($HoldPriorDeleteDuringColdReplay){
+     $phase='PARENT_ADMIN_PREOPENS_PROTECTED_SUPERVISOR_DELETE_HANDLE'
+     if(TaskExists){throw 'R350_DISABLED_GLOBAL_TASK_NOT_YET_UNREGISTERED'}
+     if(![IO.File]::Exists($protectedS) -or (Hash $protectedS) -cne $beforeS -or
+       ![IO.Directory]::Exists($journal) -or
+       ![IO.File]::Exists((Join-Path $journal 'READY'))){
+       throw 'R350_ORIGINAL_SUPERVISOR_OR_PREPARED_JOURNAL_MISSING'
+     }
+     # This separate Administrator parent holds a real native DELETE handle
+     # while the exact unmodified PE-embedded Helper is executed as a child.
+     Add-Type -TypeDefinition @'
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+public static class R350HeldDelete {
+ const uint DELETE_ACCESS=0x00010000, SHARE_ALL=7;
+ const uint OPEN_EXISTING=3, OPEN_REPARSE_POINT=0x00200000, REPARSE=0x400;
+ [DllImport("kernel32.dll",EntryPoint="CreateFileW",SetLastError=true,CharSet=CharSet.Unicode)]
+ static extern SafeFileHandle Open(string p,uint a,uint share,IntPtr x,uint creation,uint flags,IntPtr t);
+ [StructLayout(LayoutKind.Sequential)] struct FILE_TAG { public uint Attributes; public uint Tag; }
+ [DllImport("kernel32.dll",SetLastError=true)]
+ static extern bool GetFileInformationByHandleEx(SafeFileHandle h,int kind,out FILE_TAG info,uint size);
+ public static SafeFileHandle Hold(string path){
+  SafeFileHandle h=Open(path,DELETE_ACCESS,SHARE_ALL,IntPtr.Zero,OPEN_EXISTING,OPEN_REPARSE_POINT,IntPtr.Zero);
+  if(h.IsInvalid){int error=Marshal.GetLastWin32Error();h.Dispose();throw new IOException("R350_PREOPEN_DELETE_FAILED_WIN32_"+error);}
+  FILE_TAG info;
+  if(!GetFileInformationByHandleEx(h,9,out info,(uint)Marshal.SizeOf(typeof(FILE_TAG))) ||
+     (info.Attributes&REPARSE)!=0){h.Dispose();throw new IOException("R350_PREOPEN_DELETE_REPARSE_REFUSED");}
+  return h;
+ }
+}
+'@
+     $heldDelete=[R350HeldDelete]::Hold($protectedS)
+     if($heldDelete.IsInvalid -or $heldDelete.IsClosed -or (Hash $protectedS) -cne $beforeS){
+       throw 'R350_ADMIN_DELETE_HANDLE_INVALID_OR_OLD_FILE_CHANGED'
+     }
+     $deleteHoldVerified=$true
+     Check 'ADMIN_PARENT_DIFFERENT_PID_HOLDS_DELETE_ON_EXACT_PRIOR_SUPERVISOR'
+   }
    $phase='RETRY_SAME_PE_PRODUCTION_HELPER_AFTER_GLOBAL_TASK_MUTATION'
    $child=[Diagnostics.Process]::Start($psi)
    if(!$child){throw 'R342_IDENTICAL_ORIGINAL_HELPER_RETRY_NOT_STARTED'}
@@ -380,6 +423,42 @@ public sealed class R342TaskFileRemovalKill {
    $helperExit=$child.ExitCode
  }finally{$child.Dispose()}
  if([int]$helperExit -ne 0){throw ('R340_ORIGINAL_HELPER_NONZERO_EXIT_'+$helperExit)}
+ if($HoldPriorDeleteDuringColdReplay){
+   $phase='EXPECT_ACTUAL_ORIGINAL_HELPER_COLD_REPLAY_REFUSAL_WHILE_DELETE_HELD'
+   $deleteRefusalPid=$childPid
+   if($deleteRefusalPid -le 0 -or $deleteRefusalPid -eq $postKilledPid -or
+      $null -eq $heldDelete -or $heldDelete.IsClosed){
+     throw 'R350_TEST_ADMIN_DELETE_HANDLE_NOT_HELD_FOR_HELPER_ATTEMPT'
+   }
+   if(![IO.File]::Exists($resultPath)){throw 'R350_ORIGINAL_HELPER_REFUSAL_RESULT_NOT_WRITTEN'}
+   $negative=Get-Content -LiteralPath $resultPath -Raw|ConvertFrom-Json
+   if([string]$negative.Status -cne 'DEGRADED_ROLLBACK_RECOVERY_REQUIRED' -or
+      ![IO.Directory]::Exists($journal) -or
+      ![IO.File]::Exists((Join-Path $journal 'READY')) -or
+      (TaskExists) -or
+      ![IO.File]::Exists($protectedS) -or (Hash $protectedS) -cne $beforeS -or
+      ![IO.File]::Exists($protectedB) -or (Hash $protectedB) -cne $beforeB -or
+      ![IO.File]::Exists($owner) -or (Hash $owner) -cne $ownerHash){
+     throw ('R350_ORIGINAL_HELPER_DID_NOT_FAILCLOSED_OR_PRESERVE_SHA_'+[string]$negative.Status)
+   }
+   $deleteRefusalVerified=$true;$deleteOldShaIntact=$true;$deleteJournalIntact=$true
+   Check 'EXACT_ORIGINAL_HELPER_REFUSES_REAL_PREPARED_REPLAY_WITH_HELD_ADMIN_DELETE'
+   $phase='RELEASE_ONLY_TEST_ADMIN_DELETE_THEN_RELAUNCH_IDENTICAL_ORIGINAL_HELPER'
+   $heldDelete.Dispose();$heldDelete=$null;$deleteHoldReleased=$true
+   $recovery=[Diagnostics.Process]::Start($psi)
+   if(!$recovery){throw 'R350_NEXT_ORIGINAL_HELPER_NOT_STARTED'}
+   try{
+     $childPid=$recovery.Id;$postDeleteRecoveryPid=$childPid
+     if($postDeleteRecoveryPid -eq $deleteRefusalPid -or
+        !$recovery.WaitForExit(55000)){
+       if(!$recovery.HasExited){$recovery.Kill();[void]$recovery.WaitForExit(6000)}
+       throw 'R350_ORIGINAL_HELPER_COLD_RETRY_TIMEOUT_OR_DUPLICATE_PID'
+     }
+     if($recovery.ExitCode -ne 0){throw 'R350_UNMODIFIED_RECOVERY_EXIT_NONZERO'}
+   }finally{$recovery.Dispose()}
+   $helperExit=0
+   Check 'TEST_ADMIN_RELEASED_DELETE_AND_NEXT_ORIGINAL_HELPER_COMPLETED_RECOVERY'
+ }
  Check 'ACTUAL_COMPRESSED_PE_EMBEDDED_HELPER_PROCESS_RUNAS_WITHOUT_DRIVER_EXITS_ZERO'
  # R344: The exact original Helper must cold-restore the hash-bound old
  # protected Broker + disabled global task after interruption under PREPARED.
@@ -463,7 +542,12 @@ public sealed class R342TaskFileRemovalKill {
  Check 'OUTSIDE_CANARY_UNCHANGED_AND_NO_PAWNIO_INSTALL_OR_SENSOR_PROCESS_START'
 }catch{
  $failure=$_.Exception.GetType().Name+': '+$_.Exception.Message+' PHASE='+$phase
-}finally{
+ }finally{
+ # Close test-owned DELETE handle before private fixture cleanup.
+ if($null -ne $heldDelete){
+   try{$heldDelete.Dispose()}catch{$failure+=' R350_DELETE_HANDLE_DISPOSE_FAILED'}
+   $heldDelete=$null
+ }
  # R344-F01 diagnostic snapshot is read-only and taken BEFORE cleanup.
  # The nominal test must expose the actual Helper Status/Message and log
  # source for an early fail-closed unwind; no profile secrets are copied.
@@ -539,14 +623,16 @@ public sealed class R342TaskFileRemovalKill {
  $neededChecks=9
  if($KillBeforeMutation -or $KillAfterTaskRemoval -or $KillAfterBrokerRemoval){$neededChecks=10}
  if($journalColdRestored){$neededChecks++}
+ if($HoldPriorDeleteDuringColdReplay){$neededChecks+=3}
  $status=if(!$failure -and $checks.Count -eq $neededChecks -and $taskRemoved -and $brokerRemoved -and $protectedRemoved){
    if($KillAfterBrokerRemoval){'PASS_PREPARED_UNINSTALL_JOURNAL_RESTORED_AFTER_BROKER_FILE_DELETE_THEN_UNINSTALLED'}
+   elseif($HoldPriorDeleteDuringColdReplay){'PASS_FULL_ORIGINAL_HELPER_FAILCLOSED_PREOPEN_DELETE_THEN_COLD_RESTORED_AND_UNINSTALLED'}
    elseif($KillAfterTaskRemoval){'PASS_KILLED_ORIGINAL_HELPER_AFTER_TASK_UNREGISTER_BEFORE_RESULT_THEN_RETRIED'}
    elseif($KillBeforeMutation){'PASS_KILLED_ORIGINAL_EMBEDDED_HELPER_BEFORE_SHARED_MUTATION_THEN_RECOVERED'}
    else{'PASS_REAL_UNMODIFIED_EMBEDDED_HELPER_RUNAS_UNINSTALL_PROTECTED_LAYER'}
  }else{'FAIL_R340_NOT_ACCEPTED'}
  $out=[ordered]@{
-  Schema=1;Revision=$(if($KillAfterBrokerRemoval){'R344'}elseif($KillAfterTaskRemoval){'R342'}elseif($KillBeforeMutation){'R341'}else{'R340'});Status=$status;Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
+  Schema=1;Revision=$(if($HoldPriorDeleteDuringColdReplay){'R350'}elseif($KillAfterBrokerRemoval){'R344'}elseif($KillAfterTaskRemoval){'R342'}elseif($KillBeforeMutation){'R341'}else{'R340'});Status=$status;Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
   SetupSHA256=if([IO.File]::Exists($setup)){Hash $setup}else{'MISSING'}
   CandidateBrokerSHA256=$beforeB;CandidateSupervisorSHA256=$beforeS
   RealEmbeddedHelperBytesMatchSource=$usesRealUnmodifiedResource
@@ -575,6 +661,15 @@ public sealed class R342TaskFileRemovalKill {
   ProtectedBrokerRootPresentAtFileKill=$protectedRootPresentAtFileKill
   OwnerMarkerPresentAtFileKill=$ownerMarkerPresentAtFileKill
   PostFileKilledOriginalHelperPid=$fileKilledPid
+  OriginalHelperRanWhileTestAdminDELETEHandleOpen=$deleteHoldVerified
+  OriginalHelperFailedClosedOnPreopenedDELETE=$deleteRefusalVerified
+  OriginalProtectedHashesUnaffectedByFailedReplay=$deleteOldShaIntact
+  TrustedPreparedJournalRetainedAtRefusal=$deleteJournalIntact
+  OnlyTestAdminDELETEHandleReleased=$deleteHoldReleased
+  RefusalOriginalHelperPid=$deleteRefusalPid
+  ColdRestoreHelperPidAfterRelease=$postDeleteRecoveryPid
+  IndependentAdminTestParentPid=$PID
+  OriginalHelperConcurrentActiveLeafWriteNotTested=$true
   OriginalPreparedJournalColdRecoveryObserved=$journalColdRestored
   OriginalHelperColdRecoveryFirstStatus=$firstHelperStatus
   ColdRecoveryHelperPid=$recoveryRunPid
