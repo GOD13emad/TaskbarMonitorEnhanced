@@ -2,13 +2,15 @@
 param(
   [Parameter(Mandatory=$true)][ValidateSet('A','B')][string]$HostLabel,
   [Parameter(Mandatory=$true)][string]$SourceRoot,
-  [switch]$KillBeforeMutation
+  [switch]$KillBeforeMutation,
+  [switch]$KillAfterTaskRemoval
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 # R340 does NOT exercise real interactive UAC or install any driver.
 # Run only on fresh hosted disposable Windows (the hosted runner already owns
 # an administrator token), never on the maintainer desktop or existing sensor.
+if($KillAfterTaskRemoval -and $KillBeforeMutation){throw 'R342_DEATH_CHECKPOINTS_MUTUALLY_EXCLUSIVE'}
 if($PSVersionTable.PSEdition -cne 'Desktop' -or
    $env:GITHUB_ACTIONS -cne 'true' -or
    $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
@@ -60,6 +62,7 @@ $taskRemoved=$false;$protectedRemoved=$false;$payloadRemoved=$false
 $logsRemoved=$false;$appRemoved=$false;$childPid=0
 $nativeRunas=$false;$usesRealUnmodifiedResource=$false
 $deliberateKill=$false;$killedFirstPid=0;$originalTaskIntactAtKill=$false
+$deliberatePostTaskKill=$false;$taskRemovedAtKill=$false;$resultAbsentAtKill=$false;$postKilledPid=0
 function Hash([string]$file){return (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash}
 function Check([string]$check){$script:checks.Add($check);Write-Output ('PASS '+$check)}
 function TaskExists(){
@@ -212,8 +215,78 @@ try{
    throw 'R340_PE_RUNAS_EXECUTABLE_OR_TRANSPORT_NOT_VERIFIED'
  }
  $nativeRunas=$true
+ # R342: bounded, in-memory high-priority witness of exact owned Task
+ # Scheduler's physical entry removal, *not* a process-name-based kill.
+ if($KillAfterTaskRemoval){
+   $taskFile=Join-Path $env:windir 'System32\Tasks\TaskbarMonitorEnhanced Sensor Broker'
+   if(![IO.File]::Exists($taskFile)){
+     throw 'R342_DISABLED_GLOBAL_TASK_BACKING_FILE_NOT_PRESENT'
+   }
+   Add-Type -TypeDefinition @'
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Threading;
+public sealed class R342TaskFileRemovalKill {
+ public volatile bool Deleted, Killed, ResultExistedAtKill;
+ public volatile string Error="";
+ private Thread observer;
+ public void Start(Process child,string taskFile,string resultFile) {
+  if(child==null||!File.Exists(taskFile) || String.IsNullOrWhiteSpace(resultFile))
+   throw new IOException("R342_WATCH_OWNER_TASK_NOT_PRESENT");
+  observer=new Thread(()=>{
+   Stopwatch sw=Stopwatch.StartNew();
+   while(sw.ElapsedMilliseconds<25000){
+    try{
+     if(child.HasExited){Error="R342_ORIGINAL_EXIT_BEFORE_TASK_DELETE";return;}
+     if(!File.Exists(taskFile)){
+      Deleted=true;
+      ResultExistedAtKill=File.Exists(resultFile);
+      if(ResultExistedAtKill){Error="R342_RESULT_ALREADY_EXISTS_BEFORE_KILL";return;}
+      child.Kill();
+      Killed=child.WaitForExit(9000);
+      if(!Killed)Error="R342_KILL_NOT_COMPLETED";
+      return;
+     }
+    }catch(Exception ex){Error=ex.GetType().Name+": "+ex.Message;return;}
+    Thread.SpinWait(256);
+   }
+   Error="R342_TASK_FILE_DELETE_NOT_OBSERVED";
+  });
+  observer.IsBackground=true;
+  observer.Priority=ThreadPriority.Highest;
+  observer.Start();
+ }
+ public bool Wait(int timeoutMs){return observer!=null&&observer.Join(timeoutMs);}
+}
+'@
+ }
  $child=[Diagnostics.Process]::Start($psi)
  if(!$child){throw 'R341_ORIGINAL_EMBEDDED_HELPER_START_RETURNED_NULL'}
+ if($KillAfterTaskRemoval){
+   $phase='KILL_EXACT_ORIGINAL_HELPER_AFTER_SCHEDULER_TASK_MUTATION'
+   $first=$child;$postKilledPid=$first.Id
+   try{
+     $killer=[R342TaskFileRemovalKill]::new()
+     $killer.Start($first,$taskFile,$resultPath)
+     if(!$killer.Wait(39000)){throw 'R342_BOUNDED_TASK_DELETE_WATCHER_TIMEOUT'}
+     if(!$killer.Deleted -or !$killer.Killed -or $killer.ResultExistedAtKill -or $killer.Error){
+       throw ('R342_TASK_DELETE_KILL_NOT_ACCEPTABLE_'+$killer.Error)
+     }
+     if(TaskExists){throw 'R342_KILLED_BEFORE_REAL_TASK_UNREGISTER'}
+     if([IO.File]::Exists($resultPath)){throw 'R342_ORIGINAL_HELPER_RESULT_ALREADY_PUBLISHED'}
+     $deliberatePostTaskKill=$true
+     $taskRemovedAtKill=$true
+     $resultAbsentAtKill=$true
+   }finally{
+     try{if(!$first.HasExited){$first.Kill();[void]$first.WaitForExit(8000)}}catch{}
+     $first.Dispose()
+   }
+   Check 'ACTUAL_ORIGINAL_HELPER_KILLED_AFTER_TASK_MUTATION_BEFORE_RESULT'
+   $phase='RETRY_SAME_PE_PRODUCTION_HELPER_AFTER_GLOBAL_TASK_MUTATION'
+   $child=[Diagnostics.Process]::Start($psi)
+   if(!$child){throw 'R342_IDENTICAL_ORIGINAL_HELPER_RETRY_NOT_STARTED'}
+ }
  if($KillBeforeMutation){
    $phase='KILL_EXACT_ORIGINAL_HELPER_AFTER_BEGIN_PRE_SHARED_MUTATION'
    $first=$child
@@ -344,12 +417,14 @@ try{
  if($createdPayload -and !$payloadRemoved){$failure+=' TEMP_PAYLOAD_RESIDUE'}
  if(!$logsRemoved -or !$appRemoved){$failure+=' LOCALAPP_OWNED_RESIDUE'}
  $neededChecks=9
- if($KillBeforeMutation){$neededChecks=10}
+ if($KillBeforeMutation -or $KillAfterTaskRemoval){$neededChecks=10}
  $status=if(!$failure -and $checks.Count -eq $neededChecks -and $taskRemoved -and $brokerRemoved -and $protectedRemoved){
-   if($KillBeforeMutation){'PASS_KILLED_ORIGINAL_EMBEDDED_HELPER_BEFORE_SHARED_MUTATION_THEN_RECOVERED'}else{'PASS_REAL_UNMODIFIED_EMBEDDED_HELPER_RUNAS_UNINSTALL_PROTECTED_LAYER'}
+   if($KillAfterTaskRemoval){'PASS_KILLED_ORIGINAL_HELPER_AFTER_TASK_UNREGISTER_BEFORE_RESULT_THEN_RETRIED'}
+   elseif($KillBeforeMutation){'PASS_KILLED_ORIGINAL_EMBEDDED_HELPER_BEFORE_SHARED_MUTATION_THEN_RECOVERED'}
+   else{'PASS_REAL_UNMODIFIED_EMBEDDED_HELPER_RUNAS_UNINSTALL_PROTECTED_LAYER'}
  }else{'FAIL_R340_NOT_ACCEPTED'}
  $out=[ordered]@{
-  Schema=1;Revision=$(if($KillBeforeMutation){'R341'}else{'R340'});Status=$status;Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
+  Schema=1;Revision=$(if($KillAfterTaskRemoval){'R342'}elseif($KillBeforeMutation){'R341'}else{'R340'});Status=$status;Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
   SetupSHA256=if([IO.File]::Exists($setup)){Hash $setup}else{'MISSING'}
   CandidateBrokerSHA256=$beforeB;CandidateSupervisorSHA256=$beforeS
   RealEmbeddedHelperBytesMatchSource=$usesRealUnmodifiedResource
@@ -364,11 +439,15 @@ try{
   ScopedUserPayloadRemoved=$payloadRemoved
   ScopedTestLogsRemoved=$logsRemoved
   UserProfileExistingAppPreserved=!$createdApp
-  ActualHelperDeliberateKillTested=$deliberateKill
-  DeliberateKillRequested=[bool]$KillBeforeMutation
+  ActualHelperDeliberateKillTested=[bool]($deliberateKill -or $deliberatePostTaskKill)
+  DeliberateKillRequested=[bool]($KillBeforeMutation -or $KillAfterTaskRemoval)
   FirstKilledOriginalHelperPid=$killedFirstPid
   OriginalTaskAndBrokerUnchangedAtKill=$originalTaskIntactAtKill
-  RecoveryUsesIdenticalOriginalRunasProcessInfo=[bool]($deliberateKill -and $nativeRunas)
+  RecoveryUsesIdenticalOriginalRunasProcessInfo=[bool](($deliberateKill -or $deliberatePostTaskKill) -and $nativeRunas)
+  ActualHelperKilledAfterProtectedTaskMutation=$deliberatePostTaskKill
+  OriginalTaskUnregisteredAtKill=$taskRemovedAtKill
+  ResultAbsentAtPostTaskKill=$resultAbsentAtKill
+  PostTaskKilledOriginalHelperPid=$postKilledPid
   AnyDriverInstallationTriggered=$false
   OriginalOwnerMachineTouched=$false
   Checks=@($checks);Failure=$failure
