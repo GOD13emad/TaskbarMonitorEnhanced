@@ -98,8 +98,21 @@ function TryRemoveProtectedFixture(){
   return !$([IO.Directory]::Exists($protectedRoot))
 }
 try{
-  foreach($entry in @($protectedRoot,$app,$shared,$out)){
-    if(Test-Path -LiteralPath $entry){throw ('R339_DISPOSABLE_FIXTURE_NAME_PREEXISTS '+[IO.Path]::GetFileName($entry))}
+  # The exact runner was verified empty immediately before Build.ps1. Its
+  # selftests may create an innocuous LocalAppData scratch directory. Do not
+  # treat that directory as an installation, nor delete preexisting bytes.
+  foreach($entry in @($protectedRoot,$shared,$out)){
+    if(Test-Path -LiteralPath $entry){throw ('R339_PROTECTED_OR_RECEIPT_FIXTURE_PREEXISTS '+$entry)}
+  }
+  if(Test-Path -LiteralPath $app){
+    if(!(Test-Path -LiteralPath $app -PathType Container) -or
+       @(Get-ChildItem -LiteralPath $app -Force -File -ErrorAction Stop |
+         Where-Object {$_.Name -in @('TaskbarMonitorEnhanced.exe','Uninstall.exe','install_state.json','config.json')}).Count -gt 0 -or
+       (Test-Path -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced')){
+      throw 'R339_BUILD_CREATED_OR_EXISTING_REAL_INSTALLATION_REFUSED'
+    }
+    $appRemoved=$true # No new app root was created, preserve all prior scratch.
+    $checks.Add('PREEXISTING_BUILD_SELFTEST_LOCALAPPDATA_ROOT_PRESERVED')
   }
   if((Get-LocalUser -Name $name -ErrorAction SilentlyContinue) -or
      @(Get-Process TaskbarMonitorEnhanced,TaskbarMonitorSensorSupervisor,TaskbarMonitorSensorBroker -ErrorAction SilentlyContinue).Count){
@@ -143,8 +156,10 @@ try{
   NewOwnedDirectory $results $true
   [IO.File]::Copy($sourceActor,$workerPath)
   if((Hash $workerPath) -cne (Hash $sourceActor)){throw 'R339_WORKER_COPY_CHANGED_BEFORE_CREDENTIAL_RUN'}
-  [void][IO.Directory]::CreateDirectory($app)
-  $appCreated=$true
+  if(-not [IO.Directory]::Exists($app)){
+    [void][IO.Directory]::CreateDirectory($app)
+    $appCreated=$true
+  }
   $outsideCanary=Join-Path $out 'FOREIGN_CANARY.txt'
   [IO.File]::WriteAllText($outsideCanary,'R339_OUTSIDE_CANARY_UNCHANGED',[Text.UTF8Encoding]::new($false))
   $initial.Outside=Hash $outsideCanary
@@ -266,10 +281,11 @@ try{
       $sharedRemoved=(![IO.Directory]::Exists($shared))
     }catch{$failure+=' DISPOSABLE_SHARE_CLEANUP_REFUSED='+$_.Exception.Message}
   }
-  if(!$accountRemoved -or !$rootRemoved -or !$sharedRemoved -or !$appRemoved){
-    $failure+=' INCOMPLETE_SCOPED_TEST_FIXTURE_CLEANUP'
-  }
-  $status=if(!$failure -and $actorRead -and $denials -eq 420 -and $checks.Count -eq 8 -and $concurrentChecks -ge 1){
+  if($accountCreated -and !$accountRemoved){$failure+=' OTHER_SID_ACCOUNT_CLEANUP_INCOMPLETE'}
+  if($ownerCreated -and !$rootRemoved){$failure+=' PROTECTED_TEST_ROOT_CLEANUP_INCOMPLETE'}
+  if($sharedCreated -and !$sharedRemoved){$failure+=' PROGRAMDATA_FIXTURE_CLEANUP_INCOMPLETE'}
+  if($appCreated -and !$appRemoved){$failure+=' CREATED_USER_APP_ROOT_CLEANUP_INCOMPLETE'}
+  $status=if(!$failure -and $actorRead -and $denials -eq 420 -and $checks.Count -eq $(if($appCreated){8}else{9}) -and $concurrentChecks -ge 1){
     'PASS_REAL_NONADMIN_SECOND_SID_PROTECTED_PROGRAMFILES_CONCURRENT_REFUSAL'
   }else{'FAIL_CLOSED_DISPOSABLE_WINDOWS_ONLY'}
   $data=[ordered]@{
@@ -280,6 +296,7 @@ try{
     ActualProductionTrustGuardConcurrentChecks=$concurrentChecks
     ProtectedBrokerSHA256=$initial.Broker;ProtectedSupervisorSHA256=$initial.Supervisor
     WindowsProtectedProgramFilesFixtureWasCreated=$ownerCreated
+    PreExistingBuildOnlyLocalAppRootRetained=(!$appCreated -and [IO.Directory]::Exists($app))
     WindowsProtectedProgramFilesFixtureRemoved=$rootRemoved
     DisposableSecondAccountRemoved=$accountRemoved;DisposableProgramDataRemoved=$sharedRemoved
     DisposableProfileAppRootRemoved=$appRemoved
