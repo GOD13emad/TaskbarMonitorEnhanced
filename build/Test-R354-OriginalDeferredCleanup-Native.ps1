@@ -51,19 +51,27 @@ function Hash([string]$p){return (Get-FileHash -LiteralPath $p -Algorithm SHA256
 function IsTaskPresent(){
  return @((Get-ScheduledTask -TaskName $taskName -TaskPath '\' -ErrorAction SilentlyContinue|Where-Object {$null -ne $_})).Count -ne 0
 }
+# This receipt path is RUNNER_TEMP on a verified hosted disposable Windows
+# runner, not any owner installation; it must exist even when preflight fails.
+if([IO.Directory]::Exists($receiptRoot)){throw 'R354_OWNED_RECEIPT_ROOT_PREEXISTS'}
+[IO.Directory]::CreateDirectory($receiptRoot)|Out-Null
+$fresh=[ordered]@{AppDir=$false;ProtectedDir=$false;MainFile=$false;SensorTask=$false;SensorProcessCount=0}
 try{
  $phase='VERIFY_FRESH_GITHUB_HOSTED_CLEAN_PROFILE'
- if([IO.Directory]::Exists($app) -or [IO.Directory]::Exists($protected) -or
-    [IO.File]::Exists($main) -or (IsTaskPresent) -or
-    @(Get-Process TaskbarMonitorEnhanced,TaskbarMonitorSensorBroker,TaskbarMonitorSensorSupervisor -ErrorAction SilentlyContinue).Count){
+ $fresh.AppDir=[IO.Directory]::Exists($app)
+ $fresh.ProtectedDir=[IO.Directory]::Exists($protected)
+ $fresh.MainFile=[IO.File]::Exists($main)
+ $fresh.SensorTask=[bool](IsTaskPresent)
+ $fresh.SensorProcessCount=@(Get-Process TaskbarMonitorEnhanced,TaskbarMonitorSensorBroker,TaskbarMonitorSensorSupervisor -ErrorAction SilentlyContinue).Count
+ Write-Output ('R354_NATIVE_GUEST_FRESHNESS='+($fresh|ConvertTo-Json -Compress))
+ if($fresh.AppDir -or $fresh.ProtectedDir -or $fresh.MainFile -or
+    $fresh.SensorTask -or $fresh.SensorProcessCount -gt 0){
    throw 'R354_PREEXISTING_OWNER_PRODUCT_OR_SENSOR_GUEST_REFUSED'
  }
  if(-not [string]::Equals([IO.Path]::GetFullPath($local),
    [IO.Path]::GetFullPath((Join-Path $profile 'AppData\Local')),[StringComparison]::OrdinalIgnoreCase)){
    throw 'R354_NONCANONICAL_LOCALAPPDATA_REFUSED'
  }
- if([IO.Directory]::Exists($receiptRoot)){throw 'R354_RECEIPT_ROOT_PREEXISTS'}
- [IO.Directory]::CreateDirectory($receiptRoot)|Out-Null
  [IO.Directory]::CreateDirectory($external)|Out-Null
  [IO.File]::WriteAllText($canary,'R354_OUTSIDE_CANARY_DO_NOT_TOUCH',[Text.UTF8Encoding]::new($false))
  $outsideSha=Hash $canary
@@ -254,6 +262,7 @@ try{
    ExpectedJunctionRefusalObserved=$reparseRefused;NormalSyntheticUninstallRemoved=$nominalDeleted
    ExternalCanarySHA256=$outsideSha;CanaryUnchanged=$canaryUnchanged
    ScopedTestCleanupComplete=$testCleaned
+   GuestFreshness=$fresh
    UserOwnerComputerTouched=$false;DriverOrBrokerSetupExecuted=$false
    InteractiveUacTested=$false;ConcurrentPathSwapTested=$false
    Checks=@($checks);Failure=$failure
