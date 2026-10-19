@@ -37,7 +37,7 @@ $parentPin=$null;$childPin=$null
 $exitFailure='';$phase='START'
 $preActorPid=0;$inActorPid=0;$nonemptyError=-1;$dispositionCode=-1;$preAllowed=$false;$inDenied=$false;$unlinkDone=$false;$outsideIntact=$false;$cleanupDone=$false
 function Check([string]$label){[void]$script:checks.Add($label);Write-Output ('PASS '+$label)}
-function H([string]$file){return (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash}
+function Hash-R356File([string]$file){return (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash}
 function Invoke-Actor([string]$which,[string]$path,[string]$externalMarker){
   $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($path))
   $e=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($externalMarker))
@@ -71,7 +71,7 @@ try{
  [void][IO.Directory]::CreateDirectory($target)
  [void][IO.Directory]::CreateDirectory($outside)
  [IO.File]::WriteAllText($canary,'R356_OUTSIDE_CANARY_NEVER_CHANGE',[Text.UTF8Encoding]::new($false))
- $outsideSha=H $canary
+ $outsideSha=Hash-R356File $canary
  [IO.File]::WriteAllText($leaf,'R356_TEMP_LEAF_ONLY',[Text.UTF8Encoding]::new($false))
  Check 'ONLY_FRESH_HOSTED_RUNNER_TEMP_SYNTHETIC_FILES'
  $phase='COMPILE_NATIVE_DISPOSITION_CLASS'
@@ -144,7 +144,7 @@ public sealed class R356NativeDirectoryLease : IDisposable {
  if(![IO.File]::Exists($leaf)){throw 'R356_UNEXPECTED_NONEMPTY_FILE_LOSS'}
  Check 'HANDLE_DELETE_REJECTED_NONEMPTY_DIRECTORY_WIN32_145'
  $phase='DELETE_ONLY_SYNTHETIC_LEAF_WITH_HANDLE_STILL_PINNED'
- if((H $leaf) -cne ([BitConverter]::ToString(([Security.Cryptography.SHA256]::Create()).ComputeHash(
+ if((Hash-R356File $leaf) -cne ([BitConverter]::ToString(([Security.Cryptography.SHA256]::Create()).ComputeHash(
     [Text.Encoding]::UTF8.GetBytes('R356_TEMP_LEAF_ONLY')))).Replace('-','')){
    throw 'R356_SYNTHETIC_LEAF_CHANGED'
  }
@@ -162,11 +162,11 @@ public sealed class R356NativeDirectoryLease : IDisposable {
  $unlinkDone=$true
  Check 'SET_FILE_INFORMATION_BY_HANDLE_DELETES_ONLY_PINNED_EMPTY_DIRECTORY'
  $phase='OUTSIDE_CANARY_AND_PARENT_CLEANUP'
- if((H $canary) -cne $outsideSha){throw 'R356_EXTERNAL_CANARY_CHANGED'}
+ if((Hash-R356File $canary) -cne $outsideSha){throw 'R356_EXTERNAL_CANARY_CHANGED'}
  $outsideIntact=$true
  Check 'OUTSIDE_CANARY_SHA_UNMODIFIED_DURING_NATIVE_DELETE'
  $parentPin.Dispose();$parentPin=$null
- if(@([IO.Directory]::GetFileSystemEntries($outside)).Count -ne 1 -or (H $canary) -cne $outsideSha){
+ if(@([IO.Directory]::GetFileSystemEntries($outside)).Count -ne 1 -or (Hash-R356File $canary) -cne $outsideSha){
    throw 'R356_OUTSIDE_CANARY_MEMBERS_CHANGED'
  }
  [IO.File]::Delete($canary)
