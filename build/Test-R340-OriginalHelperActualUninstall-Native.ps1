@@ -464,6 +464,30 @@ public sealed class R342TaskFileRemovalKill {
 }catch{
  $failure=$_.Exception.GetType().Name+': '+$_.Exception.Message+' PHASE='+$phase
 }finally{
+ # R344-F01 diagnostic snapshot is read-only and taken BEFORE cleanup.
+ # The nominal test must expose the actual Helper Status/Message and log
+ # source for an early fail-closed unwind; no profile secrets are copied.
+ $helperDiagnosticStatus='MISSING';$helperDiagnosticMessage=''
+ $helperDiagnosticLogTail=''
+ try{
+   if([IO.File]::Exists($resultPath)){
+     $diagnostic=Get-Content -LiteralPath $resultPath -Raw -ErrorAction Stop|ConvertFrom-Json
+     $helperDiagnosticStatus=[string]$diagnostic.Status
+     $helperDiagnosticMessage=[string]$diagnostic.Message
+   }
+   if([IO.File]::Exists($log)){
+     $lines=@(Get-Content -LiteralPath $log -Tail 9 -ErrorAction Stop)
+     $helperDiagnosticLogTail=($lines -join ' | ')
+     if($helperDiagnosticLogTail.Length -gt 1800){
+       $helperDiagnosticLogTail=$helperDiagnosticLogTail.Substring($helperDiagnosticLogTail.Length-1800)
+     }
+   }
+ }catch{$helperDiagnosticMessage='DIAGNOSTIC_READ_FAILED_'+$_.Exception.GetType().Name}
+ if($failure){
+   Write-Output ('R344_DIAGNOSTIC_HELPER_STATUS='+$helperDiagnosticStatus)
+   Write-Output ('R344_DIAGNOSTIC_HELPER_MESSAGE='+$helperDiagnosticMessage)
+   Write-Output ('R344_DIAGNOSTIC_LOGTAIL='+$helperDiagnosticLogTail)
+ }
  # Only the caller-owned fixtures are candidates for cleanup. Never force
  # delete unknown shared task/root contents or preexisting user AppData files.
  if($createdTask -and (TaskExists)){
@@ -531,6 +555,9 @@ public sealed class R342TaskFileRemovalKill {
   AlreadyAdminRunner=$true;TrueInteractiveUacDialogObserved=$false
   OriginalHelperProcessStarted=($childPid -gt 0);OriginalHelperPid=$childPid
   OriginalHelperExitCode=$helperExit;OriginalHelperResultStatus=$helperStatus
+  PreCleanupHelperResultStatus=$helperDiagnosticStatus
+  PreCleanupHelperResultMessage=$helperDiagnosticMessage
+  PreCleanupHelperLogTail=$helperDiagnosticLogTail
   ProtectedProgramFilesCreated=$createdRoot;ProtectedProgramFilesRemoved=$protectedRemoved
   OriginalHelperBrokerSubfolderRemoved=$brokerRemoved
   GlobalDisabledTaskCreated=$createdTask;GlobalDisabledTaskRemoved=$taskRemoved
