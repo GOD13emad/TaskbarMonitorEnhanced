@@ -125,180 +125,279 @@ $validatedSensorSid=Assert-SensorPrivilegedBoundary $Mode $PayloadDir $AppRoot $
 # points by handle, never create a user-writable script or change UAC policy.
 Add-Type -TypeDefinition @'
 using System;
-
 using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
-
 public sealed class TBMEScopedUserLogLease : IDisposable {
-  const uint FILE_LIST_DIRECTORY=0x0001;
-  const uint GENERIC_READ=0x80000000;
-  const uint GENERIC_WRITE=0x40000000;
-  const uint FILE_SHARE_READ=1,FILE_SHARE_WRITE=2;
-  const uint OPEN_EXISTING=3, OPEN_ALWAYS=4;
-  const uint FILE_FLAG_BACKUP_SEMANTICS=0x02000000;
-  const uint FILE_FLAG_OPEN_REPARSE_POINT=0x00200000;
-  const uint FILE_ATTRIBUTE_DIRECTORY=0x10;
-  const uint FILE_ATTRIBUTE_REPARSE_POINT=0x400;
-  [DllImport("kernel32.dll",EntryPoint="CreateFileW",SetLastError=true,CharSet=CharSet.Unicode)]
-  static extern SafeFileHandle OpenNative(string name,uint access,uint share,IntPtr sec,uint disposition,uint flags,IntPtr template);
-  [StructLayout(LayoutKind.Sequential)]
-  public struct TagInfo { public uint FileAttributes; public uint ReparseTag; }
-  [DllImport("kernel32.dll",SetLastError=true)]
-  static extern bool GetFileInformationByHandleEx(SafeFileHandle handle,int kind,out TagInfo data,uint size);
-  readonly SafeFileHandle[] guard=new SafeFileHandle[5];
-  int guardCount=0;
-  FileStream stream;
-  bool disposed;
-  static SafeFileHandle OpenChecked(string path,uint access,uint share,uint disposition,uint flags,bool isDirectory){
-    SafeFileHandle handle=OpenNative(path,access,share,IntPtr.Zero,disposition,flags,IntPtr.Zero);
-    if(handle.IsInvalid){
-      int e=Marshal.GetLastWin32Error();
-      handle.Dispose();
-      throw new IOException("SENSOR_LOG_HANDLE_CREATEFILE_FAILED_WIN32_"+e+" "+Path.GetFileName(path));
-    }
-    TagInfo info;
-    if(!GetFileInformationByHandleEx(handle,9,out info,(uint)Marshal.SizeOf(typeof(TagInfo)))){
-      int e=Marshal.GetLastWin32Error();
-      handle.Dispose();
-      throw new IOException("SENSOR_LOG_HANDLE_ATTRIBUTE_TAG_QUERY_FAILED_WIN32_"+e);
-    }
-    if((info.FileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)!=0 ||
-       ((info.FileAttributes&FILE_ATTRIBUTE_DIRECTORY)!=0)!=isDirectory){
-      handle.Dispose();
-      throw new IOException("SENSOR_LOG_HANDLE_REPARSE_OR_COMPONENT_TYPE_REFUSED");
-    }
-    return handle;
-  }
-  public TBMEScopedUserLogLease(string profile,string appRoot,string logDir,string exactFile){
-    if(String.IsNullOrWhiteSpace(profile) || String.IsNullOrWhiteSpace(appRoot) ||
-       String.IsNullOrWhiteSpace(logDir) || String.IsNullOrWhiteSpace(exactFile))
-       throw new IOException("SENSOR_LOG_HANDLE_EMPTY_LOG_BOUNDARY");
-    string p=Path.GetFullPath(profile);
-    string appdata=Path.Combine(p,"AppData");
-    string local=Path.Combine(appdata,"Local");
-    string expected=Path.GetFullPath(Path.Combine(local,"TaskbarMonitorEnhanced"));
-    string logs=Path.GetFullPath(Path.Combine(expected,"Logs"));
-    string file=Path.GetFullPath(exactFile);
-    string log=Path.GetFullPath(Path.Combine(logs,"sensor_install.log"));
-    string result=Path.GetFullPath(Path.Combine(logs,"sensor_install_result.json"));
-    if(!String.Equals(Path.GetFullPath(appRoot),expected,StringComparison.OrdinalIgnoreCase) ||
-       !String.Equals(Path.GetFullPath(logDir),logs,StringComparison.OrdinalIgnoreCase) ||
-       !(String.Equals(file,log,StringComparison.OrdinalIgnoreCase) ||
-         String.Equals(file,result,StringComparison.OrdinalIgnoreCase))){
-       throw new IOException("SENSOR_LOG_HANDLE_CANONICAL_LOG_PATH_MISMATCH");
-    }
-    try{
-      foreach(string dir in new string[]{p,appdata,local,expected,logs}){
-        SafeFileHandle parent=OpenChecked(dir,FILE_LIST_DIRECTORY,FILE_SHARE_READ|FILE_SHARE_WRITE,
-                              OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,true);
-        guard[guardCount++]=parent;
-      }
-      SafeFileHandle h=OpenChecked(file,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ,
-                         OPEN_ALWAYS,FILE_FLAG_OPEN_REPARSE_POINT,false);
-      try{
-        stream=new FileStream(h,FileAccess.ReadWrite);
-        stream.Seek(0,SeekOrigin.End);
-      }catch{h.Dispose();throw;}
-    }catch{Dispose();throw;}
-  }
-  public void Append(string text){
-    if(disposed || stream==null)throw new ObjectDisposedException("TBMEScopedUserLogLease");
-    if(stream.Length==0){
-       byte[] bom=new System.Text.UTF8Encoding(true).GetPreamble();
-       stream.Write(bom,0,bom.Length);
-    }
-    byte[] data=System.Text.Encoding.UTF8.GetBytes(text);
-    stream.Write(data,0,data.Length);
-    stream.Flush(true);
-  }
-  public void Overwrite(string text){
-    if(disposed || stream==null)throw new ObjectDisposedException("TBMEScopedUserLogLease");
-    stream.SetLength(0);stream.Position=0;
-    byte[] bom=new System.Text.UTF8Encoding(true).GetPreamble();
-    stream.Write(bom,0,bom.Length);
-    byte[] data=System.Text.Encoding.UTF8.GetBytes(text);
-    stream.Write(data,0,data.Length);
-    stream.Flush(true);
-  }
-  public void Dispose(){
-    if(disposed)return;
-    disposed=true;
-    if(stream!=null){stream.Dispose();stream=null;}
-    for(int i=guardCount-1;i>=0;i--)if(guard[i]!=null)guard[i].Dispose();
-    guardCount=0;
-  }
+const uint FILE_LIST_DIRECTORY=0x0001;
+const uint GENERIC_READ=0x80000000;
+const uint GENERIC_WRITE=0x40000000;
+const uint FILE_SHARE_READ=1,FILE_SHARE_WRITE=2;
+const uint OPEN_EXISTING=3, OPEN_ALWAYS=4;
+const uint FILE_FLAG_BACKUP_SEMANTICS=0x02000000;
+const uint FILE_FLAG_OPEN_REPARSE_POINT=0x00200000;
+const uint FILE_ATTRIBUTE_DIRECTORY=0x10;
+const uint FILE_ATTRIBUTE_REPARSE_POINT=0x400;
+[DllImport("kernel32.dll",EntryPoint="CreateFileW",SetLastError=true,CharSet=CharSet.Unicode)]
+static extern SafeFileHandle OpenNative(string name,uint access,uint share,IntPtr sec,uint disposition,uint flags,IntPtr template);
+[StructLayout(LayoutKind.Sequential)]
+public struct TagInfo { public uint FileAttributes; public uint ReparseTag; }
+[DllImport("kernel32.dll",SetLastError=true)]
+static extern bool GetFileInformationByHandleEx(SafeFileHandle handle,int kind,out TagInfo data,uint size);
+readonly SafeFileHandle[] guard=new SafeFileHandle[5];
+int guardCount=0;
+FileStream stream;
+bool disposed;
+static SafeFileHandle OpenChecked(string path,uint access,uint share,uint disposition,uint flags,bool isDirectory){
+SafeFileHandle handle=OpenNative(path,access,share,IntPtr.Zero,disposition,flags,IntPtr.Zero);
+if(handle.IsInvalid){
+int e=Marshal.GetLastWin32Error();
+handle.Dispose();
+throw new IOException("SENSOR_LOG_HANDLE_CREATEFILE_FAILED_WIN32_"+e+" "+Path.GetFileName(path));
 }
-
-    // R347: protected directory ancestor leases prohibit concurrent renames.
+TagInfo info;
+if(!GetFileInformationByHandleEx(handle,9,out info,(uint)Marshal.SizeOf(typeof(TagInfo)))){
+int e=Marshal.GetLastWin32Error();
+handle.Dispose();
+throw new IOException("SENSOR_LOG_HANDLE_ATTRIBUTE_TAG_QUERY_FAILED_WIN32_"+e);
+}
+if((info.FileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)!=0 ||
+((info.FileAttributes&FILE_ATTRIBUTE_DIRECTORY)!=0)!=isDirectory){
+handle.Dispose();
+throw new IOException("SENSOR_LOG_HANDLE_REPARSE_OR_COMPONENT_TYPE_REFUSED");
+}
+return handle;
+}
+public TBMEScopedUserLogLease(string profile,string appRoot,string logDir,string exactFile){
+if(String.IsNullOrWhiteSpace(profile) || String.IsNullOrWhiteSpace(appRoot) ||
+String.IsNullOrWhiteSpace(logDir) || String.IsNullOrWhiteSpace(exactFile))
+throw new IOException("SENSOR_LOG_HANDLE_EMPTY_LOG_BOUNDARY");
+string p=Path.GetFullPath(profile);
+string appdata=Path.Combine(p,"AppData");
+string local=Path.Combine(appdata,"Local");
+string expected=Path.GetFullPath(Path.Combine(local,"TaskbarMonitorEnhanced"));
+string logs=Path.GetFullPath(Path.Combine(expected,"Logs"));
+string file=Path.GetFullPath(exactFile);
+string log=Path.GetFullPath(Path.Combine(logs,"sensor_install.log"));
+string result=Path.GetFullPath(Path.Combine(logs,"sensor_install_result.json"));
+if(!String.Equals(Path.GetFullPath(appRoot),expected,StringComparison.OrdinalIgnoreCase) ||
+!String.Equals(Path.GetFullPath(logDir),logs,StringComparison.OrdinalIgnoreCase) ||
+!(String.Equals(file,log,StringComparison.OrdinalIgnoreCase) ||
+String.Equals(file,result,StringComparison.OrdinalIgnoreCase))){
+throw new IOException("SENSOR_LOG_HANDLE_CANONICAL_LOG_PATH_MISMATCH");
+}
+try{
+foreach(string dir in new string[]{p,appdata,local,expected,logs}){
+SafeFileHandle parent=OpenChecked(dir,FILE_LIST_DIRECTORY,FILE_SHARE_READ|FILE_SHARE_WRITE,
+OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,true);
+guard[guardCount++]=parent;
+}
+SafeFileHandle h=OpenChecked(file,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ,
+OPEN_ALWAYS,FILE_FLAG_OPEN_REPARSE_POINT,false);
+try{
+stream=new FileStream(h,FileAccess.ReadWrite);
+stream.Seek(0,SeekOrigin.End);
+}catch{h.Dispose();throw;}
+}catch{Dispose();throw;}
+}
+public void Append(string text){
+if(disposed || stream==null)throw new ObjectDisposedException("TBMEScopedUserLogLease");
+if(stream.Length==0){
+byte[] bom=new System.Text.UTF8Encoding(true).GetPreamble();
+stream.Write(bom,0,bom.Length);
+}
+byte[] data=System.Text.Encoding.UTF8.GetBytes(text);
+stream.Write(data,0,data.Length);
+stream.Flush(true);
+}
+public void Overwrite(string text){
+if(disposed || stream==null)throw new ObjectDisposedException("TBMEScopedUserLogLease");
+stream.SetLength(0);stream.Position=0;
+byte[] bom=new System.Text.UTF8Encoding(true).GetPreamble();
+stream.Write(bom,0,bom.Length);
+byte[] data=System.Text.Encoding.UTF8.GetBytes(text);
+stream.Write(data,0,data.Length);
+stream.Flush(true);
+}
+public void Dispose(){
+if(disposed)return;
+disposed=true;
+if(stream!=null){stream.Dispose();stream=null;}
+for(int i=guardCount-1;i>=0;i--)if(guard[i]!=null)guard[i].Dispose();
+guardCount=0;
+}
+}
 public sealed class TBMEProtectedBrokerLease : IDisposable {
-    // FILE_READ_ATTRIBUTES is exempt from CreateFile share-mode checks;
-    // request actual directory listing access so no FILE_SHARE_DELETE
-    // blocks rename/delete by a concurrent privileged process.
-    const uint FILE_LIST_DIRECTORY=0x00000001;
-    const uint SHARE_READ=1, SHARE_WRITE=2, OPEN_EXISTING=3;
-    const uint BACKUP_SEMANTICS=0x02000000, OPEN_REPARSE_POINT=0x00200000;
-    const uint ATTR_DIRECTORY=0x10, ATTR_REPARSE=0x400;
-    [DllImport("kernel32.dll",EntryPoint="CreateFileW",SetLastError=true,CharSet=CharSet.Unicode)]
-    static extern SafeFileHandle OpenNative(string path,uint access,uint share,IntPtr sec,
-                                            uint creation,uint flags,IntPtr template);
-    [StructLayout(LayoutKind.Sequential)]
-    struct FILE_ATTRIBUTE_TAG_INFO { public uint Attributes; public uint Tag; }
-    [DllImport("kernel32.dll",SetLastError=true)]
-    static extern bool GetFileInformationByHandleEx(SafeFileHandle handle,int kind,
-                                                     out FILE_ATTRIBUTE_TAG_INFO data,uint size);
-    readonly SafeFileHandle[] parents=new SafeFileHandle[3];
-    int count;
-    bool disposed;
-
-    static SafeFileHandle OpenExactDir(string path) {
-        SafeFileHandle h=OpenNative(path,FILE_LIST_DIRECTORY,
-            SHARE_READ|SHARE_WRITE,IntPtr.Zero,OPEN_EXISTING,
-            BACKUP_SEMANTICS|OPEN_REPARSE_POINT,IntPtr.Zero);
-        if(h.IsInvalid) {
-            int error=Marshal.GetLastWin32Error();
-            h.Dispose();
-            throw new IOException("SENSOR_BROKER_DIRECTORY_LEASE_OPEN_FAILED_WIN32_"+error);
-        }
-        FILE_ATTRIBUTE_TAG_INFO info;
-        if(!GetFileInformationByHandleEx(h,9,out info,
-            (uint)Marshal.SizeOf(typeof(FILE_ATTRIBUTE_TAG_INFO)))) {
-            int error=Marshal.GetLastWin32Error(); h.Dispose();
-            throw new IOException("SENSOR_BROKER_DIRECTORY_LEASE_TAG_FAILED_WIN32_"+error);
-        }
-        if((info.Attributes&ATTR_DIRECTORY)==0||(info.Attributes&ATTR_REPARSE)!=0) {
-            h.Dispose();
-            throw new IOException("SENSOR_BROKER_DIRECTORY_LEASE_REPARSE_REFUSED");
-        }
-        return h;
-    }
-
-    public TBMEProtectedBrokerLease(string liveBroker) {
-        string program=Path.GetFullPath(Environment.GetFolderPath(
-            Environment.SpecialFolder.ProgramFiles)).TrimEnd(Path.DirectorySeparatorChar);
-        string root=Path.Combine(program,"TaskbarMonitorEnhanced");
-        string broker=Path.Combine(root,"SensorBroker");
-        if(String.IsNullOrWhiteSpace(liveBroker) ||
-           !String.Equals(Path.GetFullPath(liveBroker).TrimEnd(Path.DirectorySeparatorChar),
-                          broker,StringComparison.OrdinalIgnoreCase)) {
-            throw new IOException("SENSOR_BROKER_DIRECTORY_LEASE_NOT_EXACT_SYSTEM_PROGRAMFILES");
-        }
-        try {
-            parents[count++]=OpenExactDir(program);
-            parents[count++]=OpenExactDir(root);
-            // If a killed Helper removed the old Broker directory, the pinned
-            // parent prevents its replacement while recreating this fixed child.
-            if(!Directory.Exists(broker))Directory.CreateDirectory(broker);
-            parents[count++]=OpenExactDir(broker);
-        }catch {Dispose();throw;}
-    }
-    public bool IsPinned {get{return !disposed&&count==3;}}
-    public void Dispose() {
-        if(disposed)return;
-        disposed=true;
-        for(int i=count-1;i>=0;i--)if(parents[i]!=null)parents[i].Dispose();
-        count=0;
-    }
+const uint FILE_LIST_DIRECTORY=0x00000001;
+const uint SHARE_READ=1, SHARE_WRITE=2, OPEN_EXISTING=3;
+const uint BACKUP_SEMANTICS=0x02000000, OPEN_REPARSE_POINT=0x00200000;
+const uint ATTR_DIRECTORY=0x10, ATTR_REPARSE=0x400;
+[DllImport("kernel32.dll",EntryPoint="CreateFileW",SetLastError=true,CharSet=CharSet.Unicode)]
+static extern SafeFileHandle OpenNative(string path,uint access,uint share,IntPtr sec,
+uint creation,uint flags,IntPtr template);
+[StructLayout(LayoutKind.Sequential)]
+struct FILE_ATTRIBUTE_TAG_INFO { public uint Attributes; public uint Tag; }
+[DllImport("kernel32.dll",SetLastError=true)]
+static extern bool GetFileInformationByHandleEx(SafeFileHandle handle,int kind,
+out FILE_ATTRIBUTE_TAG_INFO data,uint size);
+readonly SafeFileHandle[] parents=new SafeFileHandle[3];
+int count;
+bool disposed;
+static SafeFileHandle OpenExactDir(string path) {
+SafeFileHandle h=OpenNative(path,FILE_LIST_DIRECTORY,
+SHARE_READ|SHARE_WRITE,IntPtr.Zero,OPEN_EXISTING,
+BACKUP_SEMANTICS|OPEN_REPARSE_POINT,IntPtr.Zero);
+if(h.IsInvalid) {
+int error=Marshal.GetLastWin32Error();
+h.Dispose();
+throw new IOException("SENSOR_BROKER_DIRECTORY_LEASE_OPEN_FAILED_WIN32_"+error);
+}
+FILE_ATTRIBUTE_TAG_INFO info;
+if(!GetFileInformationByHandleEx(h,9,out info,
+(uint)Marshal.SizeOf(typeof(FILE_ATTRIBUTE_TAG_INFO)))) {
+int error=Marshal.GetLastWin32Error(); h.Dispose();
+throw new IOException("SENSOR_BROKER_DIRECTORY_LEASE_TAG_FAILED_WIN32_"+error);
+}
+if((info.Attributes&ATTR_DIRECTORY)==0||(info.Attributes&ATTR_REPARSE)!=0) {
+h.Dispose();
+throw new IOException("SENSOR_BROKER_DIRECTORY_LEASE_REPARSE_REFUSED");
+}
+return h;
+}
+public TBMEProtectedBrokerLease(string liveBroker) {
+string program=Path.GetFullPath(Environment.GetFolderPath(
+Environment.SpecialFolder.ProgramFiles)).TrimEnd(Path.DirectorySeparatorChar);
+string root=Path.Combine(program,"TaskbarMonitorEnhanced");
+string broker=Path.Combine(root,"SensorBroker");
+if(String.IsNullOrWhiteSpace(liveBroker) ||
+!String.Equals(Path.GetFullPath(liveBroker).TrimEnd(Path.DirectorySeparatorChar),
+broker,StringComparison.OrdinalIgnoreCase)) {
+throw new IOException("SENSOR_BROKER_DIRECTORY_LEASE_NOT_EXACT_SYSTEM_PROGRAMFILES");
+}
+try {
+parents[count++]=OpenExactDir(program);
+parents[count++]=OpenExactDir(root);
+if(!Directory.Exists(broker))Directory.CreateDirectory(broker);
+parents[count++]=OpenExactDir(broker);
+canonicalBroker=broker;
+}catch {Dispose();throw;}
+}
+const uint GENERIC_READ=0x80000000, GENERIC_WRITE=0x40000000;
+const uint OPEN_ALWAYS=4, ATTR_REPARSE_POINT=0x400;
+[StructLayout(LayoutKind.Sequential)]
+struct FILE_TIME_PAIR { public uint Low; public uint High; }
+[StructLayout(LayoutKind.Sequential)]
+struct FILE_HANDLE_INFO {
+public uint FileAttributes;
+public FILE_TIME_PAIR Created, Accessed, Modified;
+public uint VolumeSerial, SizeHigh, SizeLow, NumberOfLinks, IndexHigh, IndexLow;
+}
+[DllImport("kernel32.dll",SetLastError=true)]
+static extern bool GetFileInformationByHandle(SafeFileHandle h,out FILE_HANDLE_INFO info);
+[DllImport("kernel32.dll",EntryPoint="GetFinalPathNameByHandleW",
+SetLastError=true,CharSet=CharSet.Unicode)]
+static extern uint FinalNative(SafeFileHandle h,System.Text.StringBuilder path,
+uint capacity,uint flags);
+readonly System.Collections.Generic.Dictionary<string,FileStream> leaves=
+new System.Collections.Generic.Dictionary<string,FileStream>(
+StringComparer.OrdinalIgnoreCase);
+readonly System.Collections.Generic.List<SafeFileHandle> childDirectories=
+new System.Collections.Generic.List<SafeFileHandle>();
+string canonicalBroker;
+public FileStream OpenReplayLeaf(string relative) {
+if(!IsPinned||String.IsNullOrWhiteSpace(relative)){
+throw new IOException("SENSOR_REPLAY_LEAF_LEASE_NOT_PINNED");
+}
+relative=relative.Replace('/',Path.DirectorySeparatorChar);
+string[] parts=relative.Split(Path.DirectorySeparatorChar);
+if(parts.Length==0||parts.Length>8){
+throw new IOException("SENSOR_REPLAY_LEAF_TOO_DEEP");
+}
+foreach(string part in parts) {
+if(part=="."||part==".."||
+!System.Text.RegularExpressions.Regex.IsMatch(part,@"^[A-Za-z0-9_.-]+$")){
+throw new IOException("SENSOR_REPLAY_LEAF_BAD_COMPONENT");
+}
+}
+string path=Path.GetFullPath(Path.Combine(canonicalBroker,relative));
+if(!path.StartsWith(canonicalBroker+Path.DirectorySeparatorChar,
+StringComparison.OrdinalIgnoreCase)){
+throw new IOException("SENSOR_REPLAY_LEAF_OUTSIDE_FIXED_BROKER");
+}
+FileStream already;
+if(leaves.TryGetValue(relative,out already)){return already;}
+string parent=canonicalBroker;
+for(int i=0;i<parts.Length-1;i++){
+parent=Path.Combine(parent,parts[i]);
+if(!Directory.Exists(parent)){
+throw new IOException("SENSOR_REPLAY_LEAF_NESTED_PARENT_ABSENT");
+}
+childDirectories.Add(OpenExactDir(parent));
+}
+SafeFileHandle h=OpenNative(path,GENERIC_READ|GENERIC_WRITE,SHARE_READ,
+IntPtr.Zero,OPEN_ALWAYS,OPEN_REPARSE_POINT,IntPtr.Zero);
+if(h.IsInvalid){
+int err=Marshal.GetLastWin32Error();h.Dispose();
+throw new IOException("SENSOR_REPLAY_LEAF_EXCLUSIVE_OPEN_FAILED_WIN32_"+err);
+}
+try {
+FILE_ATTRIBUTE_TAG_INFO tag;
+if(!GetFileInformationByHandleEx(h,9,out tag,
+(uint)Marshal.SizeOf(typeof(FILE_ATTRIBUTE_TAG_INFO))) ||
+(tag.Attributes&(ATTR_DIRECTORY|ATTR_REPARSE_POINT))!=0){
+throw new IOException("SENSOR_REPLAY_LEAF_REPARSE_OR_DIRECTORY_REFUSED");
+}
+FILE_HANDLE_INFO id;
+if(!GetFileInformationByHandle(h,out id) || id.NumberOfLinks!=1){
+throw new IOException("SENSOR_REPLAY_LEAF_HARDLINK_OR_UNKNOWN_ID");
+}
+System.Text.StringBuilder buffer=new System.Text.StringBuilder(2048);
+uint n=FinalNative(h,buffer,(uint)buffer.Capacity,0);
+if(n==0||n>=buffer.Capacity||
+!String.Equals(buffer.ToString(),"\\\\?\\"+path,
+StringComparison.OrdinalIgnoreCase)){
+throw new IOException("SENSOR_REPLAY_LEAF_FINAL_PATH_IDENTITY_MISMATCH");
+}
+FileStream fs=new FileStream(h,FileAccess.ReadWrite);
+leaves.Add(relative,fs);
+return fs;
+}catch{h.Dispose();throw;}
+}
+public byte[] ReadReplayLeaf(string relative) {
+FileStream fs=OpenReplayLeaf(relative);
+if(fs.Length>16777216){throw new IOException("SENSOR_REPLAY_LEAF_SIZE_LIMIT");}
+byte[] result=new byte[(int)fs.Length];
+fs.Position=0;
+int pos=0;
+while(pos<result.Length){
+int n=fs.Read(result,pos,result.Length-pos);
+if(n<=0){throw new IOException("SENSOR_REPLAY_LEAF_SHORT_READ");}
+pos+=n;
+}
+return result;
+}
+public byte[] ReplaceReplayLeaf(string relative,byte[] oldBytes) {
+if(oldBytes==null||oldBytes.Length>16777216){
+throw new IOException("SENSOR_REPLAY_LEAF_DATA_BOUND");
+}
+FileStream fs=OpenReplayLeaf(relative);
+fs.Position=0;
+fs.SetLength(oldBytes.Length);
+fs.Write(oldBytes,0,oldBytes.Length);
+fs.Flush(true);
+return ReadReplayLeaf(relative);
+}
+public bool IsPinned {get{return !disposed&&count==3;}}
+public void Dispose() {
+if(disposed)return;
+disposed=true;
+foreach(FileStream fs in leaves.Values)fs.Dispose();
+leaves.Clear();
+for(int i=childDirectories.Count-1;i>=0;i--)childDirectories[i].Dispose();
+childDirectories.Clear();
+for(int i=count-1;i>=0;i--)if(parents[i]!=null)parents[i].Dispose();
+count=0;
+}
 }
 '@
 
@@ -746,7 +845,8 @@ function Write-SensorJournalTerminal([string]$Root,[string]$Sid,[string]$Phase){
     }
 }
 function Restore-SensorJournalOldFilesOnly(
-    [string]$Root,[string]$Sid,[string]$LiveRoot
+    [string]$Root,[string]$Sid,[string]$LiveRoot,
+    [object]$PinnedBrokerLease=$null
 ){
     $state=Get-SensorJournalTerminal $Root $Sid
     if($state -cne 'PREPARED' -and $state -cne 'ROLLED_BACK'){
@@ -838,6 +938,19 @@ function Restore-SensorJournalOldFilesOnly(
             }
         }
     }
+    # R349: acquire native READ/WRITE, NO SHARE_WRITE/DELETE, no-reparse
+    # handles for every original leaf BEFORE the first rollback write.  The
+    # lease stays open across original Task restoration and journal terminal
+    # cleanup in the caller. Any privileged pre-opened writer or DELETE handle
+    # causes a fail-closed error while PREPARED remains intact.
+    if($null -ne $PinnedBrokerLease){
+        if(-not $PinnedBrokerLease.IsPinned){
+            throw 'SENSOR_REPLAY_LEAF_BROKER_PARENT_LEASE_LOST'
+        }
+        foreach($entry in $prior){
+            $null=$PinnedBrokerLease.OpenReplayLeaf([string]$entry.Rel)
+        }
+    }
     # Stage validated originals back into the live synthetic tree.
     # A process death mid-copy leaves READY and intact old snapshots, so a
     # subsequent same-account invocation can resume. This isn't an atomic
@@ -851,8 +964,14 @@ function Restore-SensorJournalOldFilesOnly(
         Assert-SensorBoundaryNoReparse $dest
         [void][IO.Directory]::CreateDirectory($parent)
         Assert-SensorBoundaryNoReparse $dest
-        [IO.File]::WriteAllBytes($dest,[byte[]]$entry.Bytes)
-        if((Get-SensorJournalHash ([IO.File]::ReadAllBytes($dest))) -cne $entry.Sha){
+        if($null -ne $PinnedBrokerLease){
+            $verifiedBytes=[byte[]]$PinnedBrokerLease.ReplaceReplayLeaf(
+                [string]$entry.Rel,[byte[]]$entry.Bytes)
+        }else{
+            [IO.File]::WriteAllBytes($dest,[byte[]]$entry.Bytes)
+            $verifiedBytes=[IO.File]::ReadAllBytes($dest)
+        }
+        if((Get-SensorJournalHash $verifiedBytes) -cne $entry.Sha){
             throw 'SENSOR_JOURNAL_REPLAY_WRITE_SHA_FAILED'
         }
     }
@@ -864,8 +983,15 @@ function Restore-SensorJournalOldFilesOnly(
     }
     foreach($entry in $prior){
         $dest=Join-Path $LiveRoot $entry.Rel
-        if(-not [IO.File]::Exists($dest) -or
-           (Get-SensorJournalHash ([IO.File]::ReadAllBytes($dest))) -cne $entry.Sha){
+        if($null -ne $PinnedBrokerLease){
+            $bytes=[byte[]]$PinnedBrokerLease.ReadReplayLeaf([string]$entry.Rel)
+        }else{
+            if(-not [IO.File]::Exists($dest)){
+                throw 'SENSOR_JOURNAL_REPLAY_FINAL_MISSING_FILE'
+            }
+            $bytes=[IO.File]::ReadAllBytes($dest)
+        }
+        if((Get-SensorJournalHash $bytes) -cne $entry.Sha){
             throw 'SENSOR_JOURNAL_REPLAY_FINAL_SHA_FAILED'
         }
     }
@@ -1317,7 +1443,7 @@ function Restore-SensorJournalPriorLayerAndTask(
     # R309 prevalidates every saved file/hash, XML and all current live
     # member names before the first synthetic file write. Retrying after a
     # crash is safe for the same allowlisted bytes and expected task.
-    $decoded=Restore-SensorJournalOldFilesOnly $Journal $ExpectedSid $LiveBrokerRoot
+    $decoded=Restore-SensorJournalOldFilesOnly $Journal $ExpectedSid $LiveBrokerRoot $brokerDirectoryLease
     if(-not [string]::Equals($decoded,$oldXml,[StringComparison]::Ordinal)){
         throw 'SENSOR_COLD_REPLAY_XML_DATA_CHANGED'
     }
