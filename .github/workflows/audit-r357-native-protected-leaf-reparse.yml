@@ -1,0 +1,90 @@
+name: R357 production native Supervisor reparse replacement negative (disposable Windows)
+on:
+  push:
+    branches: [audit/r357-native-protected-leaf-reparse-swap]
+    paths:
+      - installer/TBME_Setup_Elevated_Helper.ps1
+      - build/Test-R357-ProtectedSupervisorReparse-Native.ps1
+      - build/Test-R357-ReparseMoveActor-Native.ps1
+      - .github/workflows/audit-r357-native-protected-leaf-reparse.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-supervisor-reparse:
+    name: R357 exact native Supervisor lease ${{ matrix.host }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: A
+            os: windows-2025
+          - host: B
+            os: windows-2022
+    steps:
+      - name: Checkout exact source head without retained credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Refuse owner installation or nongenuine hosted Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/audit/r357-native-protected-leaf-reparse-swap' -or
+             $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID|LAPTOP' -or
+             (git rev-parse HEAD).Trim() -cne '${{ github.sha }}'){
+             throw 'R357_UNAUTHORIZED_HOSTED_SOURCE'
+          }
+          $root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'TaskbarMonitorEnhanced'
+          $userRoot=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
+          if((Test-Path -LiteralPath $root) -or
+             (Test-Path -LiteralPath (Join-Path $userRoot 'TaskbarMonitorEnhanced.exe')) -or
+             @(Get-ScheduledTask -TaskName 'TaskbarMonitorEnhanced Sensor Broker' -TaskPath '\' -ErrorAction SilentlyContinue|Where-Object {$null -ne $_}).Count){
+             throw 'R357_GUEST_PREEXISTING_REAL_PRODUCT'
+          }
+          $admin=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+          if(!$admin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){
+             throw 'R357_ALREADY_ADMIN_GITHUB_WINDOWS_REQUIRED'
+          }
+          'R357_GUEST_IDENTITY_PASS'
+      - name: Install exact .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: 10.0.400
+      - name: Compile unchanged original PE with embedded protected lease class
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Build.ps1
+          if($LASTEXITCODE -ne 0 -or
+             !(Test-Path -LiteralPath build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.8.exe)){
+             throw 'R357_GUEST_ORIGINAL_SETUP_BUILD_FAILED'
+          }
+      - name: Try native MoveFileExW symlink replacement against pinned exact Supervisor path
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $native=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
+          $script=(Resolve-Path build/Test-R357-ProtectedSupervisorReparse-Native.ps1).Path
+          $source=(Resolve-Path .).Path
+          & $native -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -HostLabel '${{ matrix.host }}' -SourceRoot $source
+          if($LASTEXITCODE -ne 0){throw 'R357_REAL_NATIVE_PRODUCTION_LEASE_SWAP_TEST_FAILED'}
+      - name: Retain original hosted native typed receipts even when failed
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R357-supervisor-${{ matrix.host }}-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/R357_*/R357_PROTECTED_SUPERVISOR_REPARSE_NATIVE.json
+            ${{ runner.temp }}/R357_*/R357_ACTOR_BEFORE.json
+            ${{ runner.temp }}/R357_*/R357_ACTOR_DURING.json
+            ${{ runner.temp }}/R357_*/R357_ACTOR_AFTER.json
+          retention-days: 7
+          if-no-files-found: warn
