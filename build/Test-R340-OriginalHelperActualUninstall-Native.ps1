@@ -343,7 +343,9 @@ try{
  if($createdRoot -and !$protectedRemoved){$failure+=' GLOBAL_PROTECTED_ROOT_RESIDUE'}
  if($createdPayload -and !$payloadRemoved){$failure+=' TEMP_PAYLOAD_RESIDUE'}
  if(!$logsRemoved -or !$appRemoved){$failure+=' LOCALAPP_OWNED_RESIDUE'}
- $status=if(!$failure -and $checks.Count -eq (9+[int]$KillBeforeMutation) -and $taskRemoved -and $brokerRemoved -and $protectedRemoved){
+ $neededChecks=9
+ if($KillBeforeMutation){$neededChecks=10}
+ $status=if(!$failure -and $checks.Count -eq $neededChecks -and $taskRemoved -and $brokerRemoved -and $protectedRemoved){
    if($KillBeforeMutation){'PASS_KILLED_ORIGINAL_EMBEDDED_HELPER_BEFORE_SHARED_MUTATION_THEN_RECOVERED'}else{'PASS_REAL_UNMODIFIED_EMBEDDED_HELPER_RUNAS_UNINSTALL_PROTECTED_LAYER'}
  }else{'FAIL_R340_NOT_ACCEPTED'}
  $out=[ordered]@{
