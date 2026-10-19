@@ -16,7 +16,7 @@ $actorBeforeSuccess=$false;$probeBeforeAllowed=$false;$linkReady=$false
 $helperPid=0;$attempts=0;$probeCode=-1;$moveCode=-1;$moved=$false;$denied=$false
 $helperAlive=$false;$journalReady=$false;$canaryIntact=$false;$sourceIntact=$false
 $authority=$null
-function H([string]$path){return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash}
+function Hash-R358File([string]$path){return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash}
 try {
  if($PSVersionTable.PSEdition -cne 'Desktop' -or
     $env:GITHUB_ACTIONS -cne 'true' -or
@@ -55,7 +55,7 @@ try {
     -not $canary.StartsWith($guestTemp,[StringComparison]::OrdinalIgnoreCase) -or
     $authority.OutsideSHA256 -cnotmatch '^[0-9A-F]{64}$' -or
     -not [IO.File]::Exists($canary) -or
-    (H $canary) -cne $authority.OutsideSHA256){
+    (Hash-R358File $canary) -cne $authority.OutsideSHA256){
   throw 'R358_AUTHORITY_OR_CANARY_NOT_EXACT'
  }
  $nonce=[string]$authority.Nonce
@@ -177,7 +177,7 @@ public static class R358NativeProbeMove {
  [IO.File]::Delete($swapSource)
  if([IO.File]::Exists($swapSource)){throw 'R358_SOURCE_SYMLINK_NOT_UNLINKED'}
  $linkReady=$false
- $canaryIntact=((H $canary) -ceq $authority.OutsideSHA256)
+ $canaryIntact=((Hash-R358File $canary) -ceq $authority.OutsideSHA256)
  if(!$canaryIntact){throw 'R358_EXTERNAL_CANARY_CHANGED'}
 }catch{
  $failure=$_.Exception.GetType().Name+': '+$_.Exception.Message+' PHASE='+$phase
