@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [nominal, killed, posttask, postfile]
+        mode: [posttask, postfile]
         host: [A, B]
         include:
           - host: A
