@@ -79,7 +79,7 @@ $journalColdRestored=$false;$recoveryRunPid=0;$finalCleanupRunPid=0;$recoveryTas
 $heldDelete=$null;$deleteHoldVerified=$false;$deleteHoldReleased=$false;$deleteRefusalVerified=$false;$deleteRefusalPid=0;$postDeleteRecoveryPid=0;$deleteOldShaIntact=$false;$deleteJournalIntact=$false
 $raceActor=$null;$raceActorPid=0;$raceActorSha='';$raceAttempts=0;$raceNativeDenied=$false;$racePriorOpenAllowed=$false
 $raceAuthority='';$raceReady='';$raceSignal='';$raceReceipt='';$raceNonce=''
-$foreignCreated=$false;$foreignRefused=$false;$foreignTargetUnchanged=$false;$foreignRestored=$false;$foreignJournalPreserved=$false;$foreignNegativePid=0;$foreignError='';$foreignFile='';$foreignOriginalSHA='';$foreignLinks=0
+$foreignCreated=$false;$foreignRefused=$false;$foreignTargetUnchanged=$false;$foreignRestored=$false;$foreignJournalPreserved=$false;$foreignNegativePid=0;$foreignError='';$foreignFile='';$foreignOriginalSHA='';$foreignLinks=0;$foreignOutsideAfter='';$foreignCleaned=$false
 function Hash([string]$file){return (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash}
 function Check([string]$check){$script:checks.Add($check);Write-Output ('PASS '+$check)}
 function TaskExists(){
@@ -467,7 +467,9 @@ public static class R350HeldDelete {
         (Hash $protectedS) -cne $beforeS -or (TaskExists)){
        throw 'R352_EXPECTED_PRIOR_PROTECTED_LEAF_OR_PREPARED_JOURNAL_MISSING'
      }
-     $foreignFile=Join-Path $receiptsRoot ('R352_OUTSIDE_TARGET_'+$HostLabel+'.bin')
+     # Windows hosted RUNNER_TEMP can be D: while Program Files is C:. NTFS hardlinks must share volume.
+     # Use exclusively this fresh hosted user's canonical Local Temp on the Program Files volume.
+     $foreignFile=Join-Path $temp ('R352_OUTSIDE_TARGET_'+$HostLabel+'_'+$rid+'.bin')
      if([IO.File]::Exists($foreignFile) -or
        -not [string]::Equals([IO.Path]::GetPathRoot($foreignFile),[IO.Path]::GetPathRoot($protectedS),[StringComparison]::OrdinalIgnoreCase)){
        throw 'R352_FOREIGN_PATH_PREEXISTING_OR_DIFFERENT_VOLUME'
@@ -562,7 +564,7 @@ public static class R352Links {
         ![IO.File]::Exists((Join-Path $journal 'READY'))){
        throw 'R352_ORIGINAL_RESTORE_OR_JOURNAL_NOT_EXACT'
      }
-     $foreignRestored=$true
+     $foreignRestored=$true;$foreignOutsideAfter=Hash $foreignFile
      Check 'EXACT_ORIGINAL_PE_HELPER_FOREIGN_LINK_REFUSED_EXTERNAL_AND_JOURNAL_PRESERVED'
    }
     if($LiveAdminWriteRaceDuringColdReplay){
@@ -741,6 +743,17 @@ public static class R352Links {
     try{$raceActor.Dispose()}catch{$failure+=' R351_ACTOR_DISPOSE_FAILED'}
     $raceActor=$null
   }
+ # Delete ONLY the known unique external test target, once the native link is removed
+ # and the approved exact Supervisor bytes have been restored. Else leave evidence on guest.
+ if($ForeignLinkKind -cne 'None' -and $foreignRestored -and $foreignFile){
+   try{
+     if([IO.File]::Exists($foreignFile) -and (Hash $foreignFile) -cne $foreignOriginalSHA){
+       throw 'R352_EXTERNAL_TARGET_HASH_CHANGED_BEFORE_CLEANUP'
+     }
+     if([IO.File]::Exists($foreignFile)){[IO.File]::Delete($foreignFile)}
+     $foreignCleaned=(![IO.File]::Exists($foreignFile))
+   }catch{$failure+=' R352_EXTERNAL_TARGET_CLEANUP_FAILED='+$_.Exception.Message}
+ }
  # Close test-owned DELETE handle before private fixture cleanup.
  if($null -ne $heldDelete){
    try{$heldDelete.Dispose()}catch{$failure+=' R350_DELETE_HANDLE_DISPOSE_FAILED'}
@@ -824,7 +837,7 @@ public static class R352Links {
  if($HoldPriorDeleteDuringColdReplay){$neededChecks+=3}
   if($LiveAdminWriteRaceDuringColdReplay){$neededChecks++}
   if($ForeignLinkKind -cne 'None'){$neededChecks++}
- $status=if(!$failure -and $checks.Count -eq $neededChecks -and $taskRemoved -and $brokerRemoved -and $protectedRemoved){
+ $status=if(!$failure -and $checks.Count -eq $neededChecks -and $taskRemoved -and $brokerRemoved -and $protectedRemoved -and ($ForeignLinkKind -ceq 'None' -or $foreignCleaned)){
    if($KillAfterBrokerRemoval){'PASS_PREPARED_UNINSTALL_JOURNAL_RESTORED_AFTER_BROKER_FILE_DELETE_THEN_UNINSTALLED'}
     elseif($ForeignLinkKind -cne 'None'){'PASS_R352_PE_HELPER_'+$ForeignLinkKind.ToUpperInvariant()+'_REFUSED_AND_COLD_RESTORED'}
     elseif($LiveAdminWriteRaceDuringColdReplay){'PASS_FULL_ORIGINAL_HELPER_AND_DISTINCT_ADMIN_WRITE_RACE_THEN_COLD_RESTORED'}
@@ -884,7 +897,8 @@ public static class R352Links {
    ForeignPreparedJournalRetainedOnRefusal=$foreignJournalPreserved
    ForeignLinkObservedError=$foreignError
    ForeignOutsideSHA256Before=$foreignOriginalSHA
-   ForeignOutsideSHA256After=$(if($foreignFile -and [IO.File]::Exists($foreignFile)){Hash $foreignFile}else{''})
+   ForeignOutsideSHA256After=$foreignOutsideAfter
+   ForeignTargetCleanedAfterSafeUnlink=$foreignCleaned
    ForeignLinkCountAtInjection=$foreignLinks
    ForeignLinkOriginalHelperNegativePid=$foreignNegativePid
   OriginalPreparedJournalColdRecoveryObserved=$journalColdRestored
