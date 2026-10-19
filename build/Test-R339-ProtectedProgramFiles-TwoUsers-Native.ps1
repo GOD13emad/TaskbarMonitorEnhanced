@@ -54,7 +54,7 @@ $actorSid='';$child=$null;$childPid=0;$actorRead=$false;$rootRemoved=$false
 $accountRemoved=$false;$sharedRemoved=$false;$appRemoved=$false
 $denials=0;$concurrentChecks=0;$totalChecks=0;$failure='';$phase='PRECONDITION'
 $checks=[Collections.Generic.List[string]]::new()
-$initial=@{};$outsideCanary=''
+$initial=@{Broker="NOT_STARTED";Supervisor="NOT_STARTED";Owner="NOT_STARTED";Outside="NOT_STARTED"};$outsideCanary=''
 function Hash([string]$path){return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash}
 function Check([string]$name){$script:checks.Add($name);Write-Output ('PASS '+$name)}
 function NewOwnedDirectory([string]$path,[bool]$writeForUsers){
