@@ -36,9 +36,19 @@ function TryRename([string]$which,[string]$old,[string]$dest){
   throw ('R347_UNEXPECTED_PRIVILEGED_DIRECTORY_RENAME_SUCCEEDED_'+$which)
  }catch{
   if($_.Exception.Message.StartsWith('R347_UNEXPECTED_',[StringComparison]::Ordinal)){throw}
+  # .NET static Directory.Move under Windows PowerShell 5.1 wraps the
+  # underlying Win32 IOException in MethodInvocationException. Only unwrap
+  # a proven sharing/access denial; reject all unrelated native failures.
   $e=$_.Exception
-  if(-not ($e -is [IO.IOException] -or $e -is [UnauthorizedAccessException])){
-   throw ('R347_BAD_PRIVILEGED_RENAME_FAILURE_TYPE_'+$which+' '+$e.GetType().Name)
+  while($e -is [Management.Automation.MethodInvocationException] -and $e.InnerException){
+   $e=$e.InnerException
+  }
+  $allowedHResult=($e.HResult -in @(-2147024864,-2147024891,-2147024863))
+  $allowedMessage=($e.Message -match '(?i)sharing violation|being used by another process|access (is )?denied')
+  if(-not (($e -is [IO.IOException] -or $e -is [UnauthorizedAccessException]) -and
+           ($allowedHResult -or $allowedMessage))){
+   throw ('R347_UNEXPECTED_RENAME_FAILURE_CAUSE_'+$which+
+     '_'+$e.GetType().Name+'_HRESULT_'+$e.HResult+'_MSG_'+$e.Message)
   }
   if([IO.Directory]::Exists($dest) -or -not [IO.Directory]::Exists($old)){
    throw ('R347_PROTECTED_PATH_CHANGED_DURING_DENIAL_'+$which)
