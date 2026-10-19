@@ -79,7 +79,7 @@ $journalColdRestored=$false;$recoveryRunPid=0;$finalCleanupRunPid=0;$recoveryTas
 $heldDelete=$null;$deleteHoldVerified=$false;$deleteHoldReleased=$false;$deleteRefusalVerified=$false;$deleteRefusalPid=0;$postDeleteRecoveryPid=0;$deleteOldShaIntact=$false;$deleteJournalIntact=$false
 $raceActor=$null;$raceActorPid=0;$raceActorSha='';$raceAttempts=0;$raceNativeDenied=$false;$racePriorOpenAllowed=$false
 $raceAuthority='';$raceReady='';$raceSignal='';$raceReceipt='';$raceNonce=''
-$foreignCreated=$false;$foreignRefused=$false;$foreignTargetUnchanged=$false;$foreignRestored=$false;$foreignJournalPreserved=$false;$foreignNegativePid=0;$foreignError='';$foreignFile='';$foreignOriginalSHA='';$foreignLinks=0;$foreignOutsideAfter='';$foreignCleaned=$false
+$foreignCreated=$false;$foreignRefused=$false;$foreignTargetUnchanged=$false;$foreignRestored=$false;$foreignJournalPreserved=$false;$foreignNegativePid=0;$foreignError='';$foreignFile='';$foreignOriginalSHA='';$foreignLinks=0;$foreignOutsideAfter='';$foreignCleaned=$false;$foreignRunasExit=-1;$foreignDiagnosticExit=-1;$foreignDiagnosticMatched=$false
 function Hash([string]$file){return (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash}
 function Check([string]$check){$script:checks.Add($check);Write-Output ('PASS '+$check)}
 function TaskExists(){
@@ -532,14 +532,47 @@ public static class R352Links {
          if(!$bad.HasExited){$bad.Kill();[void]$bad.WaitForExit(6000)}
          throw 'R352_LINK_NEGATIVE_TIMED_OUT'
        }
-       if($bad.ExitCode -ne 0){throw 'R352_LINK_NEGATIVE_NONZERO_EXIT'}
+       $foreignRunasExit=[int]$bad.ExitCode
      }finally{$bad.Dispose()}
-     $result=Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
-     $foreignError=if($ForeignLinkKind -ceq 'Hardlink'){'SENSOR_REPLAY_LEAF_HARDLINK_OR_UNKNOWN_ID'}else{'SENSOR_JOURNAL_REPLAY_LIVE_REPARSE_REFUSED'}
-     $logBody=[IO.File]::ReadAllText($log)
-     if($result.Status -cne 'DEGRADED_ROLLBACK_RECOVERY_REQUIRED' -or
-        !$logBody.Contains($foreignError) -or
-        ![IO.File]::Exists((Join-Path $journal 'READY')) -or
+      if($ForeignLinkKind -ceq 'Hardlink'){
+        $foreignError='SENSOR_REPLAY_LEAF_HARDLINK_OR_UNKNOWN_ID'
+       $result=Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+        if($foreignRunasExit -ne 0 -or
+           $result.Status -cne 'DEGRADED_ROLLBACK_RECOVERY_REQUIRED' -or
+           ![IO.File]::ReadAllText($log).Contains($foreignError)){
+          throw 'R352_HARDLINK_JOURNAL_NATIVE_REFUSAL_NOT_OBSERVED'
+        }
+      }else{
+        # This original early trusted preflight rejects symbolic reparse
+        # BEFORE a log/result exists. RunAs legitimately terminates nonzero.
+        if($foreignRunasExit -ne 1){throw 'R352_SYMLINK_EARLY_RUNAS_EXIT_NOT_ONE'}
+        $foreignError='SENSOR_BOUNDARY_REPARSE_REFUSED'
+        # Same compiled PE command, separate already-admin diagnostic actor.
+        # UseShellExecute=false only to capture the actual preflight exception.
+        $capture=[Diagnostics.ProcessStartInfo]::new()
+        $capture.FileName=$psi.FileName;$capture.Arguments=$psi.Arguments
+        $capture.WorkingDirectory=$psi.WorkingDirectory
+        $capture.UseShellExecute=$false;$capture.CreateNoWindow=$true
+        $capture.RedirectStandardError=$true;$capture.RedirectStandardOutput=$true
+        $diag=[Diagnostics.Process]::Start($capture)
+        if(!$diag){throw 'R352_SYMLINK_CAPTURE_ACTOR_NOT_STARTED'}
+        try{
+          if(!$diag.WaitForExit(50000)){
+            if(!$diag.HasExited){$diag.Kill();[void]$diag.WaitForExit(6000)}
+            throw 'R352_SYMLINK_CAPTURE_TIMEOUT'
+          }
+          $foreignDiagnosticExit=[int]$diag.ExitCode
+          $errorText=[string]$diag.StandardError.ReadToEnd()
+          $standardText=[string]$diag.StandardOutput.ReadToEnd()
+          if($foreignDiagnosticExit -ne 1 -or
+             !$errorText.Contains('SENSOR_BOUNDARY_REPARSE_REFUSED: '+$protectedS) -or
+             $standardText.Contains('UNINSTALLED')){
+            throw 'R352_SYMLINK_EXACT_ORIGINAL_EARLY_REPARSE_ERROR_NOT_FOUND'
+          }
+          $foreignDiagnosticMatched=$true
+        }finally{$diag.Dispose()}
+      }
+      if(![IO.File]::Exists((Join-Path $journal 'READY')) -or
         (TaskExists) -or (Hash $protectedB) -cne $beforeB -or
         (Hash $owner) -cne $ownerHash -or
         (Hash $foreignFile) -cne $foreignOriginalSHA -or
@@ -901,6 +934,9 @@ public static class R352Links {
    ForeignTargetCleanedAfterSafeUnlink=$foreignCleaned
    ForeignLinkCountAtInjection=$foreignLinks
    ForeignLinkOriginalHelperNegativePid=$foreignNegativePid
+   ForeignLinkRunasExitCode=$foreignRunasExit
+   ForeignDiagnosticExitCode=$foreignDiagnosticExit
+   ForeignExactEarlyReparseErrorCaptured=$foreignDiagnosticMatched
   OriginalPreparedJournalColdRecoveryObserved=$journalColdRestored
   OriginalHelperColdRecoveryFirstStatus=$firstHelperStatus
   ColdRecoveryHelperPid=$recoveryRunPid
