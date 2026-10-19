@@ -117,7 +117,15 @@ try{
  $linked=$true
  $message=''
  try{$attempt=[TBMEProtectedBrokerLease]::new($broker);try{throw 'R347_UNSAFE_LINK_ACCEPTED'}finally{$attempt.Dispose()}}
- catch{$message=$_.Exception.Message}
+ catch{
+  $cause=$_.Exception
+  while($cause.InnerException -and
+     ($cause -is [Management.Automation.MethodInvocationException] -or
+      $cause -is [Reflection.TargetInvocationException])){
+    $cause=$cause.InnerException
+  }
+  $message=$cause.Message
+ }
  if($message -cne 'SENSOR_BROKER_DIRECTORY_LEASE_REPARSE_REFUSED'){throw ('R347_JUNCTION_REJECTION_WRONG_'+$message)}
  $rejectLink=$true
  if((Hash $outsideCanary) -cne $canarySha){throw 'R347_OUTSIDE_CANARY_CHANGED'}
