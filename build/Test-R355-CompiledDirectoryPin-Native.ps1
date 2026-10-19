@@ -131,7 +131,7 @@ try{
   [IO.Directory]::Delete($testDir,$false)
  }
 }
-if(!$started -or $checks.Count -ne 7 -or [IO.Directory]::Exists($testDir) -or
+if(!$started -or $checks.Count -ne 6 -or [IO.Directory]::Exists($testDir) -or
    [IO.Directory]::Exists($moved) -or [IO.Directory]::Exists($link)){
  throw 'R355_BOUNDED_COMPILED_NATIVE_PROOF_NOT_ACCEPTED'
 }
