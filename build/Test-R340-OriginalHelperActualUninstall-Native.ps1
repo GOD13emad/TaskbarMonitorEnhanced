@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory=$true)][ValidateSet('A','B')][string]$HostLabel,
-  [Parameter(Mandatory=$true)][string]$SourceRoot
+  [Parameter(Mandatory=$true)][string]$SourceRoot,
+  [switch]$KillBeforeMutation
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -58,6 +59,7 @@ $outsideHash='';$beforeB='';$beforeS='';$exportedXmlHash=''
 $taskRemoved=$false;$protectedRemoved=$false;$payloadRemoved=$false
 $logsRemoved=$false;$appRemoved=$false;$childPid=0
 $nativeRunas=$false;$usesRealUnmodifiedResource=$false
+$deliberateKill=$false;$killedFirstPid=0;$originalTaskIntactAtKill=$false
 function Hash([string]$file){return (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash}
 function Check([string]$check){$script:checks.Add($check);Write-Output ('PASS '+$check)}
 function TaskExists(){
@@ -211,7 +213,55 @@ try{
  }
  $nativeRunas=$true
  $child=[Diagnostics.Process]::Start($psi)
- if(!$child){throw 'R340_ACTUAL_ORIGINAL_RUNAS_HELPER_START_RETURNED_NULL'}
+ if(!$child){throw 'R341_ORIGINAL_EMBEDDED_HELPER_START_RETURNED_NULL'}
+ if($KillBeforeMutation){
+   $phase='KILL_EXACT_ORIGINAL_HELPER_AFTER_BEGIN_PRE_SHARED_MUTATION'
+   $first=$child
+   $killedFirstPid=$first.Id
+   try{
+     $timer=[Diagnostics.Stopwatch]::StartNew()
+     $beginObserved=$false
+     while(!$first.HasExited -and $timer.ElapsedMilliseconds -lt 30000){
+       if([IO.File]::Exists($log)){
+         try{
+           if([IO.File]::ReadAllText($log).Contains('BEGIN mode=Uninstall')){
+             $beginObserved=$true
+             if(!$first.HasExited){
+               $first.Kill()
+               if(!$first.WaitForExit(10000)){
+                 throw 'R341_EXACT_HELPER_KILL_DID_NOT_COMPLETE'
+               }
+               $deliberateKill=$true
+             }
+             break
+           }
+         }catch [IO.IOException]{
+           # Retry only transient lease contention, never swallow mutation.
+         }
+       }
+       Start-Sleep -Milliseconds 5
+     }
+     if(!$beginObserved -or !$deliberateKill){
+       throw 'R341_UNMODIFIED_HELPER_EXITED_BEFORE_VERIFIED_KILL'
+     }
+     if(!(TaskExists) -or
+        ![IO.File]::Exists($protectedB) -or ![IO.File]::Exists($protectedS) -or
+        ![IO.File]::Exists($owner) -or
+        (Hash $protectedB) -cne $beforeB -or
+        (Hash $protectedS) -cne $beforeS -or
+        (Hash $owner) -cne $ownerHash){
+       throw 'R341_KILL_WAS_AFTER_SHARED_TASK_OR_PROTECTED_FILES_MUTATION'
+     }
+     $originalTaskIntactAtKill=$true
+   }finally{
+     try{if(!$first.HasExited){$first.Kill();[void]$first.WaitForExit(8000)}}catch{}
+     $first.Dispose()
+   }
+   Check 'ACTUAL_UNMODIFIED_HELPER_KILLED_AFTER_BEGIN_BEFORE_PROTECTED_MUTATION'
+   $phase='RELAUNCH_IDENTICAL_ORIGINAL_HELPER_FOR_BOUNDED_RECOVERY'
+   $child=[Diagnostics.Process]::Start($psi)
+   if(!$child){throw 'R341_SECOND_IDENTICAL_UNMODIFIED_HELPER_NOT_STARTED'}
+ }
  try{
    $childPid=$child.Id
    if(!$child.WaitForExit(55000)){
@@ -293,11 +343,11 @@ try{
  if($createdRoot -and !$protectedRemoved){$failure+=' GLOBAL_PROTECTED_ROOT_RESIDUE'}
  if($createdPayload -and !$payloadRemoved){$failure+=' TEMP_PAYLOAD_RESIDUE'}
  if(!$logsRemoved -or !$appRemoved){$failure+=' LOCALAPP_OWNED_RESIDUE'}
- $status=if(!$failure -and $checks.Count -eq 9 -and $taskRemoved -and $brokerRemoved -and $protectedRemoved){
-   'PASS_REAL_UNMODIFIED_EMBEDDED_HELPER_RUNAS_UNINSTALL_PROTECTED_LAYER'
+ $status=if(!$failure -and $checks.Count -eq (9+[int]$KillBeforeMutation) -and $taskRemoved -and $brokerRemoved -and $protectedRemoved){
+   if($KillBeforeMutation){'PASS_KILLED_ORIGINAL_EMBEDDED_HELPER_BEFORE_SHARED_MUTATION_THEN_RECOVERED'}else{'PASS_REAL_UNMODIFIED_EMBEDDED_HELPER_RUNAS_UNINSTALL_PROTECTED_LAYER'}
  }else{'FAIL_R340_NOT_ACCEPTED'}
  $out=[ordered]@{
-  Schema=1;Revision='R340';Status=$status;Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
+  Schema=1;Revision=$(if($KillBeforeMutation){'R341'}else{'R340'});Status=$status;Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
   SetupSHA256=if([IO.File]::Exists($setup)){Hash $setup}else{'MISSING'}
   CandidateBrokerSHA256=$beforeB;CandidateSupervisorSHA256=$beforeS
   RealEmbeddedHelperBytesMatchSource=$usesRealUnmodifiedResource
@@ -312,7 +362,11 @@ try{
   ScopedUserPayloadRemoved=$payloadRemoved
   ScopedTestLogsRemoved=$logsRemoved
   UserProfileExistingAppPreserved=!$createdApp
-  ActualHelperDeliberateKillTested=$false
+  ActualHelperDeliberateKillTested=$deliberateKill
+  DeliberateKillRequested=[bool]$KillBeforeMutation
+  FirstKilledOriginalHelperPid=$killedFirstPid
+  OriginalTaskAndBrokerUnchangedAtKill=$originalTaskIntactAtKill
+  RecoveryUsesIdenticalOriginalRunasProcessInfo=[bool]($deliberateKill -and $nativeRunas)
   AnyDriverInstallationTriggered=$false
   OriginalOwnerMachineTouched=$false
   Checks=@($checks);Failure=$failure

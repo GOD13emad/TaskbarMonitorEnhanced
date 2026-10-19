@@ -1,4 +1,4 @@
-name: R340 full original embedded sensor Helper uninstall (hosted Windows only)
+name: R340 normal and R341 terminated original Helper (hosted Windows)
 on:
   push:
     branches: [audit/r340-real-helper-uninstall-death]
@@ -11,12 +11,14 @@ permissions:
   actions: read
 jobs:
   original-helper-uninstall:
-    name: R340 actual PE-embedded Helper ${{ matrix.host }}
+    name: R340-R341 ${{ matrix.mode }} exact PE Helper ${{ matrix.host }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
+        mode: [nominal, killed]
+        host: [A, B]
         include:
           - host: A
             os: windows-2025
@@ -73,7 +75,9 @@ jobs:
           $native=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
           $script=(Resolve-Path build/Test-R340-OriginalHelperActualUninstall-Native.ps1).Path
           $source=(Resolve-Path .).Path
-          & $native -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -HostLabel '${{ matrix.host }}' -SourceRoot $source
+          $nativeArgs=@('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$script,'-HostLabel','${{ matrix.host }}','-SourceRoot',$source)
+          if('${{ matrix.mode }}' -ceq 'killed'){$nativeArgs+='-KillBeforeMutation'}
+          & $native @nativeArgs
           if($LASTEXITCODE -ne 0){
             throw 'R340_ORIGINAL_ELEVATED_HELPER_PROTECTED_UNINSTALL_FAILED'
           }
@@ -81,7 +85,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: R340-${{ matrix.host }}-${{ github.run_id }}
+          name: R340-${{ matrix.mode }}-${{ matrix.host }}-${{ github.run_id }}
           path: ${{ runner.temp }}/R340_*/R340_REAL_PROTECTED_UNINSTALL_HELPER.json
           retention-days: 7
           if-no-files-found: warn
