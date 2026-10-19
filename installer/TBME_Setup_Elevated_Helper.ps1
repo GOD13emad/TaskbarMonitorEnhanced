@@ -1308,7 +1308,8 @@ function Capture-PreviousSensorLayer {
         $task=Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
         if($task){
             $script:RollbackTaskXmlText=[string](Export-ScheduledTask -TaskName $TaskName)
-            if($RollbackTaskXmlText.Length -gt 262144){throw 'ROLLBACK_XML_TOO_LARGE'}
+            if([string]::IsNullOrWhiteSpace([string]$script:RollbackTaskXmlText) -or
+               ([string]$script:RollbackTaskXmlText).Length -gt 262144){throw 'ROLLBACK_XML_MISSING_OR_TOO_LARGE'}
             $script:PreviousSensorLayerPresent=$true
         }
         $script:RollbackCaptured=$true
@@ -1316,7 +1317,9 @@ function Capture-PreviousSensorLayer {
         return $true
     }catch{
         Clear-SensorRollbackBuffer
-        Write-Log ('ROLLBACK_CAPTURE_FAIL '+$_.Exception.ToString())
+        Write-Log ('ROLLBACK_CAPTURE_FAIL '+$_.Exception.ToString()+
+            ' POSITION='+[string]$_.InvocationInfo.PositionMessage+
+            ' STACK='+[string]$_.ScriptStackTrace)
         return $false
     }
 }

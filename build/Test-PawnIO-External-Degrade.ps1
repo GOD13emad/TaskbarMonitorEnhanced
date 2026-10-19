@@ -20,8 +20,20 @@ if(Test-Path -LiteralPath $Base){throw 'R85 GUEST_FIXTURE_COLLISION_NO_USER_DATA
 if(!(Test-Path -LiteralPath $Helper -PathType Leaf)){throw 'R85 HELPER MISSING'}
 $source=Get-Content -LiteralPath $Helper -Raw
 $guardAt=$source.IndexOf('PAWNIO_UPSTREAM_EXTERNAL_INSTALL_REQUIRED',[StringComparison]::Ordinal)
-$captureAt=$source.IndexOf('if(-not(Capture-PreviousSensorLayer))',[StringComparison]::Ordinal)
-if($guardAt -lt 0 -or $captureAt -le $guardAt){throw 'R85 EARLY DEGRADED GUARD NOT BEFORE SENSOR MUTATION'}
+# R344 adds a separate *Uninstall-only* PREPARED snapshot before PawnIO
+# discovery. The R85 regression is for Install: bind this static check to
+# the Install-specific capture following the completed Uninstall branch.
+$uninstallBegin=$source.IndexOf('if($Mode -eq ''Uninstall'')',[StringComparison]::Ordinal)
+$uninstallEnd=$source.IndexOf('# R294: one exclusive read',$uninstallBegin,[StringComparison]::Ordinal)
+$captureAt=$source.IndexOf('if(-not(Capture-PreviousSensorLayer))',$uninstallEnd,[StringComparison]::Ordinal)
+if($uninstallBegin -lt 0 -or $uninstallEnd -le $uninstallBegin -or
+   $guardAt -lt $uninstallEnd -or $captureAt -le $guardAt){
+    throw 'R85 INSTALL_DEGRADED_GUARD_NOT_BEFORE_INSTALL_SENSOR_MUTATION'
+}
+if($source.Substring($uninstallBegin,$uninstallEnd-$uninstallBegin).IndexOf(
+    'if(-not(Capture-PreviousSensorLayer))',[StringComparison]::Ordinal) -lt 0){
+    throw 'R85 R344_UNINSTALL_JOURNAL_CAPTURE_MISSING'
+}
 $tok=$null;$errs=$null
 $ast=[Management.Automation.Language.Parser]::ParseInput($source,[ref]$tok,[ref]$errs)
 if($errs.Count -ne 0){throw 'R85 HELPER HAS PARSER ERRORS'}
