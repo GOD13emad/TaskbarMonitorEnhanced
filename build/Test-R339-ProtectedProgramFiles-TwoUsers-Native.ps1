@@ -52,7 +52,7 @@ $sourceActor=Join-Path $PSScriptRoot 'Test-R339-SecondAccount-Actor.ps1'
 $ownerCreated=$false;$sharedCreated=$false;$appCreated=$false;$accountCreated=$false
 $actorSid='';$child=$null;$childPid=0;$actorRead=$false;$rootRemoved=$false
 $accountRemoved=$false;$sharedRemoved=$false;$appRemoved=$false
-$denials=0;$concurrentChecks=0;$totalChecks=0;$failure='';$phase='PRECONDITION'
+$denials=0;$concurrentChecks=0;$totalChecks=0;$failure='';$phase='PRECONDITION';$actorReceiptSha="NOT_ACCEPTED";$exitProvided=$false;$observedExit=$null
 $checks=[Collections.Generic.List[string]]::new()
 $initial=@{Broker="NOT_STARTED";Supervisor="NOT_STARTED";Owner="NOT_STARTED";Outside="NOT_STARTED"};$outsideCanary=''
 function Hash([string]$path){return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash}
@@ -216,7 +216,16 @@ try{
     Start-Sleep -Milliseconds 30
   }
   if(!$child.WaitForExit(25000)){throw 'R339_SECOND_USER_ATTACK_PROCESS_TIMEOUT'}
-  if($child.ExitCode -ne 0){throw ('R339_SECOND_USER_RETURNED_NONZERO_'+$child.ExitCode)}
+  # Native Windows Start-Process -Credential/-LoadUserProfile can yield a
+  # Process wrapper with a null ExitCode even after WaitForExit succeeds.
+  # A nonzero provided ExitCode is fatal. Missing code requires successful
+  # WaitForExit AND independently verified exact-SID typed guest receipt,
+  # 420 actual operation refusals and unchanged protected binary hashes.
+  $observedExit=$child.ExitCode
+  $exitProvided=($null -ne $observedExit)
+  if($exitProvided -and [int]$observedExit -ne 0){
+    throw ('R339_SECOND_USER_RETURNED_NONZERO_'+$observedExit)
+  }
   if($concurrentChecks -lt 1){throw 'R339_NO_CONCURRENT_OWNER_GUARD_WITNESS'}
   Check 'ADMIN_REAL_COMPILED_SUPERVISOR_TRUST_READS_DURING_ACTUAL_OTHER_USER_ATTACK'
   $phase='VERIFY_OTHER_USER_TYPED_RECEIPT_AND_BOUNDARIES'
@@ -235,6 +244,7 @@ try{
     throw ('R339_DIFFERENT_TOKEN_RECEIPT_NEGATIVE_FAIL '+($guest|ConvertTo-Json -Depth 3 -Compress))
   }
   $actorRead=$true
+  $actorReceiptSha=Hash $childReceipt
   $denials=420
   if((Hash $exe) -cne $initial.Broker -or (Hash $supervisor) -cne $initial.Supervisor -or
      (Hash $marker) -cne $initial.Owner -or
@@ -294,12 +304,16 @@ try{
     ActorAAlreadyAdmin=$true;ActorBSID=$actorSid;ActorASID=$parentSid
     RealDistinctSecondNonAdminAccount=$actorRead;DeniedMutationCount=$denials;AttemptedOperationKinds=7
     ActualProductionTrustGuardConcurrentChecks=$concurrentChecks
+    OtherAccountNativeProcessExitCodeProvided=$exitProvided
+    OtherAccountNativeProcessExitCode=$observedExit
+    OtherAccountReceiptSha256=$actorReceiptSha
     ProtectedBrokerSHA256=$initial.Broker;ProtectedSupervisorSHA256=$initial.Supervisor
     WindowsProtectedProgramFilesFixtureWasCreated=$ownerCreated
     PreExistingBuildOnlyLocalAppRootRetained=(!$appCreated -and [IO.Directory]::Exists($app))
     WindowsProtectedProgramFilesFixtureRemoved=$rootRemoved
     DisposableSecondAccountRemoved=$accountRemoved;DisposableProgramDataRemoved=$sharedRemoved
-    DisposableProfileAppRootRemoved=$appRemoved
+    DisposableProfileAppRootCreatedByTest=$appCreated
+    DisposableProfileAppRootRemovedIfCreated=($appCreated -and $appRemoved)
     TrueInteractiveUacConsentTested=$false
     OriginalElevatedSensorHelperStartedOrKilled=$false
     OriginalOwnerComputerTouched=$false;OriginalReleaseOrDriversModified=$false
