@@ -4,13 +4,15 @@ param(
   [Parameter(Mandatory=$true)][string]$SourceRoot,
   [switch]$KillBeforeMutation,
   [switch]$KillAfterTaskRemoval,
-  [switch]$KillAfterBrokerRemoval
+  [switch]$KillAfterBrokerRemoval,
+  [switch]$InjectForeignAfterBrokerKill
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 # R340 does NOT exercise real interactive UAC or install any driver.
 # Run only on fresh hosted disposable Windows (the hosted runner already owns
 # an administrator token), never on the maintainer desktop or existing sensor.
+if($InjectForeignAfterBrokerKill -and -not $KillAfterBrokerRemoval){throw 'R345_INJECTION_REQUIRES_AFTER_BROKER_KILL'}
 if(($KillBeforeMutation -and $KillAfterTaskRemoval) -or
    ($KillBeforeMutation -and $KillAfterBrokerRemoval) -or
    ($KillAfterTaskRemoval -and $KillAfterBrokerRemoval)){
@@ -21,7 +23,7 @@ if($PSVersionTable.PSEdition -cne 'Desktop' -or
    $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
    $env:RUNNER_OS -cne 'Windows' -or
    $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
-   $env:GITHUB_REF -cne 'refs/heads/audit/r344-uninstall-prepared-journal-guard' -or
+   $env:GITHUB_REF -cne 'refs/heads/audit/r345-journal-foreign-member-negative' -or
    $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID|LAPTOP' -or
    $env:GITHUB_RUN_ID -cnotmatch '^[0-9]{5,20}$' -or
    $env:GITHUB_SHA -cnotmatch '^[0-9a-f]{40}$' -or
@@ -70,6 +72,12 @@ $deliberateKill=$false;$killedFirstPid=0;$originalTaskIntactAtKill=$false
 $deliberatePostTaskKill=$false;$taskRemovedAtKill=$false;$resultAbsentAtKill=$false;$postKilledPid=0
 $deliberatePostFileKill=$false;$fileRemovedAtKill=$false;$taskGoneAtFileKill=$false;$protectedRootPresentAtFileKill=$null;$ownerMarkerPresentAtFileKill=$null;$fileKilledPid=0
 $journalColdRestored=$false;$recoveryRunPid=0;$finalCleanupRunPid=0;$recoveryTaskXmlExact=$false;$recoveryTaskTrustMatch=$false;$firstHelperStatus='';$oldOwnedBrokerHashesRestored=$false
+$foreignPath=Join-Path $broker 'R345_FOREIGN_PRIVILEGED_INJECTED_FILE.txt'
+$foreignText='R345_EXACT_TEMP_FOREIGN_'+$env:GITHUB_RUN_ID+'_'+$HostLabel
+$foreignHash=''
+$foreignInjected=$false;$foreignRemoved=$false
+$foreignPrecheckRefused=$false;$foreignRefusalStatus=''
+$foreignRefusalPid=0;$foreignSnapshotJournalIntact=$false
 function Hash([string]$file){return (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash}
 function Check([string]$check){$script:checks.Add($check);Write-Output ('PASS '+$check)}
 function TaskExists(){
@@ -367,6 +375,19 @@ public sealed class R342TaskFileRemovalKill {
      $first.Dispose()
    }
    Check 'ORIGINAL_HELPER_KILLED_AFTER_ACTUAL_BROKER_EXECUTABLE_DELETE_BEFORE_RESULT'
+   if($InjectForeignAfterBrokerKill){
+     $phase='INJECT_EXACT_PRIVILEGED_TEST_FOREIGN_FILE_IN_PROTECTED_ROOT'
+     if(![IO.Directory]::Exists($journal) -or ![IO.File]::Exists((Join-Path $journal 'READY')) -or
+        ![IO.Directory]::Exists($broker) -or [IO.File]::Exists($foreignPath)){
+       throw 'R345_PREPARED_JOURNAL_OR_FRESH_TEST_BROKER_NOT_PRESENT_BEFORE_FOREIGN_INJECTION'
+     }
+     NoReparse $broker
+     [IO.File]::WriteAllText($foreignPath,$foreignText,[Text.UTF8Encoding]::new($false))
+     $foreignInjected=$true
+     $foreignHash=Hash $foreignPath
+     if([IO.File]::ReadAllText($foreignPath) -cne $foreignText){throw 'R345_FOREIGN_TEST_MEMBER_WRITE_VERIFICATION'}
+     Check 'KNOWN_TEST_ADMIN_MEMBER_INJECTED_AFTER_BROKER_EXE_DELETE_BEFORE_ORIGINAL_HELPER_REPLAY'
+   }
    $phase='RETRY_UNMODIFIED_PRODUCTION_HELPER_AFTER_PROTECTED_FILE_MUTATION'
    $child=[Diagnostics.Process]::Start($psi)
    if(!$child){throw 'R343_SECOND_ORIGINAL_HELPER_PROCESS_FAILED_TO_START'}
@@ -380,6 +401,46 @@ public sealed class R342TaskFileRemovalKill {
    $helperExit=$child.ExitCode
  }finally{$child.Dispose()}
  if([int]$helperExit -ne 0){throw ('R340_ORIGINAL_HELPER_NONZERO_EXIT_'+$helperExit)}
+ if($InjectForeignAfterBrokerKill){
+   $phase='VERIFY_ACTUAL_HELPER_FAIL_CLOSED_ON_PRIVILEGED_UNKNOWN_LIVE_MEMBER'
+   if(![IO.File]::Exists($resultPath)){throw 'R345_NO_FAILCLOSED_HELPER_RESULT'}
+   $negative=Get-Content -LiteralPath $resultPath -Raw|ConvertFrom-Json
+   $foreignRefusalStatus=[string]$negative.Status
+   $foreignRefusalPid=$childPid
+   if($foreignRefusalStatus -cne 'DEGRADED_ROLLBACK_RECOVERY_REQUIRED' -or
+      ![IO.Directory]::Exists($journal) -or
+      ![IO.File]::Exists((Join-Path $journal 'READY')) -or
+      ![IO.File]::Exists($foreignPath) -or
+      (Hash $foreignPath) -cne $foreignHash -or
+      (TaskExists) -or
+      [IO.File]::Exists($protectedB)){
+     throw ('R345_UNKNOWN_PROTECTED_MEMBER_NOT_PRESERVED_FAILCLOSED_'+$foreignRefusalStatus)
+   }
+   $foreignPrecheckRefused=$true;$foreignSnapshotJournalIntact=$true
+   Check 'REAL_HELPER_REJECTED_PRIVILEGED_UNKNOWN_MEMBER_AND_RETAINED_PREPARED_JOURNAL'
+   $phase='REMOVE_ONLY_OWN_INJECTED_FOREIGN_MEMBER_UNDER_SHA_AND_REPARSE_LEASE'
+   NoReparse $foreignPath
+   if((Hash $foreignPath) -cne $foreignHash){throw 'R345_UNEXPECTED_FOREIGN_MARKER_SHA_CHANGED'}
+   [IO.File]::Delete($foreignPath)
+   $foreignRemoved=(![IO.File]::Exists($foreignPath))
+   if(!$foreignRemoved){throw 'R345_EXACT_TEST_MARKER_NOT_REMOVED'}
+   Check 'ONLY_TEST_OWNED_FOREIGN_MEMBER_REMOVED_AFTER_FAILCLOSED_WITNESS'
+   $phase='RELAUNCH_IDENTICAL_ORIGINAL_HELPER_TO_RESTORE_PRIOR_LAYER_AFTER_CLEARANCE'
+   $second=[Diagnostics.Process]::Start($psi)
+   if(!$second){throw 'R345_NO_SECOND_ORIGINAL_RECOVERY_HELPER'}
+   try{
+     $childPid=$second.Id
+     if($childPid -eq $foreignRefusalPid -or $childPid -eq $fileKilledPid){
+       throw 'R345_DUPLICATE_RECOVERY_PID'
+     }
+     if(!$second.WaitForExit(55000)){
+       if(!$second.HasExited){$second.Kill();[void]$second.WaitForExit(6000)}
+       throw 'R345_SECOND_HELPER_RECOVERY_TIMEOUT'
+     }
+     if($second.ExitCode -ne 0){throw 'R345_SECOND_HELPER_RECOVERY_NONZERO'}
+   }finally{$second.Dispose()}
+   $helperExit=0
+ }
  Check 'ACTUAL_COMPRESSED_PE_EMBEDDED_HELPER_PROCESS_RUNAS_WITHOUT_DRIVER_EXITS_ZERO'
  # R344: The exact original Helper must cold-restore the hash-bound old
  # protected Broker + disabled global task after interruption under PREPARED.
@@ -464,6 +525,18 @@ public sealed class R342TaskFileRemovalKill {
 }catch{
  $failure=$_.Exception.GetType().Name+': '+$_.Exception.Message+' PHASE='+$phase
 }finally{
+ # R345: only a byte-identical test-owned foreign marker may be cleaned up
+ # after failure; do not recursively erase unexpected protected content.
+ if($foreignInjected -and [IO.File]::Exists($foreignPath)){
+   try{
+     NoReparse $foreignPath
+     if((Hash $foreignPath) -cne $foreignHash){
+       throw 'R345_FOREIGN_FILE_CHANGED_BEFORE_SCOPED_FIXTURE_CLEANUP'
+     }
+     [IO.File]::Delete($foreignPath)
+     $foreignRemoved=(![IO.File]::Exists($foreignPath))
+   }catch{$failure+=' R345_INJECTED_MEMBER_CLEANUP_FAIL='+$_.Exception.Message}
+ }
  # R344-F01 diagnostic snapshot is read-only and taken BEFORE cleanup.
  # The nominal test must expose the actual Helper Status/Message and log
  # source for an early fail-closed unwind; no profile secrets are copied.
@@ -539,14 +612,16 @@ public sealed class R342TaskFileRemovalKill {
  $neededChecks=9
  if($KillBeforeMutation -or $KillAfterTaskRemoval -or $KillAfterBrokerRemoval){$neededChecks=10}
  if($journalColdRestored){$neededChecks++}
+ if($InjectForeignAfterBrokerKill){$neededChecks+=3}
  $status=if(!$failure -and $checks.Count -eq $neededChecks -and $taskRemoved -and $brokerRemoved -and $protectedRemoved){
-   if($KillAfterBrokerRemoval){'PASS_PREPARED_UNINSTALL_JOURNAL_RESTORED_AFTER_BROKER_FILE_DELETE_THEN_UNINSTALLED'}
+   if($InjectForeignAfterBrokerKill){'PASS_FOREIGN_MEMBER_REFUSED_THEN_PREPARED_JOURNAL_RECOVERED_AND_UNINSTALLED'}
+   elseif($KillAfterBrokerRemoval){'PASS_PREPARED_UNINSTALL_JOURNAL_RESTORED_AFTER_BROKER_FILE_DELETE_THEN_UNINSTALLED'}
    elseif($KillAfterTaskRemoval){'PASS_KILLED_ORIGINAL_HELPER_AFTER_TASK_UNREGISTER_BEFORE_RESULT_THEN_RETRIED'}
    elseif($KillBeforeMutation){'PASS_KILLED_ORIGINAL_EMBEDDED_HELPER_BEFORE_SHARED_MUTATION_THEN_RECOVERED'}
    else{'PASS_REAL_UNMODIFIED_EMBEDDED_HELPER_RUNAS_UNINSTALL_PROTECTED_LAYER'}
  }else{'FAIL_R340_NOT_ACCEPTED'}
  $out=[ordered]@{
-  Schema=1;Revision=$(if($KillAfterBrokerRemoval){'R344'}elseif($KillAfterTaskRemoval){'R342'}elseif($KillBeforeMutation){'R341'}else{'R340'});Status=$status;Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
+  Schema=1;Revision=$(if($InjectForeignAfterBrokerKill){'R345'}elseif($KillAfterBrokerRemoval){'R344'}elseif($KillAfterTaskRemoval){'R342'}elseif($KillBeforeMutation){'R341'}else{'R340'});Status=$status;Host=$HostLabel;SourceCommit=$env:GITHUB_SHA
   SetupSHA256=if([IO.File]::Exists($setup)){Hash $setup}else{'MISSING'}
   CandidateBrokerSHA256=$beforeB;CandidateSupervisorSHA256=$beforeS
   RealEmbeddedHelperBytesMatchSource=$usesRealUnmodifiedResource
@@ -575,6 +650,13 @@ public sealed class R342TaskFileRemovalKill {
   ProtectedBrokerRootPresentAtFileKill=$protectedRootPresentAtFileKill
   OwnerMarkerPresentAtFileKill=$ownerMarkerPresentAtFileKill
   PostFileKilledOriginalHelperPid=$fileKilledPid
+  ForeignPrivilegedUnknownTestFileInjected=$foreignInjected
+  ForeignFileSHA256=$foreignHash
+  ForeignTestFileRemoved=$foreignRemoved
+  ActualFailClosedForeignMemberRefusal=$foreignPrecheckRefused
+  RefusalResultStatus=$foreignRefusalStatus
+  RefusalOriginalHelperPid=$foreignRefusalPid
+  PreparedJournalRetainedDuringForeignRefusal=$foreignSnapshotJournalIntact
   OriginalPreparedJournalColdRecoveryObserved=$journalColdRestored
   OriginalHelperColdRecoveryFirstStatus=$firstHelperStatus
   ColdRecoveryHelperPid=$recoveryRunPid
