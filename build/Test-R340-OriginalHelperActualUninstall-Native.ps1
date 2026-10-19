@@ -64,6 +64,12 @@ function TaskExists(){
  return (@(Get-ScheduledTask -TaskName $task -TaskPath '\' -ErrorAction SilentlyContinue|
     Where-Object{$null -ne $_}).Count -ne 0)
 }
+function ResolveTaskSid([string]$principal){
+ if([string]::IsNullOrWhiteSpace($principal)){throw 'R340_TASK_PRINCIPAL_EMPTY'}
+ if($principal -match '^S-1-5-(?:\d+-)+\d+$'){return $principal}
+ return [string]([Security.Principal.NTAccount]::new($principal)).Translate(
+    [Security.Principal.SecurityIdentifier]).Value
+}
 function NoReparse([string]$file){
  if(([IO.File]::GetAttributes($file) -band [IO.FileAttributes]::ReparsePoint) -ne 0){
    throw ('R340_REPARSE_IN_OWNED_FIXTURE '+[IO.Path]::GetFileName($file))
@@ -173,8 +179,8 @@ try{
  $createdTask=$true
  $readTask=Get-ScheduledTask -TaskName $task -TaskPath '\' -ErrorAction Stop
  if($readTask.Settings.Enabled -ne $false -or
-    $readTask.Principal.UserId -cne $sid -or
-    $readTask.Actions[0].Execute -cne $protectedS){
+    (ResolveTaskSid ([string]$readTask.Principal.UserId)) -cne $sid -or
+    -not [string]::Equals([string]$readTask.Actions[0].Execute,$protectedS,[StringComparison]::OrdinalIgnoreCase)){
    throw 'R340_DISABLED_TASK_NOT_EXACT_REVIEW_OWNER'
  }
  $exportedXmlHash=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string](Export-ScheduledTask -TaskPath '\' -TaskName $task)))
@@ -241,8 +247,8 @@ try{
    try{
      $current=Get-ScheduledTask -TaskName $task -TaskPath '\' -ErrorAction Stop
      if($current.Settings.Enabled -eq $false -and
-        $current.Principal.UserId -ceq $sid -and
-        [IO.Path]::GetFullPath($current.Actions[0].Execute) -ceq [IO.Path]::GetFullPath((Join-Path $broker 'TaskbarMonitorSensorSupervisor.exe'))){
+        (ResolveTaskSid ([string]$current.Principal.UserId)) -ceq $sid -and
+        [string]::Equals([IO.Path]::GetFullPath([string]$current.Actions[0].Execute),[IO.Path]::GetFullPath((Join-Path $broker 'TaskbarMonitorSensorSupervisor.exe')),[StringComparison]::OrdinalIgnoreCase)){
        Unregister-ScheduledTask -TaskPath '\' -TaskName $task -Confirm:$false -ErrorAction Stop
      }
    }catch{$failure+=' TASK_CLEANUP_FAILED='+$_.Exception.Message}
