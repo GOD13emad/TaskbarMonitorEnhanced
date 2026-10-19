@@ -762,8 +762,7 @@ function Restore-SensorJournalOldFilesOnly(
                     }
                     $pending.Add($full)
                 }elseif(-not $known.Contains($rel)){
-                    throw ('SENSOR_JOURNAL_REPLAY_UNKNOWN_FILE_REL='+$rel+
-                        ' SAVED='+$prior.Count+' EXPECTED='+$known.Count)
+                    throw 'SENSOR_JOURNAL_REPLAY_UNKNOWN_FILE'
                 }
             }
         }
@@ -1320,19 +1319,11 @@ function Capture-PreviousSensorLayer {
             $script:PreviousSensorLayerPresent=$true
         }
         $script:RollbackCaptured=$true
-        Write-Log ('R344_DIAG_CAPTURE rootExists='+[IO.Directory]::Exists($BrokerRoot)+
-            ' scriptRows='+@($script:RollbackFiles).Count+
-            ' unscopedRows='+@($RollbackFiles).Count+
-            ' scriptPrevious='+[bool]$script:PreviousSensorLayerPresent+
-            ' unscopedPrevious='+[bool]$PreviousSensorLayerPresent+
-            ' xmlLen='+([string]$script:RollbackTaskXmlText).Length)
         Write-Log ("ROLLBACK_CAPTURE_PASS previous="+$PreviousSensorLayerPresent)
         return $true
     }catch{
         Clear-SensorRollbackBuffer
-        Write-Log ('ROLLBACK_CAPTURE_FAIL '+$_.Exception.ToString()+
-            ' POSITION='+[string]$_.InvocationInfo.PositionMessage+
-            ' STACK='+[string]$_.ScriptStackTrace)
+        Write-Log ('ROLLBACK_CAPTURE_FAIL '+$_.Exception.ToString())
         return $false
     }
 }
@@ -1419,10 +1410,6 @@ try{
                 $ownerRecords=@($pending.Files|Where-Object{
                     [string]$_.Rel -ceq '.tbme-owner.sid'
                 })
-                Write-Log ('R344_DIAG_MARKERLESS oldRoot='+[bool]$pending.OldRootPresent+
-                    ' snapshots='+@($pending.Files).Count+
-                    ' newFiles='+$newList.Count+
-                    ' markerRows='+$ownerRecords.Count)
                 if([bool]$pending.OldRootPresent -and $newList.Count -eq 0 -and
                    $ownerRecords.Count -eq 1 -and
                    (Get-SensorJournalTerminal $SensorJournalRoot $expectedUserSid) -ceq 'PREPARED'){
@@ -1487,10 +1474,6 @@ if($Mode -eq 'Uninstall'){
             if(-not(Capture-PreviousSensorLayer)){
                 throw 'R344_UNINSTALL_PRIOR_OWNER_SNAPSHOT_NOT_CAPTURED'
             }
-            Write-Log ('R344_DIAG_BEFORE_DURABLE rootPresent='+$oldRootPresent+
-                ' scriptRows='+@($script:RollbackFiles).Count+
-                ' unscopedRows='+@($RollbackFiles).Count+
-                ' taskXmlLen='+([string]$RollbackTaskXmlText).Length)
             $snapshotParent=[IO.Path]::GetDirectoryName($SensorJournalRoot)
             Assert-SensorBoundaryNoReparse $snapshotParent
             if(-not [IO.Directory]::Exists($snapshotParent)){
