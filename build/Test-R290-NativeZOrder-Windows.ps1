@@ -44,11 +44,11 @@ public static class R290Windows {
 }
 '@ -ReferencedAssemblies @('System.Drawing','System.Windows.Forms') -ErrorAction Stop
 $assembly=[Reflection.Assembly]::LoadFrom($source)
-$native=$assembly.GetType('TaskbarPresentationNative',$true)
+$native=$assembly.GetType('TaskbarMonitorEnhanced.TaskbarPresentationNative',$true)
 $flags=[Reflection.BindingFlags]'Static,NonPublic,Public'
 $childProbe=$native.GetMethod('TaskbarSiblingCovers',$flags)
 $topProbe=$native.GetMethod('Above',$flags)
-$policyType=$assembly.GetType('TaskbarPresentationPolicy',$true)
+$policyType=$assembly.GetType('TaskbarMonitorEnhanced.TaskbarPresentationPolicy',$true)
 $guard=$policyType.GetMethod('ShouldRepairOcclusion',$flags)
 if($null -eq $childProbe -or $null -eq $topProbe -or $null -eq $guard){throw 'R290_APP_NATIVE_METHOD_MISSING'}
 $windows=New-Object 'System.Collections.Generic.List[IntPtr]'
