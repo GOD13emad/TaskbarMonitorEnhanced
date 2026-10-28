@@ -1724,6 +1724,14 @@ namespace TaskbarMonitorEnhanced
                 window.Left<=monitor.Left+1 && window.Top<=monitor.Top+1 &&
                 window.Right>=monitor.Right-1 && window.Bottom>=monitor.Bottom-1;
         }
+        // Only correct a confirmed persistent overlap. The shell may intentionally
+        // cover our metrics during Start, fullscreen, or the user's own dialogs.
+        internal static bool ShouldRepairOcclusion(bool observed,bool shellOpen,
+            bool dialogOpen,int consecutive,double secondsSinceRepair)
+        {
+            return observed&&!shellOpen&&!dialogOpen&&
+                consecutive>=2&&secondsSinceRepair>=3;
+        }
         internal static TaskbarPresentationState Decide(bool exists,bool visible,bool cloaked,
             Rectangle bar,Rectangle monitor,bool fullscreen,bool revealed)
         {
@@ -1752,6 +1760,33 @@ namespace TaskbarMonitorEnhanced
             try{int c;return h!=IntPtr.Zero && DwmGetWindowAttribute(h,14,out c,4)==0 && c!=0;}
             catch(DllNotFoundException){return false;}catch(EntryPointNotFoundException){return false;}
         }
+        // Detect a real overlapping taskbar sibling above a child-mode overlay.
+        // Comparing the taskbar's top-level HWND to a child HWND is meaningless.
+        internal static bool TaskbarSiblingCovers(IntPtr overlay,Rectangle expected)
+        {
+            if(overlay==IntPtr.Zero||expected.Width<80||expected.Height<16)return false;
+            IntPtr parent=Native.GetParent(overlay);
+            if(parent==IntPtr.Zero)return false;
+            IntPtr sibling=GetWindow(overlay,3); // GW_HWNDPREV within the parent.
+            for(int n=0;n<128 && sibling!=IntPtr.Zero && sibling!=overlay;n++)
+            {
+                if(Native.GetParent(sibling)==parent&&Native.IsWindowVisible(sibling))
+                {
+                    Native.RECT bounds;
+                    if(Native.GetWindowRect(sibling,out bounds))
+                    {
+                        Rectangle overlap=Rectangle.Intersect(expected,bounds.ToRectangle());
+                        long covered=(long)overlap.Width*overlap.Height;
+                        if(overlap.Width>=36&&overlap.Height>=12&&
+                           covered*3>=(long)expected.Width*expected.Height)
+                            return true;
+                    }
+                }
+                sibling=GetWindow(sibling,3);
+            }
+            return false;
+        }
+
         internal static bool Above(IntPtr upper,IntPtr lower)
         {
             if(upper==IntPtr.Zero||lower==IntPtr.Zero||upper==lower)return false;
@@ -1823,6 +1858,8 @@ namespace TaskbarMonitorEnhanced
         private bool presentationShellOpen;
         private DateTime presentationNextShellCheck=DateTime.MinValue;
         private int presentationTransitions;
+        private int presentationOcclusionStreak;
+        private DateTime presentationLastOcclusionRepairUtc=DateTime.MinValue;
         internal bool PresentationSuppressedForProof {get{return presentationSuppressed;}}
         internal int PresentationTransitionsForProof {get{return presentationTransitions;}}
         internal void RefreshPresentationForProof(){RefreshTaskbarPresentation(true);}
@@ -1859,6 +1896,7 @@ namespace TaskbarMonitorEnhanced
                 if(changed){presentationState=next;presentationTransitions++;Log.Write("INFO","TASKBAR_PRESENTATION_STATE "+next);}
                 if(next!=TaskbarPresentationState.Visible)
                 {
+                    presentationOcclusionStreak=0;
                     presentationSuppressed=true;
                     if(next==TaskbarPresentationState.Missing&&!recoveryPending)
                         ScheduleRecovery("TASKBAR_PRESENTATION_MISSING",750);
@@ -1896,6 +1934,46 @@ namespace TaskbarMonitorEnhanced
                                 Native.SWP_NOMOVE|Native.SWP_NOSIZE|Native.SWP_NOACTIVATE|Native.SWP_NOOWNERZORDER);
                         // Do not repaint/reassert the monitor merely because focus changed.
                     }
+                }
+                // A later Explorer child or topmost taskbar reposition can cover
+                // a stationary overlay without changing its style, owner or geometry.
+                // R146 deliberately avoided perpetual topmost timers; this only
+                // restacks on two consecutive *observed* overlapping z-order probes.
+                bool valid=repairOrder&&!recoveryPending&&
+                    expectedRect.Width>=80&&expectedRect.Height>=16&&
+                    bar.Contains(expectedRect)&&Visible;
+                bool dialogOpen=(settingsForm!=null&&!settingsForm.IsDisposed&&settingsForm.Visible)||
+                    (menu!=null&&!menu.IsDisposed&&menu.Visible);
+                bool covered=false;
+                if(valid&&!presentationShellOpen&&!dialogOpen)
+                {
+                    covered=RequiresGlassTopLevel?
+                        TaskbarPresentationNative.Above(taskbar,Handle):
+                        (Native.GetParent(Handle)==taskbar&&
+                         TaskbarPresentationNative.TaskbarSiblingCovers(Handle,expectedRect));
+                }
+                presentationOcclusionStreak=covered?
+                    Math.Min(2,presentationOcclusionStreak+1):0;
+                if(valid&&TaskbarPresentationPolicy.ShouldRepairOcclusion(
+                    covered,presentationShellOpen,dialogOpen,presentationOcclusionStreak,
+                    (now-presentationLastOcclusionRepairUtc).TotalSeconds))
+                {
+                    presentationLastOcclusionRepairUtc=now;
+                    presentationOcclusionStreak=0;
+                    const uint flags=Native.SWP_NOMOVE|Native.SWP_NOSIZE|
+                        Native.SWP_NOACTIVATE|Native.SWP_NOOWNERZORDER;
+                    bool repaired=Native.SetWindowPos(Handle,
+                        RequiresGlassTopLevel?Native.HWND_TOPMOST:Native.HWND_TOP,
+                        0,0,0,0,flags);
+                    bool stillCovered=repaired&&(RequiresGlassTopLevel?
+                        TaskbarPresentationNative.Above(taskbar,Handle):
+                        TaskbarPresentationNative.TaskbarSiblingCovers(Handle,expectedRect));
+                    if(repaired&&RequiresGlassTopLevel)PaintPerPixelLayer();
+                    Log.Write(repaired&&!stillCovered?"INFO":"WARN",
+                        "TASKBAR_ZORDER_OCCLUSION_REPAIR mode="+
+                        (RequiresGlassTopLevel?"GLASS_TOPLEVEL":"SHELL_CHILD")+
+                        " setPos="+repaired+" stillCovered="+stillCovered+
+                        " error="+(repaired?0:Marshal.GetLastWin32Error()));
                 }
                 presentationForeground=fg;
                 return false;
