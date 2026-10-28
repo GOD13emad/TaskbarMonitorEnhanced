@@ -2,7 +2,12 @@ name: R291 real Explorer Start Settings and Glass hosted UI
 
 on:
   push:
-    branches: [development/v1.7.9-zorder-fix]
+    branches: [main, development/v1.7.9-zorder-fix]
+    paths:
+      - 'src/**'
+      - 'installer/**'
+      - 'build/**'
+      - '.github/workflows/audit-r291-real-explorer-start-settings-glass.yml'
   workflow_dispatch:
 
 permissions:

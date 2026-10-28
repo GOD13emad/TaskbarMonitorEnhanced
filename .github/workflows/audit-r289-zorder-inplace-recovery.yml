@@ -2,7 +2,12 @@ name: R289 isolated v1.7.8 to v1.7.9 Z-order Setup recovery
 
 on:
   push:
-    branches: [development/v1.7.9-zorder-fix]
+    branches: [main, development/v1.7.9-zorder-fix]
+    paths:
+      - 'src/**'
+      - 'installer/**'
+      - 'build/**'
+      - '.github/workflows/audit-r289-zorder-inplace-recovery.yml'
   workflow_dispatch:
 
 permissions:

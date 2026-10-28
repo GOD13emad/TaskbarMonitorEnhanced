@@ -2,7 +2,12 @@ name: R290 hosted native Win32 Z-order regression (private candidate)
 
 on:
   push:
-    branches: [development/v1.7.9-zorder-fix]
+    branches: [main, development/v1.7.9-zorder-fix]
+    paths:
+      - 'src/**'
+      - 'installer/**'
+      - 'build/**'
+      - '.github/workflows/audit-r290-native-zorder.yml'
   workflow_dispatch:
 
 permissions:
