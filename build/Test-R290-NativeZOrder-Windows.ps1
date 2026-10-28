@@ -42,7 +42,7 @@ public static class R290Windows {
  public const uint NO_SIZE=0x0001,NO_MOVE=0x0002,NO_ACTIVATE=0x0010;
  public static readonly IntPtr TOP=new IntPtr(0), BOTTOM=new IntPtr(1), TOPMOST=new IntPtr(-1);
 }
-'@ -ErrorAction Stop
+'@ -ReferencedAssemblies @('System.Drawing','System.Windows.Forms') -ErrorAction Stop
 $assembly=[Reflection.Assembly]::LoadFrom($source)
 $native=$assembly.GetType('TaskbarPresentationNative',$true)
 $flags=[Reflection.BindingFlags]'Static,NonPublic,Public'
