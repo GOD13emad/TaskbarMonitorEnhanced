@@ -26,6 +26,9 @@ public static class R290Windows {
  [DllImport("user32.dll",CharSet=CharSet.Unicode,SetLastError=true)]
  public static extern IntPtr CreateWindowEx(int ex,string cls,string name,uint style,
    int x,int y,int w,int h,IntPtr parent,IntPtr menu,IntPtr module,IntPtr param);
+ [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr hwnd,uint cmd);
+ [DllImport("user32.dll")] public static extern IntPtr GetParent(IntPtr hwnd);
+ [DllImport("user32.dll")] [return:MarshalAs(UnmanagedType.Bool)] public static extern bool IsWindowVisible(IntPtr hwnd);
  [DllImport("user32.dll",SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)]
  public static extern bool DestroyWindow(IntPtr hwnd);
  [DllImport("user32.dll",SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)]
@@ -80,6 +83,15 @@ try {
  $root=Create ([R290Windows]::POPUP -bor [R290Windows]::VISIBLE) 180 200 520 150 ([IntPtr]::Zero)
  $overlay=Create ([R290Windows]::CHILD -bor [R290Windows]::VISIBLE) 15 15 260 50 $root
  $cover=Create ([R290Windows]::CHILD -bor [R290Windows]::VISIBLE) 15 15 260 50 $root
+ Place $cover ([R290Windows]::TOP) 0 0 0 0 ([R290Windows]::NO_SIZE -bor [R290Windows]::NO_MOVE -bor [R290Windows]::NO_ACTIVATE)
+ $prev=[R290Windows]::GetWindow($overlay,3)
+ $parentOverlay=[R290Windows]::GetParent($overlay)
+ $parentCover=[R290Windows]::GetParent($cover)
+ $coverVisible=[R290Windows]::IsWindowVisible($cover)
+ $overlayBounds=[R290Windows]::Bounds($overlay)
+ $coverBounds=[R290Windows]::Bounds($cover)
+ "R290_CHILD_DIAGNOSTIC overlay=$overlay cover=$cover upper=$prev parentOverlay=$parentOverlay parentCover=$parentCover root=$root visible=$coverVisible overlayRect=$overlayBounds coverRect=$coverBounds"
+ if($prev -ne $cover -or $parentOverlay -ne $root -or $parentCover -ne $root -or !$coverVisible){throw 'R290_FIXTURE_CHILD_RELATIONSHIP_INVALID'}
  Assert (ChildCovered $overlay) 'child-overlap-detected'
  Place $overlay ([R290Windows]::TOP) 0 0 0 0 ([R290Windows]::NO_SIZE -bor [R290Windows]::NO_MOVE -bor [R290Windows]::NO_ACTIVATE)
  Assert (!(ChildCovered $overlay)) 'child-restack-clears-overlap'
