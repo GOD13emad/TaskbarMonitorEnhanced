@@ -1,0 +1,85 @@
+name: Official v1.7.9 pinned-source publication
+on:
+  push:
+    branches:
+      - release/v1.7.9-publication-r295
+    paths:
+      - .github/workflows/publish-v179-r295.yml
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: tbme-official-v179-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout the exact accepted main source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: 479ee78a214c7ae58177016d59468e50e815f54b
+          path: source
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Checkout scoped orchestration
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          path: orchestrator
+          persist-credentials: false
+      - name: Dotnet pinned toolchain
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.400
+      - name: Verify exact source SHA and run local regressions
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git -C source rev-parse HEAD).Trim() -cne '479ee78a214c7ae58177016d59468e50e815f54b') { throw 'WRONG_ACCEPTED_MAIN_SOURCE' }
+          if ((git -C source status --porcelain)) { throw 'SOURCE_WORKTREE_DIRTY' }
+          python -B source/build/test_public_release_g16.py
+          if ($LASTEXITCODE -ne 0) { throw 'G16_NEGATIVE_REGRESSION_FAILED' }
+      - name: Exact source reproducible build and versioned SBOM
+        working-directory: source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./build/Build.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'EXACT_MAIN_BUILD_FAILED' }
+          ./build/Generate-Sbom.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'SBOM_GENERATION_FAILED' }
+      - name: Stage and preverify exactly seven unsigned assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -B orchestrator/publication/prepare_v179_release.py
+          if ($LASTEXITCODE -ne 0) { throw 'OFFLINE_G16_STAGE_FAILED' }
+          $files = @(Get-ChildItem dist -File)
+          if ($files.Count -ne 7 -or @($files | Where-Object Name -Like '*Setup*.exe').Count -ne 1) { throw 'WRONG_PUBLIC_ASSET_CARDINALITY' }
+          $setup = (Get-FileHash dist/TaskbarMonitorEnhanced_Setup_1.7.9.exe -Algorithm SHA256).Hash
+          if ($setup -cne '3AE5E2AC7428C3443FF7768C543117AF864E7C73F68D32EFAD4AB40B30FB5B0E') { throw 'PUBLIC_SETUP_NOT_EXACT_OWNER_ACCEPTED_BINARY' }
+      - name: Publish immutable release from pinned main SHA
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh release create v1.7.9 ./dist/* --repo GOD13emad/TaskbarMonitorEnhanced --target 479ee78a214c7ae58177016d59468e50e815f54b --title "Taskbar Monitor Enhanced v1.7.9 — taskbar Z-order stability" --notes-file dist/RELEASE_NOTES_v1.7.9.md --latest
+          if ($LASTEXITCODE -ne 0) { throw 'RELEASE_CREATION_FAILED_RECONCILE_EXISTING_DRAFT' }
+      - name: Verify public seven-asset downloads and exact SHA G16
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $passed = $false
+          for ($i = 0; $i -lt 3; $i++) {
+            python -B source/build/verify_public_release_g16.py --tag v1.7.9 --source 479ee78a214c7ae58177016d59468e50e815f54b
+            if ($LASTEXITCODE -eq 0) { $passed = $true; break }
+            Start-Sleep -Seconds 8
+          }
+          if (-not $passed) { throw 'PUBLISHED_G16_VERIFY_NOT_PASSED' }
