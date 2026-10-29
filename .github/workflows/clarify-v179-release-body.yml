@@ -1,0 +1,77 @@
+name: Clarify v1.7.9 official public release body
+on:
+  push:
+    branches:
+      - release/v1.7.9-publication-r295
+    paths:
+      - .github/workflows/clarify-v179-release-body.yml
+permissions:
+  contents: write
+jobs:
+  clarify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify exact immutable public release before body-only correction
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/GOD13emad/TaskbarMonitorEnhanced/releases/tags/v1.7.9 > /tmp/before.json
+          python3 - <<'PY'
+          import json
+          r=json.load(open('/tmp/before.json'))
+          assert r['tag_name']=='v1.7.9' and r['id']==427321765 and r['immutable'] and not r['draft']
+          assert r['target_commitish']=='479ee78a214c7ae58177016d59468e50e815f54b'
+          assert len(r['assets'])==7
+          s=[a for a in r['assets'] if a['name']=='TaskbarMonitorEnhanced_Setup_1.7.9.exe']
+          assert len(s)==1 and s[0]['digest'].lower()=='sha256:3ae5e2ac7428c3443ff7768c543117af864e7c73f68d32efad4ab40b30fb5b0e'
+          assert 'staged candidate' in r['body'] or 'OFFICIAL_RELEASE_ACCEPTED_R295' in r['body']
+          print('RELEASE_BODY_PREFLIGHT_PASS')
+          PY
+      - name: Correct public release page description without changing assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/official-notes.md <<'EOF'
+          # Taskbar Monitor Enhanced v1.7.9 — official stable release
+
+          **Status: OFFICIAL_RELEASE_ACCEPTED_R295.** Public immutable stable release, published 2026-10-29 UTC, with one intentionally unsigned per-user installer and exactly seven verified assets.
+
+          This release fixes intermittent taskbar monitor occlusion behind Windows taskbar windows. Persistent Z-order drift is repaired without stealing focus, with two consecutive checks and a three-second cooldown to protect Start, Search, Settings, fullscreen apps, and menus. Normal and Glass modes are supported.
+
+          The official v1.7.8 to v1.7.9 update was executed in place on the owner's Windows 11 machine, preserving configuration, autostart, sensor backend, and one canonical per-user root. Installer exit code was zero and the installed Main and Setup hashes match this release. Hosted independent Windows 2022/2025 native Explorer Start/Settings/Glass tests, protected upgrade/crash recovery, and exact-source reproducible Build all passed. A separate user-driven personal Windows 11 Start/Settings interaction witness is still not independently recorded; hosted tests must not be confused with that missing evidence.
+
+          **Source commit:** `479ee78a214c7ae58177016d59468e50e815f54b`  
+          **Installer SHA-256:** `3AE5E2AC7428C3443FF7768C543117AF864E7C73F68D32EFAD4AB40B30FB5B0E`  
+          **Installed Main SHA-256:** `04776E870A492733BBA33A550F732F5DB688A6585FC6533224A56687F1A6D88E`
+
+          Seven public assets have been independently downloaded and verified against the release Manifest, SHA256SUMS, and GitHub digests (G16 PASS). [Build and publication workflow](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/40791419343); [current public tracker](https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7).
+
+          **Installation:** Download only `TaskbarMonitorEnhanced_Setup_1.7.9.exe`, verify SHA-256, close the running app normally, and run Setup to update the same per-user installation. Do not uninstall or create a second copy. Windows SmartScreen may warn because the installer is intentionally **unsigned** under the owner's existing waiver. Optional PawnIO is external and is not silently installed.
+
+          **Limitations:** Real physical AC power-cut testing was excluded by the owner; no independent malware clearance, machinewide singleton, or guaranteed physical-speaker audio/banner delivery is claimed. Reporter-specific WinRing0 origin evidence remains open in [Issue #6](https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6); do not bypass Defender.
+
+          The immutable `RELEASE_NOTES_v1.7.9.md` asset is a build-time snapshot containing a superseded "staged candidate" status sentence. This Release page and the independently verified immutable published asset set are the current publication authority; the historical asset is deliberately retained byte-for-byte.
+          EOF
+          gh release edit v1.7.9 -R GOD13emad/TaskbarMonitorEnhanced --notes-file /tmp/official-notes.md --title 'Taskbar Monitor Enhanced v1.7.9 — official stable Z-order repair'
+      - name: Verify changed description and untouched seven immutable assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/GOD13emad/TaskbarMonitorEnhanced/releases/tags/v1.7.9 > /tmp/after.json
+          python3 - <<'PY'
+          import json
+          a=json.load(open('/tmp/before.json')); b=json.load(open('/tmp/after.json'))
+          assert b['tag_name']=='v1.7.9' and b['id']==427321765 and b['immutable'] and not b['draft'] and not b['prerelease']
+          assert 'OFFICIAL_RELEASE_ACCEPTED_R295' in b['body']
+          keep=lambda x: sorted((v['name'],v['size'],v['digest']) for v in x['assets'])
+          assert len(keep(a))==len(keep(b))==7 and keep(a)==keep(b)
+          assert a['target_commitish']==b['target_commitish']
+          print('OFFICIAL_BODY_AND_IMMUTABLE_ASSETS_VERIFIED')
+          PY
