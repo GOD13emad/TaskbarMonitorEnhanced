@@ -35,14 +35,14 @@ jobs:
       - name: Checkout exact prior source or current candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ matrix.variant == 'baseline' && '1883b4554461f06ee3be006168e37179c39a9433' || github.sha }}
+          ref: ${{ matrix.variant == 'baseline' && 'fa57ae2c89304974f4b91d5a9ca7c3d5b06f57e1' || github.sha }}
           path: src
           persist-credentials: false
       - name: Require hosted Windows and exact pinned source
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $expected="${{ matrix.variant == 'baseline' && '1883b4554461f06ee3be006168e37179c39a9433' || github.sha }}"
+          $expected="${{ matrix.variant == 'baseline' && 'fa57ae2c89304974f4b91d5a9ca7c3d5b06f57e1' || github.sha }}"
           if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
              $env:RUNNER_OS -cne 'Windows' -or $env:COMPUTERNAME -match '(?i)EMAD-PC' -or
              (git -C src rev-parse HEAD).Trim() -cne $expected -or
@@ -64,7 +64,12 @@ jobs:
           $ErrorActionPreference='Stop'
           ./build/Build.ps1
           if($LASTEXITCODE -ne 0){throw 'R337_SOURCE_COMPILATION_FAILED'}
-          if(!(Test-Path -LiteralPath build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe)){
+          $setupName=if('${{ matrix.variant }}' -ceq 'baseline'){
+            'TaskbarMonitorEnhanced_Setup_1.7.8.exe'
+          }else{
+            'TaskbarMonitorEnhanced_Setup_1.7.10.exe'
+          }
+          if(!(Test-Path -LiteralPath (Join-Path 'build/_out/Setup' $setupName))){
             throw 'R337_EXACT_SETUP_EXE_MISSING'
           }
       - name: Execute sandboxed PS5.1 first-install cold replay differential
@@ -74,7 +79,8 @@ jobs:
           $native=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
           $test=(Resolve-Path harness/build/Test-R337-FirstInstallColdOrphan-Native.ps1).Path
           $product=(Resolve-Path src).Path
-          $setup=(Resolve-Path src/build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe).Path
+          $setupName=if('${{ matrix.variant }}' -ceq 'baseline'){'TaskbarMonitorEnhanced_Setup_1.7.8.exe'}else{'TaskbarMonitorEnhanced_Setup_1.7.10.exe'}
+          $setup=(Resolve-Path (Join-Path 'src/build/_out/Setup' $setupName)).Path
           & $native -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $test -HostLabel '${{ matrix.host }}' -Variant '${{ matrix.variant }}' -ProductRoot $product -SetupPath $setup
           if($LASTEXITCODE -ne 0){throw 'R337_HOSTED_NATIVE_COLD_RECOVERY_NEGATIVE_OR_REGRESSION'}
       - name: Retain typed test evidence without public security alert upload

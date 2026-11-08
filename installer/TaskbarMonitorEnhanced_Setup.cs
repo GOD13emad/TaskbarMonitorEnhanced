@@ -1365,6 +1365,7 @@ foreach($dir in ($dirs|Sort-Object Length -Descending)){
         try{DeleteOwnedShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup),"Taskbar Monitor Enhanced Startup Recovery.lnk"),AppExe,"--startup-recovery");}catch{}
         Registry.CurrentUser.DeleteSubKeyTree(UninstallKey,false);
 
+        // R298: port the previously reviewed R356 handle-bound deferred cleanup.
         // Wait for the user to close the dialog before launching cleanup;
         // then the cleanup process waits for this parent to exit.
         if(!quiet)
