@@ -5,8 +5,9 @@ param(
 $ErrorActionPreference='Stop'
 $SourceRoot=[IO.Path]::GetFullPath($SourceRoot)
 $runId=if($env:GITHUB_RUN_ID){$env:GITHUB_RUN_ID}else{[guid]::NewGuid().ToString('N')}
+$fixtureId=[guid]::NewGuid().ToString('N')
 $tempBase=if(-not [string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)){$env:RUNNER_TEMP}else{$env:TEMP}
-$root=Join-Path $tempBase ('R352_'+$HostLabel+'_'+$runId)
+$root=Join-Path $tempBase ('R352_'+$HostLabel+'_'+$runId+'_'+$fixtureId)
 $receipt=Join-Path $root 'R352_INSTALL_CATCH_ROLLBACK_NATIVE.json'
 $outputPath=Join-Path $root 'R352_HELPER_OUTPUT.log'
 $previousXmlPath=Join-Path $root 'R352_PREVIOUS_TASK_XML.xml'
@@ -18,11 +19,11 @@ $profileEntry=Get-ItemProperty -LiteralPath $profileKey -ErrorAction Stop
 $profile=[IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables([string]$profileEntry.ProfileImagePath)).TrimEnd('\')
 $appRoot=Join-Path $profile 'AppData\Local\TaskbarMonitorEnhanced'
 $payloadParent=Join-Path $profile 'AppData\Local\Temp'
-$payloadDir=Join-Path $payloadParent ('tbme_setup_'+[guid]::NewGuid().ToString('N'))
+$payloadDir=Join-Path $payloadParent ('tbme_setup_'+$fixtureId)
 $product=Join-Path $programFiles 'TaskbarMonitorEnhanced'
 $broker=Join-Path $product 'SensorBroker'
 $journal=Join-Path $product '.tbme-sensor-rollback'
-$canaryDir=Join-Path $programFiles ('TBME_R352_OUTSIDE_'+$HostLabel+'_'+$runId)
+$canaryDir=Join-Path $programFiles ('TBME_R352_OUTSIDE_'+$HostLabel+'_'+$runId+'_'+$fixtureId)
 $canary=Join-Path $canaryDir 'OUTSIDE_CANARY.txt'
 $pawnKey='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO'
 $pawnWowKey='HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO'
@@ -158,18 +159,18 @@ try{
         throw 'R352_NO_PREEXISTING_ADMIN_TOKEN'
     }
     Import-Module ScheduledTasks -ErrorAction Stop
-    if([IO.Directory]::Exists($root) -or
-       [IO.Directory]::Exists($appRoot) -or
-       [IO.Directory]::Exists($product) -or
-       [IO.Directory]::Exists($payloadDir) -or
-       [IO.Directory]::Exists($canaryDir) -or
-       (Test-Path -LiteralPath $journal) -or
-       (Test-Path -LiteralPath $pawnKey) -or
-       (Test-Path -LiteralPath $pawnWowKey) -or
-       @(Get-ScheduledTask -TaskPath '\' -TaskName $taskName -ErrorAction SilentlyContinue|Where-Object {$null -ne $_}).Count -or
-       @(Get-Process TaskbarMonitorEnhanced,TaskbarMonitorSensorBroker,TaskbarMonitorSensorSupervisor -ErrorAction SilentlyContinue).Count){
-        throw 'R352_PREEXISTING_PRODUCT_APP_TASK_REGISTRY_OR_FIXTURE_COLLISION'
-    }
+    $collisions=[Collections.Generic.List[string]]::new()
+    if([IO.Directory]::Exists($root)){$collisions.Add('RUNNER_TEMP_ROOT')}
+    if([IO.Directory]::Exists($appRoot)){$collisions.Add('APP_ROOT')}
+    if([IO.Directory]::Exists($product)){$collisions.Add('PROGRAMFILES_PRODUCT_ROOT')}
+    if([IO.Directory]::Exists($payloadDir)){$collisions.Add('PAYLOAD_DIRECTORY')}
+    if([IO.Directory]::Exists($canaryDir)){$collisions.Add('OUTSIDE_CANARY_DIRECTORY')}
+    if(Test-Path -LiteralPath $journal){$collisions.Add('ROLLBACK_JOURNAL')}
+    if(Test-Path -LiteralPath $pawnKey){$collisions.Add('PAWNIO_REGISTRY_KEY')}
+    if(Test-Path -LiteralPath $pawnWowKey){$collisions.Add('PAWNIO_WOW64_REGISTRY_KEY')}
+    if(@(Get-ScheduledTask -TaskPath '\' -TaskName $taskName -ErrorAction SilentlyContinue|Where-Object {$null -ne $_}).Count){$collisions.Add('SENSOR_TASK')}
+    if(@(Get-Process TaskbarMonitorEnhanced,TaskbarMonitorSensorBroker,TaskbarMonitorSensorSupervisor -ErrorAction SilentlyContinue).Count){$collisions.Add('PRODUCT_PROCESS')}
+    if($collisions.Count){throw ('R352_PREEXISTING_TARGET_COLLISION_'+($collisions -join ','))}
     $preconditionPassed=$true
     [void][IO.Directory]::CreateDirectory($root);$createdRoot=$true
     [void][IO.Directory]::CreateDirectory($appRoot);$createdAppRoot=$true

@@ -12,8 +12,41 @@ permissions:
   contents: read
   actions: read
 jobs:
+  build-exact-setup:
+    name: R352 build exact Setup PE on isolated Windows
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: 10.0.400
+      - name: Build exact Setup PE with embedded production Helper
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Build.ps1
+          if($LASTEXITCODE -ne 0 -or
+             !(Test-Path -LiteralPath build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe)){
+            throw 'R352_EXACT_COMPILED_SETUP_MISSING'
+          }
+          Get-FileHash build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe -Algorithm SHA256
+          'R352_EXACT_COMPILED_SETUP_BUILD_PASS'
+      - name: Retain compiled Setup PE for isolated runtime hosts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R352-compiled-setup-${{ github.run_id }}
+          path: build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe
+          retention-days: 2
+          if-no-files-found: error
   actual-install-catch-rollback:
     name: R352 actual Install catch rollback ${{ matrix.host }}
+    needs: build-exact-setup
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     strategy:
@@ -30,6 +63,15 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Install pinned .NET runtime
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: 10.0.400
+      - name: Download Setup PE built from this exact workflow commit
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: R352-compiled-setup-${{ github.run_id }}
+          path: build/_out/Setup
       - name: Enforce disposable already-admin Windows and empty exact targets
         shell: pwsh
         run: |
@@ -63,20 +105,6 @@ jobs:
             throw 'R352_NO_EXISTING_ADMIN_TOKEN'
           }
           'R352_DISPOSABLE_EMPTY_TARGETS_ALREADY_ADMIN_PASS'
-      - name: Install pinned .NET SDK
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-        with:
-          dotnet-version: 10.0.400
-      - name: Build exact Setup PE with embedded production Helper
-        shell: pwsh
-        run: |
-          $ErrorActionPreference='Stop'
-          ./build/Build.ps1
-          if($LASTEXITCODE -ne 0 -or
-             !(Test-Path -LiteralPath build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe)){
-            throw 'R352_EXACT_COMPILED_SETUP_MISSING'
-          }
-          'R352_EXACT_COMPILED_SETUP_BUILD_PASS'
       - name: Execute exact PE Helper Install path with one controlled post-registration failure
         shell: pwsh
         run: |
