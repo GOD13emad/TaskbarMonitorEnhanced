@@ -381,7 +381,8 @@ finally{
  if($null -ne $full){$full.Close();$full.Dispose()}
  if($null -ne $process){try{if(!$process.HasExited){$process.Kill()}}catch{}}
  try{
-  $logs=@(Get-ChildItem (Join-Path $app 'Logs') -Filter 'tbme_csharp_*.log' -File -ErrorAction Stop)
+  $logRoot=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced\Logs'
+  $logs=@(Get-ChildItem $logRoot -Filter 'tbme_csharp_*.log' -File -ErrorAction Stop)
   foreach($log in $logs){
    Get-Content -LiteralPath $log.FullName -Tail 1600 | Select-String -Pattern 'PRESENTATION|GLASS_NATIVE|GLASS_COMPOSITION|TASKBAR_|VISIBILITY_WATCHDOG|LOW_PRESSURE|CONTEXT_MENU|SETTINGS|START_|RECOVERY' | ForEach-Object Line | Set-Content -LiteralPath (Join-Path $out ('DIAG_'+$log.Name)) -Encoding UTF8
   }

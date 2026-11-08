@@ -7255,11 +7255,29 @@ namespace TaskbarMonitorEnhanced
             ShowInTaskbar=true;
             TopMost=true;
             Shown+=delegate{
-                Rectangle work=Screen.FromControl(this).WorkingArea;
+                // Use the actual top-level HWND's monitor, not a pre-handle
+                // Control lookup. Cap the outer form size as well as its
+                // initial bounds so layout/DPI changes cannot grow it under
+                // the taskbar after the first Show.
+                Screen controlScreen=Screen.FromControl(this);
+                Screen handleScreen=Screen.FromHandle(Handle);
+                Rectangle work=handleScreen.WorkingArea;
                 int w=Math.Min(Width,Math.Max(200,work.Width-16));
                 int h=Math.Min(Height,Math.Max(200,work.Height-16));
                 MinimumSize=new Size(Math.Min(MinimumSize.Width,w),Math.Min(MinimumSize.Height,h));
+                MaximumSize=new Size(w,h);
                 Bounds=new Rectangle(work.Left+(work.Width-w)/2,work.Top+(work.Height-h)/2,w,h);
+                Log.Write("INFO","SETTINGS_PLACEMENT_METRICS dpi="+DeviceDpi+
+                    " dpiContext="+Native.DpiAwarenessMode()+
+                    " controlDevice="+controlScreen.DeviceName+
+                    " controlBounds="+controlScreen.Bounds+
+                    " controlWork="+controlScreen.WorkingArea+
+                    " handleDevice="+handleScreen.DeviceName+
+                    " handleBounds="+handleScreen.Bounds+
+                    " handleWork="+work+
+                    " outer="+Bounds+" client="+ClientSize);
+                Log.Write("INFO","SETTINGS_PLACEMENT_APPLIED max="+MaximumSize+
+                    " min="+MinimumSize+" outer="+Bounds+" client="+ClientSize);
             };
             BackColor=SettingsWindow;ForeColor=SettingsText;Font=new Font("Segoe UI",9.4f,FontStyle.Regular);DoubleBuffered=true;
 
