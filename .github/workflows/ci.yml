@@ -406,3 +406,68 @@ jobs:
           name: r299-public-v179-upgrade-receipt
           if-no-files-found: error
           path: artifacts/R299_PUBLIC179_HOSTED_UPGRADE_RECEIPT.json
+
+  # R300: actual compiled 1.7.10 fresh install on fresh GitHub-hosted Windows.
+  r300-disposable-fresh-install:
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Assert fresh disposable Windows VM prior to installer
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:COMPUTERNAME -match '(?i)EMAD|ALIEMAD|LAPTOP|SAEID'){
+             throw 'R300_NOT_DISPOSABLE_GITHUB_HOSTED_WINDOWS'
+          }
+          $app=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
+          if((Test-Path $app) -or
+             (Test-Path 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/TaskbarMonitorEnhanced') -or
+             @(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){
+             throw 'R300_GUEST_ALREADY_HAS_PRODUCT'
+          }
+          'R300_PRE_INSTALL_GUEST_EMPTY=PASS'
+
+      - name: Checkout exact candidate commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 2
+
+      - name: Consume manifest-pinned Setup built by dependency
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: build-evidence
+          path: .
+
+      - name: Real compiled Setup fresh install on disposable clean user profile
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R300-HostedFreshInstall.ps1)
+          foreach($mark in @(
+            'R300_HOSTED_SETUP_RESOURCE_VERIFY=PASS',
+            'R300_HOSTED_REAL_FRESH_INSTALL_AND_EXACT_BINARY_HASHES=PASS',
+            'R300_HOSTED_ONE_ROOT_START_MENU_REGISTRY_AND_STARTUP_FALSE=PASS',
+            'R300_HOSTED_REAL_INSTALL_SENSOR_STATE_AND_EXTERNAL_CANARY=PASS',
+            'R300_HOSTED_FRESH_INSTALL_RECEIPT=PASS'
+          )){
+            if($proof -notcontains $mark){throw ('R300_REAL_FRESH_INSTALL_PROOF_MISSING_'+$mark)}
+          }
+          $src=Join-Path $env:RUNNER_TEMP 'R300_HOSTED_FRESH_INSTALL_RECEIPT.json'
+          if(!(Test-Path $src)){throw 'R300_ACCEPTANCE_RECEIPT_MISSING'}
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          Copy-Item -LiteralPath $src -Destination artifacts/R300_HOSTED_FRESH_INSTALL_RECEIPT.json -ErrorAction Stop
+          $proof
+
+      - name: Upload compiled original fresh-install receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: r300-disposable-fresh-install
+          if-no-files-found: error
+          path: artifacts/R300_HOSTED_FRESH_INSTALL_RECEIPT.json
