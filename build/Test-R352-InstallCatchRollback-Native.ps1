@@ -334,7 +334,8 @@ try{
         if([IO.File]::Exists($pathToCheck)){throw ('R352_NEW_SENSOR_TELEMETRY_SURVIVED_ROLLBACK_'+$pathToCheck)}
     }
     Check 'NEW_SENSOR_TELEMETRY_REMOVED_DURING_ROLLBACK'
-    if((Hash $canary) -cne $beforeCanary){throw 'R352_OUTSIDE_CANARY_CHANGED'}
+    $afterCanary=Hash $canary
+    if($afterCanary -cne $beforeCanary){throw 'R352_OUTSIDE_CANARY_CHANGED'}
     Check 'OUTSIDE_PROGRAMFILES_CANARY_UNCHANGED'
     if(-not [IO.Directory]::Exists($journal)){throw 'R352_DURABLE_PREPARED_JOURNAL_MISSING_AFTER_INPROCESS_ROLLBACK'}
     $ready=Join-Path $journal 'READY'
