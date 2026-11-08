@@ -3,6 +3,7 @@ on:
   push:
     branches: [security/r347-r349-helper-hardening-v1710]
     paths:
+      - installer/TaskbarMonitorEnhanced_Setup.cs
       - installer/TBME_Setup_Elevated_Helper.ps1
       - build/Test-R349-PrivilegedLeaf-Native.ps1
       - build/Test-R349-PrivilegedLeaf-Actor.ps1

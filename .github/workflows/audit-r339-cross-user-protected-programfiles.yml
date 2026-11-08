@@ -4,6 +4,8 @@ on:
     branches: [security/r347-r349-helper-hardening-v1710]
     paths:
       - build/Test-R339-ProtectedProgramFiles-TwoUsers-Native.ps1
+      - installer/TaskbarMonitorEnhanced_Setup.cs
+      - src/sensors/TaskbarMonitorSensorSupervisor.cs
       - build/Test-R339-SecondAccount-Actor.ps1
       - .github/workflows/audit-r339-cross-user-protected-programfiles.yml
   workflow_dispatch:
