@@ -300,6 +300,8 @@ try{
    # require three consecutive in-bounds samples, without weakening the gate.
    $geometryWaitClock=[Diagnostics.Stopwatch]::StartNew()
    $geometryStableSamples=0
+   $geometrySampleCount=0
+   $geometryInitialInBounds=$false
    $geometry=$null
    do{
     $settingsOuter=Box $settings
@@ -326,7 +328,10 @@ try{
      TaskbarVisible=@($taskbarVisible.X,$taskbarVisible.Y,$taskbarVisible.Width,$taskbarVisible.Height)
      SettingsDwmHRESULT=$settingsDwmHr;TaskbarDwmHRESULT=$taskbarDwmHr
     }
-    if(!$work.Contains($settingsVisible) -or !$screenBounds.Contains($settingsVisible) -or $settingsVisible.IntersectsWith($taskbarVisible)){
+    $geometryInBounds=$work.Contains($settingsVisible) -and $screenBounds.Contains($settingsVisible) -and !$settingsVisible.IntersectsWith($taskbarVisible)
+    if($geometrySampleCount -eq 0){$geometryInitialInBounds=$geometryInBounds}
+    $geometrySampleCount++
+    if(!$geometryInBounds){
      $geometryStableSamples=0
     }else{
      $geometryStableSamples++
@@ -336,11 +341,11 @@ try{
    }while($geometryWaitClock.ElapsedMilliseconds -lt 5000)
    $geometryWaitClock.Stop()
    $geometryWaitMs=$geometryWaitClock.ElapsedMilliseconds
-   if($geometryStableSamples -lt 3){
-    $evidence+=@{State=$mode+'_SETTINGS_GEOMETRY_FAIL';Geometry=$geometry;WaitMs=$geometryWaitMs;StableSamples=$geometryStableSamples}
-    throw ('R146_SETTINGS_EXTENDS_BEHIND_TASKBAR WAIT_MS='+$geometryWaitMs+' STABLE_SAMPLES='+$geometryStableSamples+' '+($geometry|ConvertTo-Json -Compress -Depth 4))
+   if($geometryStableSamples -lt 3 -or !$geometryInitialInBounds){
+    $evidence+=@{State=$mode+'_SETTINGS_GEOMETRY_FAIL';Geometry=$geometry;WaitMs=$geometryWaitMs;StableSamples=$geometryStableSamples;InitialInBounds=$geometryInitialInBounds;SampleCount=$geometrySampleCount}
+    throw ('R146_SETTINGS_EXTENDS_BEHIND_TASKBAR WAIT_MS='+$geometryWaitMs+' STABLE_SAMPLES='+$geometryStableSamples+' INITIAL_IN_BOUNDS='+$geometryInitialInBounds+' '+($geometry|ConvertTo-Json -Compress -Depth 4))
    }
-   $evidence+=@{State=$mode+'_SETTINGS_GEOMETRY';Geometry=$geometry;WaitMs=$geometryWaitMs;StableSamples=$geometryStableSamples}
+   $evidence+=@{State=$mode+'_SETTINGS_GEOMETRY';Geometry=$geometry;WaitMs=$geometryWaitMs;StableSamples=$geometryStableSamples;InitialInBounds=$geometryInitialInBounds;SampleCount=$geometrySampleCount}
   Assert-Visible $monitor $original ($mode+'_SETTINGS') $top
   $evidence+=Capture $monitor ($mode+'_SETTINGS')
   [void][R146Native]::SendMessage($settings,0x0010,[IntPtr]::Zero,[IntPtr]::Zero);Pump 500

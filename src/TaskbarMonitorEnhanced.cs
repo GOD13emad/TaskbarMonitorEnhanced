@@ -7254,11 +7254,11 @@ namespace TaskbarMonitorEnhanced
             // must not be covered by its taskbar z-band and must be Alt+Tab-able.
             ShowInTaskbar=true;
             TopMost=true;
-            Shown+=delegate{
-                // Use the actual top-level HWND's monitor, not a pre-handle
-                // Control lookup. Cap the outer form size as well as its
-                // initial bounds so layout/DPI changes cannot grow it under
-                // the taskbar after the first Show.
+            Action<string> applySettingsPlacement=delegate(string phase){
+                if(IsDisposed||Disposing||!IsHandleCreated)return;
+                // Load runs after WinForms DPI autoscaling and before the first
+                // visible frame. Shown is a final first-display correction;
+                // DpiChanged keeps the form within a newly selected monitor.
                 Screen controlScreen=Screen.FromControl(this);
                 Screen handleScreen=Screen.FromHandle(Handle);
                 Rectangle work=handleScreen.WorkingArea;
@@ -7266,8 +7266,9 @@ namespace TaskbarMonitorEnhanced
                 int h=Math.Min(Height,Math.Max(200,work.Height-16));
                 MinimumSize=new Size(Math.Min(MinimumSize.Width,w),Math.Min(MinimumSize.Height,h));
                 MaximumSize=new Size(w,h);
-                Bounds=new Rectangle(work.Left+(work.Width-w)/2,work.Top+(work.Height-h)/2,w,h);
-                Log.Write("INFO","SETTINGS_PLACEMENT_METRICS dpi="+DeviceDpi+
+                Rectangle target=new Rectangle(work.Left+(work.Width-w)/2,work.Top+(work.Height-h)/2,w,h);
+                if(Bounds!=target)Bounds=target;
+                Log.Write("INFO","SETTINGS_PLACEMENT_METRICS phase="+phase+" dpi="+DeviceDpi+
                     " dpiContext="+Native.DpiAwarenessMode()+
                     " controlDevice="+controlScreen.DeviceName+
                     " controlBounds="+controlScreen.Bounds+
@@ -7276,9 +7277,12 @@ namespace TaskbarMonitorEnhanced
                     " handleBounds="+handleScreen.Bounds+
                     " handleWork="+work+
                     " outer="+Bounds+" client="+ClientSize);
-                Log.Write("INFO","SETTINGS_PLACEMENT_APPLIED max="+MaximumSize+
+                Log.Write("INFO","SETTINGS_PLACEMENT_APPLIED phase="+phase+" max="+MaximumSize+
                     " min="+MinimumSize+" outer="+Bounds+" client="+ClientSize);
             };
+            Load+=delegate{applySettingsPlacement("LOAD");};
+            Shown+=delegate{applySettingsPlacement("SHOWN");};
+            DpiChanged+=delegate{applySettingsPlacement("DPI_CHANGED");};
             BackColor=SettingsWindow;ForeColor=SettingsText;Font=new Font("Segoe UI",9.4f,FontStyle.Regular);DoubleBuffered=true;
 
             TableLayoutPanel root=new TableLayoutPanel();root.Dock=DockStyle.Fill;root.BackColor=SettingsWindow;root.ColumnCount=2;root.RowCount=1;root.Margin=Padding.Empty;root.Padding=Padding.Empty;root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,214f));root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100f));root.RowStyles.Add(new RowStyle(SizeType.Percent,100f));Controls.Add(root);
