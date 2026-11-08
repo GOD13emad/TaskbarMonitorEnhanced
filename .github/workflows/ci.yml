@@ -66,6 +66,28 @@ jobs:
         shell: pwsh
         run: ./build/Build.ps1
 
+      # R298: this compiles the actual PE-embedded cleanup source, then
+      # invokes the pin/delete primitive ONLY on a freshly created Temp fixture.
+      # It never invokes the owner uninstall or alters an installed product.
+      - name: R298 native deferred-uninstall handle-bound cleanup contract
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R298-DeferredCleanupContract.ps1)
+          $required=@(
+            'R298_PASS_EMBEDDED_SOURCE_AND_FACTORY',
+            'R298_PASS_TRUSTED_HOST_NO_CMD_NO_TEMP_SCRIPT',
+            'R298_PASS_POWERSHELL_PARSE_AND_NATIVE_HANDLE_COMPILE',
+            'R298_PASS_FAIL_CLOSED_ARGUMENTS',
+            'R298_PASS_DISPOSABLE_EMPTY_DIRECTORY_PINNED_DELETE'
+          )
+          foreach($mark in $required){
+            if($proof -notcontains $mark){throw ('R298 native contract missing proof: '+$mark)}
+          }
+          if($proof -notcontains 'R298_JUNCTION_REJECTED=PASS'){
+            throw 'R298 junction adversarial fixture must run on hosted Windows'
+          }
+
       - name: Verify deterministic clean-clone build
         shell: pwsh
         run: ./build/Verify-Determinism.ps1

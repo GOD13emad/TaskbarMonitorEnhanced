@@ -544,6 +544,233 @@ internal static partial class SetupProgram
         return sensorOutcome;
     }
 
+    // R298: minimal forward-port from reviewed PR #80/R356 onto 1.7.9.
+    static string Base64Utf8Argument(string value)
+    {
+        if(String.IsNullOrWhiteSpace(value) || value.Length>4096)
+            throw new InvalidDataException("Sensor helper argument missing or too long.");
+        return Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
+    }
+
+
+    static string TrustedSystemPowerShellPath()
+    {
+        string system=Path.GetFullPath(Environment.SystemDirectory);
+        if(!Path.IsPathRooted(system) || !Directory.Exists(system))
+            throw new InvalidOperationException("Trusted Windows system directory unavailable.");
+        string first=Path.Combine(system,"WindowsPowerShell");
+        string folder=Path.Combine(first,"v1.0");
+        string exe=Path.Combine(folder,"powershell.exe");
+        if(!Directory.Exists(first) || !Directory.Exists(folder) || !File.Exists(exe))
+            throw new InvalidOperationException("Trusted Windows PowerShell executable missing.");
+        foreach(string candidate in new string[]{system,first,folder,exe})
+        {
+            if((File.GetAttributes(candidate)&FileAttributes.ReparsePoint)!=0)
+                throw new InvalidOperationException("Trusted PowerShell host is a reparse path.");
+        }
+        return exe;
+    }
+
+
+    // R317: defer deletion until this unelevated Setup process exits.
+    // Do not write executable scripts into mutable Temp and never run cmd.exe.
+    // The entire PowerShell source is an immutable Setup PE string; all paths
+    // enter only as Base64 UTF-8 data, never as PowerShell syntax.
+    static ProcessStartInfo BuildDeferredUninstallCleanupProcessInfo(string root,int parentPid,long parentStartUtcTicks)
+    {
+        string canonical=AppRoot;
+        if(String.IsNullOrWhiteSpace(root) ||
+           !String.Equals(Path.GetFullPath(root),canonical,StringComparison.OrdinalIgnoreCase) ||
+           parentPid<=0 || parentStartUtcTicks<=0)
+            throw new InvalidDataException("Uninstall cleanup requires the exact owner root and parent identity.");
+        string sid=WindowsIdentity.GetCurrent().User.Value;
+        if(!Regex.IsMatch(sid,@"^S-1-5-21-(?:\d+-){3}\d+$"))
+            throw new InvalidDataException("Uninstall cleanup refuses a noninteractive token.");
+        string rootBlob=Base64Utf8Argument(canonical);
+        string script=@"Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+$root=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__ROOT_B64__'))
+$expectedSid='__OWNER_SID__'
+$expectedPid=[int]__PROCESS_ID__
+$expectedStart=[long]__START_TICKS__
+if([Security.Principal.WindowsIdentity]::GetCurrent().User.Value -cne $expectedSid){
+    throw 'TBME_CLEANUP_WRONG_EFFECTIVE_TOKEN'
+}
+$profile=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+$local=[IO.Path]::GetFullPath([Environment]::GetFolderPath('LocalApplicationData')).TrimEnd('\')
+$expectedLocal=[IO.Path]::GetFullPath([IO.Path]::Combine($profile,'AppData','Local')).TrimEnd('\')
+$expectedRoot=[IO.Path]::GetFullPath([IO.Path]::Combine($local,'TaskbarMonitorEnhanced'))
+if($profile.StartsWith('\\') -or $local.StartsWith('\\') -or
+   -not [string]::Equals($local,$expectedLocal,[StringComparison]::OrdinalIgnoreCase) -or
+   -not [string]::Equals([IO.Path]::GetFullPath($root),$expectedRoot,[StringComparison]::OrdinalIgnoreCase)){
+    throw 'TBME_CLEANUP_ROOT_NOT_CANONICAL'
+}
+try{
+    $parent=[Diagnostics.Process]::GetProcessById($expectedPid)
+    try{
+        if($parent.StartTime.ToUniversalTime().Ticks -eq $expectedStart -and
+           -not $parent.WaitForExit(300000)){
+            throw 'TBME_CLEANUP_PARENT_STILL_RUNNING'
+        }
+    }finally{$parent.Dispose()}
+}catch [ArgumentException]{
+    # Parent already exited before cleanup began.
+}catch [InvalidOperationException]{
+    # Parent exited between process lookup and StartTime/WaitForExit.
+}
+if(-not [IO.Directory]::Exists($expectedRoot)){exit 0}
+
+# Pin exact native directory handles while removing known owned entries.
+Add-Type -TypeDefinition @'
+using System;
+using System.IO;
+using System.Text;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+public sealed class TBMEDeferredDirectoryLeaseSet : IDisposable {
+ const uint LIST=1,DELETE=65536,SHARE_READ_WRITE=3,OPEN_EXISTING=3;
+ const uint BACKUP=0x02000000,OPEN_REPARSE=0x00200000,DIR=0x10,REPARSE=0x400;
+ [StructLayout(LayoutKind.Sequential)]
+ struct TAG {public uint Attributes;public uint ReparseTag;}
+ [StructLayout(LayoutKind.Sequential)]struct DISP {public byte DeleteFile;}
+ [DllImport(""kernel32.dll"",SetLastError=true)]
+ static extern bool SetFileInformationByHandle(SafeFileHandle h,int cls,ref DISP info,uint size);
+ [DllImport(""kernel32.dll"",CharSet=CharSet.Unicode,EntryPoint=""CreateFileW"",SetLastError=true)]
+ static extern SafeFileHandle Create(string p,uint access,uint sharing,IntPtr sec,uint create,uint flags,IntPtr template);
+ [DllImport(""kernel32.dll"",SetLastError=true)]
+ static extern bool GetFileInformationByHandleEx(SafeFileHandle file,int kind,out TAG info,uint size);
+ [DllImport(""kernel32.dll"",CharSet=CharSet.Unicode,EntryPoint=""GetFinalPathNameByHandleW"",SetLastError=true)]
+ static extern uint Final(SafeFileHandle file,StringBuilder path,uint size,uint flags);
+ readonly Dictionary<string,SafeFileHandle> pins=new Dictionary<string,SafeFileHandle>(StringComparer.OrdinalIgnoreCase);
+ public void Pin(string path){Pin(path,false);}
+ public void Pin(string path,bool canDelete){
+  if(String.IsNullOrWhiteSpace(path))throw new IOException(""R355_PIN_EMPTY_DIRECTORY"");
+  string expected=Path.GetFullPath(path).TrimEnd('\\');
+  if(pins.ContainsKey(expected))return;
+  SafeFileHandle h=Create(expected,LIST|(canDelete?DELETE:0),SHARE_READ_WRITE,IntPtr.Zero,OPEN_EXISTING,BACKUP|OPEN_REPARSE,IntPtr.Zero);
+  if(h.IsInvalid){int e=Marshal.GetLastWin32Error();h.Dispose();throw new IOException(""R355_PIN_CREATEFILE_WIN32_""+e);}
+  try{
+   TAG t;
+   if(!GetFileInformationByHandleEx(h,9,out t,(uint)Marshal.SizeOf(typeof(TAG))))
+     throw new IOException(""R355_PIN_TAG_WIN32_""+Marshal.GetLastWin32Error());
+   if((t.Attributes&DIR)==0||(t.Attributes&REPARSE)!=0)
+     throw new IOException(""R355_PIN_NON_DIRECTORY_OR_REPARSE"");
+   StringBuilder b=new StringBuilder(4096);
+   uint n=Final(h,b,(uint)b.Capacity,0);
+   if(n==0||n>=b.Capacity)throw new IOException(""R355_PIN_FINAL_PATH_WIN32_""+Marshal.GetLastWin32Error());
+   string actual=b.ToString();
+   if(actual.StartsWith(@""\\?\"",StringComparison.Ordinal))actual=actual.Substring(4);
+   if(!String.Equals(actual.TrimEnd('\\'),expected,StringComparison.OrdinalIgnoreCase))
+     throw new IOException(""R355_PIN_REDIRECTED_DIRECTORY"");
+   pins.Add(expected,h);
+  }catch{h.Dispose();throw;}
+ }
+ public void Release(string path){
+  string p=Path.GetFullPath(path).TrimEnd('\\');
+  SafeFileHandle h;
+  if(!pins.TryGetValue(p,out h))throw new IOException(""R355_PIN_RELEASE_UNKNOWN_DIRECTORY"");
+  pins.Remove(p);h.Dispose();
+ }
+ public void DeletePinned(string path){
+   string p=Path.GetFullPath(path).TrimEnd('\\');
+   SafeFileHandle h;
+   if(!pins.TryGetValue(p,out h))throw new IOException(""R356_PIN_NOT_FOUND"");
+   DISP d=new DISP();d.DeleteFile=1;
+   if(!SetFileInformationByHandle(h,4,ref d,(uint)Marshal.SizeOf(typeof(DISP))))
+     throw new IOException(""R356_PIN_DELETE_WIN32_""+Marshal.GetLastWin32Error());
+   pins.Remove(p);h.Dispose();
+  }
+ public void Dispose(){
+  foreach(SafeFileHandle h in pins.Values)h.Dispose();
+  pins.Clear();
+ }
+}
+'@
+# Reject reparse points before inventory.
+$cursor=$expectedRoot
+while(-not [string]::IsNullOrEmpty($cursor)){
+    if(([IO.File]::GetAttributes($cursor) -band [IO.FileAttributes]::ReparsePoint) -ne 0){
+        throw 'TBME_CLEANUP_ANCESTOR_REPARSE'
+    }
+    $parent=[IO.Path]::GetDirectoryName($cursor)
+    if([string]::IsNullOrEmpty($parent) -or $parent -ceq $cursor){break}
+    $cursor=$parent
+}
+# Inventory exact user-owned entries only.
+$prefix=[IO.Path]::GetFullPath($expectedRoot).TrimEnd('\')+'\'
+$stack=[Collections.Generic.List[string]]::new()
+$dirs=[Collections.Generic.List[string]]::new()
+$files=[Collections.Generic.List[string]]::new()
+$stack.Add($expectedRoot)
+$lease=[TBMEDeferredDirectoryLeaseSet]::new()
+try{
+foreach($pinPath in @($profile,(Join-Path $profile 'AppData'),$local,$expectedRoot)){
+  $lease.Pin($pinPath,($pinPath -ceq $expectedRoot))
+}
+$members=0
+while($stack.Count -gt 0){
+    $dir=$stack[$stack.Count-1]
+    $stack.RemoveAt($stack.Count-1)
+    $attrs=[IO.File]::GetAttributes($dir)
+    if(($attrs -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+       ($attrs -band [IO.FileAttributes]::Directory) -eq 0){
+        throw 'TBME_CLEANUP_CHANGED_DIRECTORY'
+    }
+    $lease.Pin($dir,$true)
+    $dirs.Add($dir)
+    foreach($entry in [IO.Directory]::GetFileSystemEntries($dir)){
+        $members++
+        if($members -gt 200000){throw 'TBME_CLEANUP_EXCESSIVE_ENTRY_COUNT'}
+        $full=[IO.Path]::GetFullPath($entry)
+        if(-not $full.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)){
+            throw 'TBME_CLEANUP_PATH_ESCAPED_OWNER_ROOT'
+        }
+        $attrs=[IO.File]::GetAttributes($full)
+        if(($attrs -band [IO.FileAttributes]::ReparsePoint) -ne 0){
+            throw 'TBME_CLEANUP_CHILD_REPARSE'
+        }
+        if(($attrs -band [IO.FileAttributes]::Directory) -ne 0){
+            $stack.Add($full)
+        }else{
+            $files.Add($full)
+        }
+    }
+}
+# Delete known files and then delete pinned empty directories by handle.
+foreach($file in $files){
+    $attrs=[IO.File]::GetAttributes($file)
+    if(($attrs -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+       ($attrs -band [IO.FileAttributes]::Directory) -ne 0){
+        throw 'TBME_CLEANUP_CHANGED_FILE'
+    }
+    [IO.File]::Delete($file)
+}
+foreach($dir in ($dirs|Sort-Object Length -Descending)){
+    if(@([IO.Directory]::GetFileSystemEntries($dir)).Count -ne 0){
+        throw 'TBME_CLEANUP_UNEXPECTED_MEMBER'
+    }
+    $lease.DeletePinned($dir)
+}
+}finally{$lease.Dispose()}
+";
+        script=script.Replace("__ROOT_B64__",rootBlob)
+                     .Replace("__OWNER_SID__",sid)
+                     .Replace("__PROCESS_ID__",parentPid.ToString(CultureInfo.InvariantCulture))
+                     .Replace("__START_TICKS__",parentStartUtcTicks.ToString(CultureInfo.InvariantCulture));
+        string encoded=Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+        if(encoded.Length>22000 || !Regex.IsMatch(encoded,@"^[A-Za-z0-9+/=]+$"))
+            throw new InvalidDataException("Uninstall cleanup command is not a bounded Base64 transport.");
+        ProcessStartInfo psi=new ProcessStartInfo();
+        psi.FileName=TrustedSystemPowerShellPath();
+        psi.Arguments="-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "+encoded;
+        psi.WorkingDirectory=Environment.SystemDirectory;
+        psi.UseShellExecute=false;
+        psi.CreateNoWindow=true;
+        psi.WindowStyle=ProcessWindowStyle.Hidden;
+        return psi;
+    }
+
     static void Uninstall(bool quiet)
     {
         if(!quiet){
@@ -576,16 +803,20 @@ internal static partial class SetupProgram
         try{File.Delete(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup),"Taskbar Monitor Enhanced Startup Recovery.lnk"));}catch{}
         Registry.CurrentUser.DeleteSubKeyTree(UninstallKey,false);
 
-        string cleanup=Path.Combine(Path.GetTempPath(),"tbme_cleanup_"+Guid.NewGuid().ToString("N")+".cmd");
-        File.WriteAllText(cleanup,
-          "@echo off\r\nping 127.0.0.1 -n 4 >nul\r\nrmdir /s /q \""+AppRoot+"\"\r\ndel /q \"%~f0\"\r\n",
-          Encoding.ASCII);
-        ProcessStartInfo psi=new ProcessStartInfo("cmd.exe","/c \""+cleanup+"\"");
-        psi.UseShellExecute=false;psi.CreateNoWindow=true;
-        // R108: background cmd must not inherit AppRoot as its working directory.
-        // Otherwise its rmdir of AppRoot can fail although Uninstall.exe exits zero.
-        psi.WorkingDirectory=Path.GetTempPath();
-        Process.Start(psi);
+        // R298: port the previously reviewed R356 handle-bound deferred cleanup
+        // to the v1.7.9 source; never generate an executable .cmd in mutable Temp.
+        // The helper waits for the exact parent PID/start ticks before deleting
+        // only the canonical owner AppRoot. Fail closed on reparse/unknown entries.
+        using(Process self=Process.GetCurrentProcess())
+        {
+            ProcessStartInfo deferredCleanup=BuildDeferredUninstallCleanupProcessInfo(
+                AppRoot,self.Id,self.StartTime.ToUniversalTime().Ticks);
+            using(Process delayed=Process.Start(deferredCleanup))
+            {
+                if(delayed==null)
+                    throw new IOException("Trusted deferred uninstall cleanup did not start.");
+            }
+        }
 
         if(!quiet)
             MessageBox.Show(Product+" was removed.","Uninstall complete",MessageBoxButtons.OK,MessageBoxIcon.Information);
