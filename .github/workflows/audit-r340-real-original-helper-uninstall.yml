@@ -4,6 +4,7 @@ on:
     branches: [security/r347-r349-helper-hardening-v1710]
     paths:
       - build/Test-R340-OriginalHelperActualUninstall-Native.ps1
+      - build/Test-R335-AtomicUserLogSink-Native.ps1
       - build/Test-R344-JournalAcl-MutationRights-Native.ps1
       - build/Test-R344-UnownedSensorNoJournal-Native.ps1
       - installer/TaskbarMonitorEnhanced_Setup.cs
@@ -72,6 +73,16 @@ jobs:
             throw 'R340_PRODUCT_EXACT_SETUP_NOT_COMPILED'
           }
           'R340_ALL_FOUR_FRAMEWORK_PRODUCT_COMPONENTS_BUILD_SUCCESS'
+      - name: Validate exact embedded Helper pipe transport and atomic user-log handles (R335)
+        if: matrix.mode == 'nominal'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $native=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
+          $script=(Resolve-Path build/Test-R335-AtomicUserLogSink-Native.ps1).Path
+          $setup=(Resolve-Path build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe).Path
+          & $native -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -SetupPath $setup -HostedGuest -HostLabel '${{ matrix.host }}'
+          if($LASTEXITCODE -ne 0){throw 'R335_PIPE_TRANSPORT_AND_LOG_HANDLE_PROBE_FAILED'}
       - name: Validate real PE-embedded journal ACL reject/allow semantics
         shell: pwsh
         run: |
@@ -112,6 +123,7 @@ jobs:
         with:
           name: R340-${{ matrix.mode }}-${{ matrix.host }}-${{ github.run_id }}
           path: |
+            ${{ runner.temp }}/R335_*/R335_ATOMIC_LOG_HANDLE_PROBE.json
             ${{ runner.temp }}/R340_*/R340_REAL_PROTECTED_UNINSTALL_HELPER.json
             ${{ runner.temp }}/R344Acl_*/R344_JOURNAL_ACL_MASK.json
             ${{ runner.temp }}/R344Neg_*/R344_UNOWNED_FOREIGN_WITHOUT_JOURNAL.json

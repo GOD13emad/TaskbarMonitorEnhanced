@@ -53,55 +53,117 @@ function Refuse([string]$name,[scriptblock]$action,[string]$reason){
 }
 Pass 'REAL_COMPILED_SETUP_EMBEDS_EXACT_PRODUCTION_HANDLE_SOURCE'
 Pass 'PRODUCTION_LOG_GUARD_CLASS_LOADED_FROM_EMBEDDED_HELPER'
-# R335 regression of the full trusted PE-helper transport, not just its C#
-# handle type. It must preserve the literal here-string while compacting all
-# other safe lines and stay within the Windows ShellExecute command limit.
-$builder=$assembly.GetType('SetupProgram',$true).GetMethod(
- 'BuildElevatedSensorProcessInfo',[Reflection.BindingFlags]'NonPublic,Static')
-if(!$builder){throw 'R335_EXACT_ELEVATED_PROCESS_BUILDER_NOT_PRESENT'}
+# R335 regression: the trusted PE helper is transported out-of-band over a
+# per-launch ACL-restricted pipe; the command line carries only bounded data.
+$factory=$assembly.GetType('SetupProgram',$true).GetMethod(
+ 'BuildElevatedSensorLaunch',[Reflection.BindingFlags]'NonPublic,Static')
+if(!$factory){throw 'R335_EXACT_ELEVATED_PIPE_FACTORY_NOT_PRESENT'}
 $args=New-Object 'object[]' 4
 $args[0]='Install'
 $args[1]='C:\R335_TEST_ONLY\payload & literal'
 $args[2]='C:\R335_TEST_ONLY\AppData\Local\TaskbarMonitorEnhanced'
 $args[3]='R335\USER_TEST_ONLY'
-$psi=[Diagnostics.ProcessStartInfo]$builder.Invoke($null,$args)
-$system=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
-if(!$psi.FileName.Equals($system,[StringComparison]::OrdinalIgnoreCase) -or
-   $psi.Verb -cne 'runas' -or $psi.UseShellExecute -ne $true){
- throw 'R335_HELPER_PROCESS_UAC_AND_SYSTEM_EXE_NO_LONGER_PINNED'
-}
-Pass 'BUILD_ELEVATED_HELPER_PRESERVES_SYSTEM32_RUNAS_NO_LAUNCH'
-$argline=$psi.Arguments
-$inline='-NoProfile -NonInteractive -WindowStyle Hidden -Command "& { '
-$tail=' }"'
-$encoded='-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand '
-if($argline.StartsWith($encoded,[StringComparison]::Ordinal)){
+$launch=$factory.Invoke($null,$args)
+if(!$launch){throw 'R335_ELEVATED_PIPE_LAUNCH_NULL'}
+try{
+ $psi=[Diagnostics.ProcessStartInfo]$launch.ProcessInfo
+ $system=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
+ if(!$psi.FileName.Equals($system,[StringComparison]::OrdinalIgnoreCase) -or
+    $psi.Verb -cne 'runas' -or $psi.UseShellExecute -ne $true){
+  throw 'R335_HELPER_PROCESS_UAC_AND_SYSTEM_EXE_NO_LONGER_PINNED'
+ }
+ Pass 'BUILD_ELEVATED_HELPER_PRESERVES_SYSTEM32_RUNAS_NO_LAUNCH'
+ $argline=$psi.Arguments
+ $encoded='-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand '
+ if(!$argline.StartsWith($encoded,[StringComparison]::Ordinal) -or $argline.Length -gt 12000){
+  throw 'R335_PIPE_BOOTSTRAP_NOT_BOUNDED_ENCODED_COMMAND'
+ }
  $bootstrap=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($argline.Substring($encoded.Length)))
-}elseif($argline.StartsWith($inline,[StringComparison]::Ordinal) -and
-       $argline.EndsWith($tail,[StringComparison]::Ordinal) -and
-       $argline.Length -le 30000){
- $bootstrap=$argline.Substring($inline.Length,$argline.Length-$inline.Length-$tail.Length)
-}else{throw 'R335_TRANSPORT_NOT_BOUNDED_INLINE_OR_UTF16_ENCODED'}
-if($bootstrap.Contains('R335_TEST_ONLY') -or $argline.Contains('R335_TEST_ONLY')){
- throw 'R335_UNTRUSTED_PATH_REACHED_COMMAND_TEXT_OUTSIDE_BASE64'
-}
-Pass 'TRUSTED_HELPER_BOOTSTRAP_BOUNDED_AND_UNTRUSTED_PATHS_ENCODED'
-$parts=[regex]::Matches($bootstrap,'\$blob=\[Convert\]::FromBase64String\(''([A-Za-z0-9+/=]+)''\)')
-if($parts.Count -ne 1){throw 'R335_TRANSPORT_COMPRESSED_PE_HELPER_SOURCE_MISSING'}
-$packed=[Convert]::FromBase64String($parts[0].Groups[1].Value)
-$stream=[IO.MemoryStream]::new($packed)
-$gzip=[IO.Compression.GZipStream]::new($stream,[IO.Compression.CompressionMode]::Decompress)
-$textReader=[IO.StreamReader]::new($gzip,[Text.Encoding]::UTF8)
-try{$trusted=$textReader.ReadToEnd()}
-finally{$textReader.Dispose();$gzip.Dispose();$stream.Dispose()}
-$tok=$null;$parseErr=$null
-[Management.Automation.Language.Parser]::ParseInput($trusted,[ref]$tok,[ref]$parseErr)|Out-Null
-if(@($parseErr).Count -ne 0){throw ('R335_TRANSPORTED_PE_HELPER_POWERSHELL_PARSE_ERRORS_'+@($parseErr).Count)}
-Pass 'COMPRESSED_TRUSTED_HELPER_FULL_SCRIPT_PS51_PARSE_PASS'
+ $pipeName=[string]$launch.PipeName
+ $helperHash=[string]$launch.HelperSHA256
+ if($pipeName -notmatch '^TBME_SensorHelper_[0-9a-f]{32}$' -or
+    $helperHash -cnotmatch '^[A-F0-9]{64}$' -or
+    [int]$launch.CompressedHelperBytes -lt 1000 -or
+    [int]$launch.CompressedHelperBytes -gt 120000){
+  throw 'R335_PIPE_NAME_OR_HELPER_HASH_METADATA_INVALID'
+ }
+ if(!$bootstrap.Contains($pipeName) -or !$bootstrap.Contains($helperHash) -or
+    !$bootstrap.Contains('NamedPipeClientStream') -or !$bootstrap.Contains('SHA256') -or
+    !$bootstrap.Contains('Connect(30000)') -or !$bootstrap.Contains('GZipStream')){
+  throw 'R335_PIPE_BOOTSTRAP_MISSING_PINNED_TRANSPORT_GUARDS'
+ }
+ if($bootstrap.Contains('R335_TEST_ONLY') -or $argline.Contains('R335_TEST_ONLY') -or
+    $bootstrap.Contains('C:\R335_TEST_ONLY')){
+  throw 'R335_UNTRUSTED_PATH_REACHED_COMMAND_TEXT_OUTSIDE_BASE64'
+ }
+ Pass 'PIPE_BOOTSTRAP_BOUNDED_HASH_PINNED_AND_UNTRUSTED_ARGUMENTS_ENCODED'
+ $serverField=$launch.GetType().GetField('server',[Reflection.BindingFlags]'Instance,NonPublic')
+ if(!$serverField){throw 'R335_PRIVATE_PIPE_SERVER_FIELD_MISSING'}
+ $pipe=$serverField.GetValue($launch)
+ $security=$pipe.GetAccessControl()
+ if(!$security.AreAccessRulesProtected){throw 'R335_PIPE_DACL_NOT_EXPLICITLY_PROTECTED'}
+ $rules=@($security.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]))
+ $allowed=@($rules|Where-Object {$_.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow}|
+  ForEach-Object {$_.IdentityReference.Value})
+ $currentSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+ if($currentSid -notin $allowed -or 'S-1-5-18' -notin $allowed -or
+    @($allowed|Where-Object {$_ -in @('S-1-1-0','S-1-5-11','S-1-5-32-545')}).Count -ne 0){
+  throw ('R335_PIPE_DACL_NOT_LIMITED_TO_CURRENT_USER_AND_SYSTEM_'+($allowed -join ','))
+ }
+ Pass 'PIPE_DACL_EXPLICIT_CURRENT_USER_AND_SYSTEM_ONLY'
+ # A non-elevated disposable PowerShell client receives and validates the
+ # exact compressed PE helper, but never executes the helper or mutates setup.
+ $probeScript=@'
+$ErrorActionPreference='Stop'
+$pipe=[IO.Pipes.NamedPipeClientStream]::new('.','__PIPE__',[IO.Pipes.PipeDirection]::In)
+try{
+ $pipe.Connect(10000)
+ $header=New-Object byte[] 4;$offset=0
+ while($offset -lt 4){$n=$pipe.Read($header,$offset,4-$offset);if($n -le 0){throw 'R335_PIPE_HEADER_EOF'};$offset+=$n}
+ $length=[BitConverter]::ToInt32($header,0)
+ if($length -lt 1000 -or $length -gt 120000){throw 'R335_PIPE_LENGTH_INVALID'}
+ $blob=New-Object byte[] $length;$offset=0
+ while($offset -lt $length){$n=$pipe.Read($blob,$offset,$length-$offset);if($n -le 0){throw 'R335_PIPE_BODY_EOF'};$offset+=$n}
+ $sha=[Security.Cryptography.SHA256]::Create()
+ try{$actual=([BitConverter]::ToString($sha.ComputeHash($blob))).Replace('-','')}finally{$sha.Dispose()}
+ if($actual -cne '__HASH__'){throw 'R335_PIPE_SHA256_MISMATCH'}
+ $ms=[IO.MemoryStream]::new($blob)
+ $gzip=[IO.Compression.GZipStream]::new($ms,[IO.Compression.CompressionMode]::Decompress)
+ $reader=[IO.StreamReader]::new($gzip,[Text.Encoding]::UTF8)
+ try{$trusted=$reader.ReadToEnd()}finally{$reader.Dispose();$gzip.Dispose();$ms.Dispose()}
+ $tokens=$null;$errors=$null
+ [Management.Automation.Language.Parser]::ParseInput($trusted,[ref]$tokens,[ref]$errors)|Out-Null
+ if(@($errors).Count -ne 0){throw ('R335_PIPE_HELPER_PARSE_ERRORS_'+@($errors).Count)}
+ [Console]::Out.WriteLine([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($trusted)))
+}finally{$pipe.Dispose()}
+'@
+ $probeScript=$probeScript.Replace('__PIPE__',$pipeName).Replace('__HASH__',$helperHash)
+ $probeEncoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($probeScript))
+ $probePsi=[Diagnostics.ProcessStartInfo]::new()
+ $probePsi.FileName=$system
+ $probePsi.WorkingDirectory=[IO.Path]::GetDirectoryName($system)
+ $probePsi.Arguments='-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand '+$probeEncoded
+ $probePsi.UseShellExecute=$false
+ $probePsi.CreateNoWindow=$true
+ $probePsi.RedirectStandardOutput=$true
+ $probePsi.RedirectStandardError=$true
+ $probeChild=[Diagnostics.Process]::Start($probePsi)
+ if(!$probeChild){throw 'R335_PIPE_CLIENT_PROCESS_NOT_STARTED'}
+ try{
+  $launch.SendTo($probeChild,10000)
+  $probeOutput=$probeChild.StandardOutput.ReadToEnd()
+  $probeError=$probeChild.StandardError.ReadToEnd()
+  if(!$probeChild.WaitForExit(15000)){if(!$probeChild.HasExited){$probeChild.Kill();[void]$probeChild.WaitForExit(5000)};throw 'R335_PIPE_CLIENT_PROCESS_TIMEOUT'}
+  if($probeChild.ExitCode -ne 0){throw ('R335_PIPE_CLIENT_FAILED_'+$probeChild.ExitCode+' '+$probeError)}
+  $trusted=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($probeOutput.Trim()))
+ }finally{$probeChild.Dispose()}
+}finally{$launch.Dispose()}
+Pass 'EXACT_COMPRESSED_PE_HELPER_DELIVERED_HASH_VERIFIED_AND_PS51_PARSED_OVER_PIPE'
 $literal=$cls[0].Value.Replace(([string][char]13+[string][char]10),[string][char]10)
 if(!$trusted.Contains($literal) -or
-   !$trusted.Contains('public sealed class TBMEScopedUserLogLease : IDisposable')){
- throw 'R335_TRUSTED_CSHARP_HERE_LITERAL_WAS_COMPACTED_OR_CORRUPTED'
+   !$trusted.Contains('public sealed class TBMEScopedUserLogLease : IDisposable') -or
+   !$trusted.Contains('public sealed class TBMEProtectedBrokerTreeLease : IDisposable')){
+ throw 'R335_TRUSTED_NATIVE_CSHARP_HERE_LITERAL_WAS_COMPACTED_OR_CORRUPTED'
 }
 Pass 'TRUSTED_NATIVE_CSHARP_HERE_LITERAL_PRESERVED_BYTE_IDENTICAL'
 $base=Join-Path ([IO.Path]::GetTempPath()) ('tbme_r335_loglease_'+[Guid]::NewGuid().ToString('N'))
@@ -210,8 +272,8 @@ try{
   throw 'R335_RESULT_REPARSE_WROTE_OUTSIDE_CANARY'
  }
  Pass 'RESULT_JSON_REPARSE_EXTERNAL_CANARY_INTACT'
- if($checks.Count -ne 23){throw ('R335_EXPECTED_19_CHECKS_ACTUAL_'+$checks.Count)}
- Write-Output ('R335_DISPOSABLE_USER_LOG_HANDLE_PROBE=23/23_PASS')
+ if($checks.Count -ne 24){throw ('R335_EXPECTED_24_CHECKS_ACTUAL_'+$checks.Count)}
+ Write-Output ('R335_DISPOSABLE_USER_LOG_HANDLE_PROBE=24/24_PASS')
  if($HostedGuest){
   if($HostLabel -cnotin @('A','B') -or $env:GITHUB_ACTIONS -cne 'true' -or
      $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or

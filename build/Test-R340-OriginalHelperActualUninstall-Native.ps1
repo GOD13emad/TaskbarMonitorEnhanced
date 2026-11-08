@@ -252,22 +252,43 @@ try{
  Check 'EXACT_USER_PROFILE_LOCALAPP_TEMP_PAYLOAD_AND_LOGS_PREPARED'
  $phase='LAUNCH_UNMODIFIED_SETUP_PE_RUNAS_HELPER'
  $t=$asm.GetType('SetupProgram',$true)
- $method=$t.GetMethod('BuildElevatedSensorProcessInfo',[Reflection.BindingFlags]'Static,NonPublic')
- if(!$method){throw 'R340_SETUP_PE_RUNAS_HELPER_FACTORY_NOT_PRESENT'}
+ $method=$t.GetMethod('BuildElevatedSensorLaunch',[Reflection.BindingFlags]'Static,NonPublic')
+ if(!$method){throw 'R340_SETUP_PE_RUNAS_PIPE_FACTORY_NOT_PRESENT'}
  # R340-F02: unwrap PSObject arguments for private .NET Framework reflection.
  $actualArgs=[string[]]@('Uninstall',$payload,$app,$sid)
  $arg=New-Object 'object[]' 4
  for($i=0;$i -lt $actualArgs.Length;$i++){
    $arg[$i]=$actualArgs[$i].PSObject.BaseObject
  }
- $psi=[Diagnostics.ProcessStartInfo]$method.Invoke($null,$arg)
- $native=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
- if(!$psi.UseShellExecute -or $psi.Verb -cne 'runas' -or
-    ![string]::Equals($psi.FileName,$native,[StringComparison]::OrdinalIgnoreCase) -or
-    $psi.Arguments.Contains(' -File ') -or
-    $psi.Arguments -notmatch '(?i)-EncodedCommand|-Command "' -or
-    $psi.WorkingDirectory -cne [IO.Path]::GetDirectoryName($native)){
-   throw 'R340_PE_RUNAS_EXECUTABLE_OR_TRANSPORT_NOT_VERIFIED'
+ $probeLaunch=$method.Invoke($null,$arg)
+ if(!$probeLaunch){throw 'R340_SETUP_PE_RUNAS_PIPE_LAUNCH_NULL'}
+ try{
+  $psi=[Diagnostics.ProcessStartInfo]$probeLaunch.ProcessInfo
+  $native=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
+  if(!$psi.UseShellExecute -or $psi.Verb -cne 'runas' -or
+     ![string]::Equals($psi.FileName,$native,[StringComparison]::OrdinalIgnoreCase) -or
+     $psi.Arguments.Contains(' -File ') -or
+     $psi.Arguments -notmatch '(?i)-EncodedCommand ' -or
+     $psi.Arguments.Length -gt 12000 -or
+     $psi.WorkingDirectory -cne [IO.Path]::GetDirectoryName($native) -or
+     [string]$probeLaunch.PipeName -notmatch '^TBME_SensorHelper_[0-9a-f]{32}$' -or
+     [string]$probeLaunch.HelperSHA256 -cnotmatch '^[A-F0-9]{64}$'){
+   throw 'R340_PE_RUNAS_EXECUTABLE_OR_PIPE_TRANSPORT_NOT_VERIFIED'
+  }
+ }finally{$probeLaunch.Dispose()}
+ function Start-OriginalHelper {
+  $launch=$method.Invoke($null,$arg)
+  if(!$launch){throw 'R340_ORIGINAL_PIPE_HELPER_LAUNCH_NULL'}
+  $child=$null
+  try{
+   $child=[Diagnostics.Process]::Start([Diagnostics.ProcessStartInfo]$launch.ProcessInfo)
+   if(!$child){throw 'R340_ORIGINAL_PIPE_HELPER_START_RETURNED_NULL'}
+   $launch.SendTo($child,30000)
+   return $child
+  }catch{
+   if($child){try{if(!$child.HasExited){$child.Kill();[void]$child.WaitForExit(5000)}}catch{}}
+   throw
+  }finally{$launch.Dispose()}
  }
  $nativeRunas=$true
  # R342: bounded, in-memory high-priority witness of exact owned Task
@@ -318,7 +339,7 @@ public sealed class R342TaskFileRemovalKill {
 }
 '@
  }
- $child=[Diagnostics.Process]::Start($psi)
+ $child=Start-OriginalHelper
  if(!$child){throw 'R341_ORIGINAL_EMBEDDED_HELPER_START_RETURNED_NULL'}
  if($KillAfterTaskRemoval){
    $phase='KILL_EXACT_ORIGINAL_HELPER_AFTER_SCHEDULER_TASK_MUTATION'
@@ -342,7 +363,7 @@ public sealed class R342TaskFileRemovalKill {
    Check 'ACTUAL_ORIGINAL_HELPER_KILLED_AFTER_TASK_MUTATION_BEFORE_RESULT'
    InjectTaskSettingsDrift
    $phase='RETRY_SAME_PE_PRODUCTION_HELPER_AFTER_GLOBAL_TASK_MUTATION'
-   $child=[Diagnostics.Process]::Start($psi)
+   $child=Start-OriginalHelper
    if(!$child){throw 'R342_IDENTICAL_ORIGINAL_HELPER_RETRY_NOT_STARTED'}
  }
  if($KillBeforeMutation){
@@ -390,7 +411,7 @@ public sealed class R342TaskFileRemovalKill {
    }
    Check 'ACTUAL_UNMODIFIED_HELPER_KILLED_AFTER_BEGIN_BEFORE_PROTECTED_MUTATION'
    $phase='RELAUNCH_IDENTICAL_ORIGINAL_HELPER_FOR_BOUNDED_RECOVERY'
-   $child=[Diagnostics.Process]::Start($psi)
+   $child=Start-OriginalHelper
    if(!$child){throw 'R341_SECOND_IDENTICAL_UNMODIFIED_HELPER_NOT_STARTED'}
  }
  if($KillAfterBrokerRemoval){
@@ -418,7 +439,7 @@ public sealed class R342TaskFileRemovalKill {
    Check 'ORIGINAL_HELPER_KILLED_AFTER_ACTUAL_BROKER_EXECUTABLE_DELETE_BEFORE_RESULT'
    InjectTaskSettingsDrift
    $phase='RETRY_UNMODIFIED_PRODUCTION_HELPER_AFTER_PROTECTED_FILE_MUTATION'
-   $child=[Diagnostics.Process]::Start($psi)
+   $child=Start-OriginalHelper
    if(!$child){throw 'R343_SECOND_ORIGINAL_HELPER_PROCESS_FAILED_TO_START'}
  }
  try{
@@ -470,7 +491,7 @@ public sealed class R342TaskFileRemovalKill {
      $recoveryRunPid=$childPid
      Check 'VERIFIED_PRIOR_BROKER_MARKER_AND_TASK_COLD_RESTORED_FROM_REAL_PREPARED_JOURNAL'
      $phase='THIRD_IDENTICAL_PE_HELPER_FINISHES_REQUESTED_UNINSTALL'
-     $finalChild=[Diagnostics.Process]::Start($psi)
+     $finalChild=Start-OriginalHelper
      if(!$finalChild){throw 'R344_THIRD_ORIGINAL_HELPER_NOT_STARTED'}
      try{
        $finalCleanupRunPid=$finalChild.Id

@@ -27,7 +27,7 @@ $product=Join-Path $programFiles 'TaskbarMonitorEnhanced'
 $broker=Join-Path $product 'SensorBroker'
 $root=Join-Path $env:RUNNER_TEMP ('R350_'+$HostLabel+'_'+$env:GITHUB_RUN_ID)
 $receipt=Join-Path $root 'R350_PRIVILEGED_TREE_DELETE_NATIVE.json'
-$canaryDir=Join-Path $root 'outside'
+$canaryDir=Join-Path $programFiles ('TBME_R350_OUTSIDE_'+$HostLabel+'_'+$env:GITHUB_RUN_ID)
 $canary=Join-Path $canaryDir 'OUTSIDE_CANARY.txt'
 $source=Join-Path $SourceRoot 'installer\TBME_Setup_Elevated_Helper.ps1'
 $setup=Join-Path $SourceRoot 'build\_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.10.exe'
@@ -39,6 +39,7 @@ $failure=''
 $createdProduct=$false
 $brokerFixtureCreated=$false
 $cleanupOk=$false
+$canaryCleanupOk=$false
 $expectedJunction=$null
 $beforeCanary='';$afterCanary=''
 $removedEntries=0;$validRemovedEntries=0;$markerlessRemovedEntries=0
@@ -114,7 +115,7 @@ function Remove-OwnedBrokerFixture {
  $script:brokerFixtureCreated=$false
 }
 try{
- if([IO.Directory]::Exists($product) -or [IO.Directory]::Exists($root) -or
+ if([IO.Directory]::Exists($product) -or [IO.Directory]::Exists($root) -or [IO.Directory]::Exists($canaryDir) -or
     @(Get-Process TaskbarMonitorEnhanced,TaskbarMonitorSensorBroker,TaskbarMonitorSensorSupervisor -ErrorAction SilentlyContinue).Count -or
     @(Get-ScheduledTask -TaskPath '\' -TaskName 'TaskbarMonitorEnhanced Sensor Broker' -ErrorAction SilentlyContinue | Where-Object {$null -ne $_}).Count){
   throw 'R350_PREEXISTING_PRODUCT_OR_FIXTURE_COLLISION'
@@ -149,7 +150,7 @@ try{
   $header=$embedded.LastIndexOf("Add-Type -TypeDefinition @'",$classAt,[StringComparison]::Ordinal)
   $first=$embedded.IndexOf([string][char]10,$header,[StringComparison]::Ordinal)
   $last=$embedded.IndexOf(([string][char]10+ "'@"),$classAt,[StringComparison]::Ordinal)
-  if($classAt -lt 0 -or $header -lt 0 -or $first -lt 0 -or $last -le $classAt -or $last-$first -gt 24000){
+  if($classAt -lt 0 -or $header -lt 0 -or $first -lt 0 -or $last -le $classAt -or $last-$first -gt 40000){
    throw 'R350_EXACT_REAL_CSHARP_EXTRACTION_REFUSED'
   }
   Add-Type -TypeDefinition $embedded.Substring($first+1,$last-$first-1) -ErrorAction Stop
@@ -183,6 +184,7 @@ try{
   }
   Check 'LOCAL_FIXED_NTFS_AND_DIRECTORY_INFO_LAYOUT_GUARDS'
  [void][IO.Directory]::CreateDirectory($root)
+ if([IO.Path]::GetPathRoot($canaryDir) -cne [IO.Path]::GetPathRoot($broker)){throw 'R350_HARDLINK_CANARY_NOT_SAME_VOLUME'}
  [void][IO.Directory]::CreateDirectory($canaryDir)
  [IO.File]::WriteAllText($canary,'R350_OUTSIDE_CANARY',[Text.UTF8Encoding]::new($false))
  $beforeCanary=Hash $canary
@@ -324,6 +326,21 @@ try{
    $cleanupOk=-not [IO.Directory]::Exists($product)
   }
  }catch{$failure+=' R350_CLEANUP_REFUSED '+$_.Exception.ToString()}
+ try{
+  $canaryCleanupOk=-not [IO.Directory]::Exists($canaryDir)
+  if([IO.Directory]::Exists($canaryDir)){
+   if(([IO.File]::GetAttributes($canaryDir) -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'R350_CANARY_CLEANUP_REPARSE_REFUSED'}
+   $canaryMembers=@([IO.Directory]::GetFileSystemEntries($canaryDir))
+   if($canaryMembers.Count -gt 1 -or ($canaryMembers.Count -eq 1 -and $canaryMembers[0] -cne $canary)){throw 'R350_CANARY_CLEANUP_UNEXPECTED_MEMBER'}
+   if([IO.File]::Exists($canary)){
+    if($beforeCanary -and (Hash $canary) -cne $beforeCanary){throw 'R350_CANARY_CLEANUP_HASH_MISMATCH'}
+    [IO.File]::Delete($canary)
+   }
+   [IO.Directory]::Delete($canaryDir,$false)
+   $canaryCleanupOk=-not [IO.Directory]::Exists($canaryDir)
+  }
+  $cleanupOk=$cleanupOk -and $canaryCleanupOk
+ }catch{$failure+=' R350_CANARY_CLEANUP_REFUSED '+$_.Exception.ToString()}
  if([IO.Directory]::Exists($root)){
   [IO.File]::WriteAllText($receipt,([ordered]@{
    Schema=1;Revision='R350';Status=$(if(!$failure -and $checks.Count -eq 24 -and $cleanupOk -and $validRemovedEntries -eq 5 -and $markerlessRemovedEntries -eq 4){'PASS_R350_PRIVILEGED_HANDLE_BOUND_TREE_DELETE'}else{'FAIL_R350_PRIVILEGED_HANDLE_BOUND_TREE_DELETE'})
@@ -336,7 +353,7 @@ try{
    OriginalFullHelperExecuted=$false;RealUninstallEntrypointExecuted=$false
    ActualUserInstallationChanged=$false;SecurityEntireProductAccepted=$false
    ValidRemovedEntries=$validRemovedEntries;MarkerlessRemovedEntries=$markerlessRemovedEntries;RemovedEntries=$removedEntries;Checks=@($checks);OutsideCanarySHA256Before=$beforeCanary
-   OutsideCanarySHA256After=$afterCanary;CleanupOwnedProgramFilesFixture=$cleanupOk;Failure=$failure
+   OutsideCanarySHA256After=$afterCanary;CleanupOwnedProgramFilesFixture=$cleanupOk;CleanupOwnedCanaryDirectory=$canaryCleanupOk;Failure=$failure
   }|ConvertTo-Json -Depth 7),[Text.UTF8Encoding]::new($false))
   Write-Output ('R350_NATIVE_RECEIPT='+$receipt)
  }

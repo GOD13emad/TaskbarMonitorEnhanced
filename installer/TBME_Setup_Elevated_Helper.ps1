@@ -126,6 +126,9 @@ $validatedSensorSid=Assert-SensorPrivilegedBoundary $Mode $PayloadDir $AppRoot $
 Add-Type -TypeDefinition @'
 using System;
 using System.IO;
+using System.Text;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 public sealed class TBMEScopedUserLogLease : IDisposable {
@@ -399,16 +402,6 @@ for(int i=count-1;i>=0;i--)if(parents[i]!=null)parents[i].Dispose();
 count=0;
 }
 }
-'@
-
-Add-Type -TypeDefinition @'
-using System;
-using System.IO;
-using System.Text;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
-using Microsoft.Win32.SafeHandles;
 public sealed class TBMEProtectedBrokerTreeLease : IDisposable {
  const uint DELETE_ACCESS=0x00010000, FILE_LIST_DIRECTORY=0x00000001, FILE_READ_ATTRIBUTES=0x00000080, GENERIC_READ=0x80000000;
  const uint SHARE_READ=1, SHARE_WRITE=2, OPEN_EXISTING=3, BACKUP_SEMANTICS=0x02000000, OPEN_REPARSE_POINT=0x00200000;

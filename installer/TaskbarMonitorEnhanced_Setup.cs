@@ -7,6 +7,8 @@ using System.Drawing;
 using System.IO;
 using System.Globalization;
 using System.IO.Compression;
+using System.IO.Pipes;
+using System.Security.AccessControl;
 using System.Reflection;
 using System.Security.Principal;
 using System.Security.Cryptography;
@@ -331,7 +333,94 @@ static string AppExe { get { return Path.Combine(AppRoot,"TaskbarMonitorEnhanced
             throw new InvalidDataException("Trusted native helper literal not balanced.");
         return compact.ToString();
     }
-    static string BuildElevatedHelperCommand(string mode,string payload,string appRoot,string user)
+    static string Sha256Bytes(byte[] bytes)
+    {
+        using(SHA256 sha=SHA256.Create())
+            return BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-","");
+    }
+
+    public sealed class ElevatedSensorLaunch : IDisposable
+    {
+        readonly NamedPipeServerStream server;
+        readonly byte[] packedHelper;
+        bool disposed;
+        bool sent;
+        public ProcessStartInfo ProcessInfo { get; private set; }
+        public string PipeName { get; private set; }
+        public string HelperSHA256 { get; private set; }
+        public int CompressedHelperBytes { get; private set; }
+
+        internal ElevatedSensorLaunch(ProcessStartInfo psi,NamedPipeServerStream pipe,
+            byte[] packed,string pipeName,string helperHash)
+        {
+            ProcessInfo=psi;
+            server=pipe;
+            packedHelper=packed;
+            PipeName=pipeName;
+            HelperSHA256=helperHash;
+            CompressedHelperBytes=packed.Length;
+        }
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll",SetLastError=true)]
+        static extern bool GetNamedPipeClientProcessId(IntPtr pipe,out uint clientPid);
+
+        public void SendTo(Process child,int timeoutMs)
+        {
+            if(disposed||sent||child==null||timeoutMs<1000)
+                throw new InvalidOperationException("TBME_HELPER_PIPE_LAUNCH_STATE_INVALID");
+            Exception failure=null;
+            bool delivered=false;
+            ManualResetEvent finished=new ManualResetEvent(false);
+            Thread sender=new Thread(new ThreadStart(delegate{
+                try{
+                    DateTime deadline=DateTime.UtcNow.AddMilliseconds(timeoutMs);
+                    while(DateTime.UtcNow<deadline){
+                        server.WaitForConnection();
+                        uint clientPid=0;
+                        if(!GetNamedPipeClientProcessId(server.SafePipeHandle.DangerousGetHandle(),out clientPid))
+                            throw new IOException("TBME_HELPER_PIPE_CLIENT_PID_QUERY_FAILED_WIN32_"+System.Runtime.InteropServices.Marshal.GetLastWin32Error());
+                        if(clientPid!=(uint)child.Id){
+                            server.Disconnect();
+                            continue;
+                        }
+                        byte[] header=BitConverter.GetBytes(packedHelper.Length);
+                        server.Write(header,0,header.Length);
+                        server.Write(packedHelper,0,packedHelper.Length);
+                        server.Flush();
+                        server.WaitForPipeDrain();
+                        delivered=true;
+                        break;
+                    }
+                    if(!delivered)throw new TimeoutException("TBME_HELPER_PIPE_CLIENT_TIMEOUT");
+                }catch(Exception ex){failure=ex;}
+                finally{try{finished.Set();}catch{}}
+            }));
+            sender.IsBackground=true;
+            sender.Start();
+            DateTime waitDeadline=DateTime.UtcNow.AddMilliseconds(timeoutMs);
+            while(!finished.WaitOne(100)){
+                if(child.HasExited||DateTime.UtcNow>=waitDeadline){
+                    try{server.Dispose();}catch{}
+                    finished.WaitOne(1000);
+                    break;
+                }
+                Application.DoEvents();
+            }
+            if(finished.WaitOne(0))finished.Dispose();
+            if(failure!=null)throw new InvalidOperationException("Could not deliver the trusted PE helper over its private pipe.",failure);
+            if(!delivered)throw new IOException("TBME_HELPER_PIPE_DELIVERY_NOT_CONFIRMED");
+            sent=true;
+        }
+
+        public void Dispose()
+        {
+            if(disposed)return;
+            disposed=true;
+            if(server!=null)server.Dispose();
+        }
+    }
+
+    static ElevatedSensorLaunch BuildElevatedSensorLaunch(string mode,string payload,string appRoot,string user)
     {
         if(mode!="Install" && mode!="Uninstall")
             throw new InvalidDataException("Unexpected elevated sensor mode.");
@@ -340,7 +429,8 @@ static string AppExe { get { return Path.Combine(AppRoot,"TaskbarMonitorEnhanced
         string backendZipHash=Sha256Resource("Payload.LibreHardwareMonitor.zip");
         if(brokerHash.Length!=64 || supervisorHash.Length!=64 || backendZipHash.Length!=64)
             throw new InvalidDataException("Protected sensor resource hash unavailable.");
-        string packed;
+
+        byte[] packed;
         using(Stream resource=Resource("Payload.TBME_Setup_Elevated_Helper.ps1"))
         {
             if(resource==null)throw new InvalidDataException("Trusted embedded sensor helper missing.");
@@ -354,45 +444,68 @@ static string AppExe { get { return Path.Combine(AppRoot,"TaskbarMonitorEnhanced
                 {
                     using(GZipStream zipper=new GZipStream(buffer,CompressionMode.Compress,true))
                         zipper.Write(textBytes,0,textBytes.Length);
-                    packed=Convert.ToBase64String(buffer.ToArray());
+                    packed=buffer.ToArray();
                 }
             }
         }
-        // Every caller-supplied parameter is separately base64-encoded as data.
-        // In particular, a quoted Windows user/path cannot inject PowerShell syntax.
+
+        string pipeName="TBME_SensorHelper_"+Guid.NewGuid().ToString("N");
+        string helperHash=Sha256Bytes(packed);
         string script=
           "$ErrorActionPreference='Stop'\n"+
-          "$blob=[Convert]::FromBase64String('"+packed+"')\n"+
-          "$ms=[IO.MemoryStream]::new($blob)\n"+
-          "$gzip=[IO.Compression.GZipStream]::new($ms,[IO.Compression.CompressionMode]::Decompress)\n"+
-          "$reader=[IO.StreamReader]::new($gzip,[Text.Encoding]::UTF8)\n"+
-          "try{$code=$reader.ReadToEnd()}finally{$reader.Dispose();$gzip.Dispose();$ms.Dispose()}\n"+
+          "$pipe=[IO.Pipes.NamedPipeClientStream]::new('.','"+pipeName+"',[IO.Pipes.PipeDirection]::In)\n"+
+          "try{\n"+
+          " $pipe.Connect(30000)\n"+
+          " $header=New-Object byte[] 4;$offset=0\n"+
+          " while($offset -lt 4){$n=$pipe.Read($header,$offset,4-$offset);if($n -le 0){throw 'TBME_HELPER_PIPE_HEADER_EOF'};$offset+=$n}\n"+
+          " $length=[BitConverter]::ToInt32($header,0)\n"+
+          " if($length -lt 1000 -or $length -gt 120000){throw 'TBME_HELPER_PIPE_LENGTH_INVALID'}\n"+
+          " $blob=New-Object byte[] $length;$offset=0\n"+
+          " while($offset -lt $length){$n=$pipe.Read($blob,$offset,$length-$offset);if($n -le 0){throw 'TBME_HELPER_PIPE_BODY_EOF'};$offset+=$n}\n"+
+          " $sha=[Security.Cryptography.SHA256]::Create()\n"+
+          " try{$actual=([BitConverter]::ToString($sha.ComputeHash($blob))).Replace('-','')}finally{$sha.Dispose()}\n"+
+          " if($actual -cne '"+helperHash+"'){throw 'TBME_HELPER_PIPE_SHA256_MISMATCH'}\n"+
+          " $ms=[IO.MemoryStream]::new($blob)\n"+
+          " $gzip=[IO.Compression.GZipStream]::new($ms,[IO.Compression.CompressionMode]::Decompress)\n"+
+          " $reader=[IO.StreamReader]::new($gzip,[Text.Encoding]::UTF8)\n"+
+          " try{$code=$reader.ReadToEnd()}finally{$reader.Dispose();$gzip.Dispose();$ms.Dispose()}\n"+
+          "}finally{$pipe.Dispose()}\n"+
           "$payload=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(payload)+"'))\n"+
           "$app=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(appRoot)+"'))\n"+
           "$user=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Base64Utf8Argument(user)+"'))\n"+
           "& ([ScriptBlock]::Create($code)) -Mode '"+mode+"' -PayloadDir $payload -AppRoot $app -UserId $user -ExpectedBrokerSHA256 '"+brokerHash+"' -ExpectedSupervisorSHA256 '"+supervisorHash+"' -ExpectedBackendZipSHA256 '"+backendZipHash+"'\n";
         string encoded=Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
-        // Preserve the established UTF-16 EncodedCommand path when it fits.
-        // Windows Process creation caps the entire command line at 32,767 chars.
-        if(encoded.Length<=32000)
-            return "-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "+encoded;
-        // R304: the SAME in-memory, PE-embedded trusted helper can be transported
-        // as a constant PowerShell -Command string for long profile names.
-        // Variable caller input is only UTF-8/Base64 data; mode is whitelisted
-        // and resource digests are SHA-256 hex. No user-controlled quote or
-        // PowerShell tokens can enter this command source. Never use -File.
-        if(script.IndexOf('"')>=0 || script.IndexOf('\0')>=0)
-            throw new InvalidDataException("Unexpected quote or null in trusted helper bootstrap.");
-        string fallback="-NoProfile -NonInteractive -WindowStyle Hidden -Command \"& { "+script+" }\"";
-        // Leave margin for the executable path and OS quoting. A truly huge
-        // value must still fail closed instead of truncating or using Temp.
-        if(fallback.Length>30000)
-            throw new InvalidDataException("Trusted sensor helper command exceeds safe limit.");
-        return fallback;
+        if(encoded.Length>12000 || !Regex.IsMatch(encoded,@"^[A-Za-z0-9+/=]+$"))
+            throw new InvalidDataException("Trusted sensor helper pipe bootstrap is not bounded.");
+
+        WindowsIdentity identity=WindowsIdentity.GetCurrent();
+        if(identity==null||identity.User==null)
+            throw new InvalidOperationException("Trusted helper pipe owner SID unavailable.");
+        PipeSecurity pipeSecurity=new PipeSecurity();
+        pipeSecurity.SetAccessRuleProtection(true,false);
+        pipeSecurity.SetOwner(identity.User);
+        pipeSecurity.AddAccessRule(new PipeAccessRule(identity.User,PipeAccessRights.FullControl,AccessControlType.Allow));
+        SecurityIdentifier systemSid=new SecurityIdentifier(WellKnownSidType.LocalSystemSid,null);
+        pipeSecurity.AddAccessRule(new PipeAccessRule(systemSid,PipeAccessRights.FullControl,AccessControlType.Allow));
+
+        NamedPipeServerStream pipe=null;
+        try{
+            pipe=new NamedPipeServerStream(pipeName,PipeDirection.Out,1,PipeTransmissionMode.Byte,
+                PipeOptions.None,4096,4096,pipeSecurity);
+            ProcessStartInfo psi=new ProcessStartInfo();
+            psi.FileName=TrustedSystemPowerShellPath();
+            psi.WorkingDirectory=Path.GetDirectoryName(psi.FileName);
+            psi.Arguments="-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand "+encoded;
+            psi.UseShellExecute=true;
+            psi.Verb="runas";
+            ElevatedSensorLaunch launch=new ElevatedSensorLaunch(psi,pipe,packed,pipeName,helperHash);
+            pipe=null;
+            return launch;
+        }finally{
+            if(pipe!=null)pipe.Dispose();
+        }
     }
 
-    // R298: runas uses ShellExecuteEx, which searches the current directory,
-    // Windows and PATH for an unqualified executable. Pin the native OS host.
     static string TrustedSystemPowerShellPath()
     {
         string system=Path.GetFullPath(Environment.SystemDirectory);
@@ -411,59 +524,54 @@ static string AppExe { get { return Path.Combine(AppRoot,"TaskbarMonitorEnhanced
         return exe;
     }
 
-    // Kept separate from Process.Start so the exact runas target can be
-    // inspected in disposable Windows without granting UAC or starting it.
-    static ProcessStartInfo BuildElevatedSensorProcessInfo(string mode,string payload,string appRoot,string user)
-    {
-        ProcessStartInfo psi=new ProcessStartInfo();
-        psi.FileName=TrustedSystemPowerShellPath();
-        psi.WorkingDirectory=Path.GetDirectoryName(psi.FileName);
-        psi.Arguments=BuildElevatedHelperCommand(mode,payload,appRoot,user);
-        psi.UseShellExecute=true;
-        psi.Verb="runas";
-        return psi;
-    }
-
     static int ElevatedHelper(string mode,string payload,string appRoot,string user,int timeoutMs)
     {
-        ProcessStartInfo psi=BuildElevatedSensorProcessInfo(mode,payload,appRoot,user);
+        using(ElevatedSensorLaunch launch=BuildElevatedSensorLaunch(mode,payload,appRoot,user))
+        {
+            Process elevated=null;
+            Exception launchError=null;
+            ManualResetEvent launchFinished=new ManualResetEvent(false);
+            Thread launchThread=new Thread(new ThreadStart(delegate{
+                try{elevated=Process.Start(launch.ProcessInfo);}
+                catch(Exception ex){launchError=ex;}
+                finally{try{launchFinished.Set();}catch{}}
+            }));
+            launchThread.IsBackground=true;
+            try{launchThread.SetApartmentState(ApartmentState.STA);}catch{}
 
-        Process elevated=null;
-        Exception launchError=null;
-        ManualResetEvent launchFinished=new ManualResetEvent(false);
-        Thread launchThread=new Thread(new ThreadStart(delegate{
-            try{elevated=Process.Start(psi);}
-            catch(Exception ex){launchError=ex;}
-            finally{try{launchFinished.Set();}catch{}}
-        }));
-        launchThread.IsBackground=true;
-        try{launchThread.SetApartmentState(ApartmentState.STA);}catch{}
+            DateTime overallDeadline=DateTime.UtcNow.AddMilliseconds(timeoutMs);
+            launchThread.Start();
 
-        DateTime overallDeadline=DateTime.UtcNow.AddMilliseconds(timeoutMs);
-        launchThread.Start();
+            int launchBudget=Math.Min(30000,Math.Max(1000,timeoutMs));
+            DateTime launchDeadline=DateTime.UtcNow.AddMilliseconds(launchBudget);
+            while(!launchFinished.WaitOne(100) && DateTime.UtcNow<launchDeadline)
+                Application.DoEvents();
 
-        int launchBudget=Math.Min(30000,Math.Max(1000,timeoutMs));
-        DateTime launchDeadline=DateTime.UtcNow.AddMilliseconds(launchBudget);
-        while(!launchFinished.WaitOne(100) && DateTime.UtcNow<launchDeadline)
-            Application.DoEvents();
+            if(!launchFinished.WaitOne(0))
+                return 125;
 
-        if(!launchFinished.WaitOne(0))
-            return 125;
+            if(launchError!=null)
+                throw new InvalidOperationException("Could not start protected-sensor helper.",launchError);
+            if(elevated==null)
+                throw new InvalidOperationException("Could not start protected-sensor helper.");
 
-        if(launchError!=null)
-            throw new InvalidOperationException("Could not start protected-sensor helper.",launchError);
-        if(elevated==null)
-            throw new InvalidOperationException("Could not start protected-sensor helper.");
+            try{
+                launch.SendTo(elevated,Math.Min(30000,Math.Max(1000,timeoutMs)));
+            }catch{
+                try{if(!elevated.HasExited){elevated.Kill();elevated.WaitForExit(5000);}}catch{}
+                throw;
+            }
 
-        while(!elevated.HasExited && DateTime.UtcNow<overallDeadline){
-            Application.DoEvents();
-            Thread.Sleep(100);
+            while(!elevated.HasExited && DateTime.UtcNow<overallDeadline){
+                Application.DoEvents();
+                Thread.Sleep(100);
+            }
+            if(!elevated.HasExited){
+                try{elevated.Kill();}catch{}
+                return 124;
+            }
+            return elevated.ExitCode;
         }
-        if(!elevated.HasExited){
-            try{elevated.Kill();}catch{}
-            return 124;
-        }
-        return elevated.ExitCode;
     }
 
     // R323: remove only shortcuts that still point at this product and retain

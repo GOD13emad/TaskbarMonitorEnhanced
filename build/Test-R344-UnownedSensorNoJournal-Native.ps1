@@ -63,16 +63,26 @@ function RefuseReparse([string]$path){
   throw 'R344_NEGATIVE_FIXTURE_REPARSE_NOT_OWNED'
  }
 }
-function RunOriginalHelper([Diagnostics.ProcessStartInfo]$psi,[string]$reason){
- $child=[Diagnostics.Process]::Start($psi)
- if(!$child){throw 'R344_NEGATIVE_ORIGINAL_HELPER_NOT_STARTED'}
+function RunOriginalHelper([string]$reason){
+ $launch=$factory.Invoke($null,$values)
+ if(!$launch){throw 'R344_NEGATIVE_ORIGINAL_PIPE_HELPER_LAUNCH_NULL'}
+ $child=$null
  try{
+  $child=[Diagnostics.Process]::Start([Diagnostics.ProcessStartInfo]$launch.ProcessInfo)
+  if(!$child){throw 'R344_NEGATIVE_ORIGINAL_HELPER_NOT_STARTED'}
+  $launch.SendTo($child,30000)
   if(!$child.WaitForExit(45000)){
    if(!$child.HasExited){$child.Kill();[void]$child.WaitForExit(5000)}
    throw 'R344_NEGATIVE_ORIGINAL_HELPER_TIMEOUT'
   }
   if($child.ExitCode -ne 0){throw ('R344_NEGATIVE_HELPER_EXIT_NONZERO_'+$child.ExitCode)}
- }finally{$child.Dispose()}
+ }catch{
+  if($child){try{if(!$child.HasExited){$child.Kill();[void]$child.WaitForExit(5000)}}catch{}}
+  throw
+ }finally{
+  if($child){$child.Dispose()}
+  $launch.Dispose()
+ }
  $script:startupCount++
  if(![IO.File]::Exists($result) -or ![IO.File]::Exists($log)){
   throw 'R344_NEGATIVE_MISSING_REAL_HELPER_STATUS_OR_LOG'
@@ -144,26 +154,33 @@ try{
   [void][IO.Directory]::CreateDirectory($logs);$logsCreated=$true
  }
  [void][IO.Directory]::CreateDirectory($payload);$payloadCreated=$true
- $type=$asm.GetType('SetupProgram',$true)
- $factory=$type.GetMethod('BuildElevatedSensorProcessInfo',[Reflection.BindingFlags]'NonPublic,Static')
- if(!$factory){throw 'R344_NEGATIVE_PRODUCTION_RUNAS_FACTORY_MISSING'}
+$type=$asm.GetType('SetupProgram',$true)
+ $factory=$type.GetMethod('BuildElevatedSensorLaunch',[Reflection.BindingFlags]'NonPublic,Static')
+ if(!$factory){throw 'R344_NEGATIVE_PRODUCTION_RUNAS_PIPE_FACTORY_MISSING'}
  $actual=[string[]]@('Uninstall',$payload,$app,$sid)
  $values=New-Object 'object[]' 4
  for($i=0;$i -lt 4;$i++){$values[$i]=$actual[$i].PSObject.BaseObject}
- $psi=[Diagnostics.ProcessStartInfo]$factory.Invoke($null,$values)
- if(!$psi.UseShellExecute -or $psi.Verb -cne 'runas' -or
-    -not [string]::Equals($psi.FileName,$native,[StringComparison]::OrdinalIgnoreCase)){
-  throw 'R344_NEGATIVE_NOT_ORIGINAL_SYSTEM32_RUNAS_PE_HELPER'
- }
+ $probeLaunch=$factory.Invoke($null,$values)
+ if(!$probeLaunch){throw 'R344_NEGATIVE_PRODUCTION_PIPE_LAUNCH_NULL'}
+ try{
+  $psi=[Diagnostics.ProcessStartInfo]$probeLaunch.ProcessInfo
+  if(!$psi.UseShellExecute -or $psi.Verb -cne 'runas' -or
+     -not [string]::Equals($psi.FileName,$native,[StringComparison]::OrdinalIgnoreCase) -or
+     $psi.Arguments -notmatch '(?i)-EncodedCommand ' -or $psi.Arguments.Length -gt 12000 -or
+     [string]$probeLaunch.PipeName -notmatch '^TBME_SensorHelper_[0-9a-f]{32}$' -or
+     [string]$probeLaunch.HelperSHA256 -cnotmatch '^[A-F0-9]{64}$'){
+   throw 'R344_NEGATIVE_NOT_ORIGINAL_SYSTEM32_RUNAS_PIPE_HELPER'
+  }
+ }finally{$probeLaunch.Dispose()}
  Note 'BOUNDED_ADMIN_OWNED_MARKERLESS_PROGRAMFILES_BROKER_CREATED_WITHOUT_JOURNAL_OR_TASK'
  $phase='ORIGINAL_HELPER_REFUSES_MISSING_OWNER_WITHOUT_DURABLE_JOURNAL'
- RunOriginalHelper $psi 'UNOWNED_SHARED_PROGRAMFILES_BROKER_WITHOUT_TASK'
+ RunOriginalHelper 'UNOWNED_SHARED_PROGRAMFILES_BROKER_WITHOUT_TASK'
  if([IO.File]::Exists($ownerMarker)){throw 'R344_NEGATIVE_HELPER_CREATED_MISSING_OWNER_MARKER'}
  Note 'ABSENT_JOURNAL_DID_NOT_FABRICATE_SENSOR_OWNER_MARKER'
  $phase='ORIGINAL_HELPER_REFUSES_FOREIGN_MARKER_WITHOUT_DURABLE_JOURNAL'
  [IO.File]::WriteAllText($ownerMarker,'S-1-5-21-0-0-0-1',[Text.Encoding]::ASCII)
  $markerHash=SHA $ownerMarker
- RunOriginalHelper $psi 'PROTECTED_SENSOR_OWNER_MARKER_MISMATCH'
+ RunOriginalHelper 'PROTECTED_SENSOR_OWNER_MARKER_MISMATCH'
  if((SHA $ownerMarker) -cne $markerHash){throw 'R344_NEGATIVE_FOREIGN_SID_MARKER_CHANGED'}
  Note 'OTHER_ACCOUNT_MARKER_BYTE_EXACT_AND_NO_UNTRUSTED_SENSOR_CLEANUP'
 }catch{
