@@ -1,3 +1,18 @@
+<!-- TBME:R303_OWNER_HOST_READONLY_PREFLIGHT:BEGIN -->
+## R303 - owner computer release-PE verification and unresolved personal interaction gate
+
+- 2026-11-08T03:46:07.1871975Z: source Git main f4154e44caeb724e004b73a91dd4e4bd1a9e4176, release v1.7.10 tag 6effbb8083615f5673f6df22a3b0782b33595ad3. Public immutable release, CI and seven assets already accepted under R301; no change to published files.
+- Local, read-only execution of exact released Setup 1.7.10 /verify /verifyfile in the personal Windows session PASS: 25 embedded resources, expected Main SHA256 715CDA5E666E12C5FF2BCD46D513467CCEFEABE43A76F77689F604D4F432F2D7, PawnIOBundled=false; project-local receipt .local/audit/R303_OWNER_PC_RELEASE_SETUP_VERIFY.json SHA256 8F332CC62BBF72076B2ED60D9FA17F7C9C144D51FE6724E70E603E2747BED53B. User installed v1.7.9 Main/Uninstall and running process unchanged. Official release tag fetched and checked locally without branch mutation.
+- Live Win32 read-only window traversal found the current overlay hwnd 132402 directly parented to Explorer Shell_TrayWnd hwnd 65892, visible within taskbar bounds (both HWNDs ephemeral; not stable IDs). No standalone owner-controlled top-level application window was returned by Remote Commander. Provider workspace_agentos_plan BLOCKED SEMANTIC_PROVIDER_UNAVAILABLE and workspace_window_observe refused WORKSPACE_DRIVER_UNAVAILABLE. GUI policy explicitly disallows takeover without current attestation. Do NOT bypass with raw WM_CLOSE, SendInput or injected shell control.
+- Real owner application source has normal context menu Exit handler (UserExitRequested=true; Close()), but actual Setup UpgradeExisting calls EnsureAppNotRunning and rejects any still-running Main without mutation. Therefore installation cannot safely proceed until normal in-app Exit is triggered by an authorized owner UI or an attested GUI control provider. This is a genuine personal-device dependency, not a failed hosted upgrade.
+- Active owner log sample: no ERROR among last 800 entries; 17 CPU temperature warning events paired with sound requests, but red Glass rendering not physically witnessed. User config RecordTrafficHistory=false, no installed traffic_history.json. TRAFFIC_HISTORY_READ ArgumentException and WRITE IOException in separate short-lived daily test log match expected intentionally malformed/unwritable TrafficLedger negative fixtures in WorkspaceSelfTest; do not misclassify as active user data corruption.
+- Scoped current host vulnerable-driver investigation: no exact service R0TaskbarMonitor, WinRing0 or WinRing0x64, no reported legacy C:/Program Files/TaskbarMonitor/TaskbarMonitor.sys, current source/installer direct string hits zero, and PawnIO service running. Issue #6 https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6#issuecomment-6716850981 remains OPEN: original reporter path, SHA, Defender state and provenance not proven. Do not claim security clearance or false positive.
+- Existing private Notion coordination mirror synchronized: https://app.notion.com/p/412d5b4a86f681c29173c01fc4c75842. No second technical authority.
+- Next acceptance: owner uses normal app context menu Exit, or an attested same-session semantic provider with permitted input; perform exact SHA-pinned /update /quiet and verify registry/user config and sensor canaries, then re-open and physically witness Start/Settings/Glass without another forced process termination. RELEASE_FINAL=PASS; OWNER_DEVICE_FINAL=PENDING.
+<!-- TBME:R303_OWNER_HOST_READONLY_PREFLIGHT:END -->
+
+---
+
 <!-- TBME:R301_IMMUTABLE_PUBLIC_V1710_RELEASE_VERIFIED:BEGIN -->
 ## R301 - Official immutable v1.7.10 published, G16 public seven-asset verification PASS
 
