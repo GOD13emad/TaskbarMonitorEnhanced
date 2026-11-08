@@ -2,7 +2,7 @@ name: R289 isolated v1.7.8 to v1.7.9 Z-order Setup recovery
 
 on:
   push:
-    branches: [main, development/v1.7.9-zorder-fix]
+    branches: [development/v1.7.9-zorder-fix]
     paths:
       - 'src/**'
       - 'installer/**'

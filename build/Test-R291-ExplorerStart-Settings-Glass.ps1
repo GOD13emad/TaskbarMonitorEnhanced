@@ -47,7 +47,7 @@ public static class R146Native {
 Add-Type -TypeDefinition $native -Language CSharp
 $manifest=Get-Content (Join-Path $CandidateDir 'CANDIDATE.json') -Raw|ConvertFrom-Json
 if($manifest.Commit -cne $env:GITHUB_SHA -or $manifest.Private -ne $true){throw 'R146_NOT_EXACT_PRIVATE_BUILD_ARTIFACT'}
-$setup=Join-Path $CandidateDir 'Setup\TaskbarMonitorEnhanced_Setup_1.7.9.exe'
+$setup=Join-Path $CandidateDir 'Setup\TaskbarMonitorEnhanced_Setup_1.7.10.exe'
 if((Get-FileHash $setup -Algorithm SHA256).Hash -cne $manifest.SetupSHA256){throw 'R146_SETUP_SHA'}
 $app=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced'
 $reg='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced'
@@ -56,7 +56,7 @@ if((Test-Path $out) -or @(Get-Process TaskbarMonitorEnhanced -ErrorAction Silent
 if($UseInstalledCandidate){
  if(!(Test-Path $app) -or !(Test-Path $reg) -or (Test-Path (Join-Path $app '.tbme-upgrade'))){throw 'R273_VERIFIED_EXISTING_CANDIDATE_REQUIRED'}
  $s=Get-Content (Join-Path $app 'install_state.json') -Raw|ConvertFrom-Json
- if($s.Version -cne '1.7.9' -or (Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe') -Algorithm SHA256).Hash -cne $manifest.MainSHA256){throw 'R291_NATIVE_INSTALLED_SHA_OR_VERSION'}
+ if($s.Version -cne '1.7.10' -or (Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe') -Algorithm SHA256).Hash -cne $manifest.MainSHA256){throw 'R291_NATIVE_INSTALLED_SHA_OR_VERSION'}
 }else{if((Test-Path $app) -or (Test-Path $reg)){throw 'R291_NATIVE_FRESH_VM_REQUIRED'}}
 New-Item -ItemType Directory -Path $out|Out-Null
 $visualFailures=New-Object 'Collections.Generic.List[string]'
