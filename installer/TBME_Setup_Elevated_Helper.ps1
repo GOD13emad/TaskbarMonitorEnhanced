@@ -1448,13 +1448,32 @@ function Restore-SensorJournalPriorLayerAndTask(
         throw 'SENSOR_COLD_REPLAY_XML_DATA_CHANGED'
     }
     if([bool]$record.TaskPresent){
-        if(-not $previousTaskPresent){
-            # A unique known task name is required absent, and we never
-            # use -Force (which could overwrite an unrelated task).
+        if($previousTaskPresent){
+            # The live task passed the strict owner/action/trigger/XML policy.
+            # If its exported XML differs from the journal snapshot, restore
+            # the exact prior task. -Force is allowed only after that proof.
+            $currentTaskXml=[string](Export-ScheduledTask -TaskPath '\' -TaskName $TaskName -ErrorAction Stop)
+            if(-not [string]::Equals($currentTaskXml,$oldXml,[StringComparison]::Ordinal)){
+                if(-not (Test-SensorOwnedTaskRegistration $TaskName $ExpectedSid $LiveBrokerRoot $TrustedAppRoot)){
+                    throw 'SENSOR_COLD_TASK_CHANGED_BEFORE_SNAPSHOT_RESTORE'
+                }
+                $revalidatedTaskXml=[string](Export-ScheduledTask -TaskPath '\' -TaskName $TaskName -ErrorAction Stop)
+                if(-not [string]::Equals($revalidatedTaskXml,$currentTaskXml,[StringComparison]::Ordinal)){
+                    throw 'SENSOR_COLD_TASK_CHANGED_DURING_SNAPSHOT_RESTORE'
+                }
+                Register-ScheduledTask -TaskPath '\' -TaskName $TaskName -Xml $oldXml -Force -ErrorAction Stop|Out-Null
+            }
+        }else{
+            # The task name is absent; never force-overwrite a task created
+            # after the absence check.
             Register-ScheduledTask -TaskPath '\' -TaskName $TaskName -Xml $oldXml -ErrorAction Stop|Out-Null
         }
         if(-not (Test-SensorOwnedTaskRegistration $TaskName $ExpectedSid $LiveBrokerRoot $TrustedAppRoot)){
             throw 'SENSOR_COLD_REGISTERED_TASK_READBACK_INVALID'
+        }
+        $restoredTaskXml=[string](Export-ScheduledTask -TaskPath '\' -TaskName $TaskName -ErrorAction Stop)
+        if(-not [string]::Equals($restoredTaskXml,$oldXml,[StringComparison]::Ordinal)){
+            throw 'SENSOR_COLD_REGISTERED_TASK_XML_NOT_EXACT'
         }
     }else{
         if($previousTaskPresent){

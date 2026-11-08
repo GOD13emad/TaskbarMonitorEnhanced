@@ -69,12 +69,39 @@ $nativeRunas=$false;$usesRealUnmodifiedResource=$false
 $deliberateKill=$false;$killedFirstPid=0;$originalTaskIntactAtKill=$false
 $deliberatePostTaskKill=$false;$taskRemovedAtKill=$false;$resultAbsentAtKill=$false;$postKilledPid=0
 $deliberatePostFileKill=$false;$fileRemovedAtKill=$false;$taskGoneAtFileKill=$false;$protectedRootPresentAtFileKill=$null;$ownerMarkerPresentAtFileKill=$null;$fileKilledPid=0
-$journalColdRestored=$false;$recoveryRunPid=0;$finalCleanupRunPid=0;$recoveryTaskXmlExact=$false;$recoveryTaskTrustMatch=$false;$firstHelperStatus='';$oldOwnedBrokerHashesRestored=$false
+$journalColdRestored=$false;$recoveryRunPid=0;$finalCleanupRunPid=0;$recoveryTaskXmlExact=$false;$recoveryTaskTrustMatch=$false;$taskSettingsDriftInjected=$false;$firstHelperStatus='';$oldOwnedBrokerHashesRestored=$false
 function Hash([string]$file){return (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash}
 function Check([string]$check){$script:checks.Add($check);Write-Output ('PASS '+$check)}
 function TaskExists(){
  return (@(Get-ScheduledTask -TaskName $task -TaskPath '\' -ErrorAction SilentlyContinue|
     Where-Object{$null -ne $_}).Count -ne 0)
+}
+function InjectTaskSettingsDrift(){
+ $priorXml=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($script:exportedXmlHash))
+ $before='<AllowStartOnDemand>false</AllowStartOnDemand>'
+ $after='<AllowStartOnDemand>true</AllowStartOnDemand>'
+ if(!$priorXml.Contains($before)){throw 'R344_TASK_SETTINGS_DRIFT_ANCHOR_MISSING'}
+ $drifted=$priorXml.Replace($before,$after)
+ if([string]::Equals($drifted,$priorXml,[StringComparison]::Ordinal)){
+   throw 'R344_TASK_SETTINGS_DRIFT_NOT_APPLIED'
+ }
+ Register-ScheduledTask -TaskPath '\' -TaskName $script:task -Xml $drifted -ErrorAction Stop|Out-Null
+ $current=[string](Export-ScheduledTask -TaskPath '\' -TaskName $script:task -ErrorAction Stop)
+ if([string]::Equals($current,$priorXml,[StringComparison]::Ordinal) -or -not $current.Contains($after)){
+   throw 'R344_TASK_SETTINGS_DRIFT_NOT_PERSISTED'
+ }
+ $read=Get-ScheduledTask -TaskName $script:task -TaskPath '\' -ErrorAction Stop
+ $expectedArgs='--broker "'+$script:protectedB+'" --output "'+(Join-Path $script:app 'cpu_temp_broker.json')+'"'
+ if($read.Settings.Enabled -ne $false -or
+    @($read.Triggers).Count -ne 1 -or $read.Triggers[0].Enabled -ne $false -or
+    (ResolveTaskSid ([string]$read.Principal.UserId)) -cne $script:sid -or
+    @($read.Actions).Count -ne 1 -or
+    -not [string]::Equals([string]$read.Actions[0].Execute,$script:protectedS,[StringComparison]::OrdinalIgnoreCase) -or
+    -not [string]::Equals([string]$read.Actions[0].Arguments,$expectedArgs,[StringComparison]::Ordinal) -or
+    -not $current.Contains('<LogonTrigger>')){
+   throw 'R344_DRIFTED_TASK_NO_LONGER_SAME_OWNED_DISABLED_TASK'
+ }
+ $script:taskSettingsDriftInjected=$true
 }
 function ResolveTaskSid([string]$principal){
  if([string]::IsNullOrWhiteSpace($principal)){throw 'R340_TASK_PRINCIPAL_EMPTY'}
@@ -292,6 +319,7 @@ public sealed class R342TaskFileRemovalKill {
      $first.Dispose()
    }
    Check 'ACTUAL_ORIGINAL_HELPER_KILLED_AFTER_TASK_MUTATION_BEFORE_RESULT'
+   InjectTaskSettingsDrift
    $phase='RETRY_SAME_PE_PRODUCTION_HELPER_AFTER_GLOBAL_TASK_MUTATION'
    $child=[Diagnostics.Process]::Start($psi)
    if(!$child){throw 'R342_IDENTICAL_ORIGINAL_HELPER_RETRY_NOT_STARTED'}
@@ -367,6 +395,7 @@ public sealed class R342TaskFileRemovalKill {
      $first.Dispose()
    }
    Check 'ORIGINAL_HELPER_KILLED_AFTER_ACTUAL_BROKER_EXECUTABLE_DELETE_BEFORE_RESULT'
+   InjectTaskSettingsDrift
    $phase='RETRY_UNMODIFIED_PRODUCTION_HELPER_AFTER_PROTECTED_FILE_MUTATION'
    $child=[Diagnostics.Process]::Start($psi)
    if(!$child){throw 'R343_SECOND_ORIGINAL_HELPER_PROCESS_FAILED_TO_START'}
@@ -411,6 +440,8 @@ public sealed class R342TaskFileRemovalKill {
      $priorXml=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($exportedXmlHash))
      $newXml=[string](Export-ScheduledTask -TaskPath '\' -TaskName $task -ErrorAction Stop)
      $recoveryTaskXmlExact=[string]::Equals($priorXml,$newXml,[StringComparison]::Ordinal)
+     if(($KillAfterTaskRemoval -or $KillAfterBrokerRemoval) -and -not $taskSettingsDriftInjected){throw 'R344_TASK_SETTINGS_DRIFT_NOT_INJECTED'}
+     if(-not $recoveryTaskXmlExact){throw 'R344_PRIOR_TASK_XML_NOT_EXACTLY_RESTORED'}
      if([IO.Directory]::Exists($journal) -or [IO.Directory]::Exists($journal+'-retired')){
        throw 'R344_PREPARED_JOURNAL_NOT_RETIRED_AFTER_COLD_REPLAY'
      }
@@ -582,6 +613,7 @@ public sealed class R342TaskFileRemovalKill {
   RestoredOwnerMarkerAndProtectedBinarySHAExact=$oldOwnedBrokerHashesRestored
   RestoredDisabledTaskPrincipalAndActionExact=$recoveryTaskTrustMatch
   RestoredTaskExportedXmlByteExact=$recoveryTaskXmlExact
+  TaskSettingsDriftInjectedBeforeColdReplay=$taskSettingsDriftInjected
   NoTerminalJournalResidueAfterFinal=$true
   ActualHelperKilledAfterProtectedTaskMutation=$deliberatePostTaskKill
   OriginalTaskUnregisteredAtKill=$taskRemovedAtKill
