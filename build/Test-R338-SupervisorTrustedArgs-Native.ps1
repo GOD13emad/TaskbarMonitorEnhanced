@@ -36,7 +36,10 @@ $flags=[Reflection.BindingFlags]'Static,NonPublic'
 $parse=$type.GetMethod('ParseArgs',$flags)
 $trusted=$type.GetMethod('TrustedWorkerPaths',$flags)
 $brokerField=$type.GetField('BrokerPath',$flags)
-if(!$parse -or !$brokerField){throw 'R338_REAL_COMPILED_ENTRYPOINT_MISSING'}
+$cpuField=$type.GetField('CpuOutput',$flags)
+$gpuField=$type.GetField('GpuOutput',$flags)
+$storageField=$type.GetField('StorageOutput',$flags)
+if(!$parse -or !$brokerField -or !$cpuField -or !$gpuField -or !$storageField){throw 'R338_REAL_COMPILED_ENTRYPOINT_MISSING'}
 $checks=[Collections.Generic.List[string]]::new()
 function Pass([string]$label) {
   $script:checks.Add($label)
@@ -105,6 +108,57 @@ try {
     $redirectedOutput=Join-Path $redirectedApp 'cpu_temp_broker.json'
     if(!(Invoke-Trusted ([string[]]@($broker,$redirectedOutput,$brokerDir,$program,$profile,$redirectedLocal)))){throw 'R338_VALID_LOCALAPPDATA_REDIRECTION_REFUSED'}
     Pass 'TRUST_CHECK_ACCEPTS_REDIRECTED_LOCALAPPDATA_ON_LOCAL_VOLUME'
+    # Each OS-known trusted root is tested through a genuine Windows junction.
+    # The foreign targets are existing sandbox directories, so rejection is
+    # attributable to the reparse component rather than a missing path.
+    $programAlias=Join-Path $testRoot 'ProgramFilesAlias'
+    try {
+      New-Item -ItemType Junction -Path $programAlias -Target $program -ErrorAction Stop|Out-Null
+      $aliasBrokerDir=Join-Path $programAlias 'TaskbarMonitorEnhanced\SensorBroker'
+      $aliasBroker=Join-Path $aliasBrokerDir 'TaskbarMonitorSensorBroker.exe'
+      if(Invoke-Trusted ([string[]]@($aliasBroker,$output,$aliasBrokerDir,$programAlias,$profile,$local))){
+        throw 'R338_PROGRAMFILES_ANCESTOR_JUNCTION_ACCEPTED'
+      }
+      Pass 'TRUST_CHECK_REJECTS_PROGRAMFILES_ANCESTOR_JUNCTION'
+    } finally {
+      if([IO.Directory]::Exists($programAlias)){
+        if(([IO.File]::GetAttributes($programAlias) -band [IO.FileAttributes]::ReparsePoint) -eq 0){
+          throw 'R338_PROGRAMFILES_ALIAS_CHANGED_BEFORE_CLEANUP'
+        }
+        [IO.Directory]::Delete($programAlias,$false)
+      }
+    }
+    $localAlias=Join-Path $testRoot 'LocalAppDataAlias'
+    try {
+      New-Item -ItemType Junction -Path $localAlias -Target $local -ErrorAction Stop|Out-Null
+      $aliasOutput=Join-Path $localAlias 'TaskbarMonitorEnhanced\cpu_temp_broker.json'
+      if(Invoke-Trusted ([string[]]@($broker,$aliasOutput,$brokerDir,$program,$profile,$localAlias))){
+        throw 'R338_LOCALAPPDATA_ANCESTOR_JUNCTION_ACCEPTED'
+      }
+      Pass 'TRUST_CHECK_REJECTS_LOCALAPPDATA_ANCESTOR_JUNCTION'
+    } finally {
+      if([IO.Directory]::Exists($localAlias)){
+        if(([IO.File]::GetAttributes($localAlias) -band [IO.FileAttributes]::ReparsePoint) -eq 0){
+          throw 'R338_LOCALAPPDATA_ALIAS_CHANGED_BEFORE_CLEANUP'
+        }
+        [IO.Directory]::Delete($localAlias,$false)
+      }
+    }
+    $profileAlias=Join-Path $testRoot 'ProfileAlias'
+    try {
+      New-Item -ItemType Junction -Path $profileAlias -Target $profile -ErrorAction Stop|Out-Null
+      if(Invoke-Trusted ([string[]]@($broker,$output,$brokerDir,$program,$profileAlias,$local))){
+        throw 'R338_PROFILE_ANCESTOR_JUNCTION_ACCEPTED'
+      }
+      Pass 'TRUST_CHECK_REJECTS_PROFILE_ANCESTOR_JUNCTION'
+    } finally {
+      if([IO.Directory]::Exists($profileAlias)){
+        if(([IO.File]::GetAttributes($profileAlias) -band [IO.FileAttributes]::ReparsePoint) -eq 0){
+          throw 'R338_PROFILE_ALIAS_CHANGED_BEFORE_CLEANUP'
+        }
+        [IO.Directory]::Delete($profileAlias,$false)
+      }
+    }
     $uncLocal='\\server\share\LocalAppData'
     $uncOutput=Join-Path $uncLocal 'TaskbarMonitorEnhanced\cpu_temp_broker.json'
     if(Invoke-Trusted ([string[]]@($broker,$uncOutput,$brokerDir,$program,$profile,$uncLocal))){throw 'R338_UNC_LOCALAPPDATA_ACCEPTED'}
@@ -112,20 +166,26 @@ try {
     $uncProfile='\\server\share\Profile'
     if(Invoke-Trusted ([string[]]@($broker,$output,$brokerDir,$program,$uncProfile,$local))){throw 'R338_UNC_PROFILE_ACCEPTED'}
     Pass 'TRUST_CHECK_REFUSES_UNC_PROFILE'
-    $beforeField=[string]$brokerField.GetValue($null)
+    $pathFields=@($brokerField,$cpuField,$gpuField,$storageField)
+    $beforeFields=@($pathFields|ForEach-Object{[string]$_.GetValue($null)})
     $badArgs=[string[]]@('--broker',$evil,'--output',$evilOutput)
     if(Invoke-Parse $null){throw 'R338_NULL_ARGUMENT_ARRAY_ACCEPTED'}
     if(Invoke-Parse ([string[]]@())){throw 'R338_EMPTY_ARGUMENT_ARRAY_ACCEPTED'}
     Pass 'REAL_PARSER_REFUSES_NULL_AND_EMPTY_ARGUMENT_ARRAYS'
     if(Invoke-Parse $badArgs){throw 'R338_FOREIGN_PROCESS_START_PATH_ACCEPTED'}
-    if([string]$brokerField.GetValue($null) -cne $beforeField){
-      throw 'R338_INVALID_PROCESS_ARGUMENT_PARTIALLY_MUTATED_GLOBAL_PATH'
+    for($i=0;$i -lt $pathFields.Count;$i++){
+      if(([string]$pathFields[$i].GetValue($null)) -cne $beforeFields[$i]){
+        throw 'R338_INVALID_ARGUMENT_PARTIALLY_MUTATED_GLOBAL_PATH_'+$i
+      }
     }
+    Pass 'INVALID_PROCESS_ARGUMENTS_LEAVE_ALL_GLOBAL_PATHS_UNCHANGED'
     Pass 'COMPILLED_PRODUCTION_PARSE_REFUSES_FOREIGN_EXECUTABLE_PRELAUNCH'
     $malformed=@(
       [pscustomobject]@{Argv=[string[]]@('--broker',$evil,'--output',$output)},
       [pscustomobject]@{Argv=[string[]]@('--broker',$broker,'--output',$evilOutput)},
       [pscustomobject]@{Argv=[string[]]@('--broker',$broker,'--broker',$evil)},
+      [pscustomobject]@{Argv=[string[]]@('--output',$output,'--output',$evilOutput)},
+      [pscustomobject]@{Argv=[string[]]@('--ignored','x','--output',$output)},
       [pscustomobject]@{Argv=[string[]]@('--broker',$broker,'--output',$output,'--ignored','x')},
       [pscustomobject]@{Argv=[string[]]@('--broker',$broker,'--output')},
       [pscustomobject]@{Argv=[string[]]@('--broker',$broker,'--output',($output+'";Write-Host INJECTED'))},
