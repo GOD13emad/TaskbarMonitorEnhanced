@@ -88,23 +88,6 @@ jobs:
             throw 'R298 junction adversarial fixture must run on hosted Windows'
           }
 
-      # Hosted-only: checks the actual compiled Setup's own Cleanup factory
-      # with a live disposable parent process and synthetic AppData fixture.
-      # It is strongly guarded against use on any owner/physical machine.
-      - name: R298 original Setup deferred-cleanup actual hosted end-to-end
-        shell: powershell
-        run: |
-          $ErrorActionPreference='Stop'
-          $proof=@(& ./build/Test-R298-HostedDeferredCleanup.ps1)
-          $need=@(
-            'R298_HOSTED_ORIGINAL_PE_PARENT_WAIT_AND_CLEANUP=PASS',
-            'R298_HOSTED_ORIGINAL_PE_EXTERNAL_JUNCTION_REFUSED=PASS',
-            'R298_HOSTED_FRESH_DISPOSABLE_ORIGINAL_DEFERRED_CLEANUP=PASS'
-          )
-          foreach($marker in $need){
-            if($proof -notcontains $marker){throw ('R298 hosted real cleanup missing: '+$marker)}
-          }
-
       - name: Verify deterministic clean-clone build
         shell: pwsh
         run: ./build/Verify-Determinism.ps1
@@ -231,3 +214,84 @@ jobs:
       - name: Print build manifest
         shell: pwsh
         run: Get-Content ./artifacts/BUILD_MANIFEST.json
+
+
+  r298-disposable-original-cleanup:
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Fresh GitHub-hosted runner and absent owner installation preflight
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:COMPUTERNAME -match '(?i)EMAD|ALIEMAD|LAPTOP|SAEID'){
+            throw 'R298_HARD_REFUSE_NON_HOSTED_OR_OWNER'
+          }
+          $profile=[Environment]::GetFolderPath('UserProfile')
+          $local=[Environment]::GetFolderPath('LocalApplicationData')
+          $expected=Join-Path $profile 'AppData/Local'
+          if(![string]::Equals([IO.Path]::GetFullPath($local),[IO.Path]::GetFullPath($expected),[StringComparison]::OrdinalIgnoreCase)){
+            throw 'R298_HARD_REFUSE_NON_CANONICAL_PROFILE'
+          }
+          $app=Join-Path $local 'TaskbarMonitorEnhanced'
+          if(Test-Path $app){throw 'R298_HARD_REFUSE_PREEXISTING_INSTALL_ROOT'}
+          if(Test-Path (Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'TaskbarMonitorEnhanced')){
+            throw 'R298_HARD_REFUSE_PROTECTED_PRODUCT'
+          }
+          if(@(Get-Process TaskbarMonitorEnhanced,TaskbarMonitorSensorBroker,TaskbarMonitorSensorSupervisor -ErrorAction SilentlyContinue).Count){
+            throw 'R298_HARD_REFUSE_EXISTING_PRODUCT_PROCESS'
+          }
+          if(Get-ScheduledTask -TaskName 'TaskbarMonitorEnhanced Sensor Broker' -ErrorAction SilentlyContinue){
+            throw 'R298_HARD_REFUSE_EXISTING_SENSOR_TASK'
+          }
+          'R298_FRESH_HOSTED_NO_PRODUCT=PASS'
+
+      - name: Checkout exact PR source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 2
+
+      - name: Download exact compiled build evidence from dependency job
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: build-evidence
+          path: .
+
+      - name: Verify downloaded Setup digest against original build manifest
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $manifest=Get-Content ./artifacts/BUILD_MANIFEST.json -Raw|ConvertFrom-Json
+          if($manifest.Version -cne '1.7.9'){throw 'R298_WRONG_VERSION'}
+          $setupName='TaskbarMonitorEnhanced_Setup_1.7.9.exe'
+          $f=Join-Path './build/_out/Setup' $setupName
+          if(!(Test-Path $f)){throw 'R298_BUILD_ARTIFACT_MISSING'}
+          $rows=@($manifest.Outputs|Where-Object Name -eq $setupName)
+          if($rows.Count -ne 1 -or
+             (Get-FileHash $f -Algorithm SHA256).Hash -cne $rows[0].SHA256 -or
+             (Get-Item $f).Length -ne $rows[0].Bytes){
+            throw 'R298_DOWNLOADED_SETUP_NOT_MANIFEST_PINNED'
+          }
+          'R298_EXACT_DEPENDENCY_BUILD_SHA=PASS'
+
+      - name: R298 hosted original compiled Setup actual parent-wait and junction attack
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R298-HostedDeferredCleanup.ps1)
+          $required=@(
+            'R298_HOSTED_ORIGINAL_PE_PARENT_WAIT_AND_CLEANUP=PASS',
+            'R298_HOSTED_ORIGINAL_PE_EXTERNAL_JUNCTION_REFUSED=PASS',
+            'R298_HOSTED_FRESH_DISPOSABLE_ORIGINAL_DEFERRED_CLEANUP=PASS'
+          )
+          foreach($mark in $required){
+            if($proof -notcontains $mark){throw ('R298_HOSTED_ACTUAL_UNINSTALL_GATE_MISSING_'+$mark)}
+          }
+          $proof
