@@ -191,6 +191,67 @@ try{
  try{$stream.CopyTo($memory);[IO.File]::WriteAllBytes($tamper,$memory.ToArray())}finally{$memory.Dispose()}
 }finally{$stream.Dispose()}
 if((Get-FileHash $tamper).Hash -cne [string]$pins['Source/StudioThemes.cs']){throw 'R299_TAMPER_RESTORE_NOT_EXACT'}
+# R299 independent abrupt mid-commit simulation: trusted child stages the
+# exact candidate resources, physically replaces two synthetic managed
+# files and writes an owned COMMITTING marker. The parent terminates ONLY
+# that exact test-owned child, and the REAL candidate Setup must recover.
+$childScript=Join-Path $PSScriptRoot 'Test-R299-HostedCrashChild.ps1'
+$signal=Join-Path $env:RUNNER_TEMP ('R299_ABRUPT_COMMITTING_ARMED_'+$env:GITHUB_RUN_ID+'.json')
+if(!(Test-Path $childScript) -or (Test-Path $signal) -or (Test-Path ($signal+'.error.txt'))){
+ throw 'R299_CRASH_FIXTURE_SOURCE_OR_SIGNAL_NOT_FRESH'
+}
+$trustedPowerShell=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell/v1.0/powershell.exe'
+if(!(Test-Path $trustedPowerShell)){throw 'R299_CRASH_CHILD_HOST_UNAVAILABLE'}
+$psi=[Diagnostics.ProcessStartInfo]::new()
+$psi.FileName=$trustedPowerShell
+$psi.WorkingDirectory=$env:RUNNER_TEMP
+$psi.UseShellExecute=$false
+$psi.CreateNoWindow=$true
+$psi.Arguments='-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "'+$childScript+
+  '" -CandidateSetup "'+$newSetup+'" -App "'+$app+'" -Signal "'+$signal+
+  '" -ExpectedSetupSha '+[string]$expectedNew[0].SHA256+
+  ' -ExpectedPriorSetupSha '+$publicSha+
+  ' -ExpectedPriorMainSha 04776E870A492733BBA33A550F732F5DB688A6585FC6533224A56687F1A6D88E'+
+  ' -ExpectedNewMainSha '+[string]$expectedMain[0].SHA256
+$crashChild=[Diagnostics.Process]::Start($psi)
+if(!$crashChild){throw 'R299_OWNED_CRASH_CHILD_NOT_STARTED'}
+try{
+ $armed=$false
+ for($probe=0;$probe -lt 130;$probe++){
+  if(Test-Path $signal){$armed=$true;break}
+  if($crashChild.HasExited){break}
+  Start-Sleep -Milliseconds 150
+ }
+ if(!$armed){
+  $childError=if(Test-Path ($signal+'.error.txt')){Get-Content ($signal+'.error.txt') -Raw}else{'child did not produce arm signal'}
+  throw ('R299_CRASH_CHILD_DID_NOT_ARM_'+$childError.Substring(0,[Math]::Min(680,$childError.Length)))
+ }
+ $record=Get-Content $signal -Raw|ConvertFrom-Json
+ if($record.Pid -ne $crashChild.Id -or
+    $record.Phase -cne 'COMMITTING' -or
+    $record.ChangedFiles -ne 2 -or
+    $record.GitSha -cne $env:GITHUB_SHA){
+  throw 'R299_CRASH_ARMED_PROCESS_OR_SOURCE_IDENTITY_WRONG'
+ }
+ $stageRoot=Join-Path $app '.tbme-upgrade'
+ $phasePath=Join-Path $stageRoot 'phase.txt'
+ if(!(Test-Path $phasePath) -or
+    (Get-Content $phasePath -Raw) -cnotmatch 'TBME_UPGRADE_R92_OWNED_STAGE_V1\|COMMITTING$' -or
+    (Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe')).Hash -cne [string]$expectedMain[0].SHA256 -or
+    (Get-FileHash (Join-Path $app 'Uninstall.exe')).Hash -cne $publicSha -or
+    (Get-FileHash $state).Hash -cne $stateBefore){
+  throw 'R299_CRASH_PARTIAL_COMMIT_NOT_PHYSICALLY_PROVEN'
+ }
+ AssertUnaffected
+ $crashChild.Kill()
+ if(!$crashChild.WaitForExit(12000)){throw 'R299_OWNED_CRASH_CHILD_REFUSES_TERMINATION'}
+ if(!(Test-Path $stageRoot)){throw 'R299_JOURNAL_DISAPPEARED_BEFORE_NATIVE_RECOVERY'}
+}finally{
+ try{if(!$crashChild.HasExited){$crashChild.Kill();$crashChild.WaitForExit(12000)|Out-Null}}catch{}
+ $crashChild.Dispose()
+}
+# The first genuine binary update below must replay the interrupted
+# COMMITTING stage to the official predecessor, then perform the upgrade.
 $code=InvokeCandidateUpdate
 if($code -ne 0){throw ('R299_OFFICIAL_179_TO_1710_REAL_SETUP_UPDATE_FAILED_EXIT_'+$code)}
 if(!(Test-Path (Join-Path $app 'TaskbarMonitorEnhanced.exe')) -or
@@ -212,6 +273,8 @@ $reg=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($uninstallKey,$false)
 try{if($reg.GetValue('DisplayVersion') -cne '1.7.10'){throw 'R299_INSTALLATION_REGISTRY_NOT_UPDATED'}}
 finally{$reg.Dispose()}
 AssertUnaffected
+if(Test-Path (Join-Path $app '.tbme-upgrade')){throw 'R299_CRASH_RECOVERY_LEFT_TRANSACTION_STAGE'}
+'R299_HOSTED_ABRUPT_TWO_FILE_COMMITTING_RECOVERED_BY_REAL_SETUP=PASS'
 'R299_HOSTED_ORIGINAL_SETUP_OFFICIAL_179_TO_1710_INPLACE_UPGRADE=PASS'
 'R299_HOSTED_CONFIG_SENSOR_REGISTRY_AND_OUTSIDE_CANARIES_PRESERVED=PASS'
 # Exact v1.7.10 re-invocation must be byte-idempotent (no second root).
@@ -237,6 +300,7 @@ $receipt=[ordered]@{
  ImmutableManagedPredecessorFiles=22
  TamperedPredecessorRejected=$true
  InPlaceUpgradePassed=$true
+ InterruptedCommitRecovered=$true
  UpgradePreservedUserCanaries=$true
  ExactSecondUpdateIdempotent=$true
  PersonalDeviceWasNotUsed=$true
