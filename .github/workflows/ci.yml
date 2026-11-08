@@ -269,8 +269,8 @@ jobs:
         run: |
           $ErrorActionPreference='Stop'
           $manifest=Get-Content ./artifacts/BUILD_MANIFEST.json -Raw|ConvertFrom-Json
-          if($manifest.Version -cne '1.7.9'){throw 'R298_WRONG_VERSION'}
-          $setupName='TaskbarMonitorEnhanced_Setup_1.7.9.exe'
+          if($manifest.Version -cne '1.7.10'){throw 'R298_WRONG_VERSION'}
+          $setupName='TaskbarMonitorEnhanced_Setup_1.7.10.exe'
           $f=Join-Path './build/_out/Setup' $setupName
           if(!(Test-Path $f)){throw 'R298_BUILD_ARTIFACT_MISSING'}
           $rows=@($manifest.Outputs|Where-Object Name -eq $setupName)
@@ -295,3 +295,113 @@ jobs:
             if($proof -notcontains $mark){throw ('R298_HOSTED_ACTUAL_UNINSTALL_GATE_MISSING_'+$mark)}
           }
           $proof
+
+
+  # Only on freshly provisioned GitHub-hosted Windows without existing product.
+  # The published 1.7.9 Setup is independently SHA-pinned before use.
+  r299-public-v179-inplace-upgrade:
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Assert clean disposable Windows guest before all fixture writes
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:COMPUTERNAME -match '(?i)EMAD|ALIEMAD|LAPTOP|SAEID'){
+            throw 'R299_REFUSE_OWNER_OR_NONHOSTED_RUNNER'
+          }
+          $local=[Environment]::GetFolderPath('LocalApplicationData')
+          $profile=[Environment]::GetFolderPath('UserProfile')
+          $expected=Join-Path $profile 'AppData/Local'
+          if(![string]::Equals([IO.Path]::GetFullPath($local),
+              [IO.Path]::GetFullPath($expected),[StringComparison]::OrdinalIgnoreCase)){
+            throw 'R299_REFUSE_NONCANONICAL_GUEST_PROFILE'
+          }
+          $app=Join-Path $local 'TaskbarMonitorEnhanced'
+          if((Test-Path $app) -or
+             (Test-Path (Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'TaskbarMonitorEnhanced')) -or
+             (Test-Path 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/TaskbarMonitorEnhanced') -or
+             @(Get-Process TaskbarMonitorEnhanced,TaskbarMonitorSensorBroker,TaskbarMonitorSensorSupervisor -ErrorAction SilentlyContinue).Count -gt 0 -or
+             (Get-ScheduledTask -TaskName 'TaskbarMonitorEnhanced Sensor Broker' -ErrorAction SilentlyContinue)){
+            throw 'R299_REFUSE_PREEXISTING_PRODUCT_OR_DRIVER'
+          }
+          'R299_FRESH_DISPOSABLE_RUNNER=PASS'
+
+      - name: Checkout exact candidate source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 2
+
+      - name: Download exact compiled candidate Setup and build manifest
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: build-evidence
+          path: .
+
+      - name: Download SHA-pinned immutable public v1.7.9 Setup
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $uri='https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.7.9/TaskbarMonitorEnhanced_Setup_1.7.9.exe'
+          $path=Join-Path $env:RUNNER_TEMP 'R299_OFFICIAL_v1.7.9_SETUP.exe'
+          if(Test-Path $path){throw 'R299_PUBLISHED_DOWNLOAD_PREEXISTS'}
+          [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
+          Invoke-WebRequest -UseBasicParsing -Uri $uri -OutFile $path -TimeoutSec 90
+          if((Get-Item $path).Length -ne 8577536 -or
+             (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -cne '3AE5E2AC7428C3443FF7768C543117AF864E7C73F68D32EFAD4AB40B30FB5B0E'){
+            throw 'R299_PUBLIC_IMMUTABLE_RELEASE_DOWNLOAD_HASH_MISMATCH'
+          }
+          'R299_OFFICIAL_PUBLISHED_SETUP_SHA256=PASS'
+
+      - name: Verify official 1.7.9 predecessor pins and five negative identities
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $published=Join-Path $env:RUNNER_TEMP 'R299_OFFICIAL_v1.7.9_SETUP.exe'
+          $proof=@(& ./build/Test-R299-OfficialV179Pins.ps1 -PublishedSetup $published)
+          foreach($mark in @(
+            'R299_PUBLIC_OFFICIAL_179_SETUP_SHA=PASS',
+            'R299_CANDIDATE_1710_VERSION_AND_IDENTITY=PASS',
+            'R299_IMMUTABLE_PUBLIC_RESOURCE_MATCH=PASS_21_OF_21',
+            'R299_PREDECESSOR_MANAGED_FILE_PINS=PASS_22_OF_22',
+            'R299_IN_MEMORY_UPDATE_PRESERVES_UNRELATED_FIELDS=PASS',
+            'R299_FOREIGN_OR_MISMATCHED_PREDECESSOR_REJECTED=PASS_5_OF_5'
+          )){
+            if($proof -notcontains $mark){throw ('R299_PIN_CONTRACT_MISSING_'+$mark)}
+          }
+          $proof
+
+      - name: Real original compiled Setup upgrade synthetic public 1.7.9 install
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $published=Join-Path $env:RUNNER_TEMP 'R299_OFFICIAL_v1.7.9_SETUP.exe'
+          $proof=@(& ./build/Test-R299-HostedPublicV179Upgrade.ps1 -OfficialSetup $published)
+          foreach($mark in @(
+            'R299_HOSTED_TAMPERED_OFFICIAL_PREDECESSOR_REFUSED_BEFORE_MUTATION=PASS',
+            'R299_HOSTED_ORIGINAL_SETUP_OFFICIAL_179_TO_1710_INPLACE_UPGRADE=PASS',
+            'R299_HOSTED_CONFIG_SENSOR_REGISTRY_AND_OUTSIDE_CANARIES_PRESERVED=PASS',
+            'R299_HOSTED_EXACT_SECOND_UPDATE_IDEMPOTENT=PASS',
+            'R299_HOSTED_PUBLIC_V179_UPGRADE_RECEIPT=PASS'
+          )){
+            if($proof -notcontains $mark){throw ('R299_ORIGINAL_SETUP_UPGRADE_MISSING_'+$mark)}
+          }
+          $receipt=Join-Path $env:RUNNER_TEMP 'R299_PUBLIC179_HOSTED_UPGRADE_RECEIPT.json'
+          if(!(Test-Path $receipt)){throw 'R299_ACCEPTANCE_RECEIPT_MISSING'}
+          New-Item -ItemType Directory -Path './artifacts' -Force|Out-Null
+          Copy-Item -LiteralPath $receipt -Destination './artifacts/R299_PUBLIC179_HOSTED_UPGRADE_RECEIPT.json' -ErrorAction Stop
+          $proof
+
+      - name: Upload original-PE official 1.7.9 upgrade receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: r299-public-v179-upgrade-receipt
+          if-no-files-found: error
+          path: artifacts/R299_PUBLIC179_HOSTED_UPGRADE_RECEIPT.json

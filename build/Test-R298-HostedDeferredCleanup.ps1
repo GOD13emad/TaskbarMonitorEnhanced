@@ -22,7 +22,7 @@ if(Test-Path $app){throw 'R298_REFUSE_EXISTING_APP_ROOT'}
 if(Test-Path (Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'TaskbarMonitorEnhanced')){throw 'R298_REFUSE_EXISTING_PROTECTED_APP'}
 if(@(Get-Process TaskbarMonitorEnhanced,TaskbarMonitorSensorBroker,TaskbarMonitorSensorSupervisor -ErrorAction SilentlyContinue).Count){throw 'R298_REFUSE_EXISTING_PRODUCT_PROCESS'}
 if(Get-ScheduledTask -TaskName 'TaskbarMonitorEnhanced Sensor Broker' -ErrorAction SilentlyContinue){throw 'R298_REFUSE_EXISTING_SENSOR_TASK'}
-$setup=Join-Path $repo 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.9.exe'
+$setup=Join-Path $repo 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe'
 if(!(Test-Path $setup)){throw 'R298_COMPILED_SETUP_MISSING'}
 $asm=[Reflection.Assembly]::LoadFrom((Resolve-Path $setup).Path)
 $factory=$asm.GetType('SetupProgram',$true).GetMethod(

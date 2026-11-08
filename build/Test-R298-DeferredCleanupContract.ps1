@@ -4,7 +4,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $source=Join-Path $repo 'installer/TaskbarMonitorEnhanced_Setup.cs'
-$exe=Join-Path $repo 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.9.exe'
+$exe=Join-Path $repo 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe'
 if([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT){throw 'R298_WINDOWS_ONLY'}
 if(!(Test-Path $exe) -or !(Test-Path $source)){throw 'R298_MISSING_EXACT_CANDIDATE'}
 $src=[IO.File]::ReadAllText($source)
