@@ -1,3 +1,17 @@
+<!-- TBME:R305_OWNER_RUNTIME_AND_BRANCH_RECONCILIATION:BEGIN -->
+## R305 — owner runtime and repository continuation check
+
+- Verified 2026-11-08T04:58:45.9354472Z on the owner Windows 11 session as a read-only follow-up to R303/R304. No product source, user preference, or installed file was changed.
+- Guarded R303 preflight remains PASS: the official v1.7.10 Setup SHA-256 matches the immutable release; installed v1.7.9 Main/Setup match the pinned predecessor. The preflight reports RUNNING_PROCESSES=1 and SAFE_TO_APPLY_NOW=False; no /update was invoked.
+- One installed v1.7.9 Main, one Sensor Supervisor, and two Sensor Brokers remained present in owner Session 2. This is a process-presence snapshot, not a new sensor functional acceptance.
+- In the sampled last 500 lines of the active application log, 12 CPU threshold-notification events were each paired with TEMPERATURE_WARNING_SOUND_REQUESTED; this proves application-side requests only, not an OS banner or audible physical speaker. Eight TASKBAR_ZORDER_OCCLUSION_REPAIR records all reported stillCovered=False and error=0. There were zero actual [ERROR] or [FATAL] severity records in that sample; error=0 is a success field, not an error-level log.
+- The separate current-day proof log still contains TRAFFIC_HISTORY_READ ArgumentException and TRAFFIC_HISTORY_WRITE IOException warnings after OVERLAY_CLEANUP reason=DISPOSE userExit=False; the existing R303 record attributes these to intentional negative test fixtures. No new evidence links them to user data corruption.
+- Read-only Win32 enumeration again found the taskbar overlay and hidden app-owned windows, while MainWindowHandle=0. Native workspace observation returned WORKSPACE_DRIVER_UNAVAILABLE; target lease returned WORKSPACE_TARGET_WINDOW_CHANGED_OR_MISSING. Current GUI policy still reports workflowTakeoverAllowed=false and ownerAuthorizedTakeover=false. No focus change, raw input, WM_CLOSE, process termination, or installer action was attempted.
+- git fetch --prune origin reconciled the repository refs. Local main is clean and equals origin/main at ef4653188e9cf4cb8c72f3536fccaf0b45837773. The only non-main remote branches are development/v1.7.9-zorder-fix and pr80-security-review; both contain unique commits not merged into main and were preserved. The merged R304 documentation branch is absent locally and remotely.
+- Product release acceptance remains complete for public immutable v1.7.10. Personal owner upgrade and dynamic Start/Settings/Glass witness remain open. Issue #6 remains open pending the original reporter's flagged driver SHA-256 and download/install origin. Physical AC interruption remains owner-excluded; the unsigned-release waiver is unchanged.
+- Exact next action: owner performs the application's normal context-menu Exit; then rerun the guarded R303 preflight and invoke /update /quiet only when SAFE_TO_APPLY_NOW=True. Verify same-root installation, configuration/backend/startup preservation, and reopen the app before any personal UI acceptance. Do not bypass the GUI guard.
+<!-- TBME:R305_OWNER_RUNTIME_AND_BRANCH_RECONCILIATION:END -->
+
 <!-- TBME:R303_OWNER_HOST_READONLY_PREFLIGHT:BEGIN -->
 ## R303 - owner computer release-PE verification and unresolved personal interaction gate
 
