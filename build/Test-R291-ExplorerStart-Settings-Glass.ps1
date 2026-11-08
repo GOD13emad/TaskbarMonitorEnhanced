@@ -20,6 +20,11 @@ public static class R146Native {
  [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr p,EnumFn f,IntPtr d);
  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);
  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out Rect r);
+ [DllImport("dwmapi.dll",EntryPoint="DwmGetWindowAttribute",SetLastError=false)]
+ static extern int DwmGetWindowAttributeNative(IntPtr h,uint attribute,out Rect r,uint size);
+ public static int VisibleFrameBounds(IntPtr h,out Rect r){
+  return DwmGetWindowAttributeNative(h,9,out r,(uint)Marshal.SizeOf(typeof(Rect)));
+ }
  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
  [DllImport("user32.dll")] public static extern IntPtr GetWindowLongPtr(IntPtr h,int n);
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
@@ -288,8 +293,37 @@ try{
   }
   Write-Output ('R146_SETTINGS_FOREGROUND_READY MODE='+$mode+' WAIT_MS='+$settingsWaitMs+' HWND='+$settings.ToInt64())
   $evidence+=@{State=$mode+'_SETTINGS_FOREGROUND';WaitMs=$settingsWaitMs;Hwnd=$settings.ToInt64();Title=[R146Native]::Title($settings);Foreground=$true}
-  $work=[Windows.Forms.Screen]::FromHandle($settings).WorkingArea
-  if(!$work.Contains((Box $settings))){throw 'R146_SETTINGS_EXTENDS_BEHIND_TASKBAR'}
+     # GetWindowRect can include invisible resize borders. Compare the DWM
+   # visible frame and the real Explorer taskbar frame in screen coordinates.
+   $settingsOuter=Box $settings
+   $settingsFrame=New-Object R146Native+Rect
+   $settingsDwmHr=[R146Native]::VisibleFrameBounds($settings,[ref]$settingsFrame)
+   if($settingsDwmHr -ne 0){
+    throw ('R146_SETTINGS_DWM_FRAME_BOUNDS_UNAVAILABLE HRESULT=0x{0:X8}' -f ($settingsDwmHr -band 0xffffffff))
+   }
+   $settingsVisible=New-Object Drawing.Rectangle($settingsFrame.L,$settingsFrame.T,($settingsFrame.R-$settingsFrame.L),($settingsFrame.B-$settingsFrame.T))
+   $taskbarFrame=New-Object R146Native+Rect
+   $taskbarDwmHr=[R146Native]::VisibleFrameBounds($taskbar,[ref]$taskbarFrame)
+   if($taskbarDwmHr -ne 0){
+    throw ('R146_TASKBAR_DWM_FRAME_BOUNDS_UNAVAILABLE HRESULT=0x{0:X8}' -f ($taskbarDwmHr -band 0xffffffff))
+   }
+   $taskbarVisible=New-Object Drawing.Rectangle($taskbarFrame.L,$taskbarFrame.T,($taskbarFrame.R-$taskbarFrame.L),($taskbarFrame.B-$taskbarFrame.T))
+   $screen=[Windows.Forms.Screen]::FromHandle($settings)
+   $work=$screen.WorkingArea
+   $screenBounds=$screen.Bounds
+   $geometry=[ordered]@{
+    Mode=$mode;Device=$screen.DeviceName;WorkArea=@($work.X,$work.Y,$work.Width,$work.Height)
+    ScreenBounds=@($screenBounds.X,$screenBounds.Y,$screenBounds.Width,$screenBounds.Height)
+    SettingsOuter=@($settingsOuter.X,$settingsOuter.Y,$settingsOuter.Width,$settingsOuter.Height)
+    SettingsVisible=@($settingsVisible.X,$settingsVisible.Y,$settingsVisible.Width,$settingsVisible.Height)
+    TaskbarVisible=@($taskbarVisible.X,$taskbarVisible.Y,$taskbarVisible.Width,$taskbarVisible.Height)
+    SettingsDwmHRESULT=$settingsDwmHr;TaskbarDwmHRESULT=$taskbarDwmHr
+   }
+   if(!$work.Contains($settingsVisible) -or !$screenBounds.Contains($settingsVisible) -or $settingsVisible.IntersectsWith($taskbarVisible)){
+    $evidence+=@{State=$mode+'_SETTINGS_GEOMETRY_FAIL';Geometry=$geometry}
+    throw ('R146_SETTINGS_EXTENDS_BEHIND_TASKBAR '+($geometry|ConvertTo-Json -Compress -Depth 4))
+   }
+   $evidence+=@{State=$mode+'_SETTINGS_GEOMETRY';Geometry=$geometry}
   Assert-Visible $monitor $original ($mode+'_SETTINGS') $top
   $evidence+=Capture $monitor ($mode+'_SETTINGS')
   [void][R146Native]::SendMessage($settings,0x0010,[IntPtr]::Zero,[IntPtr]::Zero);Pump 500
