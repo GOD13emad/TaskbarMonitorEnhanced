@@ -401,6 +401,276 @@ count=0;
 }
 '@
 
+Add-Type -TypeDefinition @'
+using System;
+using System.IO;
+using System.Text;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
+using Microsoft.Win32.SafeHandles;
+public sealed class TBMEProtectedBrokerTreeLease : IDisposable {
+ const uint DELETE_ACCESS=0x00010000, FILE_LIST_DIRECTORY=0x00000001, FILE_READ_ATTRIBUTES=0x00000080, GENERIC_READ=0x80000000;
+ const uint SHARE_READ=1, SHARE_WRITE=2, OPEN_EXISTING=3, BACKUP_SEMANTICS=0x02000000, OPEN_REPARSE_POINT=0x00200000;
+ const uint ATTR_DIRECTORY=0x10, ATTR_REPARSE=0x400;
+ const int FILE_ATTRIBUTE_TAG_INFO_CLASS=9, FILE_ID_BOTH_DIRECTORY_INFO_CLASS=10, FILE_ID_BOTH_DIRECTORY_RESTART_INFO_CLASS=11, FILE_DISPOSITION_INFO_CLASS=4;
+ [DllImport("kernel32.dll",EntryPoint="CreateFileW",SetLastError=true,CharSet=CharSet.Unicode)]
+ static extern SafeFileHandle OpenNative(string path,uint access,uint share,IntPtr security,uint creation,uint flags,IntPtr template);
+ [StructLayout(LayoutKind.Sequential)] struct FILE_ATTRIBUTE_TAG_INFO { public uint Attributes; public uint ReparseTag; }
+ [StructLayout(LayoutKind.Sequential)] struct FILE_TIME_PAIR { public uint Low; public uint High; }
+ [StructLayout(LayoutKind.Sequential)] struct FILE_HANDLE_INFO {
+  public uint Attributes;
+  public FILE_TIME_PAIR Created,Accessed,Written;
+  public uint VolumeSerial,SizeHigh,SizeLow,Links,IndexHigh,IndexLow;
+ }
+ [StructLayout(LayoutKind.Sequential)] struct FILE_DISPOSITION_INFO { public byte DeleteFile; }
+  [DllImport("kernel32.dll",EntryPoint="GetVolumeInformationW",SetLastError=true,CharSet=CharSet.Unicode)]
+  static extern bool GetVolumeInformation(string root,StringBuilder volume,uint volumeSize,out uint serial,out uint maxComponent,out uint flags,StringBuilder fs,uint fsSize);
+  [DllImport("kernel32.dll",EntryPoint="GetDriveTypeW",CharSet=CharSet.Unicode)]
+  static extern uint GetDriveType(string root);
+ [DllImport("kernel32.dll",EntryPoint="GetFileInformationByHandleEx",SetLastError=true)]
+ static extern bool GetTag(SafeFileHandle h,int kind,out FILE_ATTRIBUTE_TAG_INFO data,uint size);
+ [DllImport("kernel32.dll",EntryPoint="GetFileInformationByHandleEx",SetLastError=true)]
+ static extern bool GetDirectoryInfo(SafeFileHandle h,int kind,IntPtr buffer,uint size);
+ [DllImport("kernel32.dll",SetLastError=true)]
+ static extern bool GetFileInformationByHandle(SafeFileHandle h,out FILE_HANDLE_INFO info);
+ [DllImport("kernel32.dll",EntryPoint="GetFinalPathNameByHandleW",SetLastError=true,CharSet=CharSet.Unicode)]
+ static extern uint GetFinalPath(SafeFileHandle h,StringBuilder path,uint capacity,uint flags);
+ [DllImport("kernel32.dll",SetLastError=true)]
+ static extern bool SetFileInformationByHandle(SafeFileHandle h,int kind,ref FILE_DISPOSITION_INFO data,uint size);
+ [DllImport("kernel32.dll",SetLastError=true)]
+ static extern bool ReadFile(SafeFileHandle h,byte[] buffer,uint count,out uint read,IntPtr overlapped);
+ public sealed class Entry { public string Name; public ulong Id; public uint Attributes; }
+ sealed class DeleteNode { public SafeFileHandle Handle; public bool IsDirectory; public int Depth; }
+ readonly string programPath,productPath,brokerPath;
+ SafeFileHandle programHandle,productHandle,brokerHandle,ownerMarkerHandle;
+ readonly List<DeleteNode> pendingNodes=new List<DeleteNode>();
+ bool ownerMarkerEnumerated;
+ bool disposed,deleteRequested,deleteAttempted;
+ static ulong FileId(FILE_HANDLE_INFO i){return ((ulong)i.IndexHigh<<32)|i.IndexLow;}
+ static FILE_HANDLE_INFO Info(SafeFileHandle h){
+  FILE_HANDLE_INFO i;
+  if(!GetFileInformationByHandle(h,out i))throw new IOException("SENSOR_BROKER_TREE_FILE_INFO_FAILED_WIN32_"+Marshal.GetLastWin32Error());
+  return i;
+ }
+  static uint AssertNtfsVolume(string path){
+   string root=Path.GetPathRoot(path);
+   if(String.IsNullOrEmpty(root)||GetDriveType(root)!=3)
+    throw new IOException("SENSOR_BROKER_TREE_VOLUME_NOT_LOCAL_FIXED");
+   StringBuilder volume=new StringBuilder(64),fs=new StringBuilder(32);
+   uint serial,maxComponent,flags;
+   if(!GetVolumeInformation(root,volume,(uint)volume.Capacity,out serial,out maxComponent,out flags,fs,(uint)fs.Capacity))
+    throw new IOException("SENSOR_BROKER_TREE_VOLUME_QUERY_FAILED_WIN32_"+Marshal.GetLastWin32Error());
+   if(!String.Equals(fs.ToString(),"NTFS",StringComparison.OrdinalIgnoreCase))
+    throw new IOException("SENSOR_BROKER_TREE_FILESYSTEM_NOT_NTFS_"+fs.ToString());
+   return serial;
+  }
+ static FILE_ATTRIBUTE_TAG_INFO Tag(SafeFileHandle h){
+  FILE_ATTRIBUTE_TAG_INFO i;
+  if(!GetTag(h,FILE_ATTRIBUTE_TAG_INFO_CLASS,out i,(uint)Marshal.SizeOf(typeof(FILE_ATTRIBUTE_TAG_INFO))))
+   throw new IOException("SENSOR_BROKER_TREE_TAG_FAILED_WIN32_"+Marshal.GetLastWin32Error());
+  return i;
+ }
+ static string FinalPath(SafeFileHandle h){
+  StringBuilder b=new StringBuilder(2048);
+  uint n=GetFinalPath(h,b,(uint)b.Capacity,0);
+  if(n==0||n>=b.Capacity)throw new IOException("SENSOR_BROKER_TREE_FINAL_PATH_FAILED_WIN32_"+Marshal.GetLastWin32Error());
+  return b.ToString().TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
+ }
+ static void AssertFinalPath(SafeFileHandle h,string path,string kind){
+  string expected="\\\\?\\"+Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
+  if(!String.Equals(FinalPath(h),expected,StringComparison.OrdinalIgnoreCase))
+   throw new IOException("SENSOR_BROKER_TREE_"+kind+"_FINAL_PATH_MISMATCH");
+ }
+ static SafeFileHandle OpenDirectory(string path,uint access,uint share,uint expectedVolume,ulong expectedId){
+  SafeFileHandle h=OpenNative(path,access,share,IntPtr.Zero,OPEN_EXISTING,BACKUP_SEMANTICS|OPEN_REPARSE_POINT,IntPtr.Zero);
+  if(h.IsInvalid){int e=Marshal.GetLastWin32Error();h.Dispose();throw new IOException("SENSOR_BROKER_TREE_DIRECTORY_OPEN_FAILED_WIN32_"+e);}
+  try{
+   FILE_ATTRIBUTE_TAG_INFO tag=Tag(h);
+   if((tag.Attributes&ATTR_DIRECTORY)==0||(tag.Attributes&ATTR_REPARSE)!=0)
+    throw new IOException("SENSOR_BROKER_TREE_DIRECTORY_REPARSE_OR_TYPE_REFUSED");
+   FILE_HANDLE_INFO i=Info(h);
+   if(FileId(i)==0)throw new IOException("SENSOR_BROKER_TREE_DIRECTORY_FILE_ID_UNAVAILABLE");
+   if(expectedVolume!=0&&i.VolumeSerial!=expectedVolume)throw new IOException("SENSOR_BROKER_TREE_DIRECTORY_VOLUME_MISMATCH");
+   if(expectedId!=0&&FileId(i)!=expectedId)throw new IOException("SENSOR_BROKER_TREE_DIRECTORY_FILE_ID_MISMATCH");
+   AssertFinalPath(h,path,"DIRECTORY");
+   return h;
+  }catch{h.Dispose();throw;}
+ }
+ static SafeFileHandle OpenFile(string path,uint expectedVolume,ulong expectedId,bool readData){
+  uint access=DELETE_ACCESS|FILE_READ_ATTRIBUTES|(readData?GENERIC_READ:0);
+  SafeFileHandle h=OpenNative(path,access,SHARE_READ,IntPtr.Zero,OPEN_EXISTING,OPEN_REPARSE_POINT,IntPtr.Zero);
+  if(h.IsInvalid){int e=Marshal.GetLastWin32Error();h.Dispose();throw new IOException("SENSOR_BROKER_TREE_FILE_OPEN_FAILED_WIN32_"+e);}
+  try{
+   FILE_ATTRIBUTE_TAG_INFO tag=Tag(h);
+   if((tag.Attributes&(ATTR_DIRECTORY|ATTR_REPARSE))!=0)throw new IOException("SENSOR_BROKER_TREE_FILE_REPARSE_OR_TYPE_REFUSED");
+   FILE_HANDLE_INFO i=Info(h);
+   if(FileId(i)==0)throw new IOException("SENSOR_BROKER_TREE_FILE_ID_UNAVAILABLE");
+   if(i.Links!=1)throw new IOException("SENSOR_BROKER_TREE_HARDLINK_REFUSED");
+   if(expectedVolume!=0&&i.VolumeSerial!=expectedVolume)throw new IOException("SENSOR_BROKER_TREE_FILE_VOLUME_MISMATCH");
+   if(expectedId!=0&&FileId(i)!=expectedId)throw new IOException("SENSOR_BROKER_TREE_FILE_ID_MISMATCH");
+   AssertFinalPath(h,path,"FILE");
+   return h;
+  }catch{h.Dispose();throw;}
+ }
+ static void MarkDelete(SafeFileHandle h){
+  FILE_DISPOSITION_INFO d=new FILE_DISPOSITION_INFO();d.DeleteFile=1;
+  if(!SetFileInformationByHandle(h,FILE_DISPOSITION_INFO_CLASS,ref d,(uint)Marshal.SizeOf(typeof(FILE_DISPOSITION_INFO))))
+   throw new IOException("SENSOR_BROKER_TREE_DELETE_MARK_FAILED_WIN32_"+Marshal.GetLastWin32Error());
+ }
+ static void VerifyIdentity(SafeFileHandle h,uint volume,ulong id,string what){
+  FILE_HANDLE_INFO i=Info(h);
+  if(i.VolumeSerial!=volume||FileId(i)!=id)throw new IOException("SENSOR_BROKER_TREE_"+what+"_FILE_ID_MISMATCH");
+ }
+ SafeFileHandle OpenOwnerMarker(string expectedSid,bool allowMissing,uint volume){
+  string path=Path.Combine(brokerPath,".tbme-owner.sid");
+  SafeFileHandle h=OpenNative(path,DELETE_ACCESS|FILE_READ_ATTRIBUTES|GENERIC_READ,SHARE_READ,
+   IntPtr.Zero,OPEN_EXISTING,OPEN_REPARSE_POINT,IntPtr.Zero);
+  if(h.IsInvalid){
+   int e=Marshal.GetLastWin32Error();h.Dispose();
+   if((e==2||e==3)&&allowMissing)return null;
+   if(e==2||e==3)throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_MISSING");
+   throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_OPEN_FAILED_WIN32_"+e);
+  }
+  try{
+   FILE_ATTRIBUTE_TAG_INFO tag=Tag(h);
+   if((tag.Attributes&(ATTR_DIRECTORY|ATTR_REPARSE))!=0)throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_REPARSE_OR_TYPE_REFUSED");
+   FILE_HANDLE_INFO i=Info(h);
+   if(i.Links!=1||i.VolumeSerial!=volume||FileId(i)==0)throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_IDENTITY_REFUSED");
+   AssertFinalPath(h,path,"OWNER_MARKER");
+   ulong size=((ulong)i.SizeHigh<<32)|i.SizeLow;
+   if(size==0||size>256)throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_SIZE_REFUSED");
+   byte[] bytes=new byte[(int)size];uint read=0;
+   if(!ReadFile(h,bytes,(uint)bytes.Length,out read,IntPtr.Zero)||read!=(uint)bytes.Length)
+    throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_READ_FAILED_WIN32_"+Marshal.GetLastWin32Error());
+   if(!String.Equals(Encoding.ASCII.GetString(bytes),expectedSid,StringComparison.Ordinal))
+    throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_SID_MISMATCH");
+   return h;
+  }catch{h.Dispose();throw;}
+ }
+ static List<Entry> Enumerate(SafeFileHandle dir){
+  List<Entry> result=new List<Entry>();byte[] buffer=new byte[65536];
+  GCHandle pin=GCHandle.Alloc(buffer,GCHandleType.Pinned);
+  try{
+  IntPtr baseAddress=pin.AddrOfPinnedObject();
+  if((baseAddress.ToInt64()&7)!=0)throw new IOException("SENSOR_BROKER_TREE_ENUM_BUFFER_ALIGNMENT_REFUSED");
+   bool first=true;
+   while(true){
+    Array.Clear(buffer,0,buffer.Length);
+    bool ok=GetDirectoryInfo(dir,first?FILE_ID_BOTH_DIRECTORY_RESTART_INFO_CLASS:FILE_ID_BOTH_DIRECTORY_INFO_CLASS,
+      baseAddress,(uint)buffer.Length);
+    first=false;
+    if(!ok){int e=Marshal.GetLastWin32Error();if(e==18)break;throw new IOException("SENSOR_BROKER_TREE_ENUM_FAILED_WIN32_"+e);}
+    int offset=0;
+    while(true){
+     uint next=(uint)Marshal.ReadInt32(baseAddress,offset);
+     uint attrs=(uint)Marshal.ReadInt32(baseAddress,offset+56);
+     uint nameBytes=(uint)Marshal.ReadInt32(baseAddress,offset+60);
+     ulong id=unchecked((ulong)Marshal.ReadInt64(baseAddress,offset+96));
+      uint remaining=(uint)(buffer.Length-offset);
+      if(remaining<104||nameBytes<2||(nameBytes&1)!=0||nameBytes>510||nameBytes>remaining-104)
+       throw new IOException("SENSOR_BROKER_TREE_ENUM_BAD_RECORD");
+      if(id==0)throw new IOException("SENSOR_BROKER_TREE_ENUM_FILE_ID_UNAVAILABLE");
+      if(next!=0&&(next<104||(next&7)!=0||next>remaining||104+nameBytes>next))
+       throw new IOException("SENSOR_BROKER_TREE_ENUM_NAME_CROSSES_RECORD");
+      string name=Marshal.PtrToStringUni(IntPtr.Add(baseAddress,offset+104),(int)(nameBytes/2));
+      if(name!="."&&name!="..")result.Add(new Entry{Name=name,Id=id,Attributes=attrs});
+      if(next==0)break;
+      offset+=(int)next;
+    }
+   }
+   return result;
+  }finally{pin.Free();}
+ }
+ void CollectDeleteNodes(SafeFileHandle dir,string path,uint volume,int depth,ref int count){
+  if(depth>8)throw new IOException("SENSOR_BROKER_TREE_DEPTH_LIMIT");
+  List<Entry> entries=Enumerate(dir);
+  foreach(Entry e in entries){
+   if(++count>256)throw new IOException("SENSOR_BROKER_TREE_ENTRY_LIMIT");
+   if(String.IsNullOrEmpty(e.Name)||e.Name=="."||e.Name==".."||
+      !Regex.IsMatch(e.Name,@"^[A-Za-z0-9_.-]{1,255}$")||
+      e.Name.EndsWith(".",StringComparison.Ordinal)||e.Name.IndexOf('\0')>=0)
+    throw new IOException("SENSOR_BROKER_TREE_BAD_NAME");
+   if((e.Attributes&ATTR_REPARSE)!=0)throw new IOException("SENSOR_BROKER_TREE_REPARSE_REFUSED_"+e.Name);
+   string child=Path.Combine(path,e.Name);
+   if(String.Equals(e.Name,".tbme-owner.sid",StringComparison.OrdinalIgnoreCase)){
+    if(depth!=0)throw new IOException("SENSOR_BROKER_TREE_NESTED_OWNER_MARKER_REFUSED");
+    if(ownerMarkerHandle==null)throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_APPEARED_AFTER_MISSING_PROOF");
+    VerifyIdentity(ownerMarkerHandle,volume,e.Id,"OWNER_MARKER");
+    pendingNodes.Add(new DeleteNode{Handle=ownerMarkerHandle,IsDirectory=false,Depth=depth+1});
+    ownerMarkerHandle=null;ownerMarkerEnumerated=true;
+   }else if((e.Attributes&ATTR_DIRECTORY)!=0){
+    SafeFileHandle h=OpenDirectory(child,DELETE_ACCESS|FILE_LIST_DIRECTORY|FILE_READ_ATTRIBUTES,SHARE_READ,volume,e.Id);
+    pendingNodes.Add(new DeleteNode{Handle=h,IsDirectory=true,Depth=depth+1});
+    CollectDeleteNodes(h,child,volume,depth+1,ref count);
+   }else{
+    SafeFileHandle h=OpenFile(child,volume,e.Id,false);
+    pendingNodes.Add(new DeleteNode{Handle=h,IsDirectory=false,Depth=depth+1});
+   }
+  }
+  List<Entry> after=Enumerate(dir);
+  if(after.Count!=entries.Count)throw new IOException("SENSOR_BROKER_TREE_CHANGED_DURING_PREFLIGHT");
+  foreach(Entry before in entries){
+   Entry current=after.Find(x=>String.Equals(x.Name,before.Name,StringComparison.OrdinalIgnoreCase));
+   if(current==null||current.Id!=before.Id||current.Attributes!=before.Attributes)
+    throw new IOException("SENSOR_BROKER_TREE_IDENTITY_CHANGED_DURING_PREFLIGHT");
+  }
+ }
+ public TBMEProtectedBrokerTreeLease(string liveBroker){
+  string program=Path.GetFullPath(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)).TrimEnd(Path.DirectorySeparatorChar);
+  string product=Path.Combine(program,"TaskbarMonitorEnhanced");
+  string broker=Path.Combine(product,"SensorBroker");
+  if(String.IsNullOrWhiteSpace(liveBroker)||
+     !String.Equals(Path.GetFullPath(liveBroker).TrimEnd(Path.DirectorySeparatorChar),broker,StringComparison.OrdinalIgnoreCase))
+   throw new IOException("SENSOR_BROKER_TREE_NOT_EXACT_SYSTEM_PROGRAMFILES");
+  programPath=program;productPath=product;brokerPath=broker;
+  try{
+    uint expectedVolume=AssertNtfsVolume(programPath);
+    programHandle=OpenDirectory(programPath,FILE_LIST_DIRECTORY|FILE_READ_ATTRIBUTES,SHARE_READ|SHARE_WRITE,0,0);
+    uint volume=Info(programHandle).VolumeSerial;
+    if(volume!=expectedVolume)throw new IOException("SENSOR_BROKER_TREE_VOLUME_IDENTITY_CHANGED");
+    productHandle=OpenDirectory(productPath,FILE_LIST_DIRECTORY|FILE_READ_ATTRIBUTES,SHARE_READ|SHARE_WRITE,volume,0);
+    brokerHandle=OpenDirectory(brokerPath,DELETE_ACCESS|FILE_LIST_DIRECTORY|FILE_READ_ATTRIBUTES,SHARE_READ,volume,0);
+  }catch{Dispose();throw;}
+ }
+ public bool IsPinned {get{return !disposed&&programHandle!=null&&!programHandle.IsInvalid&&productHandle!=null&&!productHandle.IsInvalid&&brokerHandle!=null&&!brokerHandle.IsInvalid;}}
+ public int DeleteOwnedTree(string expectedSid,bool allowMissingOwnerMarker){
+  if(!IsPinned||deleteRequested)throw new IOException("SENSOR_BROKER_TREE_LEASE_NOT_ACTIVE");
+   if(deleteAttempted)throw new IOException("SENSOR_BROKER_TREE_DELETE_ATTEMPT_ALREADY_USED");
+   deleteAttempted=true;
+  if(String.IsNullOrWhiteSpace(expectedSid)||!Regex.IsMatch(expectedSid,@"^S-1-5-(?:\d+-)+\d+$"))
+   throw new IOException("SENSOR_BROKER_TREE_EXPECTED_SID_INVALID");
+  uint volume=Info(brokerHandle).VolumeSerial;
+  ownerMarkerHandle=OpenOwnerMarker(expectedSid,allowMissingOwnerMarker,volume);
+  int count=0;
+  ownerMarkerEnumerated=false;
+  CollectDeleteNodes(brokerHandle,brokerPath,volume,0,ref count);
+  if(ownerMarkerHandle!=null)throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_NOT_ENUMERATED");
+  if(!allowMissingOwnerMarker&&!ownerMarkerEnumerated)throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_REQUIRED");
+  foreach(DeleteNode node in pendingNodes){
+   if(node.IsDirectory)continue;
+   MarkDelete(node.Handle);node.Handle.Dispose();node.Handle=null;
+  }
+  pendingNodes.Sort((a,b)=>b.Depth.CompareTo(a.Depth));
+  foreach(DeleteNode node in pendingNodes){
+   if(!node.IsDirectory)continue;
+   MarkDelete(node.Handle);node.Handle.Dispose();node.Handle=null;
+  }
+  if(Enumerate(brokerHandle).Count!=0)throw new IOException("SENSOR_BROKER_TREE_ROOT_NOT_EMPTY");
+  MarkDelete(brokerHandle);deleteRequested=true;
+  return count;
+ }
+ public void Dispose(){
+  if(disposed)return;disposed=true;
+  if(ownerMarkerHandle!=null){ownerMarkerHandle.Dispose();ownerMarkerHandle=null;}
+  foreach(DeleteNode node in pendingNodes){if(node.Handle!=null){node.Handle.Dispose();node.Handle=null;}}
+  pendingNodes.Clear();
+  if(brokerHandle!=null){brokerHandle.Dispose();brokerHandle=null;}
+  if(productHandle!=null){productHandle.Dispose();productHandle=null;}
+  if(programHandle!=null){programHandle.Dispose();programHandle=null;}
+ }
+}
+'@
 $TaskName='TaskbarMonitorEnhanced Sensor Broker'
 $BrokerRoot=Join-Path $env:ProgramFiles 'TaskbarMonitorEnhanced\SensorBroker'
 $SensorOwnerMarker=Join-Path $BrokerRoot '.tbme-owner.sid'
@@ -1569,7 +1839,18 @@ function Restore-PreviousSensorLayer([string]$Reason){
             Stop-Process -Force -ErrorAction SilentlyContinue
         Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
         Start-Sleep -Milliseconds 500
-        Remove-Item -LiteralPath $BrokerRoot -Recurse -Force -ErrorAction SilentlyContinue
+        $treeLease=$null
+        if([IO.Directory]::Exists($BrokerRoot)){
+            $treeLease=[TBMEProtectedBrokerTreeLease]::new($BrokerRoot)
+            try{
+                Assert-SensorJournalTrustedAcl $BrokerRoot $false
+                $removed=$treeLease.DeleteOwnedTree($validatedSensorSid,$false)
+            }finally{
+                if($treeLease){$treeLease.Dispose();$treeLease=$null}
+            }
+            if([IO.Directory]::Exists($BrokerRoot)){throw 'R350_ROLLBACK_BROKER_ROOT_REMAINS'}
+            Write-Log ('R350_ROLLBACK_HANDLE_BOUND_TREE_DELETE_PASS entries='+$removed)
+        }
         Remove-Item -LiteralPath $LiveJson,$GpuJson,$StorageJson,$SupervisorState -Force -ErrorAction SilentlyContinue
 
         if(@($RollbackFiles).Count -gt 0){
@@ -1611,6 +1892,7 @@ function Preserve-OtherUserSensorLayer([string]$Why){
 }
 try{
     $expectedUserSid=Resolve-SensorPrincipalSid $UserId
+    $trustedPartialUninstall=$false
     Import-Module ScheduledTasks -ErrorAction Stop
     $lookupErrors=@()
     $existing=@(Get-ScheduledTask -TaskPath '\' -TaskName $TaskName -ErrorAction SilentlyContinue -ErrorVariable +lookupErrors |
@@ -1698,7 +1980,14 @@ if($Mode -eq 'Uninstall'){
         # R344: authenticated write-ahead snapshot before the FIRST task or
         # protected Broker deletion. A torn uninstall must restore the exact
         # previous owner task/files, not silently leave a markerless folder.
+        $treeLease=$null
         $oldRootPresent=[IO.Directory]::Exists($BrokerRoot)
+        if($oldRootPresent){
+            if($expectedUserSid -cne $validatedSensorSid){throw 'R350_UNINSTALL_OWNER_SID_MISMATCH'}
+            $treeLease=[TBMEProtectedBrokerTreeLease]::new($BrokerRoot)
+            if(-not $treeLease.IsPinned){throw 'R350_UNINSTALL_TREE_LEASE_NOT_PINNED'}
+            Assert-SensorJournalTrustedAcl $BrokerRoot $false
+        }
         $oldTaskPresent=@(Get-ScheduledTask -TaskPath '\' -TaskName $TaskName -ErrorAction SilentlyContinue |
             Where-Object{$null -ne $_}).Count -ne 0
         if($oldRootPresent -or $oldTaskPresent){
@@ -1727,7 +2016,11 @@ if($Mode -eq 'Uninstall'){
         }
         Assert-SensorBoundaryNoReparse $BrokerRoot
         if([IO.Directory]::Exists($BrokerRoot)){
-            Remove-Item -LiteralPath $BrokerRoot -Recurse -Force -ErrorAction Stop
+            if($null -eq $treeLease){throw 'R350_UNPINNED_BROKER_ROOT_APPEARED_DURING_UNINSTALL'}
+            $removed=$treeLease.DeleteOwnedTree($expectedUserSid,[bool]$trustedPartialUninstall)
+            $treeLease.Dispose();$treeLease=$null
+            if([IO.Directory]::Exists($BrokerRoot)){throw 'R350_UNINSTALL_BROKER_ROOT_REMAINS'}
+            Write-Log ('R350_UNINSTALL_HANDLE_BOUND_TREE_DELETE_PASS entries='+$removed)
         }
         if([IO.Directory]::Exists($BrokerRoot) -or
            @((Get-ScheduledTask -TaskPath '\' -TaskName $TaskName -ErrorAction SilentlyContinue |
@@ -1746,6 +2039,7 @@ if($Mode -eq 'Uninstall'){
         Write-Result 'UNINSTALLED' 'Protected sensor layer removed.' 'NOT_APPLICABLE' $null $false $false $false
         exit 0
     }catch{
+        if($treeLease){try{$treeLease.Dispose()}catch{};$treeLease=$null}
         Write-Log ('UNINSTALL_ERROR '+$_.Exception.ToString())
         Write-Result 'UNINSTALL_WARNING' $_.Exception.Message 'NOT_APPLICABLE' $null $false $false $false
         exit 0
