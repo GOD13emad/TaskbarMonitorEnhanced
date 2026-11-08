@@ -126,7 +126,7 @@ namespace TaskbarMonitorEnhanced
         {
             try
             {
-                Check(BuildInfo.PublicVersion=="1.7.9","version");
+                Check(BuildInfo.PublicVersion=="1.7.10","version");
                 // Fault-policy coverage: no unconditional topmost timer and no
                 // stealing focus from Start, fullscreen, Settings or our menu.
                 Check(!TaskbarPresentationPolicy.ShouldRepairOcclusion(
