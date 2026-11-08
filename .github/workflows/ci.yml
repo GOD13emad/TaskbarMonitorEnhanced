@@ -88,6 +88,23 @@ jobs:
             throw 'R298 junction adversarial fixture must run on hosted Windows'
           }
 
+      # Hosted-only: checks the actual compiled Setup's own Cleanup factory
+      # with a live disposable parent process and synthetic AppData fixture.
+      # It is strongly guarded against use on any owner/physical machine.
+      - name: R298 original Setup deferred-cleanup actual hosted end-to-end
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R298-HostedDeferredCleanup.ps1)
+          $need=@(
+            'R298_HOSTED_ORIGINAL_PE_PARENT_WAIT_AND_CLEANUP=PASS',
+            'R298_HOSTED_ORIGINAL_PE_EXTERNAL_JUNCTION_REFUSED=PASS',
+            'R298_HOSTED_FRESH_DISPOSABLE_ORIGINAL_DEFERRED_CLEANUP=PASS'
+          )
+          foreach($marker in $need){
+            if($proof -notcontains $marker){throw ('R298 hosted real cleanup missing: '+$marker)}
+          }
+
       - name: Verify deterministic clean-clone build
         shell: pwsh
         run: ./build/Verify-Determinism.ps1
