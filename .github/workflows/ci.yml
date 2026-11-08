@@ -30,6 +30,14 @@ jobs:
         with:
           dotnet-version: 10.0.400
 
+      # Run before any other fixture can create the canonical LocalAppData AppRoot.
+      # The test owns and removes that exact root on this fresh GitHub-hosted runner.
+      - name: R85 absent PawnIO must degrade safely without driver or sensor mutation
+        shell: pwsh
+        run: |
+          ./build/Test-PawnIO-External-Degrade.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Optional driver missing state tried unsafe protected mutation.' }
+
       - name: Git whitespace check
         shell: pwsh
         run: git diff --check HEAD^
@@ -109,12 +117,6 @@ jobs:
         run: |
           ./build/Test-NoPawnIO-OssRelease.ps1
           if ($LASTEXITCODE -ne 0) { throw 'A signed Setup may not embed the official PawnIO binary.' }
-
-      - name: R85 absent PawnIO must degrade safely without driver or sensor mutation
-        shell: pwsh
-        run: |
-          ./build/Test-PawnIO-External-Degrade.ps1
-          if ($LASTEXITCODE -ne 0) { throw 'Optional driver missing state tried unsafe protected mutation.' }
 
       - name: All-theme glass and chart visual acceptance (10 suites)
         shell: pwsh
