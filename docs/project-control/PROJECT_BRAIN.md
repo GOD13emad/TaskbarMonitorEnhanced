@@ -1,3 +1,14 @@
+<!-- TBME:R297_HISTORIC_RC6_PRIVATE_ARCHIVE:BEGIN -->
+## R297 - Verified private archival of historical RC6 CI scripts
+
+- 2026-11-08T00:50:43.2166301Z: 25 RC6 and 5 miscellaneous original September 2026 scripts verified against November 6 manifest bytes and SHA-256 (30/30 PASS). Original loose script root paths remain absent 30/30. A bounded common token-pattern inspection found no credential fingerprints; this cannot prove total absence of secrets. No historic script was executed.
+- The two complete folders moved on the same disk into the existing ignored local owner history at .local/history/legacy-rc6-ci-probes-20260919/rc6 and .local/history/legacy-rc6-ci-probes-20260919/misc. Their original manifest and README content was preserved and reverified. This R297 destination supersedes only the historic November 6 staging path in docs/project-control; the historical notes below remain unchanged.
+- These old executable workflow/runner probes are PRIVATE LOCAL historical data, not active source, build helpers or technical authority. They are intentionally excluded from public GitHub source. Official immutable v1.7.9 Release, user installation, settings and live processes were not modified.
+- Personal GUI Start/Settings dynamic transition is still unverified: Win32 read-only Z-order sampling found one visible Main overlay HWND before Shell_TrayWnd in taskbar bounds and a hidden app Settings HWND. This is only the static visible state, not a Start/Settings activation test. The current GUI backend retired legacy input and its native semantic provider did not attach to this window; no unsupported synthetic input was attempted.
+<!-- TBME:R297_HISTORIC_RC6_PRIVATE_ARCHIVE:END -->
+
+---
+
 <!-- TBME:R295_IMMUTABLE_PUBLIC_V179:BEGIN -->
 ## R295 — Immutable public 1.7.9 released with independent seven-asset download verification
 
@@ -1389,3 +1400,13 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Current control: `docs/project-control/CURRENT_PROJECT.json`.
 - Acceptance: `docs/acceptance/v1.7.0/R40_PACKAGE_CANDIDATE_ACCEPTANCE.json`.
 - Exact next action: R41 single controlled live canary only — capture exact wallpaper/style/tile + AnyDesk/GUI pre-state, apply one Sekiro wallpaper from the exact candidate, verify, restore exact pre-state, then regression-check host stability. No install until R41 PASS.
+
+## TBME_LEGACY_RC6_25_LOCAL_CI_PROBES_OWNER_REHOME_20261106 — old self-hosted CI one-shots now owned in place
+
+**2026-11-06 | scoped file relocation PASS; no fresh CI/release/runtime acceptance.** A bounded first-level `C:\Users\Aa.Emad\source\repos` scan identified **25 original 2026-09-19 Python scripts** (28,320 original bytes) explicitly referring to TaskbarMonitorEnhanced or its GitHub repository, including ephemeral RC6 self-hosted runner setup, JIT API, workflow patching, failed-build tailing and old CI polling. These are not current project build helpers: they contain stale run IDs and hard-coded outside-root paths; some can mutate GitHub workflows/register runners and **must not be executed** as live commands. The active source checkout remained at Git HEAD `81cade72d0f94b7ce4e13fdf7f476e3b90000f2e` with **zero preexisting tracked dirty files**. Existing `.github` CI is the current authority; these are historical provenance only.
+
+The 25 scripts were grouped into one human-readable folder in this existing owner root: `docs\project-control\legacy_rc6_ci_probes_20260919`. Staged SHA-256 and source/target length parity **25/25 PASS** in operation `4b95d473-9c45-4c05-93dd-bb035d449f4c`; `MANIFEST.json` SHA256 `5583CAFF080997AE732CB5A2D2E9EA25AB92BD1284C33817DECEF8DBDB65C354`, `README.md` SHA `5CE664903DCC8E528D58BBFAEBF68641EA30FA5E5F45CBD6D54F67E4E77883C9`. Old source path retirement operation `d8e54f14-fd13-4a9c-9b57-bf3368fdc2c8` SUCCEEDED after all 25 hashes revalidated, no active script process or scheduled task and unchanged Git HEAD; 25 old paths absent, unchanged tracked source (pre-Brain update), top-level loose root regular files **554→529**. No user workflow/GitHub API action, runner registration, Git commit, symlink/Junction, app install, rollback or scientific model modified. Future replay requires independent review, GitHub owner approval and current temp-root instructions; historic success is not fresh acceptance.
+
+## TBME_LEGACY_FIVE_MISC_RC6_CI_PROBES_REHOME_20261106 — owner-root historical evidence only
+
+On 2026-11-06 five original Sept 19 shared CI/Actions probes (`_rc_compare_owner_repo_actions.py`, `_rc_get_actions_runner_release.py`, `_rc_list_r21_test_scripts.py`, `_rc_probe_real_pwsh.py`, `_rc_public_packages_probe.py`) totaling **2,876 source bytes** were SHA+length compared 5/5 and relocated within this existing owner root, `docs\project-control\legacy_misc_rc6_ci_probes_20260919`. Preserved historical hashes/UTC times in sole category `MANIFEST.json` SHA `DE5DACC39001830BAAADE695A0B27DCF9C6D704751467C425D34847466D28633`; stage op `c8cc5a78-5edb-4a00-81d0-ac51f7e7515f` and guarded retire op `403bedfc-84e9-4e91-b400-4f571cf28fb5` SUCCEEDED, all five root originals absent and no known task/process or bounded root caller. These old cloud/CI probes are **DO NOT EXECUTE** pending current external-service and source review. The accepted v1.7.9 release/current Git tracked source/CI, Windows install, workflows and research data were not altered; migration is file ownership scoped PASS only. See portfolio Registry event `PORTFOLIO_MAIN50_SCIENCE_REMOTE_SYSTEM_SCRIPTS_OWNED_20261106`.
