@@ -249,10 +249,45 @@ try{
   }
   $evidence+=@{State=$mode+'_SETTINGS_MENU_ITEM';WaitMs=$menuWaitMs;ProcessId=$menuItem.Current.ProcessId;Name=$menuItem.Current.Name;ControlType=$menuItem.Current.ControlType.ProgrammaticName}
   Write-Output ('R146_SETTINGS_MENU_ITEM_READY MODE='+$mode+' WAIT_MS='+$menuWaitMs)
-  $invoke=$menuItem.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern);$invoke.Invoke();Pump 1500
-  $settings=[IntPtr]::Zero
-  foreach($h in [R146Native]::Owned([uint32]$process.Id,$taskbar)){if([R146Native]::Title($h) -like '* - Settings' -and [R146Native]::IsWindowVisible($h)){$settings=$h;break}}
-  if($settings -eq [IntPtr]::Zero -or [R146Native]::GetForegroundWindow() -ne $settings){throw 'R146_SETTINGS_NOT_REAL_FOREGROUND'}
+    # Invoke the real visible menu item with physical input, not UIA InvokePattern.
+  # The actual mouse click preserves foreground-activation semantics on all guests.
+  $menuBounds=$menuItem.Current.BoundingRectangle
+  if($menuItem.Current.IsOffscreen -or $menuBounds.IsEmpty -or $menuBounds.Width -lt 4 -or $menuBounds.Height -lt 4){
+   throw ('R146_SETTINGS_MENU_ITEM_NOT_CLICKABLE MODE='+$mode+' OFFSCREEN='+$menuItem.Current.IsOffscreen+' BOUNDS='+$menuBounds.ToString())
+  }
+  $menuClickX=[int][Math]::Floor($menuBounds.Left+($menuBounds.Width/2))
+  $menuClickY=[int][Math]::Floor($menuBounds.Top+($menuBounds.Height/2))
+  $evidence+=@{State=$mode+'_SETTINGS_MENU_CLICK';X=$menuClickX;Y=$menuClickY;Bounds=$menuBounds.ToString();ProcessId=$menuItem.Current.ProcessId}
+  [R146Native]::Click($menuClickX,$menuClickY,$false);Pump 250
+  # Require the actual product-owned Settings HWND to become foreground.
+  # Polling is bounded; a missing/non-foreground window remains a hard failure.
+  $settings=[IntPtr]::Zero;$settingsCandidate=[IntPtr]::Zero
+  $settingsClock=[Diagnostics.Stopwatch]::StartNew()
+  do{
+   $foreground=[R146Native]::GetForegroundWindow()
+   foreach($h in [R146Native]::Owned([uint32]$process.Id,$taskbar)){
+    if([R146Native]::Title($h) -like '* - Settings' -and [R146Native]::IsWindowVisible($h)){
+     $settingsCandidate=$h
+     if($foreground -eq $h){$settings=$h;break}
+    }
+   }
+   if($settings -ne [IntPtr]::Zero){break}
+   Pump 100
+  }while($settingsClock.ElapsedMilliseconds -lt 5000)
+  $settingsClock.Stop()
+  $settingsWaitMs=$settingsClock.ElapsedMilliseconds
+  if($settings -eq [IntPtr]::Zero){
+   $foreground=[R146Native]::GetForegroundWindow();$foregroundPid=[uint32]0
+   [void][R146Native]::GetWindowThreadProcessId($foreground,[ref]$foregroundPid)
+   $foregroundTitle=[R146Native]::Title($foreground)
+   $windowSummary=@(foreach($h in [R146Native]::Owned([uint32]$process.Id,$taskbar)){
+    $r=Box $h
+    @{Hwnd=$h.ToInt64();Title=[R146Native]::Title($h);Visible=[R146Native]::IsWindowVisible($h);Foreground=($h -eq $foreground);Rect=@($r.X,$r.Y,$r.Width,$r.Height);Owner=[R146Native]::GetWindow($h,4).ToInt64()}
+   })
+   throw ('R146_SETTINGS_NOT_REAL_FOREGROUND MODE='+$mode+' WAIT_MS='+$settingsWaitMs+' FG_HWND='+$foreground.ToInt64()+' FG_PID='+$foregroundPid+' FG_TITLE='+$foregroundTitle+' CANDIDATE_HWND='+$settingsCandidate.ToInt64()+' WINDOWS='+($windowSummary|ConvertTo-Json -Compress -Depth 5))
+  }
+  Write-Output ('R146_SETTINGS_FOREGROUND_READY MODE='+$mode+' WAIT_MS='+$settingsWaitMs+' HWND='+$settings.ToInt64())
+  $evidence+=@{State=$mode+'_SETTINGS_FOREGROUND';WaitMs=$settingsWaitMs;Hwnd=$settings.ToInt64();Title=[R146Native]::Title($settings);Foreground=$true}
   $work=[Windows.Forms.Screen]::FromHandle($settings).WorkingArea
   if(!$work.Contains((Box $settings))){throw 'R146_SETTINGS_EXTENDS_BEHIND_TASKBAR'}
   Assert-Visible $monitor $original ($mode+'_SETTINGS') $top
