@@ -70,11 +70,12 @@ try{
  $phase=[object[]]::new(1);$phase[0]=[string]'COMMITTING'
  [void]$write.Invoke($null,$phase)
  # Two genuine replacements, still no registry/version commit.
+ Add-Type -TypeDefinition 'using System.IO; public static class R299FileBridge { public static void ReplaceNoBackup(string src,string dst){File.Replace(src,dst,null);} }'
  foreach($rel in @('TaskbarMonitorEnhanced.exe','Source/TaskbarMonitorEnhanced.cs')){
   $source=Join-Path (Join-Path $stage 'new') $rel
   $live=Join-Path $App $rel
   if(!(Test-Path $source) -or !(Test-Path $live)){throw ('R299_CRASH_CHILD_STAGED_PATH_MISSING_'+$rel)}
-  [IO.File]::Replace($source,$live,$null)
+  [R299FileBridge]::ReplaceNoBackup($source,$live)
  }
  if((Get-FileHash $main -Algorithm SHA256).Hash -cne $ExpectedNewMainSha){
   throw 'R299_CRASH_CHILD_TWO_FILE_PARTIAL_MAIN_SHA_BAD'
