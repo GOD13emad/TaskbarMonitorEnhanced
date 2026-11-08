@@ -8,6 +8,13 @@ on:
       - 'installer/**'
       - 'build/**'
       - '.github/workflows/audit-r290-native-zorder.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'installer/**'
+      - 'build/**'
+      - '.github/workflows/audit-r290-native-zorder.yml'
   workflow_dispatch:
 
 permissions:
@@ -52,7 +59,7 @@ jobs:
           $exe='build/_out/App/TaskbarMonitorEnhanced.exe'
           if(!(Test-Path $exe)){throw 'R290_BUILT_APP_NOT_FOUND'}
           $fileVersion=(Get-Item $exe).VersionInfo.FileVersion
-          if($fileVersion -ne '1.7.9.0'){throw "R290_BAD_VERSION $fileVersion"}
+          if($fileVersion -ne '1.7.10.0'){throw "R290_BAD_VERSION $fileVersion"}
           'R290_EXACT_BUILD_PASS'
 
       - name: Probe native Win32 child and top-level occlusion

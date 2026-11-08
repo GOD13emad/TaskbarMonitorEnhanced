@@ -2,7 +2,14 @@ name: R291 real Explorer Start Settings and Glass hosted UI
 
 on:
   push:
-    branches: [main, development/v1.7.9-zorder-fix]
+    branches: [main, development/v1.7.10-zorder-fix]
+    paths:
+      - 'src/**'
+      - 'installer/**'
+      - 'build/**'
+      - '.github/workflows/audit-r291-real-explorer-start-settings-glass.yml'
+  pull_request:
+    branches: [main]
     paths:
       - 'src/**'
       - 'installer/**'
@@ -34,10 +41,10 @@ jobs:
           }
           ./build/Build.ps1
           if($LASTEXITCODE -ne 0){throw 'R291_BUILD_FAILED'}
-          $setup='build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.9.exe'
+          $setup='build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe'
           $main='build/_out/App/TaskbarMonitorEnhanced.exe'
           if(!(Test-Path $setup) -or !(Test-Path $main)){throw 'R291_PRIVATE_ARTIFACT_MISSING'}
-          $data=[ordered]@{Schema=1;Commit=$env:GITHUB_SHA;Version='1.7.9'
+          $data=[ordered]@{Schema=1;Commit=$env:GITHUB_SHA;Version='1.7.10'
             Private=$true;NotForPublicInstallation=$true
             SetupSHA256=(Get-FileHash $setup).Hash;MainSHA256=(Get-FileHash $main).Hash}
           [IO.File]::WriteAllText('build/_out/CANDIDATE.json',($data|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
@@ -49,7 +56,7 @@ jobs:
           if-no-files-found: error
           path: |
             build/_out/CANDIDATE.json
-            build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.9.exe
+            build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe
             build/_out/App/TaskbarMonitorEnhanced.exe
 
   real-explorer:
@@ -89,11 +96,11 @@ jobs:
           [void][Management.Automation.Language.Parser]::ParseFile($s,[ref]$tokens,[ref]$errors)
           if(@($errors).Count){throw 'R291_SCRIPT_PARSER_ERROR'}
           $m=Get-Content _r291_candidate/CANDIDATE.json -Raw|ConvertFrom-Json
-          if($m.Version -cne '1.7.9' -or $m.Commit -cne $env:GITHUB_SHA -or
+          if($m.Version -cne '1.7.10' -or $m.Commit -cne $env:GITHUB_SHA -or
              $m.Private -ne $true -or $m.NotForPublicInstallation -ne $true){
             throw 'R291_NON_PINNED_GUEST'
           }
-          if((Get-FileHash _r291_candidate/Setup/TaskbarMonitorEnhanced_Setup_1.7.9.exe).Hash -cne $m.SetupSHA256 -or
+          if((Get-FileHash _r291_candidate/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe).Hash -cne $m.SetupSHA256 -or
              (Get-FileHash _r291_candidate/App/TaskbarMonitorEnhanced.exe).Hash -cne $m.MainSHA256){
             throw 'R291_HASH_DRIFT'
           }
