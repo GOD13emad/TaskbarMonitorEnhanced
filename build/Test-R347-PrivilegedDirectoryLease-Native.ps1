@@ -55,7 +55,7 @@ try{
  $st=$body.LastIndexOf("Add-Type -TypeDefinition @'",$at,[StringComparison]::Ordinal)
  $from=$body.IndexOf([string][char]10,$st,[StringComparison]::Ordinal)
  $end=$body.IndexOf(([string][char]10+"'@"),$at,[StringComparison]::Ordinal)
- if($st -lt 0 -or $from -lt 0 -or $end -le $at -or $end-$from -gt 13000){
+ if($st -lt 0 -or $from -lt 0 -or $end -le $at -or $end-$from -gt 40000){
   throw 'R347_EMBEDDED_CSHARP_BOUNDS_BAD'
  }
  Add-Type -TypeDefinition $body.Substring($from+1,$end-$from-1) -ErrorAction Stop

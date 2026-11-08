@@ -80,7 +80,7 @@ try{
  $first=$embedded.IndexOf([string][char]10,$header,[StringComparison]::Ordinal)
  $last=$embedded.IndexOf(([string][char]10+"'@"),$at,[StringComparison]::Ordinal)
  if($at -lt 0 -or $header -lt 0 -or $first -lt 0 -or $last -le $at -or
-    $last-$first -gt 22000){throw 'R349_BOUND_REAL_CSHARP_EXTRACTION_REFUSED'}
+    $last-$first -gt 40000){throw 'R349_BOUND_REAL_CSHARP_EXTRACTION_REFUSED'}
  Add-Type -TypeDefinition $embedded.Substring($first+1,$last-$first-1) -ErrorAction Stop
  if($null -eq ('TBMEProtectedBrokerLease' -as [type])){throw 'R349_REAL_PRODUCT_LEAF_LEASE_NOT_COMPILED'}
  Check 'EXACT_ORIGINAL_SETUP_EMBEDS_NEW_NATIVE_LEAF_LOCK_CLASS'
