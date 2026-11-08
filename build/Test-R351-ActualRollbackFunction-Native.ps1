@@ -5,7 +5,8 @@ param(
 $ErrorActionPreference='Stop'
 $SourceRoot=[IO.Path]::GetFullPath($SourceRoot)
 $runId=if($env:GITHUB_RUN_ID){$env:GITHUB_RUN_ID}else{[guid]::NewGuid().ToString('N')}
-$root=Join-Path $env:TEMP ('R351_'+$HostLabel+'_'+$runId)
+$tempBase=if(-not [string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)){$env:RUNNER_TEMP}else{$env:TEMP}
+$root=Join-Path $tempBase ('R351_'+$HostLabel+'_'+$runId)
 $receipt=Join-Path $root 'R351_ACTUAL_ROLLBACK_FUNCTION_NATIVE.json'
 $programFiles=[Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles)
 $product=Join-Path $programFiles 'TaskbarMonitorEnhanced'
