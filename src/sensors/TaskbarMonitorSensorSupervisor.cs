@@ -449,18 +449,112 @@ internal static class TaskbarMonitorSensorSupervisor
         catch{}
     }
 
+    // TBME:R338_SUPERVISOR_TRUSTED_ARGV:BEGIN
+    // R338: the Supervisor may run with the task principal's highest available
+    // token. Never let argv choose a worker executable or telemetry destination.
+    // These are fail-closed path/reparse checks, not atomic rename-race or hardlink leases.
+    static bool NoReparseComponents(string fullPath)
+    {
+        string cursor=Path.GetFullPath(fullPath);
+        while(!String.IsNullOrEmpty(cursor))
+        {
+            try
+            {
+                if((File.GetAttributes(cursor)&FileAttributes.ReparsePoint)!=0)
+                    return false;
+            }
+            catch(FileNotFoundException){}
+            catch(DirectoryNotFoundException){}
+            string parent=Path.GetDirectoryName(cursor);
+            if(String.IsNullOrEmpty(parent)||String.Equals(parent,cursor,StringComparison.OrdinalIgnoreCase))
+                break;
+            cursor=parent;
+        }
+        return true;
+    }
+
+    // OS known-folder paths are supplied by Main, never accepted from argv.
+    // LocalAppData may be redirected to another local volume; require the exact
+    // OS-provided value, reject UNC/reparse paths, and derive the output beneath it.
+    static bool TrustedWorkerPaths(string broker,string output,string executableDirectory,
+                                   string programFiles,string profile,string localAppData)
+    {
+        try
+        {
+            if(String.IsNullOrWhiteSpace(broker)||String.IsNullOrWhiteSpace(output)||
+               String.IsNullOrWhiteSpace(executableDirectory)||String.IsNullOrWhiteSpace(programFiles)||
+               String.IsNullOrWhiteSpace(profile)||String.IsNullOrWhiteSpace(localAppData)||
+               broker.Length>2048||output.Length>2048||
+               executableDirectory.Length>4096||programFiles.Length>4096||
+               profile.Length>4096||localAppData.Length>4096||
+               !Path.IsPathRooted(broker)||!Path.IsPathRooted(output)||
+               !Path.IsPathRooted(executableDirectory)||!Path.IsPathRooted(programFiles)||
+               !Path.IsPathRooted(profile)||!Path.IsPathRooted(localAppData))
+                return false;
+            string pfFull=Path.GetFullPath(programFiles);
+            string userFull=Path.GetFullPath(profile);
+            string localFull=Path.GetFullPath(localAppData);
+            string dirFull=Path.GetFullPath(executableDirectory);
+            if(pfFull.StartsWith(@"\\",StringComparison.Ordinal)||
+               userFull.StartsWith(@"\\",StringComparison.Ordinal)||
+               localFull.StartsWith(@"\\",StringComparison.Ordinal)||
+               dirFull.StartsWith(@"\\",StringComparison.Ordinal))
+                return false;
+            if(String.Equals(Path.GetPathRoot(pfFull),pfFull,StringComparison.OrdinalIgnoreCase)||
+               String.Equals(Path.GetPathRoot(userFull),userFull,StringComparison.OrdinalIgnoreCase)||
+               String.Equals(Path.GetPathRoot(localFull),localFull,StringComparison.OrdinalIgnoreCase)||
+               String.Equals(Path.GetPathRoot(dirFull),dirFull,StringComparison.OrdinalIgnoreCase))
+                return false;
+            string pf=pfFull.TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
+            string local=localFull.TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
+            string dir=dirFull.TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
+            string protectedDir=Path.Combine(pf,"TaskbarMonitorEnhanced","SensorBroker");
+            string expectedBroker=Path.Combine(protectedDir,"TaskbarMonitorSensorBroker.exe");
+            string expectedOutput=Path.Combine(local,"TaskbarMonitorEnhanced","cpu_temp_broker.json");
+            if(!String.Equals(dir,protectedDir,StringComparison.OrdinalIgnoreCase)||
+               !String.Equals(Path.GetFullPath(broker),expectedBroker,StringComparison.OrdinalIgnoreCase)||
+               !String.Equals(Path.GetFullPath(output),expectedOutput,StringComparison.OrdinalIgnoreCase)||
+               !File.Exists(expectedBroker)||
+               !Directory.Exists(Path.GetDirectoryName(expectedOutput)))
+                return false;
+            return NoReparseComponents(userFull)&&
+                   NoReparseComponents(expectedBroker)&&
+                   NoReparseComponents(expectedOutput);
+        }
+        catch{return false;}
+    }
+    // TBME:R338_SUPERVISOR_TRUSTED_ARGV:END
     static bool ParseArgs(string[] args)
     {
-        string legacyOutput="";
-        for(int i=0;i<args.Length-1;i++)
+        if(args==null||args.Length!=4)return false;
+        string broker="",output="";
+        for(int i=0;i<args.Length;i+=2)
         {
-            if(String.Equals(args[i],"--broker",StringComparison.OrdinalIgnoreCase))BrokerPath=args[++i];
-            else if(String.Equals(args[i],"--output",StringComparison.OrdinalIgnoreCase))legacyOutput=args[++i];
+            if(String.IsNullOrWhiteSpace(args[i+1]))return false;
+            if(String.Equals(args[i],"--broker",StringComparison.OrdinalIgnoreCase))
+            {
+                if(broker.Length!=0)return false;
+                broker=args[i+1];
+            }
+            else if(String.Equals(args[i],"--output",StringComparison.OrdinalIgnoreCase))
+            {
+                if(output.Length!=0)return false;
+                output=args[i+1];
+            }
+            else return false;
         }
-        if(String.IsNullOrWhiteSpace(BrokerPath)||String.IsNullOrWhiteSpace(legacyOutput))return false;
-        string dir=Path.GetDirectoryName(legacyOutput);
-        if(String.IsNullOrWhiteSpace(dir))return false;
-        CpuOutput=legacyOutput;
+        string executableDirectory=AppDomain.CurrentDomain.BaseDirectory;
+        string programFiles=Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        string profile=Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        string localAppData=Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if(!TrustedWorkerPaths(broker,output,executableDirectory,programFiles,profile,localAppData))
+            return false;
+        // The argv values are equality-checked above, never forwarded.
+        BrokerPath=Path.Combine(Path.GetFullPath(programFiles),
+                                "TaskbarMonitorEnhanced","SensorBroker","TaskbarMonitorSensorBroker.exe");
+        CpuOutput=Path.Combine(Path.GetFullPath(localAppData),
+                               "TaskbarMonitorEnhanced","cpu_temp_broker.json");
+        string dir=Path.GetDirectoryName(CpuOutput);
         GpuOutput=Path.Combine(dir,"gpu_temp_broker.json");
         StorageOutput=Path.Combine(dir,"storage_temp_broker.json");
         Cpu.Output=CpuOutput;
