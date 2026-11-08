@@ -295,35 +295,52 @@ try{
   $evidence+=@{State=$mode+'_SETTINGS_FOREGROUND';WaitMs=$settingsWaitMs;Hwnd=$settings.ToInt64();Title=[R146Native]::Title($settings);Foreground=$true}
      # GetWindowRect can include invisible resize borders. Compare the DWM
    # visible frame and the real Explorer taskbar frame in screen coordinates.
-   $settingsOuter=Box $settings
-   $settingsFrame=New-Object R146Native+Rect
-   $settingsDwmHr=[R146Native]::VisibleFrameBounds($settings,[ref]$settingsFrame)
-   if($settingsDwmHr -ne 0){
-    throw ('R146_SETTINGS_DWM_FRAME_BOUNDS_UNAVAILABLE HRESULT=0x{0:X8}' -f ($settingsDwmHr -band 0xffffffff))
+   # The foreground HWND can be observable before WinForms finishes its
+   # Shown/DPI layout pass. Poll the real DWM frame and Explorer work area;
+   # require three consecutive in-bounds samples, without weakening the gate.
+   $geometryWaitClock=[Diagnostics.Stopwatch]::StartNew()
+   $geometryStableSamples=0
+   $geometry=$null
+   do{
+    $settingsOuter=Box $settings
+    $settingsFrame=New-Object R146Native+Rect
+    $settingsDwmHr=[R146Native]::VisibleFrameBounds($settings,[ref]$settingsFrame)
+    if($settingsDwmHr -ne 0){
+     throw ('R146_SETTINGS_DWM_FRAME_BOUNDS_UNAVAILABLE HRESULT=0x{0:X8}' -f ($settingsDwmHr -band 0xffffffff))
+    }
+    $settingsVisible=New-Object Drawing.Rectangle($settingsFrame.L,$settingsFrame.T,($settingsFrame.R-$settingsFrame.L),($settingsFrame.B-$settingsFrame.T))
+    $taskbarFrame=New-Object R146Native+Rect
+    $taskbarDwmHr=[R146Native]::VisibleFrameBounds($taskbar,[ref]$taskbarFrame)
+    if($taskbarDwmHr -ne 0){
+     throw ('R146_TASKBAR_DWM_FRAME_BOUNDS_UNAVAILABLE HRESULT=0x{0:X8}' -f ($taskbarDwmHr -band 0xffffffff))
+    }
+    $taskbarVisible=New-Object Drawing.Rectangle($taskbarFrame.L,$taskbarFrame.T,($taskbarFrame.R-$taskbarFrame.L),($taskbarFrame.B-$taskbarFrame.T))
+    $screen=[Windows.Forms.Screen]::FromHandle($settings)
+    $work=$screen.WorkingArea
+    $screenBounds=$screen.Bounds
+    $geometry=[ordered]@{
+     Mode=$mode;Device=$screen.DeviceName;WorkArea=@($work.X,$work.Y,$work.Width,$work.Height)
+     ScreenBounds=@($screenBounds.X,$screenBounds.Y,$screenBounds.Width,$screenBounds.Height)
+     SettingsOuter=@($settingsOuter.X,$settingsOuter.Y,$settingsOuter.Width,$settingsOuter.Height)
+     SettingsVisible=@($settingsVisible.X,$settingsVisible.Y,$settingsVisible.Width,$settingsVisible.Height)
+     TaskbarVisible=@($taskbarVisible.X,$taskbarVisible.Y,$taskbarVisible.Width,$taskbarVisible.Height)
+     SettingsDwmHRESULT=$settingsDwmHr;TaskbarDwmHRESULT=$taskbarDwmHr
+    }
+    if(!$work.Contains($settingsVisible) -or !$screenBounds.Contains($settingsVisible) -or $settingsVisible.IntersectsWith($taskbarVisible)){
+     $geometryStableSamples=0
+    }else{
+     $geometryStableSamples++
+     if($geometryStableSamples -ge 3){break}
+    }
+    Pump 100
+   }while($geometryWaitClock.ElapsedMilliseconds -lt 5000)
+   $geometryWaitClock.Stop()
+   $geometryWaitMs=$geometryWaitClock.ElapsedMilliseconds
+   if($geometryStableSamples -lt 3){
+    $evidence+=@{State=$mode+'_SETTINGS_GEOMETRY_FAIL';Geometry=$geometry;WaitMs=$geometryWaitMs;StableSamples=$geometryStableSamples}
+    throw ('R146_SETTINGS_EXTENDS_BEHIND_TASKBAR WAIT_MS='+$geometryWaitMs+' STABLE_SAMPLES='+$geometryStableSamples+' '+($geometry|ConvertTo-Json -Compress -Depth 4))
    }
-   $settingsVisible=New-Object Drawing.Rectangle($settingsFrame.L,$settingsFrame.T,($settingsFrame.R-$settingsFrame.L),($settingsFrame.B-$settingsFrame.T))
-   $taskbarFrame=New-Object R146Native+Rect
-   $taskbarDwmHr=[R146Native]::VisibleFrameBounds($taskbar,[ref]$taskbarFrame)
-   if($taskbarDwmHr -ne 0){
-    throw ('R146_TASKBAR_DWM_FRAME_BOUNDS_UNAVAILABLE HRESULT=0x{0:X8}' -f ($taskbarDwmHr -band 0xffffffff))
-   }
-   $taskbarVisible=New-Object Drawing.Rectangle($taskbarFrame.L,$taskbarFrame.T,($taskbarFrame.R-$taskbarFrame.L),($taskbarFrame.B-$taskbarFrame.T))
-   $screen=[Windows.Forms.Screen]::FromHandle($settings)
-   $work=$screen.WorkingArea
-   $screenBounds=$screen.Bounds
-   $geometry=[ordered]@{
-    Mode=$mode;Device=$screen.DeviceName;WorkArea=@($work.X,$work.Y,$work.Width,$work.Height)
-    ScreenBounds=@($screenBounds.X,$screenBounds.Y,$screenBounds.Width,$screenBounds.Height)
-    SettingsOuter=@($settingsOuter.X,$settingsOuter.Y,$settingsOuter.Width,$settingsOuter.Height)
-    SettingsVisible=@($settingsVisible.X,$settingsVisible.Y,$settingsVisible.Width,$settingsVisible.Height)
-    TaskbarVisible=@($taskbarVisible.X,$taskbarVisible.Y,$taskbarVisible.Width,$taskbarVisible.Height)
-    SettingsDwmHRESULT=$settingsDwmHr;TaskbarDwmHRESULT=$taskbarDwmHr
-   }
-   if(!$work.Contains($settingsVisible) -or !$screenBounds.Contains($settingsVisible) -or $settingsVisible.IntersectsWith($taskbarVisible)){
-    $evidence+=@{State=$mode+'_SETTINGS_GEOMETRY_FAIL';Geometry=$geometry}
-    throw ('R146_SETTINGS_EXTENDS_BEHIND_TASKBAR '+($geometry|ConvertTo-Json -Compress -Depth 4))
-   }
-   $evidence+=@{State=$mode+'_SETTINGS_GEOMETRY';Geometry=$geometry}
+   $evidence+=@{State=$mode+'_SETTINGS_GEOMETRY';Geometry=$geometry;WaitMs=$geometryWaitMs;StableSamples=$geometryStableSamples}
   Assert-Visible $monitor $original ($mode+'_SETTINGS') $top
   $evidence+=Capture $monitor ($mode+'_SETTINGS')
   [void][R146Native]::SendMessage($settings,0x0010,[IntPtr]::Zero,[IntPtr]::Zero);Pump 500
