@@ -87,8 +87,30 @@ function InjectTaskSettingsDrift(){
  }
  Register-ScheduledTask -TaskPath '\' -TaskName $script:task -Xml $drifted -ErrorAction Stop|Out-Null
  $current=[string](Export-ScheduledTask -TaskPath '\' -TaskName $script:task -ErrorAction Stop)
- if([string]::Equals($current,$priorXml,[StringComparison]::Ordinal) -or -not $current.Contains($after)){
-   throw 'R344_TASK_SETTINGS_DRIFT_NOT_PERSISTED'
+ if([string]::Equals($current,$priorXml,[StringComparison]::Ordinal)){
+   throw 'R344_TASK_SETTINGS_DRIFT_EXPORT_UNCHANGED'
+ }
+ $xmlDoc=[Xml.XmlDocument]::new()
+ $xmlDoc.XmlResolver=$null
+ $xmlSettings=[Xml.XmlReaderSettings]::new()
+ $xmlSettings.DtdProcessing=[Xml.DtdProcessing]::Prohibit
+ $xmlSettings.XmlResolver=$null
+ $xmlSettings.MaxCharactersInDocument=262144
+ $xmlStringReader=[IO.StringReader]::new($current)
+ $xmlReader=$null
+ try{
+   $xmlReader=[Xml.XmlReader]::Create($xmlStringReader,$xmlSettings)
+   $xmlDoc.Load($xmlReader)
+ }finally{if($xmlReader){$xmlReader.Dispose()};$xmlStringReader.Dispose()}
+ $xmlNs=[Xml.XmlNamespaceManager]::new($xmlDoc.NameTable)
+ $xmlNs.AddNamespace('t','http://schemas.microsoft.com/windows/2004/02/mit/task')
+ $allowNode=$xmlDoc.SelectSingleNode('/t:Task/t:Settings/t:AllowStartOnDemand',$xmlNs)
+# Task Scheduler schema defaults AllowStartOnDemand to true; the exporter may omit the default-valued element.
+ $allowValue=if($allowNode){[string]$allowNode.InnerText}else{'true'}
+ $logonNodes=$xmlDoc.SelectNodes('/t:Task/t:Triggers/t:LogonTrigger',$xmlNs)
+ $triggerUser=$xmlDoc.SelectSingleNode('/t:Task/t:Triggers/t:LogonTrigger/t:UserId',$xmlNs)
+ if($allowValue -ine 'true' -or $logonNodes.Count -ne 1 -or !$triggerUser -or (ResolveTaskSid ([string]$triggerUser.InnerText)) -cne $script:sid){
+   throw ('R344_TASK_SETTINGS_DRIFT_NOT_PERSISTED actual='+$allowValue)
  }
  $read=Get-ScheduledTask -TaskName $script:task -TaskPath '\' -ErrorAction Stop
  $expectedArgs='--broker "'+$script:protectedB+'" --output "'+(Join-Path $script:app 'cpu_temp_broker.json')+'"'
@@ -97,8 +119,7 @@ function InjectTaskSettingsDrift(){
     (ResolveTaskSid ([string]$read.Principal.UserId)) -cne $script:sid -or
     @($read.Actions).Count -ne 1 -or
     -not [string]::Equals([string]$read.Actions[0].Execute,$script:protectedS,[StringComparison]::OrdinalIgnoreCase) -or
-    -not [string]::Equals([string]$read.Actions[0].Arguments,$expectedArgs,[StringComparison]::Ordinal) -or
-    -not $current.Contains('<LogonTrigger>')){
+    -not [string]::Equals([string]$read.Actions[0].Arguments,$expectedArgs,[StringComparison]::Ordinal)){
    throw 'R344_DRIFTED_TASK_NO_LONGER_SAME_OWNED_DISABLED_TASK'
  }
  $script:taskSettingsDriftInjected=$true
