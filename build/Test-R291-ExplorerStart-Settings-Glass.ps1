@@ -224,8 +224,31 @@ try{
   $condition=New-Object Windows.Automation.AndCondition([Windows.Automation.Condition[]]@(
    (New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::ProcessIdProperty,[int]$process.Id)),
    (New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::NameProperty,'Settings...'))))
-  $menuItem=[Windows.Automation.AutomationElement]::RootElement.FindFirst([Windows.Automation.TreeScope]::Descendants,$condition)
-  if($null -eq $menuItem){throw 'R146_REAL_SETTINGS_MENU_ITEM_NOT_FOUND'}
+  # Keep the exact PID/name predicate; poll for a bounded five seconds because
+  # the native popup can be delayed while DWM/Glass transitions settle.
+  $menuClock=[Diagnostics.Stopwatch]::StartNew()
+  do{
+   try{
+    $menuItem=[Windows.Automation.AutomationElement]::RootElement.FindFirst([Windows.Automation.TreeScope]::Descendants,$condition)
+   }catch [Windows.Automation.ElementNotAvailableException]{
+    $menuItem=$null
+   }
+   if($null -ne $menuItem){break}
+   Pump 100
+  }while($menuClock.ElapsedMilliseconds -lt 5000)
+  $menuClock.Stop()
+  $menuWaitMs=$menuClock.ElapsedMilliseconds
+  if($null -eq $menuItem){
+   $foreground=[R146Native]::GetForegroundWindow();$foregroundPid=[uint32]0
+   [void][R146Native]::GetWindowThreadProcessId($foreground,[ref]$foregroundPid)
+   $foregroundTitle=[R146Native]::Title($foreground)
+   $allSettings=New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::NameProperty,'Settings...')
+   $otherMatches=[Windows.Automation.AutomationElement]::RootElement.FindAll([Windows.Automation.TreeScope]::Descendants,$allSettings)
+   $matchSummary=@(foreach($item in $otherMatches){@{Pid=$item.Current.ProcessId;Type=$item.Current.ControlType.ProgrammaticName;Offscreen=$item.Current.IsOffscreen;Class=$item.Current.ClassName}})
+   throw ('R146_REAL_SETTINGS_MENU_ITEM_NOT_FOUND MODE='+$mode+' WAIT_MS='+$menuWaitMs+' FG_PID='+$foregroundPid+' FG_TITLE='+$foregroundTitle+' UIA_MATCHES='+($matchSummary|ConvertTo-Json -Compress))
+  }
+  $evidence+=@{State=$mode+'_SETTINGS_MENU_ITEM';WaitMs=$menuWaitMs;ProcessId=$menuItem.Current.ProcessId;Name=$menuItem.Current.Name;ControlType=$menuItem.Current.ControlType.ProgrammaticName}
+  Write-Output ('R146_SETTINGS_MENU_ITEM_READY MODE='+$mode+' WAIT_MS='+$menuWaitMs)
   $invoke=$menuItem.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern);$invoke.Invoke();Pump 1500
   $settings=[IntPtr]::Zero
   foreach($h in [R146Native]::Owned([uint32]$process.Id,$taskbar)){if([R146Native]::Title($h) -like '* - Settings' -and [R146Native]::IsWindowVisible($h)){$settings=$h;break}}
