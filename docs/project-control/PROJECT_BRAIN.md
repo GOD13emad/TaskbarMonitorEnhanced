@@ -1,3 +1,18 @@
+<!-- TBME:R301_IMMUTABLE_PUBLIC_V1710_RELEASE_VERIFIED:BEGIN -->
+## R301 - Official immutable v1.7.10 published, G16 public seven-asset verification PASS
+
+- Verified at 2026-11-08T03:27:36.7584507Z: public Latest immutable GitHub Release https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.7.10 (Release ID 438006233), published 2026-11-08T03:24:15Z; exact tag/manifest/source commit 6effbb8083615f5673f6df22a3b0782b33595ad3. Prior immutable v1.7.9 remains untouched.
+- Public distribution: exactly ONE unsigned TaskbarMonitorEnhanced_Setup_1.7.10.exe (8,613,376 bytes; SHA256 1D0326CF11CEE069AD295112A9CA49D9FCBDB58ECDAB46FFE9C0F7172CE26D7E), source ZIP of 395 tracked files, SPDX 2.3 SBOM, release notes, acceptance scope, checksum list and manifest: 7 public assets total. Get-AuthenticodeSignature was NotSigned. Previous owner unsigned approval was reused transparently, not replaced with a fabricated certificate or personal approval for this version.
+- Actual online, independent G16 proof downloaded and SHA-verified all seven public assets; manifest payload entries 5, checksum entries 6, immutable tag and source matched GitHub Main CI 42441872706, SUCCESS on exact 6effbb8. Receipt .local/R301_G16_PUBLIC_v1710.json SHA256 D1A741F2A1EE8C04612D9E4FDDD02B5FD1655005628B782064556D18BCB8A1A2. Scope: public package integrity, not a malware or exhaustive crash clearance.
+- Real disposable Windows GitHub-hosted CI: source PR #89 final run 42440771969 all four jobs SUCCESS (reproducible build, actual fresh 1.7.10 Setup, public SHA-pinned official 1.7.9 -> 1.7.10 /update with forced two-file COMMITTING crash recovery, native deferred-uninstall/Junction safety), merged product source main 90180fe8fd414b56ee49229c9954ea37c0235585. Version-locked R289/R290/R291 jobs were diagnosed at 1.7.9 preflight rather than falsely accepted as behavior failures; PR #91 migrated R290/R291 to current version and retained R289 on the historical branch. Source final main 6effbb8083615f5673f6df22a3b0782b33595ad3.
+- Exact final postmerge main CI 42441872706 ALL FOUR SUCCESS; hosted Win32 Z-order Windows 2022 and 2025 CI 42441872732 SUCCESS; real isolated Explorer Start/Settings/Glass Windows 2022 and 2025 CI 42441872710 SUCCESS. All evidence belongs to these hosted, scoped environments.
+- A concurrent verified publisher created immutable public Release assets while this R301 audit was running; no duplicate upload/publish was attempted. Release 438006233 content and all hashes match the locally verified seven-asset staging receipt. Local main and personal owner install were not mutated by publishing.
+- Owner PC remains running the exact original official v1.7.9 Main SHA256 04776E870A492733BBA33A550F732F5DB688A6585FC6533224A56687F1A6D88E and Uninstall/Setup SHA256 3AE5E2AC7428C3443FF7768C543117AF864E7C73F68D32EFAD4AB40B30FB5B0E; no live owner upgrade and no owner taskbar/GUI takeover performed. The user-directed personal Start/Settings/Glass dynamic transition is still OPEN; Issue #6 still needs original reporter hash/origin, physical power loss excluded by owner, and Notion project target not verified (similarly named TandemVector repository is NOT this repository).
+- Next safe action: owner-directed normal application exit and one-installer in-place update only when the personal GUI/upgrade acceptance can be witnessed. Never force-close owner process, downgrade public immutable v1.7.9, or silently alter config. FINAL system-wide claim remains conditional on personal dynamic witness.
+<!-- TBME:R301_IMMUTABLE_PUBLIC_V1710_RELEASE_VERIFIED:END -->
+
+---
+
 <!-- TBME:R299_OFFICIAL_V179_TO_V1710_HOSTED_UPGRADE_RECOVERY:BEGIN -->
 ## R299 - Official v1.7.9 to unreleased v1.7.10: hosted real-Setup upgrade and crash recovery
 
