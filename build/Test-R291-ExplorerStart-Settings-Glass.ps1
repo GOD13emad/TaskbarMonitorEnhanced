@@ -242,7 +242,7 @@ try{
     $original.Width,$original.Height,[ref]$fixedHit,[ref]$scans)
   $ok=($target.X -ne [int]::MinValue)
   $proof=[ordered]@{Mode=$mode;MonitorHWND=$monitor.ToInt64()
-    FixedClick=@($original.X+40,$original.Y+[int]($original.Height/2))
+    FixedClick=@(($original.X+40),($original.Y+[int]($original.Height/2)))
     FixedNativeHit=$fixedHit.ToInt64()
     SelectedClick=@($target.X,$target.Y)
     SelectedNativeHit=$(if($ok){[R146Native]::WindowFromPoint($target).ToInt64()}else{0})
