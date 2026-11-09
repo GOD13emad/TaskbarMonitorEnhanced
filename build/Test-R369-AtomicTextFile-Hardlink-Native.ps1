@@ -34,8 +34,11 @@ if($Variant -eq 'baseline'){
   throw 'R369_CANDIDATE_SOURCE_ATOMIC_GUARD_FAILED'
  }
 }
-if($HostedGuest -and (Test-Path -LiteralPath (Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'))){
- throw 'R369_HOSTED_REAL_INSTALL_PREEXISTS'
+# The earlier workflow step proves there is no installed product before Build.
+# Build's own selftests may legitimately create the AppData folder; it is not an installation.
+if($HostedGuest){
+ $installedExe=Join-Path (Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced') 'TaskbarMonitorEnhanced.exe'
+ if(Test-Path -LiteralPath $installedExe -PathType Leaf){throw 'R369_HOSTED_INSTALLED_APP_BINARY_PREEXISTS'}
 }
 $checks=[Collections.Generic.List[string]]::new()
 function Pass([string]$name){$checks.Add($name);Write-Output ('R369_PASS '+$name)}
