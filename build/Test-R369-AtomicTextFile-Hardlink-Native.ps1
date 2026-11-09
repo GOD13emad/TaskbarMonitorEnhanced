@@ -103,9 +103,13 @@ try {
   if([IO.File]::ReadAllText($dest) -cne 'R369_ALIAS_WRITE'){throw 'R369_CANDIDATE_OUTPUT_INVALID'}
   Pass 'CANDIDATE_RANDOM_CREATE_NEW_BLOCKS_PREDICTABLE_ALIAS_WRITE_THROUGH'
  }
- $backup=Join-Path $root 'config.json.bak'
- Invoke-Write $dest 'R369_REPLACED' $backup
- if([IO.File]::ReadAllText($dest) -cne 'R369_REPLACED' -or
+ # Backup semantics must use a clean fixture: after a successful baseline attack
+ # config.json still shares a file object with hundreds of NTFS aliases.
+ $normal=Join-Path $root 'normal-config.json'
+ [IO.File]::WriteAllText($normal,'R369_ALIAS_WRITE',[Text.Encoding]::UTF8)
+ $backup=Join-Path $root 'normal-config.json.bak'
+ Invoke-Write $normal 'R369_REPLACED' $backup
+ if([IO.File]::ReadAllText($normal) -cne 'R369_REPLACED' -or
   [IO.File]::ReadAllText($backup) -cne 'R369_ALIAS_WRITE'){
   throw 'R369_REPLACE_BACKUP_SEMANTICS_REGRESSION'
  }
