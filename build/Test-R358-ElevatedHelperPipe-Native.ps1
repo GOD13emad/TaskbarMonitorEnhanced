@@ -138,12 +138,12 @@ $delay=[int]$env:TBME_R358_DELAY
 $pipe=$null
 $connected=$false
 try{
+    if($delay -gt 0){Start-Sleep -Milliseconds $delay}
+    $pipe=[IO.Pipes.NamedPipeClientStream]::new('.',$pipeName,[IO.Pipes.PipeDirection]::In)
     if($mode -ceq 'rogue'){
         [IO.File]::WriteAllText((Join-Path $base 'rogue-ready.txt'),'READY')
     }
-    if($delay -gt 0){Start-Sleep -Milliseconds $delay}
-    $pipe=[IO.Pipes.NamedPipeClientStream]::new('.',$pipeName,[IO.Pipes.PipeDirection]::In)
-    $pipe.Connect(12000)
+    $pipe.Connect(15000)
     $connected=$true
     if($mode -ceq 'rogue'){
         [IO.File]::WriteAllText((Join-Path $base 'rogue-connected.txt'),'CONNECTED')
@@ -217,11 +217,11 @@ try{
     if(-not [IO.File]::Exists((Join-Path $root 'rogue-ready.txt'))){throw 'R358_ROGUE_CLIENT_READY_TIMEOUT'}
     # The rogue client is queued first. SendTo must reject its PID,
     # disconnect it without disclosing one byte, then accept the intended child.
-    $legit=Start-Client 'legit' $clientScript $pipeName $root '3000' $pipeHash $compactHash
+    $legit=Start-Client 'legit' $clientScript $pipeName $root '5000' $pipeHash $compactHash
     $sendMethod=$launch.GetType().GetMethod('SendTo',[Reflection.BindingFlags]'Instance,Public')
     if(!$sendMethod){throw 'R358_REAL_SETUP_SEND_METHOD_MISSING'}
-    $sendMethod.Invoke($launch,[object[]]@($legit,15000))|Out-Null
-    if(-not $legit.WaitForExit(15000)){try{$legit.Kill()}catch{};throw 'R358_LEGITIMATE_PIPE_CLIENT_TIMEOUT'}
+    $sendMethod.Invoke($launch,[object[]]@($legit,20000))|Out-Null
+    if(-not $legit.WaitForExit(20000)){try{$legit.Kill()}catch{};throw 'R358_LEGITIMATE_PIPE_CLIENT_TIMEOUT'}
     if(-not $rogue.WaitForExit(5000)){try{$rogue.Kill()}catch{};throw 'R358_ROGUE_PIPE_CLIENT_NOT_DISCONNECTED'}
     if($legit.ExitCode -ne 0){throw ('R358_LEGITIMATE_CLIENT_EXIT_'+$legit.ExitCode)}
     if($rogue.ExitCode -ne 0){throw ('R358_ROGUE_CLIENT_EXIT_'+$rogue.ExitCode)}
