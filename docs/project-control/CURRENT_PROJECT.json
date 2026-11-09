@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R352",
-  "Status": "PUBLIC_V1710_OWNER_INSTALLED_HASH_VERIFIED_SECURITY_PR98_READY_FOR_REVIEW_HUMAN_REVIEW_PENDING_GUI_AND_AUDIO_WITNESS_DEFERRED",
-  "UpdatedUtc": "2026-11-09T02:42:30.097Z",
+  "CurrentEngineeringRevision": "R357",
+  "Status": "PUBLIC_V1710_OWNER_INSTALLED_HASH_VERIFIED_SECURITY_PR98_R357_CI_40_OF_40_PASS_HUMAN_REVIEW_PENDING_GUI_AUDIO_DEFERRED",
+  "UpdatedUtc": "2026-11-09T03:33:50.357Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -86,16 +86,18 @@
     "R301 immutable public v1.7.10 release ID 438006233 and all seven assets independently SHA/manifest verified; exact source hosted native and Explorer Start/Settings/Glass CI PASS.",
     "R303 personal host Setup v1.7.10 /verify PASS without installation; installed v1.7.9 remains running and personal GUI witness OPEN.",
     "R352 public status read-only corrected: installed v1.7.10+r299 Main/Uninstall hashes and HKCU/install_state 1.7.10 independently read back; this does not validate the complete owner upgrade transaction.",
-    "R355: security branch synchronized with merged public-docs-only main; failure-only R291 native Settings HWND/parent/owner diagnostics added without product code or acceptance-threshold change. Exact test-source e1a8ac2 passed Build 4/4, R338 4/4, R290 2/2 and R291 2/2; exact CI head 0b8a216 passed 13/13 (Build 4/4, R338 4/4, R290 2/2, R291 3/3). Local Windows PowerShell 5.1 synthetic hidden-HWND harness executed the exact failure-only JSON block and verified Visible/WSVisible, parent/owner and ThresholdsUnchanged readback; diagnostic-only PASS, not root-cause or product UI proof. Current Helper, Setup, R352 test and workflow blobs match the R352 hosted-tested b937e25 commit; public release and owner installation unchanged; independent human review pending."
+    "R355: security branch synchronized with merged public-docs-only main; failure-only R291 native Settings HWND/parent/owner diagnostics added without product code or acceptance-threshold change. Exact test-source e1a8ac2 passed Build 4/4, R338 4/4, R290 2/2 and R291 2/2; exact CI head 0b8a216 passed 13/13 (Build 4/4, R338 4/4, R290 2/2, R291 3/3). Local Windows PowerShell 5.1 synthetic hidden-HWND harness executed the exact failure-only JSON block and verified Visible/WSVisible, parent/owner and ThresholdsUnchanged readback; diagnostic-only PASS, not root-cause or product UI proof. Current Helper, Setup, R352 test and workflow blobs match the R352 hosted-tested b937e25 commit; public release and owner installation unchanged; independent human review pending.",
+    "R357: protected Broker tree deletion now rejects ReadOnly leaves/owner marker before mutation and deletes the ownership marker last; late Memory-Mapped leaf deletion failure preserves the marker. R350 passed 30/30 checks on each Windows Server 2022/2025 host. Exact candidate head 07c095c passed 12 hosted workflows / 40 jobs (40/40), including Build/Verification, R291 Explorer UI, R290 Z-order, R338, R337, R344, R347, R349, R350, R351 and R352. No owner installation or immutable release changed; PR #98 remains unmerged pending independent human review."
   ],
   "Open": [
     "OWNER_V179_TO_V1710_UPGRADE_TRANSACTION_PROVENANCE_NOT_INDEPENDENTLY_REVALIDATED",
-    "ISSUE6_REPORTER_DRIVER_SHA_AND_INSTALL_ORIGIN_MISSING"
+    "ISSUE6_REPORTER_DRIVER_SHA_AND_INSTALL_ORIGIN_MISSING",
+    "PR98_INDEPENDENT_HUMAN_SECURITY_REVIEW_PENDING"
   ],
-  "CriticalPath": "Official immutable v1.7.10 release remains accepted. Owner-installed v1.7.10+r299 Main/Uninstall hashes and registry/install_state version were read-only verified. R352 exact embedded-Helper rollback evidence remains applicable because current Helper, Setup, R352 test and workflow blobs match the hosted-tested b937e25; that run passed 3/3 jobs and 14/14 checks per Windows Server 2022/2025 host. PR #98 remains Ready for review and unmerged; exact CI head 0b8a216 passed 13/13. R355 local synthetic failure-only Settings diagnostic harness passed serialization/readback only; the historical hidden-window root cause remains unproven. Independent human review is required before merge. Owner GUI/audio witness and complete personal upgrade transaction provenance remain deferred/unverified; Issue #6 awaits original reporter driver SHA and origin. Unsigned waiver and physical AC exclusion remain.",
-  "MainBlocker": "PR #98 remains unmerged and blocked until an actual independent human security review is submitted and assessed; do not impersonate the reviewer or self-approve. Secondary evidence gaps are the original reporter's Issue #6 driver SHA/install origin and the unavailable original owner upgrade transaction receipt. Owner GUI/audio witnesses are deferred, not release failures. Do not force-close the running app, take desktop focus, or publish a new release.",
-  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R355_NOT_A_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Obtain and assess an actual independent human review of PR #98 before merge; do not impersonate the requested reviewer. Current exact-CI tested head 0b8a216 passed 13/13; the local synthetic R355 failure-only diagnostic harness also passed without changing product code. Current Helper/Setup/R352 test/workflow blobs are byte-identical to hosted-tested b937e25. Issue #6 still requires the original reporter's driver SHA-256 and download/install origin. Owner GUI/audio witness remains deferred unless the owner explicitly authorizes a current-turn takeover; do not repeat the old upgrade without the missing original transaction evidence.",
+  "CriticalPath": "Official immutable v1.7.10 remains accepted and unchanged. Owner-installed v1.7.10+r299 Main/Uninstall hashes and registry/install_state were read-only verified previously. R357 security candidate head 07c095c43e3a96e838bfaee7f51d86707326dda8 passed exact-head hosted CI: 12 workflows / 40 jobs (40/40), including R350 protected-tree deletion 30/30 per Windows 2022/2025 host, R352 exact Install-catch rollback 14/14 per host, R291 hosted Explorer Start/Settings/Glass, R272 49-theme thermal warning visuals and Build/Verification. PR #98 remains Ready for review and unmerged; independent human approval is still required. Owner GUI/audio witness and complete personal upgrade transaction receipt remain deferred/unverified; Issue #6 awaits original reporter driver SHA/origin. Unsigned waiver and physical AC exclusion remain.",
+  "MainBlocker": "PR #98 is unmerged and requires an actual independent human security review after the latest push; do not impersonate the requested reviewer or self-approve. Secondary evidence gaps are the original reporter's Issue #6 driver SHA/install origin and the unavailable complete personal v1.7.9-to-v1.7.10 upgrade receipt. Owner GUI/audio witnesses are deferred, not release failures. Do not force-close the running app, take desktop focus, or publish a new release.",
+  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R357_NOT_A_SECOND_OPERATIONAL_BRAIN",
+  "ExactNextAction": "Obtain and assess an actual independent human review of PR #98 at head 07c095c43e3a96e838bfaee7f51d86707326dda8. After the review, address any findings, rerun exact-head CI if code changes, and merge only if approval supports it. Keep public v1.7.10 and the owner installation unchanged. Issue #6 still requires the original reporter's affected driver SHA-256 and download/install origin; owner GUI/audio remains deferred unless a new defect and authorized attested GUI route arise.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -134,9 +136,9 @@
   "SecurityCandidate": {
     "PullRequest": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/pull/98",
     "Branch": "security/r347-r349-helper-hardening-v1710",
-    "LatestReviewedByHostedCI": "0b8a21668869a700f879df2540288d69e9779f60",
-    "LatestProductTestSource": "e1a8ac211de94fa46df8e3ab8fd9ac6e838a6ca6",
-    "R352Windows2022And2025": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42527941266",
+    "LatestReviewedByHostedCI": "07c095c43e3a96e838bfaee7f51d86707326dda8",
+    "LatestProductTestSource": "07c095c43e3a96e838bfaee7f51d86707326dda8",
+    "R352Windows2022And2025": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455344",
     "R352ChecksPerHost": 14,
     "IndependentHumanReviewSubmitted": false,
     "MergedIntoMain": false,
@@ -169,31 +171,31 @@
       }
     },
     "LatestExactBranchHeadCI": {
-      "Commit": "0b8a21668869a700f879df2540288d69e9779f60",
+      "Commit": "07c095c43e3a96e838bfaee7f51d86707326dda8",
       "BuildAndVerification": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42549182496",
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556460119",
         "Jobs": 4,
         "Result": "SUCCESS"
       },
       "R338": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42549182488",
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556460213",
         "Jobs": 4,
         "Result": "SUCCESS"
       },
       "R290": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42549182569",
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556460209",
         "Jobs": 2,
         "Result": "SUCCESS"
       },
       "R291": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42549182525",
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556460114",
         "Jobs": 3,
         "Result": "SUCCESS"
       },
       "TotalChecks": 13,
       "Result": "SUCCESS"
     },
-    "LatestExactCITestedHead": "0b8a21668869a700f879df2540288d69e9779f60",
+    "LatestExactCITestedHead": "07c095c43e3a96e838bfaee7f51d86707326dda8",
     "R355FailureDiagnosticHarness": {
       "Result": "PASS",
       "Environment": "Windows PowerShell 5.1.26100.9818",
@@ -207,9 +209,105 @@
       ],
       "OutputSHA256": "B54E400766D072CFD5C525ACE685E885104F8A3BD16F7E870477280B557E181A",
       "Scope": "Diagnostic collection/serialization only; not a product UI fix, hosted failure reproduction or root-cause proof"
+    },
+    "R350Windows2022And2025": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455363",
+    "R350ChecksPerHost": 30,
+    "R357TreeDeleteHardening": {
+      "Commit": "07c095c43e3a96e838bfaee7f51d86707326dda8",
+      "ChangedFiles": [
+        "installer/TBME_Setup_Elevated_Helper.ps1",
+        "build/Test-R350-PrivilegedTreeDelete-Native.ps1"
+      ],
+      "ReadOnlyLeafPreflight": "PASS",
+      "ReadOnlyOwnerMarkerPreflight": "PASS",
+      "MappedLeafLateDeleteFailureOwnerMarkerRetained": "PASS",
+      "R350": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455363",
+        "Jobs": 2,
+        "ChecksPerHost": 30,
+        "Result": "SUCCESS"
+      }
+    },
+    "LatestPushRegressionCI": {
+      "Commit": "07c095c43e3a96e838bfaee7f51d86707326dda8",
+      "R337": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455334",
+        "Jobs": 4,
+        "Result": "SUCCESS"
+      },
+      "R338": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455447",
+        "Jobs": 4,
+        "Result": "SUCCESS"
+      },
+      "R344": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455442",
+        "Jobs": 8,
+        "Result": "SUCCESS"
+      },
+      "R347": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455376",
+        "Jobs": 2,
+        "Result": "SUCCESS"
+      },
+      "R349": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455415",
+        "Jobs": 2,
+        "Result": "SUCCESS"
+      },
+      "R350": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455363",
+        "Jobs": 2,
+        "ChecksPerHost": 30,
+        "Result": "SUCCESS"
+      },
+      "R351": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455452",
+        "Jobs": 2,
+        "Result": "SUCCESS"
+      },
+      "R352": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455344",
+        "Jobs": 3,
+        "ChecksPerHost": 14,
+        "Result": "SUCCESS"
+      },
+      "TotalJobs": 27,
+      "Result": "SUCCESS"
+    },
+    "TotalExactHeadCI": {
+      "Workflows": 12,
+      "Jobs": 40,
+      "Passed": 40,
+      "Failed": 0,
+      "Result": "SUCCESS"
+    },
+    "BuildAcceptance": {
+      "GlassAndChartSuites": 10,
+      "R272ThermalWarningThemes": 49,
+      "R244SettingsPages": 9,
+      "PortableRuntimeContractSuites": 5,
+      "SPDX23SBOMGenerated": true,
+      "R136ManifestAndSBOMMatchExactSetupBytes": true,
+      "ProvenanceAttestationSteps": "SKIPPED_IN_PULL_REQUEST_CONTEXT"
+    },
+    "R291HostedUI": {
+      "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556460114",
+      "Hosts": [
+        "Windows Server 2022",
+        "Windows Server 2025"
+      ],
+      "Modes": [
+        "plain1",
+        "plain10",
+        "glass0",
+        "opaque100"
+      ],
+      "RealStartSettingsFullscreenVisibility": true,
+      "PersonalComputerTouched": false
     }
   },
-  "CurrentVerificationRevision": "R355",
+  "CurrentVerificationRevision": "R357",
   "Deferred": [
     "OWNER_WINDOWS11_PERSONAL_START_SETTINGS_DYNAMIC_GUI_WITNESS_DEFERRED_NOT_PASS_OWNER_ACCEPTED_CURRENT_BEHAVIOR_NO_CURRENT_TAKEOVER_AUTHORITY",
     "OWNER_APP_OS_NOTIFICATION_BANNER_AND_AUDIBLE_SPEAKER_NOT_INDEPENDENTLY_WITNESSED_DEFERRED_NOT_PASS"
