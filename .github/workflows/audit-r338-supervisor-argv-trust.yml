@@ -76,6 +76,31 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           dotnet-version: 10.0.400
+      - name: Apply current SHA-pinned dependency fetcher to exact baseline and candidate checkouts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $harness=(Resolve-Path harness).Path
+          $source=(Resolve-Path src).Path
+          $sourceCommit=(git -C src rev-parse HEAD).Trim()
+          foreach($name in @('Build.ps1','dependencies.lock.json')){
+            $from=Join-Path $harness ('build\'+$name)
+            $to=Join-Path $source ('build\'+$name)
+            if(!(Test-Path -LiteralPath $from -PathType Leaf) -or
+               !(Test-Path -LiteralPath $to -PathType Leaf)){
+              throw ('R338_PINNED_BUILD_TOOLING_SOURCE_OR_TARGET_MISSING '+$name)
+            }
+            $expected=(Get-FileHash -LiteralPath $from -Algorithm SHA256).Hash
+            Copy-Item -LiteralPath $from -Destination $to -Force
+            if((Get-FileHash -LiteralPath $to -Algorithm SHA256).Hash -cne $expected){
+              throw ('R338_PINNED_BUILD_TOOLING_COPY_HASH_MISMATCH '+$name)
+            }
+            Write-Host ('R338_CURRENT_BUILD_TOOLING_SHA256=PASS file='+$name+' sha='+$expected)
+          }
+          if((git -C src rev-parse HEAD).Trim() -cne $sourceCommit){
+            throw 'R338_EXACT_PRODUCT_SOURCE_COMMIT_CHANGED_BY_BUILD_TOOLING_COPY'
+          }
+          Write-Host ('R338_EXACT_PRODUCT_SOURCE_COMMIT_PRESERVED='+$sourceCommit)
       - name: Compile actual supervisor and all bundled .NET Framework projects
         shell: pwsh
         working-directory: src
