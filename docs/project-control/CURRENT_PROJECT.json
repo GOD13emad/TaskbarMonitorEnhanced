@@ -4,8 +4,8 @@
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
   "CurrentEngineeringRevision": "R370",
-  "Status": "PUBLIC_V1710_OWNER_UNCHANGED_R370_PRODUCT_R373_TEST_ONLY_LAST_TESTED_PR_13AD_29_OF_29_R291_4_OF_4_HOST_RUNS_R360_6_OF_6_UI_ROOT_CAUSE_UNPROVEN_REVIEW_PENDING",
-  "UpdatedUtc": "2026-11-09T20:14:12.0826488Z",
+  "Status": "PUBLIC_V1710_OWNER_UNCHANGED_R370_PRODUCT_R373_TEST_ONLY_LAST_TESTED_PR_38E_29_OF_29_R291_6_OF_6_HOST_EXECUTIONS_R360_6_OF_6_UI_ROOT_CAUSE_UNPROVEN_REVIEW_PENDING",
+  "UpdatedUtc": "2026-11-09T20:22:22.2129570Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -102,7 +102,7 @@
     "R370: baseline source a8fadee WritePhase phase.tmp File.WriteAllText followed a precreated same-user NTFS hardlink and modified isolated outside-canary; source candidate 8d0b43b uses FileMode.CreateNew and exclusive handle for the fixed crash-recovery phase.tmp name, refuses alias without changing canary and preserves PREPARED/COMMITTING/COMMITTED plus destination hardlink replacement. Local App/Sensor/Setup build 0 warnings/errors and exact embedded Setup source checked; native baseline 1/1 and candidate 3/3. Hosted Windows Server 2022/2025 baseline/candidate push+PR matrix 8/8, eight typed receipts, exact code/test head CI 63/63 success. Receipt .local/audit/r370-upgrade-phase-hardlink-local-20261109.json SHA256 E50936C6BB5BB0F0DBE630FC0FA0876EEFD48EA7BB83D590E7A54BEF7A51EE8C; PR #98 comment 6744756723, Issue #7 6744763801. Personal installed official v1.7.10 and immutable release unchanged. No cross-privilege or owner-run installer claim; human review still zero.",
     "R371 test-only R291 diagnostic instrumentation, PS51/YAML parser PASS, current exact-head CI 28/28 SUCCESS; original prior Windows 2022 glass0 menu and hide failures both NON-PASS, root cause unresolved; no product or owner mutation. Receipt SHA256 A096C940520B8DE40C89F70B23B6C1E6FA0119A7B6925554F8C9B037C23A0AC4.",
     "R372: corrected PS51 parser harness head 3e5523e exact CI 28/28 success, R291 2022/2025 four modes and R360 three cycles each OS success, 8/8 native click HWND proofs fixed pixel already hit target, no fallback exercised. Initial head 73b5486 PS51 Object[] error and older intermittent R291 failures kept NON-PASS. Local receipt SHA256 D7BC6A9B0B60FF1FBD42039C921AE0F59BA59ADF85D704807B9378F0AA0B8175; no product or owner install changes; human review still zero.",
-    "R373: test-only taskbar-hide transition telemetry; PS5.1/YAML/mock checks PASS; product/test head 915e9e3 PR 28/28, state head 13ad408 PR 29/29, R291 4/4 host executions across two runs and R360 6/6 cycles / 24 modes. Total 10 cycles / 40 modes and 40 native hide samples 29-502 ms (median 208.5); taskbar and monitor visible before/hidden after in all samples. Original 1100ms gate unchanged. Product source, public release and owner install unchanged; historical R371 UI failures remain unproven; PR #98 human review pending."
+    "R373: test-only taskbar-hide transition telemetry; PS5.1/YAML/mock checks PASS; product/test head 915e9e3 PR 28/28, state head 38e773a PR 29/29, R291 6/6 host executions across three runs and R360 6/6 cycles / 24 modes. Total 12 cycles / 48 modes and 48 native hide samples 29-502 ms (median 224); taskbar and monitor visible before/hidden after in all samples. Original 1100ms gate unchanged. Product source, public release and owner install unchanged; historical R371 UI failures remain unproven; PR #98 human review pending."
   ],
   "Open": [
     "OWNER_V179_TO_V1710_UPGRADE_TRANSACTION_PROVENANCE_NOT_INDEPENDENTLY_REVALIDATED",
@@ -112,7 +112,7 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "Immutable public v1.7.10 and owner-installed v1.7.10 unchanged. R370 remains latest product source. R373 test-only source head 915e9e3 and docs-only state head 13ad408 verified: last tested docs-only PR head 13ad408 29/29, R291 4/4 host executions across two runs, R360 6/6 cycles / 24 modes. Across 10 cycles / 40 native hide samples, latency 29-502 ms (median 208.5) with all taskbar/monitor visibility assertions correct before/after. Product source, installer and release unchanged. Historical R371 intermittent Settings-menu/taskbar-hide failures remain NON-PASS and root cause UNPROVEN. PR #98 remains open/mergeable/unmerged with review required and zero independent human reviews. Issue #6 reporter SHA/origin, personal upgrade receipt, owner GUI/audio witness and Notion R359 restore consent remain separate gates.",
+  "CriticalPath": "Immutable public v1.7.10 and owner-installed v1.7.10 unchanged. R370 remains latest product source. R373 test-only source head 915e9e3 and last tested docs-only state head 38e773a verified: PR checks 29/29, R291 6/6 host executions across three runs, R360 6/6 cycles / 24 modes. Across 12 cycles / 48 native hide samples, latency 29-502 ms (median 224) with all taskbar/monitor visibility assertions correct before/after. Product source, installer and release unchanged. Historical R371 intermittent Settings-menu/taskbar-hide failures remain NON-PASS and root cause UNPROVEN. PR #98 remains open/mergeable/unmerged with review required and zero independent human reviews. Issue #6 reporter SHA/origin, personal upgrade receipt, owner GUI/audio witness and Notion R359 restore consent remain separate gates.",
   "MainBlocker": "PR #98 OPEN/mergeable/unmerged; reviewDecision REVIEW_REQUIRED; zero independent human reviews. R373 R291/R360 hosted tests pass, but historical R371 intermittent Settings-menu/taskbar-hide failures remain preserved and root cause UNPROVEN. No merge or release without required human review.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
   "ExactNextAction": "Acquire independent human security review for PR #98, resolve findings and reverify before any permitted merge. Preserve R373 taskbar-hide transition telemetry and failure JSON/log capture for recurrence; do not relax the 1100ms gate. Issue #6 reporter driver SHA/origin, personal v1.7.9-to-v1.7.10 transaction receipt, owner GUI/audio witness and Notion R359 restore consent remain separate pending gates.",
@@ -154,7 +154,7 @@
   "SecurityCandidate": {
     "PullRequest": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/pull/98",
     "Branch": "security/r347-r349-helper-hardening-v1710",
-    "LatestReviewedByHostedCI": "13ad4083b8238df24047e4459834a2edbb046a6d",
+    "LatestReviewedByHostedCI": "38e773a40b8259a7bbbe31678ac40843fe37e497",
     "LatestProductTestSource": "8d0b43bfb5bc897aca829849f2e72861955dec06",
     "R352Windows2022And2025": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455344",
     "R352ChecksPerHost": 14,
@@ -189,17 +189,17 @@
       }
     },
     "LatestExactBranchHeadCI": {
-      "Commit": "13ad4083b8238df24047e4459834a2edbb046a6d",
+      "Commit": "38e773a40b8259a7bbbe31678ac40843fe37e497",
       "TotalChecks": 29,
       "Passed": 29,
       "Failed": 0,
       "Pending": 0,
       "Result": "SUCCESS",
-      "R291Run": 42689659064,
+      "R291Run": 42691157514,
       "R360Run": 42686985448,
-      "Scope": "Docs-only state head after R373 test source 915e9e3; product source R370; R291 2/2 hosts and R360 6/6 cycles; historical R371 failures preserved"
+      "Scope": "Last tested docs-only state head after R373 test source 915e9e3; product source R370; R291 3 runs / 6 host executions and R360 6 cycles; historical R371 failures preserved"
     },
-    "LatestExactCITestedHead": "13ad4083b8238df24047e4459834a2edbb046a6d",
+    "LatestExactCITestedHead": "38e773a40b8259a7bbbe31678ac40843fe37e497",
     "R355FailureDiagnosticHarness": {
       "Result": "PASS",
       "Environment": "Windows PowerShell 5.1.26100.9818",
@@ -329,7 +329,7 @@
       }
     },
     "LatestPRHeadCI": {
-      "Commit": "13ad4083b8238df24047e4459834a2edbb046a6d",
+      "Commit": "38e773a40b8259a7bbbe31678ac40843fe37e497",
       "Jobs": 29,
       "Passed": 29,
       "Failed": 0,
@@ -555,7 +555,7 @@
     "Status": "PENDING_USER_CONFIRMATION_TO_RESTORE_LAST_INTACT_R359_VERSION_THEN_SYNC_R372",
     "Page": "https://app.notion.com/p/412d5b4a86f681c29173c01fc4c75842",
     "LastVerifiedUtc": "2026-11-09T04:54:27.207Z",
-    "Scope": "R360 repeated Explorer Settings stress, R361-R363 SHA-pinned/API-backed download hardening, R364 exact-baseline R338 build tooling and exact-head CI, R365 owner-local R335/R338/R298 regressions, R366 PR #96 supersession and Issue #7 tracker update plus scoped Issue #6 owner-host audit, R367 Supervisor/Broker temp hard-link hardening and 30/30 exact-head CI. Independent human review, reporter/owner evidence gaps and restoration confirmation remain. R368 native R291 click event stabilization; R369 App config/history AtomicTextFile hard-link hardening, hosted 8/8, exact test-head 28/28 after one controlled R291 job rerun. Restoration approval still required. R370 Installer fixed upgrade phase.tmp hardlink fix, 8/8 hosted plus exact-head 63/63; Notion still awaits restoration approval. R371 exact test head 28/28 and prior hosted UI failure evidence; Notion sync pending specific confirmation. R372 test-only strict real UI native-hit CI 28/28, prior failures preserved, root cause unproven; portfolio sync waits specific restoration consent. R373 test-only hide-latency telemetry: last tested docs-only PR head 13ad408 CI 29/29, R291 4/4 host executions across two runs, R360 6/6 cycles and 40/40 hide samples 29-502ms (median 208.5ms); historical UI root cause remains unproven. Notion restore/sync still requires specific owner confirmation.",
+    "Scope": "R360 repeated Explorer Settings stress, R361-R363 SHA-pinned/API-backed download hardening, R364 exact-baseline R338 build tooling and exact-head CI, R365 owner-local R335/R338/R298 regressions, R366 PR #96 supersession and Issue #7 tracker update plus scoped Issue #6 owner-host audit, R367 Supervisor/Broker temp hard-link hardening and 30/30 exact-head CI. Independent human review, reporter/owner evidence gaps and restoration confirmation remain. R368 native R291 click event stabilization; R369 App config/history AtomicTextFile hard-link hardening, hosted 8/8, exact test-head 28/28 after one controlled R291 job rerun. Restoration approval still required. R370 Installer fixed upgrade phase.tmp hardlink fix, 8/8 hosted plus exact-head 63/63; Notion still awaits restoration approval. R371 exact test head 28/28 and prior hosted UI failure evidence; Notion sync pending specific confirmation. R372 test-only strict real UI native-hit CI 28/28, prior failures preserved, root cause unproven; portfolio sync waits specific restoration consent. R373 test-only hide-latency telemetry: last tested docs-only PR head 38e773a CI 29/29, R291 6/6 host executions across three runs, R360 6/6 cycles and 48/48 hide samples 29-502ms (median 224ms); historical UI root cause remains unproven. Notion restore/sync still requires specific owner confirmation.",
     "Authority": "Coordination mirror only; PROJECT_BRAIN.md and native test receipts remain technical authority.",
     "RecoveryTargetUtc": "2026-11-09T04:54:27.398Z",
     "RecoveryReason": "The 2026-11-09T06:05:33.663Z ChatGPT/MCP update_content operation removed 55 page blocks; version history attributes all 55 affected blocks to this operation only. Restore of the last intact R359 version requires explicit user confirmation before R369 synchronization."
@@ -891,24 +891,31 @@
     "Commit": "915e9e3557f4815a0de99188f126e726a7f8a7ad",
     "Parent": "9830482f343cc57e21612d4cf56a61321ce645f1",
     "ProductSourceCommit": "8d0b43bfb5bc897aca829849f2e72861955dec06",
-    "StateHead": "13ad4083b8238df24047e4459834a2edbb046a6d",
+    "StateHead": "38e773a40b8259a7bbbe31678ac40843fe37e497",
     "StateHeadCI": "29/29_PASS",
-    "StateHeadR291Run": 42689659064,
+    "StateHeadR291Run": 42691157514,
     "TestSourcePRChecks": "28/28_PASS",
     "ChangedFiles": [
       "build/Test-R291-ExplorerStart-Settings-Glass.ps1",
       ".github/workflows/audit-r360-r291-settings-visibility-stress.yml"
     ],
     "PRChecks": "29/29_PASS",
-    "R291": "4_HOST_EXECUTIONS_PASS_ACROSS_TWO_RUNS",
+    "R291": "6_HOST_EXECUTIONS_PASS_ACROSS_THREE_RUNS",
     "R360": "6_CYCLES_24_MODES_PASS",
-    "AdditionalR291HostExecutions": 2,
-    "AdditionalModeExecutions": 8,
-    "TotalCycles": 10,
-    "TotalModeExecutions": 40,
-    "HideSamples": 40,
+    "R291Runs": [
+      42686996123,
+      42689659064,
+      42691157514
+    ],
+    "R291HostExecutions": 6,
+    "R291ModeExecutions": 24,
+    "R360Cycles": 6,
+    "R360ModeExecutions": 24,
+    "TotalCycles": 12,
+    "TotalModeExecutions": 48,
+    "HideSamples": 48,
     "HideMinMs": 29,
-    "HideMedianMs": 208.5,
+    "HideMedianMs": 224,
     "HideMaxMs": 502,
     "AllTaskbarAndMonitorPrePostStatesPass": true,
     "SetupSHA256": "2B7A2941F3F489196601F8CFF04711C8E5DA65FC12F24394B60C280FA8954547",
@@ -917,6 +924,8 @@
     "ReceiptSHA256": "82ED4356E9A8BBA94939CEE533EE94CA30755A30B8306079A47D779F3A9306FD",
     "SupplementalReceiptPath": ".local/audit/r373-state-head-r291-revalidation-20261109.json",
     "SupplementalReceiptSHA256": "EB4FDF4D36F08C65961E76D70EB06581739747095DAD49F6D08180AF57A4E482",
+    "FinalSupplementalReceiptPath": ".local/audit/r373-final-state-head-r291-revalidation-20261109.json",
+    "FinalSupplementalReceiptSHA256": "4AC8BCB38C33ECC28F9B2B80BCF00B196826652426339275F860E7ABEE8B6C35",
     "RootCause": "UNPROVEN",
     "HistoricalR371FailuresPreserved": true,
     "ProductSourceChanged": false,
