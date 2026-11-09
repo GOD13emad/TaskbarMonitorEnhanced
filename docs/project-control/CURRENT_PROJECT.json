@@ -5,7 +5,7 @@
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
   "CurrentEngineeringRevision": "R370",
   "Status": "PUBLIC_V1710_OWNER_UNCHANGED_R370_PRODUCT_R375_TEST_ONLY_PR28_OF28_R291_TWO_HOST_R360_SIX_CYCLES_80_OF80_NATIVE_SAMPLES_UI_CAUSE_UNPROVEN_REVIEW_PENDING",
-  "UpdatedUtc": "2026-11-09T21:38:54.5454779Z",
+  "UpdatedUtc": "2026-11-09T21:52:32.9671207Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -1006,7 +1006,38 @@
       "PixelProofResult": "PASS_EXACT_OFFICIAL_AND_CANDIDATE_98_OF_98_PER_BINARY",
       "OwnerVisibleGlassState": "NOT_VERIFIED",
       "OwnerAudioPlaybackWitness": "NOT_VERIFIED",
-      "ChangedOwnerFiles": false
+      "ChangedOwnerFiles": false,
+      "OwnerNativeTopologyEvidence": {
+        "ReceiptPath": ".local/audit/r375-owner-native-topology-readonly-20261110.json",
+        "ReceiptSHA256": "BF9934D85BEFA494C5295DC33D78B8462C29B2D1542DC48892E2D86F3E106246",
+        "ObservedOwnerPid": 10892,
+        "NativeMonitorHwnd": 84351036,
+        "TaskbarParentHwnd": 65892,
+        "Visible": true,
+        "Rect": [
+          0,
+          1392,
+          1100,
+          1440
+        ],
+        "Class": "WindowsForms10.Window.8.app.0.245fb7_r6_ad1",
+        "Scope": "Read-only Win32 HWND visibility and parent/rect, not screenshot or actual rendered-pixel proof",
+        "OwnerInputChanged": false
+      },
+      "OwnerAudioEndpointEvidence": {
+        "ReceiptPath": ".local/audit/r375-audio-endpoint-readonly-20261110.json",
+        "ReceiptSHA256": "4D3D0D6CE35153598EC13C1E8C2AA3C08635EA6DF21637BD1D7B8A2E0CB68976",
+        "DefaultEndpoint": "Mi monitor",
+        "Driver": "NVIDIA High Definition Audio",
+        "MultimediaActive": true,
+        "MultimediaMuted": false,
+        "MultimediaVolumeScalar": 1,
+        "SoundSchemeFileExists": true,
+        "RequestedSoundLogsSampled": 27,
+        "SoundFailureLogsSampled": 0,
+        "AudibilityWitness": "NOT_ATTESTED",
+        "InputOrAudioConfigChanged": false
+      }
     }
   }
 }
