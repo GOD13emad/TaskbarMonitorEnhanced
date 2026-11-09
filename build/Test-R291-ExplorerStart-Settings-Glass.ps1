@@ -43,6 +43,8 @@ public static class R146Native {
   Input down=new Input{u=new Union{m=new Mouse{flags=right?8u:2u}}};
   Input up=new Input{u=new Union{m=new Mouse{flags=right?16u:4u}}};
   if(Marshal.SizeOf(typeof(Input))!=40||SendInput(2,new[]{down,up},40)!=2)throw new Exception("Input not delivered");
+  // Keep the pointer at the target until the injected down/up events are consumed.
+  System.Threading.Thread.Sleep(100);
  }finally{SetCursorPos(old.X,old.Y);}}
  public static IntPtr[] Owned(uint pid,IntPtr tray){var list=new List<IntPtr>();EnumFn f=(h,d)=>{uint p;GetWindowThreadProcessId(h,out p);if(p==pid&&!list.Contains(h))list.Add(h);return true;};EnumWindows(f,IntPtr.Zero);EnumChildWindows(tray,f,IntPtr.Zero);return list.ToArray();}
  public static bool Above(IntPtr a,IntPtr b){for(int i=0;i<512;i++){b=GetWindow(b,3);if(b==IntPtr.Zero)return false;if(a==b)return true;}return false;}
