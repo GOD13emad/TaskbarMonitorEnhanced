@@ -1,0 +1,126 @@
+name: R359 same-account elevated helper identity boundary (disposable Windows)
+
+on:
+  push:
+    branches: [security/r347-r349-helper-hardening-v1710]
+    paths:
+      - installer/TaskbarMonitorEnhanced_Setup.cs
+      - installer/TBME_Setup_Elevated_Helper.ps1
+      - build/Build.ps1
+      - build/dependencies.lock.json
+      - build/Test-R359-ElevatedHelperIdentityBoundary-Native.ps1
+      - .github/workflows/audit-r359-elevated-helper-identity-boundary-native.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build-exact-setup:
+    name: R359 build exact Setup PE
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact candidate without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Build exact original Setup PE and manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Build.ps1
+          if($LASTEXITCODE -ne 0 -or
+             !(Test-Path -LiteralPath 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe') -or
+             !(Test-Path -LiteralPath 'artifacts/BUILD_MANIFEST.json')){
+            throw 'R359_EXACT_SETUP_BUILD_OR_MANIFEST_MISSING'
+          }
+          $manifest=Get-Content -LiteralPath 'artifacts/BUILD_MANIFEST.json' -Raw|ConvertFrom-Json
+          $setup=$manifest.Outputs|Where-Object{$_.Name -ceq 'TaskbarMonitorEnhanced_Setup_1.7.10.exe'}
+          if(@($setup).Count -ne 1 -or
+             $setup.SHA256 -cne (Get-FileHash 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe' -Algorithm SHA256).Hash.ToUpperInvariant()){
+            throw 'R359_SETUP_BUILD_MANIFEST_MISMATCH'
+          }
+          'R359_EXACT_SETUP_AND_MANIFEST_PASS'
+
+      - name: Retain exact Setup PE and build manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R359-compiled-setup-${{ github.run_id }}
+          path: |
+            build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe
+            artifacts/BUILD_MANIFEST.json
+          retention-days: 2
+          if-no-files-found: error
+
+  identity-boundary:
+    name: R359 same-account identity boundary ${{ matrix.host }}
+    needs: build-exact-setup
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: A
+            os: windows-2025
+          - host: B
+            os: windows-2022
+    steps:
+      - name: Checkout exact candidate without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download exact Setup PE and build manifest
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: R359-compiled-setup-${{ github.run_id }}
+          path: .
+
+      - name: Verify disposable guest and exact source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/security/r347-r349-helper-hardening-v1710' -or
+             $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID|LAPTOP' -or
+             (git rev-parse HEAD).Trim() -cne '${{ github.sha }}'){
+            throw 'R359_REFUSE_NONDISPOSABLE_OR_WRONG_GIT_SOURCE'
+          }
+          if(!(Test-Path -LiteralPath 'build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe') -or
+             !(Test-Path -LiteralPath 'artifacts/BUILD_MANIFEST.json')){
+            throw 'R359_EXACT_SETUP_ARTIFACT_MISSING'
+          }
+          'R359_EXACT_SOURCE_AND_SETUP_ARTIFACT_PRESENT'
+
+      - name: Exercise exact Setup pipe DACL and fail-closed alternate-SID helper guard
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $native=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
+          $test=(Resolve-Path 'build/Test-R359-ElevatedHelperIdentityBoundary-Native.ps1').Path
+          $source=(Resolve-Path '.').Path
+          & $native -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $test -HostLabel '${{ matrix.host }}' -SourceRoot $source
+          if($LASTEXITCODE -ne 0){throw 'R359_ELEVATED_HELPER_IDENTITY_BOUNDARY_ACCEPTANCE_FAILED'}
+
+      - name: Retain native identity boundary receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R359-${{ matrix.host }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/R359_${{ matrix.host }}_${{ github.run_id }}.json
+          retention-days: 7
+          if-no-files-found: warn
