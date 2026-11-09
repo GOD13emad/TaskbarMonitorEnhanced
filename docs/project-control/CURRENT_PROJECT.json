@@ -5,7 +5,7 @@
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
   "CurrentEngineeringRevision": "R370",
   "Status": "PUBLIC_V1710_OWNER_UNCHANGED_R370_PRODUCT_R375_TEST_ONLY_PR28_OF28_R291_TWO_HOST_R360_SIX_CYCLES_80_OF80_NATIVE_SAMPLES_UI_CAUSE_UNPROVEN_REVIEW_PENDING",
-  "UpdatedUtc": "2026-11-09T21:52:32.9671207Z",
+  "UpdatedUtc": "2026-11-09T22:40:37.1939724Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -114,7 +114,7 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "Official immutable public v1.7.10 and owner-installed v1.7.10 unchanged. R370 8d0b43b is latest product source; test-only R375 commit dc625f5 passed PR checks 28/28 and native R291 2/2 hosts (run 42697474249), R360 6/6 cycles / 24 modes (run 42697462258). R373 plus R375 receipts total 20 host-cycles / 80 UI modes and native hide samples, 29-513 ms median 239.5, all taskbar/monitor pre/post conditions passed, original strict 1100ms gate unchanged. Failure-only R375 native popup topology diagnostic passed local PowerShell 5.1 synthetic branch execution but was not exercised by real CI because the intermittent fault did not recur. R371 historical Windows 2022 Settings-menu/taskbar-hide failures remain NON-PASS with root cause UNPROVEN. R374 reviewer handoff is posted. PR #98 OPEN/mergeable/unmerged, REVIEW_REQUIRED, zero independent human reviews; no merge/release. Issue #6 reporter SHA/origin, owner upgrade transaction, physical GUI/audio witness and Notion restore consent are separate OPEN/DEFERRED gates. New independent R375 owner-host thermal proof: 98/98 Glass renderer theme/background cases passed on BOTH exact private Candidate and official owner-installed 1.7.10 Main, red hot 95C >=2790 pixels and zero cold 60C red; owner currently config GlassMode=false and Opacity=0.01 (normal mode), CPU threshold 90C; synthetic matching-mode 1-percent opacity at 95C had zero strong red versus true Glass 3000. Owner config/exe/PID untouched, physical onscreen/audio witness still NOT PASS.",
+  "CriticalPath": "Official immutable public v1.7.10 and owner-installed v1.7.10 unchanged. R370 8d0b43b is latest product source; test-only R375 commit dc625f5 passed PR checks 28/28 and native R291 2/2 hosts (run 42697474249), R360 6/6 cycles / 24 modes (run 42697462258). R373 plus R375 receipts total 20 host-cycles / 80 UI modes and native hide samples, 29-513 ms median 239.5, all taskbar/monitor pre/post conditions passed, original strict 1100ms gate unchanged. Failure-only R375 native popup topology diagnostic passed local PowerShell 5.1 synthetic branch execution but was not exercised by real CI because the intermittent fault did not recur. R371 historical Windows 2022 Settings-menu/taskbar-hide failures remain NON-PASS with root cause UNPROVEN. R374 reviewer handoff is posted. PR #98 OPEN/mergeable/unmerged, REVIEW_REQUIRED, zero independent human reviews; no merge/release. Issue #6 reporter SHA/origin, owner upgrade transaction, physical GUI/audio witness and Notion restore consent are separate OPEN/DEFERRED gates. New independent R375 owner-host thermal proof: 98/98 Glass renderer theme/background cases passed on BOTH exact private Candidate and official owner-installed 1.7.10 Main, red hot 95C >=2790 pixels and zero cold 60C red; owner currently config GlassMode=false and Opacity=0.01 (normal mode), CPU threshold 90C; synthetic matching-mode 1-percent opacity at 95C had zero strong red versus true Glass 3000. Owner config/exe/PID untouched, physical onscreen/audio witness still NOT PASS. R375 latest read-only owner normal-mode taskbar crop shows readable UI and live CPU temperature approximately 86C below configured 90C warning threshold; true GlassMode is still disabled, so no live hot Glass alarm was witnessed. Windows has an alternate active Realtek USB Audio Speakers endpoint while current default is NVIDIA Mi monitor; choosing output is owner preference, no system audio change was made.",
   "MainBlocker": "Independent human security review on PR #98 remains REQUIRED; zero reviews submitted after R374 evidence handoff. R375 CI 28/28 and 80/80 scoped hide samples PASS do not resolve historical R371 intermittent UI root cause. Product merge/release requires review.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
   "ExactNextAction": "Obtain independent human security review for PR #98, address findings and reverify before merge. If R291 Settings menu fails again, inspect R375 native HWND/class/foreground diagnostic JSON and R373 hide timeline without changing five-second/1100ms strict gates. Issue #6 original reporter driver SHA/origin, personal upgrade transaction proof, owner physical GUI/audio/thermal-red witness, and Notion R359 restore with specific owner consent remain separate gates. No new release or owner install without matching acceptance. A verified owner UI distinction: current saved GlassMode=false at 1-percent opacity is not true Glass; a future deliberate owner preference change to GlassMode=true would require saving that setting and separate live GUI acceptance; do not infer a hot warning when measured CPU is below threshold.",
@@ -1036,7 +1036,37 @@
         "RequestedSoundLogsSampled": 27,
         "SoundFailureLogsSampled": 0,
         "AudibilityWitness": "NOT_ATTESTED",
-        "InputOrAudioConfigChanged": false
+        "InputOrAudioConfigChanged": false,
+        "AlternateActiveSpeakers": "Speakers / Realtek USB Audio",
+        "AlternateSpeakersWindowsEndpointState": 1,
+        "AlternateEndpointReceiptPath": ".local/audit/r375-owner-audio-alternatives-readonly-20261110.json",
+        "AlternateEndpointReceiptSHA256": "E258BE3851658D93A8E20497CF03B35BC39ACC182D6A4BACBD1EC2F2596EF11E",
+        "IntendedPhysicalOutput": "UNKNOWN_NEEDS_OWNER_CHOICE"
+      },
+      "OwnerNormalModeVisualCapture": {
+        "Scope": "READ_ONLY_SAME_OWNER_SESSION_NORMAL_MODE_CROPPED_TASKBAR_BITMAP_NOT_GLASS_ACCEPTANCE",
+        "FilePath": ".local/audit/r375-owner-taskbar-visual-crop-20261110.png",
+        "FileSHA256": "7D2549B00363876AF9D5190DD564449F9B5711E4CD405B7A940FD1D4CD588F0C",
+        "SourceFileWriteUtc": "2026-11-09T22:36:42Z",
+        "SizePx": [
+          1300,
+          48
+        ],
+        "DisplayResolutionPx": [
+          3440,
+          1440
+        ],
+        "VisualObservations": "Readable CPU/RAM/GPU text and bar charts in a cropped current desktop taskbar frame",
+        "GlassModeAtCapture": false,
+        "OpacityAtCapture": 0.01,
+        "DisplayedCpuTempApproxC": 86,
+        "ConfiguredCpuHotThresholdC": 90,
+        "HotAlertAtCaptureExpected": false,
+        "CurrentTrueGlassVisualAcceptance": "NOT_TESTED",
+        "CurrentAudioAcousticAcceptance": "NOT_TESTED",
+        "OwnerInputChanged": false,
+        "OwnerConfigChanged": false,
+        "ScreenshotLocalOnly": true
       }
     }
   }
