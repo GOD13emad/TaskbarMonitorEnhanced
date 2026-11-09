@@ -157,5 +157,8 @@ jobs:
             ${{ runner.temp }}/R360_${{ matrix.host }}/Cycle*/TBME_R291_${{ matrix.host }}/R291_NATIVE.json
             ${{ runner.temp }}/R360_${{ matrix.host }}/Cycle*/TBME_R291_${{ matrix.host }}/R158_READY_*.json
             ${{ runner.temp }}/R360_${{ matrix.host }}/Cycle*/TBME_R291_${{ matrix.host }}/*_SETTINGS_NATIVE_FAILURE.json
+            ${{ runner.temp }}/R360_${{ matrix.host }}/Cycle*/TBME_R291_${{ matrix.host }}/*_R163_TASKBAR_HIDE_FAILURE.json
+            ${{ runner.temp }}/R360_${{ matrix.host }}/Cycle*/TBME_R291_${{ matrix.host }}/*_NATIVE_FAILURE.json
+            ${{ runner.temp }}/R360_${{ matrix.host }}/Cycle*/TBME_R291_${{ matrix.host }}/DIAG_tbme_csharp_*.log
           retention-days: 7
           if-no-files-found: warn

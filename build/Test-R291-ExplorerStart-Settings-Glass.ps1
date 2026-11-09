@@ -423,8 +423,42 @@ try{
   Assert-Visible $monitor $original ($mode+'_RETURN_FULLSCREEN') $top
   $evidence+=Capture $monitor ($mode+'_RETURN_FULLSCREEN')
   # Simulate taskbar visibility notification, only on disposable runner; always restore.
-  [void][R146Native]::ShowWindow($taskbar,0);$hidTaskbar=$true;Pump 1100
-  if([R146Native]::IsWindowVisible($monitor)){
+  # R373 records the native transition timeline while preserving the original 1100ms hard gate.
+  $hideTaskbarVisibleBefore=[R146Native]::IsWindowVisible($taskbar)
+  $hideMonitorVisibleBefore=[R146Native]::IsWindowVisible($monitor)
+  $hideShowWindowPreviousVisible=[R146Native]::ShowWindow($taskbar,0)
+  $hidTaskbar=$true
+  $hideClock=[Diagnostics.Stopwatch]::StartNew()
+  $hideTransitions=New-Object 'Collections.Generic.List[object]'
+  $hideLastTaskbar=$null;$hideLastMonitor=$null
+  do{
+   $hideTaskbarNow=[R146Native]::IsWindowVisible($taskbar)
+   $hideMonitorNow=[R146Native]::IsWindowVisible($monitor)
+   if($null -eq $hideLastTaskbar -or $hideTaskbarNow -ne $hideLastTaskbar -or $hideMonitorNow -ne $hideLastMonitor){
+    $hideTransitions.Add([ordered]@{ElapsedMs=$hideClock.ElapsedMilliseconds;TaskbarVisible=$hideTaskbarNow;MonitorVisible=$hideMonitorNow})
+    $hideLastTaskbar=$hideTaskbarNow;$hideLastMonitor=$hideMonitorNow
+   }
+   Pump 25
+  }while($hideClock.ElapsedMilliseconds -lt 1100)
+  $hideClock.Stop()
+  $hideTaskbarVisibleAfter=[R146Native]::IsWindowVisible($taskbar)
+  $hideMonitorVisibleAfter=[R146Native]::IsWindowVisible($monitor)
+  $firstHiddenTransition=$hideTransitions|Where-Object{$_.MonitorVisible -eq $false}|Select-Object -First 1
+  $firstHiddenMs=-1
+  if($null -ne $firstHiddenTransition){$firstHiddenMs=[int]$firstHiddenTransition.ElapsedMs}
+  $hideResult=[ordered]@{
+   TaskbarVisibleBefore=$hideTaskbarVisibleBefore
+   MonitorVisibleBefore=$hideMonitorVisibleBefore
+   ShowWindowPreviousVisible=$hideShowWindowPreviousVisible
+   TaskbarVisibleAfter=$hideTaskbarVisibleAfter
+   MonitorVisibleAfter=$hideMonitorVisibleAfter
+   WaitMs=$hideClock.ElapsedMilliseconds
+   ThresholdMs=1100
+   FirstMonitorHiddenMs=$firstHiddenMs
+   Transitions=@($hideTransitions.ToArray())
+  }
+  $evidence+=@{State=$mode+'_TASKBAR_HIDE';TaskbarVisibleBefore=$hideTaskbarVisibleBefore;TaskbarVisibleAfter=$hideTaskbarVisibleAfter;MonitorVisibleBefore=$hideMonitorVisibleBefore;MonitorVisibleAfter=$hideMonitorVisibleAfter;FirstMonitorHiddenMs=$firstHiddenMs;WaitMs=$hideClock.ElapsedMilliseconds;ThresholdMs=1100}
+  if($hideMonitorVisibleAfter){
    # Do not suppress this independent FAIL gate. Collect the real HWND/shell
    # visibility and optional screen-pixel evidence before the existing throw.
    $forkHide=[ordered]@{
@@ -437,6 +471,7 @@ try{
     MemoryOwner=[R146Native]::GetWindowLongPtr($monitor,-8).ToInt64()
     ProductSourceChanged=$false
     OriginalHideInvariantRetained=$true
+    HideMeasurement=$hideResult
    }
    # R371 diagnostic only: the 1100-ms hide gate already FAILED.
    # Do not relax or bypass it. Observe any delayed UI watchdog effect.
