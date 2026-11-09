@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R364",
-  "Status": "PUBLIC_V1710_OWNER_INSTALLED_HASH_VERIFIED_R357_PRODUCT_CI_40_OF_40_R358_PIPE_3_OF_3_R359_IDENTITY_3_OF_3_R360_SETTINGS_STRESS_6_CYCLES_24_MODES_R363_API_ASSET_HARDENING_R364_PR_CI_13_OF_13_R365_LOCAL_R335_24_OF_24_R366_PR96_SUPERSEDED_CLOSED_ISSUE7_R365_TRACKER_UPDATED_ISSUE6_OWNER_SCAN_HUMAN_REVIEW_PENDING_GUI_AUDIO_DEFERRED",
-  "UpdatedUtc": "2026-11-09T07:19:43.821Z",
+  "CurrentEngineeringRevision": "R367",
+  "Status": "PUBLIC_V1710_OWNER_INSTALL_UNCHANGED_R357_PRODUCT_CI_40_OF_40_R358_PIPE_3_OF_3_R359_IDENTITY_3_OF_3_R360_SETTINGS_6_CYCLES_24_MODES_R363_API_ASSET_HARDENING_R364_R338_TOOLING_R365_LOCAL_R335_24_OF_24_R366_PR96_SUPERSEDED_R367_HARDLINK_FIX_LOCAL_4_OF_4_EACH_HOSTED_8_OF_8_EXACT_HEAD_CI_30_OF_30_HUMAN_REVIEW_PENDING_ISSUE6_OWNER_UPGRADE_GUI_AUDIO_NOTION_DEFERRED",
+  "UpdatedUtc": "2026-11-09T08:26:31.537Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -95,17 +95,20 @@
     "R363: GitHub Release Assets API IDs pinned for LHM/PawnIO/public v1.7.9 Setup with browser fallback; local API asset harness 3/3 and fallback/terminal-hash harness PASS; full local Build 0 warnings/0 errors, selftests 3/3, Setup /verify 25 resources, no PawnIO bundle; exact Setup/Main hashes match R360 candidate.",
     "R364: R338 workflow now uses the exact candidate SHA-pinned build tooling for isolated baseline/candidate source builds while verifying product source Git HEAD remains unchanged; local copy harness PASS; push and PR R338 4/4; exact PR-head CI 13/13.",
     "R365: owner-local exact Setup R335 atomic log/pipe contract 24/24, R338 trusted Supervisor arguments 20/20 and R298 deferred-cleanup PASS; exact Setup SHA 7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06; no UAC, install or ProgramFiles mutation.",
-    "R366: PR #96 closed unmerged as superseded by PR #98 after exact R338 source/test blob parity; public Issue #7 received R365 status update; scoped owner-host Issue #6 scan found no installed legacy driver artifact/service/source literal, without attributing the reporter binary."
+    "R366: PR #96 closed unmerged as superseded by PR #98 after exact R338 source/test blob parity; public Issue #7 received R365 status update; scoped owner-host Issue #6 scan found no installed legacy driver artifact/service/source literal, without attributing the reporter binary.",
+    "R367: exact baseline 035e8fc5db2fc020e539ec930a10770b9807d318 full build and native 4/4 reproduced Supervisor and Broker predictable-temp hard-link write-through; candidate product commit 92f8b8bdfef210f00ee8b03aff062fd9e2dfa8d3 uses GUID+CreateNew temp files, removes Broker File.Copy fallback and fails closed after atomic replace retries; local candidate full build 0 warnings/0 errors and native 4/4; hosted push+pull_request Windows Server 2022/2025 matrix 8/8; exact PR-head CI 30/30; local receipt .local/audit/r367-elevated-temp-hardlink-local-20261109.json SHA256 AA3485943E4C3B2C0D4DF91688F41251F8C5AF503926A4E2B890A7EFEF410736. Pre-existing aliases blocked; concurrent writer after temp handle close is outside the guarantee. Public release and owner installation unchanged."
   ],
   "Open": [
     "OWNER_V179_TO_V1710_UPGRADE_TRANSACTION_PROVENANCE_NOT_INDEPENDENTLY_REVALIDATED",
     "ISSUE6_REPORTER_DRIVER_SHA_AND_INSTALL_ORIGIN_MISSING",
-    "PR98_INDEPENDENT_HUMAN_SECURITY_REVIEW_PENDING"
+    "PR98_INDEPENDENT_HUMAN_SECURITY_REVIEW_PENDING",
+    "OWNER_GUI_AUDIO_WITNESS_DEFERRED_NOT_PASS",
+    "NOTION_RESTORE_CONFIRMATION_PENDING"
   ],
-  "CriticalPath": "Official immutable public v1.7.10 and the owner-installed v1.7.10+r299 remain unchanged. R357 production/test source 07c095c43e3a96e838bfaee7f51d86707326dda8 passed 12 workflows / 40 jobs (40/40). R358 pipe transport and R359 identity-boundary exact-Setup acceptance each passed 3/3 jobs and 6/6 checks per Windows 2022/2025 host. R360 repeated real Explorer Settings visibility passed 3/3 jobs, 6/6 cycles and 24/24 mode executions on disposable Windows 2022/2025 guests. R363 API-backed dependency acquisition passed local Windows PowerShell 5.1 download/fallback harnesses and full local Build. R364 code/test-infrastructure head 724be329b5468f14509d62dc460d6eec161a35d6; R365 local R335 24/24, R338 20/20 and R298 cleanup PASS. R365 state commit da5bd840226f6a3ad71ac3a175e03eb5e4060b53 passed 13/13 exact-head PR CI (Build/R299/R300/R298, R338 4/4, R290 2/2, R291 3/3). R366 closed duplicate PR #96 unmerged as superseded by #98 after confirming identical R338 Supervisor and test Git blobs and a newer SHA-pinned workflow in #98; R365 tracker comment 6734470728 updated Issue #7. Scoped owner-host Issue #6 audit found no .sys under current install root, legacy reported path absent, zero legacy driver services and zero source literals; this does not identify the reporter's binary. Bounded project/app search found no complete personal v1.7.9-to-v1.7.10 transaction receipt. PR #98 remains open, mergeable and unmerged; independent human review is required and zero reviews have been submitted. PR #80 remains a historical v1.7.8-based branch not safe to merge wholesale; PR #82 remains draft provenance work. Owner GUI/audio witness and Issue #6 reporter SHA/origin remain deferred/unresolved. The hosted R299 predecessor upgrade is synthetic/disposable, not owner acceptance. Re-read the live PR head before review. Unsigned waiver and physical AC exclusion remain.",
-  "MainBlocker": "PR #98 remains open, mergeable and unmerged and requires an actual independent human security review against its live exact head; last verified pre-R366 state-upsert head da5bd840226f6a3ad71ac3a175e03eb5e4060b53 passed 13/13 exact-head CI. PR #96 is closed unmerged as superseded by PR #98. Secondary evidence gaps remain the original reporter's Issue #6 driver SHA-256/install origin and the complete personal v1.7.9-to-v1.7.10 upgrade transaction receipt. Owner GUI/audio witnesses remain deferred, not PASS. Do not self-approve, force-close the running app, take desktop focus, or publish a new release.",
-  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R366_NOT_A_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Obtain and assess an actual independent human review of PR #98 against its live exact head (re-read the PR HEAD before review; last verified before this R366 state upsert: da5bd840226f6a3ad71ac3a175e03eb5e4060b53, with 13/13 exact-head CI). After a submitted review, address findings, rerun exact-head CI if code changes, and merge only if the review supports approval. Keep immutable public v1.7.10 and the owner installation unchanged. Issue #6 still requires the original reporter's affected driver SHA-256 and download/install origin; the personal v1.7.9-to-v1.7.10 transaction receipt and owner GUI/audio witness remain unverified/deferred. Notion R366 synchronization remains pending explicit confirmation to restore the last intact R359 version.",
+  "CriticalPath": "Official immutable public v1.7.10 and the owner-installed v1.7.10 remain unchanged. R357 production/test source 07c095c43e3a96e838bfaee7f51d86707326dda8 passed 12 workflows / 40 jobs (40/40). R358 pipe transport and R359 identity-boundary exact-Setup acceptance each passed 3/3 jobs and 6/6 checks per Windows Server 2022/2025 host. R360 repeated Explorer Settings visibility passed 6/6 cycles and 24/24 mode executions on disposable Windows Server 2022/2025. R363 API-backed dependency acquisition and full local Build passed. R364 SHA-pinned R338 build tooling and exact-head workflow passed. R365 owner-local R335 24/24, R338 20/20 and R298 cleanup passed. R366 closed duplicate PR #96 unmerged as superseded by #98 and updated public Issue #7; bounded Issue #6 owner-host scan found no installed legacy driver artifact/service/source literal but cannot attribute the reporter binary. R367 baseline commit 035e8fc5db2fc020e539ec930a10770b9807d318 full build PASS and native 4/4 reproduced both Supervisor and Broker predictable-temp hard-link write-throughs. Candidate product-source commit 92f8b8bdfef210f00ee8b03aff062fd9e2dfa8d3 full build PASS (0 warnings/0 errors), local native 4/4, blocks both pre-created temp aliases, replaces destination hard links without canary write-through, and removes Broker File.Copy overwrite fallback. Hosted R367 push and pull_request matrix passed 8/8 across Windows Server 2022/2025. Exact PR-head CI for product commit 92f8b8b passed 30/30 checks, zero failures. Local evidence receipt .local/audit/r367-elevated-temp-hardlink-local-20261109.json SHA256 AA3485943E4C3B2C0D4DF91688F41251F8C5AF503926A4E2B890A7EFEF410736. R367 guarantee is limited to pre-existing aliases; no race-free guarantee is claimed for a concurrent directory writer after the temp handle closes. PR #98 remains open, mergeable and unmerged, with independent human review requested and zero reviews submitted. Issue #6 reporter driver SHA-256/install origin remains unresolved; personal v1.7.9-to-v1.7.10 transaction receipt remains unverified; owner GUI/audio witness remains deferred. PR #80 is historical and unsafe to merge wholesale; PR #82 remains draft provenance work. Hosted R299 is synthetic/disposable and does not close personal upgrade acceptance. Notion restore/sync remains pending explicit confirmation. Unsigned waiver and physical AC exclusion remain.",
+  "MainBlocker": "PR #98 remains open, mergeable and unmerged and requires an actual independent human security review against its live exact head. Product-source commit 92f8b8bdfef210f00ee8b03aff062fd9e2dfa8d3 passed 30/30 exact-head checks; R367 hosted baseline/candidate matrix passed 8/8 and local native tests passed 4/4 per variant. Zero human reviews have been submitted; the requested reviewer remains pending. PR #96 is closed unmerged as superseded by PR #98. Secondary evidence gaps remain Issue #6 reporter driver SHA-256/install origin, the complete personal v1.7.9-to-v1.7.10 transaction receipt, and owner GUI/audio witness. Do not self-approve, merge, change the immutable public release, or mutate the owner installation.",
+  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R367_NOT_A_SECOND_OPERATIONAL_BRAIN",
+  "ExactNextAction": "Re-read the live PR #98 head after this R367 state-only synchronization commit, then obtain and assess an actual independent human security review on that live head. Address any findings, rerun exact-head CI if code changes, and merge only if the independent review supports approval. Keep immutable public v1.7.10 and the owner installation unchanged. Issue #6 still requires the original reporter driver SHA-256 and download/install origin; the personal v1.7.9-to-v1.7.10 transaction receipt and owner GUI/audio witness remain unverified/deferred. Notion synchronization remains blocked until explicit user confirmation to restore the last intact R359 page version.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -554,19 +557,19 @@
       "CandidateStrictTrustChecks": 20
     }
   },
-  "CurrentVerificationRevision": "R366",
+  "CurrentVerificationRevision": "R367",
   "Deferred": [
     "OWNER_WINDOWS11_PERSONAL_START_SETTINGS_DYNAMIC_GUI_WITNESS_DEFERRED_NOT_PASS_OWNER_ACCEPTED_CURRENT_BEHAVIOR_NO_CURRENT_TAKEOVER_AUTHORITY",
     "OWNER_APP_OS_NOTIFICATION_BANNER_AND_AUDIBLE_SPEAKER_NOT_INDEPENDENTLY_WITNESSED_DEFERRED_NOT_PASS"
   ],
   "NotionCoordination": {
-    "Status": "PENDING_USER_CONFIRMATION_TO_RESTORE_LAST_INTACT_R359_VERSION_THEN_SYNC_R366",
+    "Status": "PENDING_USER_CONFIRMATION_TO_RESTORE_LAST_INTACT_R359_VERSION_THEN_SYNC_R367",
     "Page": "https://app.notion.com/p/412d5b4a86f681c29173c01fc4c75842",
     "LastVerifiedUtc": "2026-11-09T04:54:27.207Z",
-    "Scope": "R360 repeated Explorer Settings stress, R361-R363 SHA-pinned/API-backed download hardening, R364 exact-baseline R338 build tooling and exact-head CI, R365 owner-local R335/R338/R298 regressions, R366 PR #96 supersession and Issue #7 tracker update plus scoped Issue #6 owner-host audit. Independent human review and reporter/owner evidence gaps remain.",
+    "Scope": "R360 repeated Explorer Settings stress, R361-R363 SHA-pinned/API-backed download hardening, R364 exact-baseline R338 build tooling and exact-head CI, R365 owner-local R335/R338/R298 regressions, R366 PR #96 supersession and Issue #7 tracker update plus scoped Issue #6 owner-host audit, R367 Supervisor/Broker temp hard-link hardening and 30/30 exact-head CI. Independent human review, reporter/owner evidence gaps and restoration confirmation remain.",
     "Authority": "Coordination mirror only; PROJECT_BRAIN.md and native test receipts remain technical authority.",
     "RecoveryTargetUtc": "2026-11-09T04:54:27.398Z",
-    "RecoveryReason": "The 2026-11-09T06:05:33.663Z ChatGPT/MCP update_content operation removed 55 page blocks; version history attributes all 55 affected blocks to this operation only. Restore of the last intact R359 version requires explicit user confirmation before R366 synchronization."
+    "RecoveryReason": "The 2026-11-09T06:05:33.663Z ChatGPT/MCP update_content operation removed 55 page blocks; version history attributes all 55 affected blocks to this operation only. Restore of the last intact R359 version requires explicit user confirmation before R367 synchronization."
   },
   "R365LocalSupplementalVerification": {
     "Revision": "R365",
@@ -662,5 +665,68 @@
       "PR98Merged": false
     },
     "Scope": "GitHub coordination cleanup and scoped owner-host evidence only; no product source, release or installed product changed."
+  },
+  "R367HardlinkBoundary":   {
+    "Revision": "R367",
+    "ObservedUtc": "2026-11-09T08:26:31.537Z",
+    "Baseline": {
+      "Commit": "035e8fc5db2fc020e539ec930a10770b9807d318",
+      "FullBuild": "PASS",
+      "NativeChecks": "4/4",
+      "SupervisorPredictableTempHardlink": "WRITE_THROUGH_REPRODUCED",
+      "BrokerPidTickTempHardlink": "WRITE_THROUGH_REPRODUCED",
+      "DestinationHardlinkChecks": "2/2_PASS_WITH_CANARIES_UNCHANGED"
+    },
+    "Candidate": {
+      "ProductCommit": "92f8b8bdfef210f00ee8b03aff062fd9e2dfa8d3",
+      "FullBuild": "PASS_0_WARNINGS_0_ERRORS",
+      "NativeChecks": "4/4",
+      "SupervisorPrecreatedAlias": "BLOCKED",
+      "BrokerPrecreatedAlias": "BLOCKED",
+      "DestinationHardlinkChecks": "2/2_PASS_WITH_CANARIES_UNCHANGED",
+      "BrokerFileCopyOverwriteFallback": "REMOVED_FAIL_CLOSED"
+    },
+    "HostedR367": {
+      "PushRun": 42584436249,
+      "PullRequestRun": 42584443225,
+      "Jobs": 8,
+      "Passed": 8,
+      "Failed": 0,
+      "Matrix": "baseline/candidate x Windows Server 2022/2025",
+      "TypedReceipts": 8
+    },
+    "ExactHeadCI": {
+      "ProductCommit": "92f8b8bdfef210f00ee8b03aff062fd9e2dfa8d3",
+      "Total": 30,
+      "Passed": 30,
+      "Failed": 0,
+      "Pending": 0
+    },
+    "PR98": {
+      "State": "OPEN",
+      "Mergeable": true,
+      "Merged": false,
+      "RequestedReviewer": "mohammadmohammadzadeh19960-code",
+      "ReviewsSubmitted": 0,
+      "R367EvidenceComment": 6735353547,
+      "R367HostedComment": 6735406531,
+      "ExactHeadCIComment": 6735464641
+    },
+    "PublicTracker": {
+      "Issue7R367Comment": 6735420915,
+      "Issue7ExactHeadCIComment": 6735467015
+    },
+    "LocalReceipt": {
+      "Path": ".local/audit/r367-elevated-temp-hardlink-local-20261109.json",
+      "SHA256": "AA3485943E4C3B2C0D4DF91688F41251F8C5AF503926A4E2B890A7EFEF410736"
+    },
+    "ScopeLimit": "Pre-existing hard-link aliases are rejected. No race-free guarantee is claimed for a concurrent directory writer after the temp handle closes.",
+    "Safety": {
+      "OwnerInstallChanged": false,
+      "PublicReleaseChanged": false,
+      "AppProcessesStopped": false,
+      "UACRequested": false,
+      "Rebooted": false
+    }
   }
 }

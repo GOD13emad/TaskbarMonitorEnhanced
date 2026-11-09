@@ -9,6 +9,8 @@ on:
       - build/Build.ps1
       - build/dependencies.lock.json
       - build/Test-R367-ElevatedAtomicTempAlias-Native.ps1
+      - docs/project-control/CURRENT_PROJECT.json
+      - docs/project-control/PROJECT_BRAIN.md
       - .github/workflows/audit-r367-elevated-atomic-temp-alias.yml
   pull_request:
     branches: [main]
@@ -18,6 +20,8 @@ on:
       - build/Build.ps1
       - build/dependencies.lock.json
       - build/Test-R367-ElevatedAtomicTempAlias-Native.ps1
+      - docs/project-control/CURRENT_PROJECT.json
+      - docs/project-control/PROJECT_BRAIN.md
       - .github/workflows/audit-r367-elevated-atomic-temp-alias.yml
 
 permissions:
