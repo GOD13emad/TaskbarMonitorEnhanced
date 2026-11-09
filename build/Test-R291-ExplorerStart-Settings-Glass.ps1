@@ -405,6 +405,15 @@ try{
     ProductSourceChanged=$false
     OriginalHideInvariantRetained=$true
    }
+   # R371 diagnostic only: the 1100-ms hide gate already FAILED.
+   # Do not relax or bypass it. Observe any delayed UI watchdog effect.
+   $forkHide.OriginalHideWaitMs=1100
+   Pump 2000
+   $forkHide.AfterDiagnosticWaitMs=2000
+   $forkHide.TaskbarVisibleAfterWait=[R146Native]::IsWindowVisible($taskbar)
+   $forkHide.MonitorVisibleAfterWait=[R146Native]::IsWindowVisible($monitor)
+   $forkHide.ForegroundAfterWait=[R146Native]::GetForegroundWindow().ToInt64()
+   $forkHide.ProcessAliveAfterWait=($null -ne (Get-Process -Id $process.Id -ErrorAction SilentlyContinue))
    [IO.File]::WriteAllText((Join-Path $out ($mode+'_R163_TASKBAR_HIDE_FAILURE.json')),
      ($forkHide|ConvertTo-Json -Depth 9),[Text.UTF8Encoding]::new($false))
    throw 'R146_MONITOR_IGNORES_TASKBAR_HIDE'

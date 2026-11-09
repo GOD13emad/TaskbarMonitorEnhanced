@@ -138,3 +138,5 @@ jobs:
             ${{ runner.temp }}/TBME_R291_${{ matrix.host }}/R291_NATIVE.json
             ${{ runner.temp }}/TBME_R291_${{ matrix.host }}/R158_READY_*.json
             ${{ runner.temp }}/TBME_R291_${{ matrix.host }}/*_NATIVE_FAILURE.json
+            ${{ runner.temp }}/TBME_R291_${{ matrix.host }}/*_R163_TASKBAR_HIDE_FAILURE.json
+            ${{ runner.temp }}/TBME_R291_${{ matrix.host }}/DIAG_tbme_csharp_*.log
