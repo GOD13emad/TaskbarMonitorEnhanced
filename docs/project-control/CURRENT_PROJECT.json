@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R303",
-  "Status": "PUBLIC_REDACTED_R303_IMMUTABLE_V1710_OWNER_UPGRADE_AND_GUI_PENDING",
-  "UpdatedUtc": "2026-11-08T04:27:05.5227946Z",
+  "CurrentEngineeringRevision": "R352",
+  "Status": "PUBLIC_V1710_OWNER_INSTALLED_HASH_VERIFIED_SECURITY_PR98_REVIEW_PENDING_GUI_WITNESS_PENDING",
+  "UpdatedUtc": "2026-11-08T23:00:11.863Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -22,14 +22,21 @@
     "HostedExplorerStartSettingsGlassCI": 42441872710,
     "IndependentPublicSevenAssetG16Passed": true,
     "OwnerInplaceUpgradePassed": false,
-    "OwnerInteractiveStartSettingsGlassWitnessPassed": false
+    "OwnerInteractiveStartSettingsGlassWitnessPassed": false,
+    "OwnerInstalledMainHashVerified": true,
+    "OwnerInplaceUpgradeEvidenceScope": "Personal installed Main, Uninstall and registry verified by read-only inspection; full v1.7.9 to v1.7.10 transition/recovery receipt not revalidated"
   },
   "OwnerInstalledBaseline": {
-    "Version": "1.7.9",
-    "InstalledMainSHA256": "04776E870A492733BBA33A550F732F5DB688A6585FC6533224A56687F1A6D88E",
-    "InstalledSetupSHA256": "3AE5E2AC7428C3443FF7768C543117AF864E7C73F68D32EFAD4AB40B30FB5B0E",
-    "RunningAtR303": true,
-    "InplaceUpgradeToV1710": "PENDING_NORMAL_IN_APP_EXIT"
+    "Version": "1.7.10",
+    "InternalProductVersion": "1.7.10+r299",
+    "InstalledMainSHA256": "715CDA5E666E12C5FF2BCD46D513467CCEFEABE43A76F77689F604D4F432F2D7",
+    "InstalledUninstallSHA256": "1D0326CF11CEE069AD295112A9CA49D9FCBDB58ECDAB46FFE9C0F7172CE26D7E",
+    "InstalledSetupSHA256": "1D0326CF11CEE069AD295112A9CA49D9FCBDB58ECDAB46FFE9C0F7172CE26D7E",
+    "HKCUDisplayVersion": "1.7.10",
+    "InstallStateVersion": "1.7.10",
+    "RunningAtLastReadOnlyCheck": true,
+    "LastReadOnlyObservedLocal": "2026-11-09T02:27:11.8920194+03:30",
+    "InplaceUpgradeToV1710": "INSTALLED_VERSION_AND_HASH_CONFIRMED_COMPLETE_TRANSITION_RECEIPT_NOT_INDEPENDENTLY_ATTESTED"
   },
   "HistoricalOfficialV179OwnerAcceptance": {
     "Version": "1.7.9",
@@ -77,18 +84,19 @@
     "R287 public mirror: immutable v1.7.8 and genuine owner upgrade/Glass, 26 paired natural sound API requests with 10-minute cooldown and no logged exception; audible speaker/UI and reporter WinRing0 are external.",
     "R295 immutable v1.7.9 release ID 427321765 and exact source 479ee78; seven public assets independently downloaded and SHA/manifest-verified, real owner 1.7.8-to-1.7.9 in-place upgrade and sensors PASS; public tracker #7 updated.",
     "R301 immutable public v1.7.10 release ID 438006233 and all seven assets independently SHA/manifest verified; exact source hosted native and Explorer Start/Settings/Glass CI PASS.",
-    "R303 personal host Setup v1.7.10 /verify PASS without installation; installed v1.7.9 remains running and personal GUI witness OPEN."
+    "R303 personal host Setup v1.7.10 /verify PASS without installation; installed v1.7.9 remains running and personal GUI witness OPEN.",
+    "R352 public status read-only corrected: installed v1.7.10+r299 Main/Uninstall hashes and HKCU/install_state 1.7.10 independently read back; this does not validate the complete owner upgrade transaction."
   ],
   "Open": [
-    "OWNER_INPLACE_V179_TO_V1710_UPGRADE_PENDING",
+    "OWNER_V179_TO_V1710_UPGRADE_TRANSACTION_PROVENANCE_NOT_INDEPENDENTLY_REVALIDATED",
     "ISSUE6_REPORTER_DRIVER_SHA_AND_INSTALL_ORIGIN_MISSING",
     "OWNER_APP_OS_NOTIFICATION_BANNER_AND_AUDIBLE_SPEAKER_NOT_INDEPENDENTLY_WITNESSED",
     "OWNER_WINDOWS11_PERSONAL_START_SETTINGS_DYNAMIC_GUI_WITNESS_PENDING"
   ],
-  "CriticalPath": "Official immutable v1.7.10, public G16 and exact-source hosted tests PASS. Personal owner device remains installed v1.7.9 and running; hash-pinned in-place upgrade requires normal in-app Exit, then owner Windows 11 Start/Settings/Glass dynamic witness. Unsigned waiver and physical AC exclusion retained.",
-  "MainBlocker": "Public release COMPLETE; personal owner v1.7.9 application remains running and semantic GUI provider unavailable. Do not force-stop owner process. Owner upgrade and Start/Settings/Glass dynamic witness pending. Reporter Issue #6 original driver SHA/origin and physical audio/banner evidence remain external.",
-  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R303_NOT_A_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "After normal in-app Exit of owner v1.7.9, re-run guarded .local/audit/R303-Owner-OneInstaller-Upgrade.ps1 preflight then exact hash-pinned /update; verify same-root config/sensors/startup and witness Start/Settings/Glass on owner Windows 11. Issue #6 original reporter SHA/origin remains external; no Defender bypass. Physical AC and publisher signing excluded.",
+  "CriticalPath": "Official immutable v1.7.10 release and hosted functional tests accepted. Personal owner install now reports v1.7.10+r299 with Main/Uninstall hashes and HKCU version matching public release; original upgrade transaction not independently revalidated. Owner Windows 11 Start/Settings/Glass dynamic witness remains pending; security PR #98 is draft and requires independent human review. Unsigned waiver and physical AC exclusion remain.",
+  "MainBlocker": "Public v1.7.10 and current owner-installed hashes verified. Security PR #98 remains draft/unmerged without submitted independent human review; personal dynamic Start/Settings/Glass and notification/audio witnesses pending. Original reporter evidence for issue #6 remains external. Do not force-close owner app, alter GUI focus, merge security candidate, or claim physical acceptance.",
+  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R352_NOT_A_SECOND_OPERATIONAL_BRAIN",
+  "ExactNextAction": "Get an actual independent reviewer submission on draft security PR #98 and assess it before any merge or new product publication; separately perform owner Windows 11 dynamic Start/Settings/Glass verification only through authorized GUI input/witness. Owner already has public v1.7.10+r299; do not repeat the old R303 v1.7.9 upgrade. Original reporter SHA/origin for issue #6 is still required.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -123,5 +131,16 @@
     "SourceCommit": "9960a06dba606d1c93b8ca2b84e0e3e25ca4f68d",
     "MainSHA256": "A3E9ABD7E97655AD6787B71239505F30A7C0350B77F352DE4DE83461CD170D31",
     "SetupSHA256": "4DB3C03AC7AB70B3D3123A365C156E71370F0338991B399B99169A4B5B5F8B75"
+  },
+  "SecurityCandidate": {
+    "PullRequest": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/pull/98",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "LatestReviewedByHostedCI": "d1ac63686cd8700f764764213a5c2c3a543ae324",
+    "LatestProductTestSource": "b937e25be73d697895a666204f43231705acf4b7",
+    "R352Windows2022And2025": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42527941266",
+    "R352ChecksPerHost": 14,
+    "IndependentHumanReviewSubmitted": false,
+    "MergedIntoMain": false,
+    "PublicReleaseUnchanged": true
   }
 }
