@@ -37,6 +37,17 @@ public static class R146Native {
  [DllImport("user32.dll")] public static extern void keybd_event(byte k,byte s,uint f,UIntPtr extra);
  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
  [DllImport("user32.dll")] public static extern bool GetCursorPos(out Point p);
+ [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(Point p);
+ public static Point SelectActualHit(IntPtr target,int x,int y,int width,int height,
+     out IntPtr oldHit,out int attempts){
+  Point first=new Point{X=x+40,Y=y+height/2};oldHit=WindowFromPoint(first);attempts=0;
+  if(oldHit==target)return first;
+  for(int yy=y+6;yy<y+height-6;yy+=2)for(int xx=x+6;xx<x+width-6;xx+=2){
+    attempts++;Point p=new Point{X=xx,Y=yy};
+    if(WindowFromPoint(p)==target)return p;
+  }
+  return new Point{X=int.MinValue,Y=int.MinValue};
+ }
  [DllImport("user32.dll",SetLastError=true)] public static extern uint SendInput(uint n,Input[] p,int size);
  public static void Key(byte code){keybd_event(code,0,0,UIntPtr.Zero);keybd_event(code,0,2,UIntPtr.Zero);}
  public static void Click(int x,int y,bool right){Point old;GetCursorPos(out old);SetCursorPos(x,y);try{
@@ -224,7 +235,29 @@ try{
   # Original Capture() remains the separate final pixel threshold acceptance.
   $evidence+=Capture $monitor ($mode+'_NORMAL')
   # Real right-click and invoke the actual installed product's Settings menu item.
-  [R146Native]::Click(($original.X+40),($original.Y+($original.Height/2)),$true);Pump 650
+  # R372 strict native input: zero-alpha glass background lets mouse through.
+  # Find an actual UI hit-tested, nontransparent overlay pixel; no UIA Invoke.
+  [IntPtr]$fixedHit=[IntPtr]::Zero;[int]$scans=0
+  $target=[R146Native]::SelectActualHit($monitor,$original.X,$original.Y,
+    $original.Width,$original.Height,[ref]$fixedHit,[ref]$scans)
+  $ok=($target.X -ne [int]::MinValue)
+  $proof=[ordered]@{Mode=$mode;MonitorHWND=$monitor.ToInt64()
+    FixedClick=@($original.X+40,$original.Y+[int]($original.Height/2))
+    FixedNativeHit=$fixedHit.ToInt64()
+    SelectedClick=@($target.X,$target.Y)
+    SelectedNativeHit=$(if($ok){[R146Native]::WindowFromPoint($target).ToInt64()}else{0})
+    FixedPointHitMonitor=($fixedHit -eq $monitor)
+    UsedOpaqueGlyphFallback=($fixedHit -ne $monitor)
+    SearchCount=$scans
+    OriginalUIAAndSettingsForegroundRequirementsUnchanged=$true
+    PhysicalSendInputRequired=$true}
+  [IO.File]::WriteAllText((Join-Path $out ($mode+'_R372_NATIVE_HITTEST.json')),
+   ($proof|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
+  if(!$ok -or $proof.SelectedNativeHit -ne $monitor.ToInt64()){
+   throw ('R372_NO_NATIVE_OPAQUE_HIT MODE='+$mode+' SCANS='+$scans)
+  }
+  $evidence+=@{State=$mode+'_NATIVE_CLICK_HITTEST';FixedOnMonitor=$proof.FixedPointHitMonitor;FallbackUsed=$proof.UsedOpaqueGlyphFallback;HitX=$target.X;HitY=$target.Y;SearchCount=$scans}
+  [R146Native]::Click($target.X,$target.Y,$true);Pump 650
   Assert-Visible $monitor $original ($mode+'_MENU') $top
   $evidence+=Capture $monitor ($mode+'_MENU')
   $menuItem=$null
