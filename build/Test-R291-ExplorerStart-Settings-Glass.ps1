@@ -287,8 +287,28 @@ try{
    $foregroundTitle=[R146Native]::Title($foreground)
    $windowSummary=@(foreach($h in [R146Native]::Owned([uint32]$process.Id,$taskbar)){
     $r=Box $h
-    @{Hwnd=$h.ToInt64();Title=[R146Native]::Title($h);Visible=[R146Native]::IsWindowVisible($h);Foreground=($h -eq $foreground);Rect=@($r.X,$r.Y,$r.Width,$r.Height);Owner=[R146Native]::GetWindow($h,4).ToInt64()}
+    $style=[R146Native]::GetWindowLongPtr($h,-16).ToInt64()
+    $parent=[R146Native]::GetParent($h)
+    $owner=[R146Native]::GetWindow($h,4)
+    @{Hwnd=$h.ToInt64();Title=[R146Native]::Title($h)
+     Visible=[R146Native]::IsWindowVisible($h);Foreground=($h -eq $foreground)
+     Rect=@($r.X,$r.Y,$r.Width,$r.Height);Style=$style
+     WSVisible=(($style -band 268435456) -ne 0)
+     Parent=$parent.ToInt64()
+     ParentVisible=$(if($parent -ne [IntPtr]::Zero){[R146Native]::IsWindowVisible($parent)}else{$null})
+     Owner=$owner.ToInt64()
+     OwnerVisible=$(if($owner -ne [IntPtr]::Zero){[R146Native]::IsWindowVisible($owner)}else{$null})}
    })
+   # R355: retain the native visibility state on an actual hosted UI failure.
+   # Do not retry or weaken any of the real HWND and foreground assertions.
+   $settingsFailure=[ordered]@{
+    Revision='R355';Mode=$mode;WaitMs=$settingsWaitMs
+    ForegroundHWND=$foreground.ToInt64();ForegroundPID=$foregroundPid
+    ForegroundTitle=$foregroundTitle;CandidateHWND=$settingsCandidate.ToInt64()
+    Windows=$windowSummary;ThresholdsUnchanged=$true
+   }
+   [IO.File]::WriteAllText((Join-Path $out ($mode+'_SETTINGS_NATIVE_FAILURE.json')),
+    ($settingsFailure|ConvertTo-Json -Depth 10),[Text.UTF8Encoding]::new($false))
    throw ('R146_SETTINGS_NOT_REAL_FOREGROUND MODE='+$mode+' WAIT_MS='+$settingsWaitMs+' FG_HWND='+$foreground.ToInt64()+' FG_PID='+$foregroundPid+' FG_TITLE='+$foregroundTitle+' CANDIDATE_HWND='+$settingsCandidate.ToInt64()+' WINDOWS='+($windowSummary|ConvertTo-Json -Compress -Depth 5))
   }
   Write-Output ('R146_SETTINGS_FOREGROUND_READY MODE='+$mode+' WAIT_MS='+$settingsWaitMs+' HWND='+$settings.ToInt64())
