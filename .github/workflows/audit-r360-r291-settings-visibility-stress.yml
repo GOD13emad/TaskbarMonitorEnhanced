@@ -1,0 +1,161 @@
+name: R360 repeated R291 Settings visibility stress (disposable Windows)
+
+on:
+  push:
+    branches: [security/r347-r349-helper-hardening-v1710]
+    paths:
+      - 'src/**'
+      - 'installer/**'
+      - 'build/**'
+      - '.github/workflows/audit-r360-r291-settings-visibility-stress.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-exact-candidate:
+    name: R360 build exact private candidate
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact candidate without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Build exact Setup and Main with manifest-pinned hashes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Build.ps1
+          if($LASTEXITCODE -ne 0){throw 'R360_EXACT_BUILD_FAILED'}
+          $setup='build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe'
+          $main='build/_out/App/TaskbarMonitorEnhanced.exe'
+          $manifestPath='artifacts/BUILD_MANIFEST.json'
+          if(!(Test-Path -LiteralPath $setup) -or !(Test-Path -LiteralPath $main) -or
+             !(Test-Path -LiteralPath $manifestPath)){throw 'R360_BUILD_OUTPUT_OR_MANIFEST_MISSING'}
+          $manifest=Get-Content -LiteralPath $manifestPath -Raw|ConvertFrom-Json
+          $setupEntry=@($manifest.Outputs|Where-Object{$_.Name -ceq 'TaskbarMonitorEnhanced_Setup_1.7.10.exe'})
+          $mainEntry=@($manifest.Outputs|Where-Object{$_.Name -ceq 'TaskbarMonitorEnhanced.exe'})
+          $setupHash=(Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToUpperInvariant()
+          $mainHash=(Get-FileHash -LiteralPath $main -Algorithm SHA256).Hash.ToUpperInvariant()
+          if($setupEntry.Count -ne 1 -or $mainEntry.Count -ne 1 -or
+             $setupEntry[0].SHA256 -cne $setupHash -or
+             $mainEntry[0].SHA256 -cne $mainHash -or
+             [long]$setupEntry[0].Bytes -ne (Get-Item -LiteralPath $setup).Length -or
+             [long]$mainEntry[0].Bytes -ne (Get-Item -LiteralPath $main).Length){
+            throw 'R360_BUILD_MANIFEST_BYTE_HASH_MISMATCH'
+          }
+          $candidate=[ordered]@{
+            Schema=1;Commit=$env:GITHUB_SHA;Version='1.7.10'
+            Private=$true;NotForPublicInstallation=$true
+            SetupSHA256=$setupHash;MainSHA256=$mainHash
+          }
+          [IO.File]::WriteAllText('build/_out/CANDIDATE.json',($candidate|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
+          'R360_EXACT_PRIVATE_CANDIDATE_MANIFEST_PASS'
+
+      - name: Retain exact candidate bytes
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R360-PRIVATE-CANDIDATE-${{ github.run_id }}
+          path: |
+            build/_out/CANDIDATE.json
+            build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe
+            build/_out/App/TaskbarMonitorEnhanced.exe
+          retention-days: 7
+          if-no-files-found: error
+
+  settings-visibility-stress:
+    name: R360 three repeated R291 cycles on ${{ matrix.os }}
+    needs: build-exact-candidate
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: A
+            os: windows-2025
+          - host: B
+            os: windows-2022
+    steps:
+      - name: Checkout exact candidate without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download exact private candidate
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: R360-PRIVATE-CANDIDATE-${{ github.run_id }}
+          path: _r360_candidate
+
+      - name: Verify disposable guest, exact source and PS5 test parser
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          if($PSVersionTable.PSEdition -cne 'Desktop' -or
+             $env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/security/r347-r349-helper-hardening-v1710' -or
+             $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID|LAPTOP' -or
+             ![Environment]::UserInteractive -or
+             (git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){
+            throw 'R360_REFUSE_NONDISPOSABLE_OR_WRONG_GIT_SOURCE'
+          }
+          $r291=(Resolve-Path 'build/Test-R291-ExplorerStart-Settings-Glass.ps1').Path
+          $r360=(Resolve-Path 'build/Test-R360-R291-SettingsVisibility-Stress.ps1').Path
+          foreach($file in @($r291,$r360)){
+            $tokens=$null;$errors=$null
+            [void][Management.Automation.Language.Parser]::ParseFile($file,[ref]$tokens,[ref]$errors)
+            if(@($errors).Count){throw ('R360_POWERSHELL_51_PARSE_FAILED '+$file)}
+          }
+          $candidate=Get-Content '_r360_candidate/CANDIDATE.json' -Raw|ConvertFrom-Json
+          $setup='_r360_candidate/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe'
+          $main='_r360_candidate/App/TaskbarMonitorEnhanced.exe'
+          if($candidate.Commit -cne $env:GITHUB_SHA -or
+             $candidate.Version -cne '1.7.10' -or
+             $candidate.Private -ne $true -or
+             $candidate.NotForPublicInstallation -ne $true -or
+             (Get-FileHash $setup -Algorithm SHA256).Hash.ToUpperInvariant() -cne $candidate.SetupSHA256 -or
+             (Get-FileHash $main -Algorithm SHA256).Hash.ToUpperInvariant() -cne $candidate.MainSHA256){
+            throw 'R360_EXACT_CANDIDATE_HASH_OR_COMMIT_MISMATCH'
+          }
+          if((Test-Path (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced')) -or
+             (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced') -or
+             @(Get-Process -Name TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count -ne 0){
+            throw 'R360_HOST_NOT_FRESH'
+          }
+          'R360_DISPOSABLE_GUEST_AND_EXACT_CANDIDATE_PASS'
+
+      - name: Repeat real Explorer Start and Settings test three times
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $script=(Resolve-Path 'build/Test-R360-R291-SettingsVisibility-Stress.ps1').Path
+          $candidate=(Resolve-Path '_r360_candidate').Path
+          & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -HostLabel '${{ matrix.host }}' -CandidateDir $candidate -Iterations 3
+          if($LASTEXITCODE -ne 0){throw 'R360_SETTINGS_VISIBILITY_STRESS_FAILED'}
+
+      - name: Retain bounded JSON receipts and native visibility diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R360-${{ matrix.host }}-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/R360_${{ matrix.host }}/R360_${{ matrix.host }}.json
+            ${{ runner.temp }}/R360_${{ matrix.host }}/Cycle*/TBME_R291_${{ matrix.host }}/R291_NATIVE.json
+            ${{ runner.temp }}/R360_${{ matrix.host }}/Cycle*/TBME_R291_${{ matrix.host }}/R158_READY_*.json
+            ${{ runner.temp }}/R360_${{ matrix.host }}/Cycle*/TBME_R291_${{ matrix.host }}/*_SETTINGS_NATIVE_FAILURE.json
+          retention-days: 7
+          if-no-files-found: warn
