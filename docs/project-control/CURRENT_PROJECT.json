@@ -4,8 +4,8 @@
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
   "CurrentEngineeringRevision": "R364",
-  "Status": "PUBLIC_V1710_OWNER_INSTALLED_HASH_VERIFIED_R357_PRODUCT_CI_40_OF_40_R358_PIPE_3_OF_3_R359_IDENTITY_3_OF_3_R360_SETTINGS_STRESS_6_CYCLES_24_MODES_R363_API_ASSET_HARDENING_R364_PR_CI_13_OF_13_HUMAN_REVIEW_PENDING_GUI_AUDIO_DEFERRED",
-  "UpdatedUtc": "2026-11-09T06:10:04.950Z",
+  "Status": "PUBLIC_V1710_OWNER_INSTALLED_HASH_VERIFIED_R357_PRODUCT_CI_40_OF_40_R358_PIPE_3_OF_3_R359_IDENTITY_3_OF_3_R360_SETTINGS_STRESS_6_CYCLES_24_MODES_R363_API_ASSET_HARDENING_R364_PR_CI_13_OF_13_R365_LOCAL_R335_24_OF_24_HUMAN_REVIEW_PENDING_GUI_AUDIO_DEFERRED",
+  "UpdatedUtc": "2026-11-09T07:06:36.637Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -35,7 +35,7 @@
     "HKCUDisplayVersion": "1.7.10",
     "InstallStateVersion": "1.7.10",
     "RunningAtLastReadOnlyCheck": true,
-    "LastReadOnlyObservedLocal": "2026-11-09T05:36:51.046+03:30",
+    "LastReadOnlyObservedLocal": "2026-11-09T10:35:43.1509609+03:30",
     "InplaceUpgradeToV1710": "INSTALLED_VERSION_AND_HASH_CONFIRMED_COMPLETE_TRANSITION_RECEIPT_NOT_INDEPENDENTLY_ATTESTED"
   },
   "HistoricalOfficialV179OwnerAcceptance": {
@@ -100,10 +100,10 @@
     "ISSUE6_REPORTER_DRIVER_SHA_AND_INSTALL_ORIGIN_MISSING",
     "PR98_INDEPENDENT_HUMAN_SECURITY_REVIEW_PENDING"
   ],
-  "CriticalPath": "Official immutable public v1.7.10 and the owner-installed v1.7.10+r299 remain unchanged. R357 production/test source 07c095c43e3a96e838bfaee7f51d86707326dda8 passed 12 workflows / 40 jobs (40/40). R358 pipe transport and R359 identity-boundary exact-Setup acceptance each passed 3/3 jobs and 6/6 checks per Windows 2022/2025 host. R360 repeated real Explorer Settings visibility passed 3/3 jobs, 6/6 cycles and 24/24 mode executions on disposable Windows 2022/2025 guests. R363 API-backed dependency acquisition passed local Windows PowerShell 5.1 download/fallback harnesses and full local Build; R364 exact PR head 724be329b5468f14509d62dc460d6eec161a35d6 passed 13/13 PR jobs (Build 4/4, R338 4/4, R290 2/2, R291 3/3), with R338 push and PR each 4/4. No production source changed after R357. All hosted install/UI tests ran on disposable GitHub guests, not the owner PC. PR #98 remains Ready for review, mergeable and unmerged; independent human approval is still required and zero reviews have been submitted. Owner GUI/audio witness and complete personal v1.7.9-to-v1.7.10 upgrade transaction receipt remain deferred/unverified; Issue #6 awaits the reporter's affected driver SHA-256 and install/download origin. The hosted R299 predecessor upgrade is synthetic/disposable, not owner acceptance. Unsigned waiver and physical AC exclusion remain.",
-  "MainBlocker": "PR #98 remains open, mergeable and unmerged and requires an actual independent human security review at latest exact code/test head 724be329b5468f14509d62dc460d6eec161a35d6; zero reviews have been submitted. Do not impersonate the requested reviewer or self-approve. Secondary evidence gaps remain the original reporter's Issue #6 driver SHA-256/install origin and the complete personal v1.7.9-to-v1.7.10 upgrade transaction receipt. Owner GUI/audio witnesses remain deferred, not PASS. Do not force-close the running app, take desktop focus, or publish a new release.",
-  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R364_NOT_A_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Obtain and assess an actual independent human review of PR #98 at exact head 724be329b5468f14509d62dc460d6eec161a35d6. After a submitted review, address findings, rerun exact-head CI if code changes, and merge only if the review supports approval. Keep immutable public v1.7.10 and the owner installation unchanged. Issue #6 still requires the original reporter's affected driver SHA-256 and download/install origin; owner GUI/audio remains deferred unless a new defect and authorized attested GUI route arise.",
+  "CriticalPath": "Official immutable public v1.7.10 and the owner-installed v1.7.10+r299 remain unchanged. R357 production/test source 07c095c43e3a96e838bfaee7f51d86707326dda8 passed 12 workflows / 40 jobs (40/40). R358 pipe transport and R359 identity-boundary exact-Setup acceptance each passed 3/3 jobs and 6/6 checks per Windows 2022/2025 host. R360 repeated real Explorer Settings visibility passed 3/3 jobs, 6/6 cycles and 24/24 mode executions on disposable Windows 2022/2025 guests. R363 API-backed dependency acquisition passed local Windows PowerShell 5.1 download/fallback harnesses and full local Build. R364 code/test-infrastructure head 724be329b5468f14509d62dc460d6eec161a35d6; the last live-observed exact PR head before this R365 state upsert was 46d2314a472ed1ac16780b57d15c3b9cbdc4a01e, a documentation-only reconciliation with 13/13 exact-head CI passing (Build 4/4, R338 4/4, R290 2/2, R291 3/3). R365 owner-local native regressions passed R335 24/24 on exact Setup SHA 7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06, R338 20/20 and R298 cleanup contract; no production source changed after R357. PR #98 remains Ready for review, mergeable and unmerged; independent human approval is still required and zero reviews have been submitted. Owner GUI/audio witness and complete personal v1.7.9-to-v1.7.10 upgrade transaction receipt remain deferred/unverified; Issue #6 awaits the reporter's affected driver SHA-256 and install/download origin. The hosted R299 predecessor upgrade is synthetic/disposable, not owner acceptance. Re-read the live PR head before review. Unsigned waiver and physical AC exclusion remain.",
+  "MainBlocker": "PR #98 remains open, mergeable and unmerged and requires an actual independent human security review against its live exact head; the last observed head before this R365 state upsert was 46d2314a472ed1ac16780b57d15c3b9cbdc4a01e and its exact-head CI passed 13/13. Re-read the PR head before review. Do not impersonate the requested reviewer or self-approve. Secondary evidence gaps remain the original reporter's Issue #6 driver SHA-256/install origin and the complete personal v1.7.9-to-v1.7.10 upgrade transaction receipt. Owner GUI/audio witnesses remain deferred, not PASS. Do not force-close the running app, take desktop focus, or publish a new release.",
+  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R365_NOT_A_SECOND_OPERATIONAL_BRAIN",
+  "ExactNextAction": "Obtain and assess an actual independent human review of PR #98 against its live exact head (re-read the PR HEAD before review; last verified before this R365 state upsert: 46d2314a472ed1ac16780b57d15c3b9cbdc4a01e, with 13/13 exact-head CI). After a submitted review, address findings, rerun exact-head CI if code changes, and merge only if the review supports approval. Keep immutable public v1.7.10 and the owner installation unchanged. Issue #6 still requires the original reporter's affected driver SHA-256 and download/install origin; the personal v1.7.9-to-v1.7.10 transaction receipt and owner GUI/audio witness remain unverified/deferred. Notion R365 synchronization remains pending explicit confirmation to restore the last intact R359 version.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -552,18 +552,51 @@
       "CandidateStrictTrustChecks": 20
     }
   },
-  "CurrentVerificationRevision": "R364",
+  "CurrentVerificationRevision": "R365",
   "Deferred": [
     "OWNER_WINDOWS11_PERSONAL_START_SETTINGS_DYNAMIC_GUI_WITNESS_DEFERRED_NOT_PASS_OWNER_ACCEPTED_CURRENT_BEHAVIOR_NO_CURRENT_TAKEOVER_AUTHORITY",
     "OWNER_APP_OS_NOTIFICATION_BANNER_AND_AUDIBLE_SPEAKER_NOT_INDEPENDENTLY_WITNESSED_DEFERRED_NOT_PASS"
   ],
   "NotionCoordination": {
-    "Status": "PENDING_USER_CONFIRMATION_TO_RESTORE_LAST_INTACT_R359_VERSION_THEN_SYNC_R364",
+    "Status": "PENDING_USER_CONFIRMATION_TO_RESTORE_LAST_INTACT_R359_VERSION_THEN_SYNC_R365",
     "Page": "https://app.notion.com/p/412d5b4a86f681c29173c01fc4c75842",
     "LastVerifiedUtc": "2026-11-09T04:54:27.207Z",
-    "Scope": "R360 repeated Explorer Settings stress, R361–R363 SHA-pinned/API-backed download hardening, R364 exact-baseline R338 build tooling and 13/13 exact PR-head CI; independent human review and owner/Issue #6 evidence gaps remain.",
+    "Scope": "R360 repeated Explorer Settings stress, R361-R363 SHA-pinned/API-backed download hardening, R364 exact-baseline R338 build tooling and exact-head CI; R365 owner-local exact-Setup R335 24/24, R338 20/20 and R298 cleanup contract. Independent human review and owner/Issue #6 evidence gaps remain.",
     "Authority": "Coordination mirror only; PROJECT_BRAIN.md and native test receipts remain technical authority.",
     "RecoveryTargetUtc": "2026-11-09T04:54:27.398Z",
-    "RecoveryReason": "The 2026-11-09T06:05:33.663Z ChatGPT/MCP update_content operation removed 55 page blocks; version history attributes all 55 affected blocks to this operation only. Restore of the last intact R359 version requires explicit user confirmation before R364 synchronization."
+    "RecoveryReason": "The 2026-11-09T06:05:33.663Z ChatGPT/MCP update_content operation removed 55 page blocks; version history attributes all 55 affected blocks to this operation only. Restore of the last intact R359 version requires explicit user confirmation before R365 synchronization."
+  },
+  "R365LocalSupplementalVerification": {
+    "Revision": "R365",
+    "ObservedLocalAt": "2026-11-09T10:35:43.1509609+03:30",
+    "SourceCommitAtTest": "46d2314a472ed1ac16780b57d15c3b9cbdc4a01e",
+    "ProductSourceCommit": "07c095c43e3a96e838bfaee7f51d86707326dda8",
+    "SetupPath": "build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe",
+    "SetupSHA256": "7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06",
+    "SetupBytes": 8781312,
+    "R335TestScript": "build/Test-R335-AtomicUserLogSink-Native.ps1",
+    "R335TestScriptSHA256": "78F8F4A33BA19EB7AA53C8C7F2E0919CD606FB525CF52389BFFE79E81F04E9EB",
+    "LocalChecks": {
+      "R335AtomicUserLogSink": "24/24 PASS",
+      "R338SupervisorTrustedArgs": "20/20 PASS",
+      "R298DeferredCleanup": "PASS"
+    },
+    "Safety": {
+      "UACActuallyInvoked": false,
+      "RealElevatedHelperLaunched": false,
+      "ProductInstallOrMutationPerformed": false,
+      "ProgramFilesModified": false,
+      "ForeignCanaryPreserved": true,
+      "TemporaryFixtureLeftovers": 0,
+      "InstalledVersion": "1.7.10",
+      "InstalledMainSHA256": "715CDA5E666E12C5FF2BCD46D513467CCEFEABE43A76F77689F604D4F432F2D7",
+      "InstalledUninstallSHA256": "1D0326CF11CEE069AD295112A9CA49D9FCBDB58ECDAB46FFE9C0F7172CE26D7E",
+      "MainProcessRunning": true,
+      "SensorBrokerProcessCount": 2,
+      "SensorSupervisorProcessCount": 1,
+      "BrokerScheduledTask": "Running",
+      "GitWorkingTree": "Clean before state upsert"
+    },
+    "Scope": "Local compiled-helper log/pipe/handle contract and trusted Supervisor argv/cleanup regressions only; not real UAC, owner install/upgrade, release, interactive GUI/audio or human review acceptance."
   }
 }
