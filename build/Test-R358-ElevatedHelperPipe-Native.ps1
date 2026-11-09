@@ -94,7 +94,9 @@ try{
     $compactMethod=$setupType.GetMethod('CompactTrustedHelperSource',$flags)
     $buildMethod=$setupType.GetMethod('BuildElevatedSensorLaunch',$flags)
     if(!$compactMethod -or !$buildMethod){throw 'R358_REAL_SETUP_PIPE_METHODS_MISSING'}
-    $compact=[string]$compactMethod.Invoke($null,[object[]]@($embedded))
+    $compactArgs=New-Object 'object[]' 1
+    $compactArgs[0]=[string]$embedded
+    $compact=[string]$compactMethod.Invoke($null,$compactArgs)
     if([string]::IsNullOrWhiteSpace($compact) -or $compact.Length -ge $embedded.Length){
         throw 'R358_HELPER_COMPACTION_NOT_BOUNDED'
     }
@@ -109,7 +111,12 @@ try{
     [void][IO.Directory]::CreateDirectory($payload)
     $appRoot=Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)) 'TaskbarMonitorEnhanced'
     $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-    $launch=$buildMethod.Invoke($null,[object[]]@('Install',$payload,$appRoot,$sid))
+    $buildArgs=New-Object 'object[]' 4
+    $buildArgs[0]=[string]'Install'
+    $buildArgs[1]=[string]$payload
+    $buildArgs[2]=[string]$appRoot
+    $buildArgs[3]=[string]$sid
+    $launch=$buildMethod.Invoke($null,$buildArgs)
     if($null -eq $launch){throw 'R358_REAL_SETUP_LAUNCH_OBJECT_NULL'}
     $pipeName=[string]$launch.PipeName
     $pipeHash=[string]$launch.HelperSHA256
@@ -220,7 +227,10 @@ try{
     $legit=Start-Client 'legit' $clientScript $pipeName $root '5000' $pipeHash $compactHash
     $sendMethod=$launch.GetType().GetMethod('SendTo',[Reflection.BindingFlags]'Instance,Public')
     if(!$sendMethod){throw 'R358_REAL_SETUP_SEND_METHOD_MISSING'}
-    $sendMethod.Invoke($launch,[object[]]@($legit,20000))|Out-Null
+    $sendArgs=New-Object 'object[]' 2
+    $sendArgs[0]=$legit
+    $sendArgs[1]=[int]20000
+    $sendMethod.Invoke($launch,$sendArgs)|Out-Null
     if(-not $legit.WaitForExit(20000)){try{$legit.Kill()}catch{};throw 'R358_LEGITIMATE_PIPE_CLIENT_TIMEOUT'}
     if(-not $rogue.WaitForExit(5000)){try{$rogue.Kill()}catch{};throw 'R358_ROGUE_PIPE_CLIENT_NOT_DISCONNECTED'}
     if($legit.ExitCode -ne 0){throw ('R358_LEGITIMATE_CLIENT_EXIT_'+$legit.ExitCode)}
