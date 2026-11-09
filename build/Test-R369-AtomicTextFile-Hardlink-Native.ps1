@@ -72,14 +72,20 @@ $canaryMarker='R369_OUTSIDE_CANARY_UNCHANGED'
 $canaryBefore=Sha $canary
 $aliasCount=0
 $aliasHit=$false
+$alignedCalls=0
+$preseedMisses=0
+# R376: NTFS hardlink setup can exceed the old 850-ms future window.
+# Both variants must exercise the real compiled writer inside a seeded window.
+$futureLeadMs=8000
 function Invoke-Write([string]$path,[string]$value,[string]$backup=''){
  $argsToInvoke=[object[]]@([string]$path,[string]$value,[Text.Encoding]::UTF8,[string]$backup)
  $m.Invoke($null,$argsToInvoke)|Out-Null
 }
 try {
- for($attempt=0;$attempt -lt 2 -and !$aliasHit;$attempt++){
+ for($attempt=0;$attempt -lt 3 -and !$aliasHit -and $alignedCalls -eq 0;$attempt++){
   $pidInt=[Diagnostics.Process]::GetCurrentProcess().Id
-  $tickStart=[Environment]::TickCount+850
+  $tickStart=[long][Environment]::TickCount+$futureLeadMs
+  if($tickStart+350 -ge [int]::MaxValue){throw 'R369_TEST_TICKCOUNT_SIGNED_WRAP'}
   for($i=0;$i -lt 350;$i++){
    $tick=$tickStart+$i
    $alias=$dest+'.'+$pidInt+'.'+$tick+'.tmp'
@@ -88,11 +94,22 @@ try {
     $aliasCount++
    }
   }
-  while([Environment]::TickCount -lt $tickStart){Start-Sleep -Milliseconds 10}
+  if([Environment]::TickCount -ge ($tickStart-300)){$preseedMisses++;continue}
+  $watch=[Diagnostics.Stopwatch]::StartNew()
+  while([Environment]::TickCount -lt $tickStart -and $watch.ElapsedMilliseconds -lt ($futureLeadMs+1500)){
+   Start-Sleep -Milliseconds 10
+  }
+  if([Environment]::TickCount -lt $tickStart){throw 'R369_TEST_TICKCOUNT_WAIT_TIMEOUT'}
   for($n=0;$n -lt 10;$n++){
+   $beforeTick=[Environment]::TickCount
    Invoke-Write $dest 'R369_ALIAS_WRITE'
+   $afterTick=[Environment]::TickCount
+   if($beforeTick -ge $tickStart -and $afterTick -lt ($tickStart+350)){$alignedCalls++}
    if((Sha $canary) -cne $canaryBefore){$aliasHit=$true;break}
   }
+ }
+ if(!$aliasHit -and $alignedCalls -eq 0){
+  throw ('R369_FIXTURE_NO_ALIGNED_WRITE preseedMisses='+$preseedMisses)
  }
  $canaryAfter=Sha $canary
  if($Variant -eq 'baseline'){
@@ -152,6 +169,9 @@ try {
   Checks=@($checks)
   AliasCount=$aliasCount
   AliasWriteThrough=$aliasHit
+  AlignedWriteCalls=$alignedCalls
+  PreseedMisses=$preseedMisses
+  FutureLeadMilliseconds=$futureLeadMs
   CanaryBeforeSHA256=$canaryBefore
   CanaryAfterSHA256=$canaryAfter
   Scope='Isolated same-user NTFS file hardlinks and exact compiled AtomicTextFile.Write. Does not prove security against post-handle-close concurrent directory writers.'
