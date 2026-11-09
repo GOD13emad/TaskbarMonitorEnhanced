@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R367",
-  "Status": "PUBLIC_V1710_OWNER_INSTALL_UNCHANGED_R357_PRODUCT_CI_40_OF_40_R358_PIPE_3_OF_3_R359_IDENTITY_3_OF_3_R360_SETTINGS_6_CYCLES_24_MODES_R363_API_ASSET_HARDENING_R364_R338_TOOLING_R365_LOCAL_R335_24_OF_24_R366_PR96_SUPERSEDED_R367_HARDLINK_FIX_LOCAL_4_OF_4_EACH_HOSTED_8_OF_8_EXACT_HEAD_CI_30_OF_30_HUMAN_REVIEW_PENDING_ISSUE6_OWNER_UPGRADE_GUI_AUDIO_NOTION_DEFERRED",
-  "UpdatedUtc": "2026-11-09T08:26:31.537Z",
+  "CurrentEngineeringRevision": "R369",
+  "Status": "PUBLIC_V1710_OWNER_INSTALL_UNCHANGED_R367_SENSOR_HARDLINK_8_OF_8_R368_R291_HARNESS_R369_APP_CONFIG_HARDLINK_LOCAL_6_OF_6_HOSTED_8_OF_8_EXACT_CI_28_OF_28_AFTER_R291_SINGLE_RERUN_INDEPENDENT_REVIEW_PENDING",
+  "UpdatedUtc": "2026-11-09T15:38:48.616Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -96,7 +96,9 @@
     "R364: R338 workflow now uses the exact candidate SHA-pinned build tooling for isolated baseline/candidate source builds while verifying product source Git HEAD remains unchanged; local copy harness PASS; push and PR R338 4/4; exact PR-head CI 13/13.",
     "R365: owner-local exact Setup R335 atomic log/pipe contract 24/24, R338 trusted Supervisor arguments 20/20 and R298 deferred-cleanup PASS; exact Setup SHA 7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06; no UAC, install or ProgramFiles mutation.",
     "R366: PR #96 closed unmerged as superseded by PR #98 after exact R338 source/test blob parity; public Issue #7 received R365 status update; scoped owner-host Issue #6 scan found no installed legacy driver artifact/service/source literal, without attributing the reporter binary.",
-    "R367: exact baseline 035e8fc5db2fc020e539ec930a10770b9807d318 full build and native 4/4 reproduced Supervisor and Broker predictable-temp hard-link write-through; candidate product commit 92f8b8bdfef210f00ee8b03aff062fd9e2dfa8d3 uses GUID+CreateNew temp files, removes Broker File.Copy fallback and fails closed after atomic replace retries; local candidate full build 0 warnings/0 errors and native 4/4; hosted push+pull_request Windows Server 2022/2025 matrix 8/8; exact PR-head CI 30/30; local receipt .local/audit/r367-elevated-temp-hardlink-local-20261109.json SHA256 AA3485943E4C3B2C0D4DF91688F41251F8C5AF503926A4E2B890A7EFEF410736. Pre-existing aliases blocked; concurrent writer after temp handle close is outside the guarantee. Public release and owner installation unchanged."
+    "R367: exact baseline 035e8fc5db2fc020e539ec930a10770b9807d318 full build and native 4/4 reproduced Supervisor and Broker predictable-temp hard-link write-through; candidate product commit 92f8b8bdfef210f00ee8b03aff062fd9e2dfa8d3 uses GUID+CreateNew temp files, removes Broker File.Copy fallback and fails closed after atomic replace retries; local candidate full build 0 warnings/0 errors and native 4/4; hosted push+pull_request Windows Server 2022/2025 matrix 8/8; exact PR-head CI 30/30; local receipt .local/audit/r367-elevated-temp-hardlink-local-20261109.json SHA256 AA3485943E4C3B2C0D4DF91688F41251F8C5AF503926A4E2B890A7EFEF410736. Pre-existing aliases blocked; concurrent writer after temp handle close is outside the guarantee. Public release and owner installation unchanged.",
+    "R368: 100ms mouse cursor hold after SendInput in real R291 test; Windows PowerShell 5.1 parser and C# compilation PASS; initial 20/20 exact-head CI. A later R291 Windows 2022 glass0 missing Settings menu first attempt failed, then succeeded on one job rerun; intermittent root cause not established.",
+    "R369: compiled baseline e6d3405 AtomicTextFile.Write predictable PID/TickCount temporary hard-link write-through reproduced on isolated same-user NTFS Canary; fix f704c412 uses GUID+CreateNew exclusive StreamWriter plus atomic File.Replace/Move and nonoverwriting backup. Full local build zero warning/errors and selftests/repro PASS, candidate native 6/6, UTF8 byte parity 6/6. Hosted push 42643594516 4/4 and PR 42643606514 4/4 PASS on Windows Server 2022/2025; test-only harness dfd4a36 and 40e598a corrected two false CI failures. Exact test HEAD 40e598a CI 28/28 after one original failed R291 2022 glass0 case and successful controlled job rerun, not first-try clean. Local receipt .local/audit/r369-atomictext-local-20261109.json SHA256 A8590B336CB3261EB7BCA885F893451BEB242AC0B27AB55A8ACB532969841FEE. PR #98 independent human review still pending; public release and owner install unchanged."
   ],
   "Open": [
     "OWNER_V179_TO_V1710_UPGRADE_TRANSACTION_PROVENANCE_NOT_INDEPENDENTLY_REVALIDATED",
@@ -105,10 +107,10 @@
     "OWNER_GUI_AUDIO_WITNESS_DEFERRED_NOT_PASS",
     "NOTION_RESTORE_CONFIRMATION_PENDING"
   ],
-  "CriticalPath": "Official immutable public v1.7.10 and the owner-installed v1.7.10 remain unchanged. R357 production/test source 07c095c43e3a96e838bfaee7f51d86707326dda8 passed 12 workflows / 40 jobs (40/40). R358 pipe transport and R359 identity-boundary exact-Setup acceptance each passed 3/3 jobs and 6/6 checks per Windows Server 2022/2025 host. R360 repeated Explorer Settings visibility passed 6/6 cycles and 24/24 mode executions on disposable Windows Server 2022/2025. R363 API-backed dependency acquisition and full local Build passed. R364 SHA-pinned R338 build tooling and exact-head workflow passed. R365 owner-local R335 24/24, R338 20/20 and R298 cleanup passed. R366 closed duplicate PR #96 unmerged as superseded by #98 and updated public Issue #7; bounded Issue #6 owner-host scan found no installed legacy driver artifact/service/source literal but cannot attribute the reporter binary. R367 baseline commit 035e8fc5db2fc020e539ec930a10770b9807d318 full build PASS and native 4/4 reproduced both Supervisor and Broker predictable-temp hard-link write-throughs. Candidate product-source commit 92f8b8bdfef210f00ee8b03aff062fd9e2dfa8d3 full build PASS (0 warnings/0 errors), local native 4/4, blocks both pre-created temp aliases, replaces destination hard links without canary write-through, and removes Broker File.Copy overwrite fallback. Hosted R367 push and pull_request matrix passed 8/8 across Windows Server 2022/2025. Exact PR-head CI for product commit 92f8b8b passed 30/30 checks, zero failures. Local evidence receipt .local/audit/r367-elevated-temp-hardlink-local-20261109.json SHA256 AA3485943E4C3B2C0D4DF91688F41251F8C5AF503926A4E2B890A7EFEF410736. R367 guarantee is limited to pre-existing aliases; no race-free guarantee is claimed for a concurrent directory writer after the temp handle closes. PR #98 remains open, mergeable and unmerged, with independent human review requested and zero reviews submitted. Issue #6 reporter driver SHA-256/install origin remains unresolved; personal v1.7.9-to-v1.7.10 transaction receipt remains unverified; owner GUI/audio witness remains deferred. PR #80 is historical and unsafe to merge wholesale; PR #82 remains draft provenance work. Hosted R299 is synthetic/disposable and does not close personal upgrade acceptance. Notion restore/sync remains pending explicit confirmation. Unsigned waiver and physical AC exclusion remain.",
-  "MainBlocker": "PR #98 remains open, mergeable and unmerged and requires an actual independent human security review against its live exact head. Product-source commit 92f8b8bdfef210f00ee8b03aff062fd9e2dfa8d3 passed 30/30 exact-head checks; R367 hosted baseline/candidate matrix passed 8/8 and local native tests passed 4/4 per variant. Zero human reviews have been submitted; the requested reviewer remains pending. PR #96 is closed unmerged as superseded by PR #98. Secondary evidence gaps remain Issue #6 reporter driver SHA-256/install origin, the complete personal v1.7.9-to-v1.7.10 transaction receipt, and owner GUI/audio witness. Do not self-approve, merge, change the immutable public release, or mutate the owner installation.",
-  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R367_NOT_A_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Re-read the live PR #98 head after this R367 state-only synchronization commit, then obtain and assess an actual independent human security review on that live head. Address any findings, rerun exact-head CI if code changes, and merge only if the independent review supports approval. Keep immutable public v1.7.10 and the owner installation unchanged. Issue #6 still requires the original reporter driver SHA-256 and download/install origin; the personal v1.7.9-to-v1.7.10 transaction receipt and owner GUI/audio witness remain unverified/deferred. Notion synchronization remains blocked until explicit user confirmation to restore the last intact R359 page version.",
+  "CriticalPath": "Immutable public v1.7.10 and owner-installed v1.7.10 unchanged. Historical R357 40/40, R358/R359 pipe/identity, R360 six Explorer cycles/24 modes, R364 pinned tooling, R365 local checks, R366 PR coordination and R367 elevated Sensor hardlink hosted 8/8 retain their scoped evidence. R368 R291 physical-click cursor 100ms stabilization passed initial 20/20 exact CI. R369 pre-fix compiled App AtomicTextFile.Write predictable PID/TickCount temp-hardlink canary write-through reproduced on same-user NTFS, candidate GUID+CreateNew exclusive FileStream with atomic replace/move and nonoverwriting initial backup. Source fix f704c412 full local build passed zero warnings/errors and selftests/workspace/repro; candidate native 6/6, UTF8 byte parity 6/6 including Persian. R369 hosted push 42643594516 and PR 42643606514 each 4/4 PASS across Windows Server 2022/2025, typed artifacts 8/8. Test-only corrections dfd4a36 and 40e598a fixed Build-created AppData guard false positive and attacked-file backup fixture. Current exact test head 40e598a 28/28 CI success AFTER ONE R291 Windows Server 2022 glass0 Settings menu-not-found first failure and controlled single-job rerun success; intermittent root cause not proven. Local evidence .local/audit/r369-atomictext-local-20261109.json SHA256 A8590B336CB3261EB7BCA885F893451BEB242AC0B27AB55A8ACB532969841FEE. Pre-created same-user hardlink aliases blocked but post-handle-close concurrent directory writers are outside guarantee. PR #98 remains open/mergeable/unmerged, independent reviewer requested, zero submitted human reviews. Issue #6 reporter driver SHA256/origin, owner upgrade transaction v1.7.9->v1.7.10, owner GUI/audio and Notion R359 restore confirmation remain open or deferred.",
+  "MainBlocker": "PR #98 open/mergeable/unmerged; actual independent human security review still 0 submitted, cannot self-approve/merge. R369 hosted 8/8 accepted for pre-created temp hardlink only; current HEAD 40e598a exact CI 28/28 success after a single R291 2022 job rerun. Initial glass0 Settings-menu-not-found failure remains a separately recorded non-PASS first attempt with root cause unproven. Issue #6 reporter driver SHA256 and install origin, owner v1.7.9-to-v1.7.10 complete transaction receipt, owner GUI/audio and Notion restoration confirmation remain secondary evidence gaps. Owner installed v1.7.10/public immutable release are unchanged.",
+  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R369_NOT_SECOND_OPERATIONAL_BRAIN",
+  "ExactNextAction": "Re-read live PR #98 tip and exact-head CI after coordination-only R369 state update, obtain and assess actual independent human security review; address/test findings before merging. Preserve R291 Windows 2022 glass0 original menu-not-found failure despite one successful rerun, investigate only with reproducible evidence and without weakening real HWND assertions. Issue #6 reporter SHA256/origin, personal upgrade receipt, owner GUI/audio witnesses still unverified/deferred. Notion R359 55-block restore/sync requires explicit confirmation. Do not change official v1.7.10 or owner installation.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -557,19 +559,19 @@
       "CandidateStrictTrustChecks": 20
     }
   },
-  "CurrentVerificationRevision": "R367",
+  "CurrentVerificationRevision": "R369",
   "Deferred": [
     "OWNER_WINDOWS11_PERSONAL_START_SETTINGS_DYNAMIC_GUI_WITNESS_DEFERRED_NOT_PASS_OWNER_ACCEPTED_CURRENT_BEHAVIOR_NO_CURRENT_TAKEOVER_AUTHORITY",
     "OWNER_APP_OS_NOTIFICATION_BANNER_AND_AUDIBLE_SPEAKER_NOT_INDEPENDENTLY_WITNESSED_DEFERRED_NOT_PASS"
   ],
   "NotionCoordination": {
-    "Status": "PENDING_USER_CONFIRMATION_TO_RESTORE_LAST_INTACT_R359_VERSION_THEN_SYNC_R367",
+    "Status": "PENDING_USER_CONFIRMATION_TO_RESTORE_LAST_INTACT_R359_VERSION_THEN_SYNC_R369",
     "Page": "https://app.notion.com/p/412d5b4a86f681c29173c01fc4c75842",
     "LastVerifiedUtc": "2026-11-09T04:54:27.207Z",
-    "Scope": "R360 repeated Explorer Settings stress, R361-R363 SHA-pinned/API-backed download hardening, R364 exact-baseline R338 build tooling and exact-head CI, R365 owner-local R335/R338/R298 regressions, R366 PR #96 supersession and Issue #7 tracker update plus scoped Issue #6 owner-host audit, R367 Supervisor/Broker temp hard-link hardening and 30/30 exact-head CI. Independent human review, reporter/owner evidence gaps and restoration confirmation remain.",
+    "Scope": "R360 repeated Explorer Settings stress, R361-R363 SHA-pinned/API-backed download hardening, R364 exact-baseline R338 build tooling and exact-head CI, R365 owner-local R335/R338/R298 regressions, R366 PR #96 supersession and Issue #7 tracker update plus scoped Issue #6 owner-host audit, R367 Supervisor/Broker temp hard-link hardening and 30/30 exact-head CI. Independent human review, reporter/owner evidence gaps and restoration confirmation remain. R368 native R291 click event stabilization; R369 App config/history AtomicTextFile hard-link hardening, hosted 8/8, exact test-head 28/28 after one controlled R291 job rerun. Restoration approval still required.",
     "Authority": "Coordination mirror only; PROJECT_BRAIN.md and native test receipts remain technical authority.",
     "RecoveryTargetUtc": "2026-11-09T04:54:27.398Z",
-    "RecoveryReason": "The 2026-11-09T06:05:33.663Z ChatGPT/MCP update_content operation removed 55 page blocks; version history attributes all 55 affected blocks to this operation only. Restore of the last intact R359 version requires explicit user confirmation before R367 synchronization."
+    "RecoveryReason": "The 2026-11-09T06:05:33.663Z ChatGPT/MCP update_content operation removed 55 page blocks; version history attributes all 55 affected blocks to this operation only. Restore of the last intact R359 version requires explicit user confirmation before R369 synchronization."
   },
   "R365LocalSupplementalVerification": {
     "Revision": "R365",
@@ -604,7 +606,7 @@
     },
     "Scope": "Local compiled-helper log/pipe/handle contract and trusted Supervisor argv/cleanup regressions only; not real UAC, owner install/upgrade, release, interactive GUI/audio or human review acceptance."
   },
-  "R366CoordinationAndAudit":   {
+  "R366CoordinationAndAudit": {
     "Revision": "R366",
     "ObservedLocalAt": "2026-11-09T10:48:31.5958379+03:30",
     "PR98": {
@@ -666,7 +668,7 @@
     },
     "Scope": "GitHub coordination cleanup and scoped owner-host evidence only; no product source, release or installed product changed."
   },
-  "R367HardlinkBoundary":   {
+  "R367HardlinkBoundary": {
     "Revision": "R367",
     "ObservedUtc": "2026-11-09T08:26:31.537Z",
     "Baseline": {
@@ -728,5 +730,55 @@
       "UACRequested": false,
       "Rebooted": false
     }
+  },
+  "R369AtomicTextBoundary": {
+    "Revision": "R369",
+    "ObservedUtc": "2026-11-09T15:38:48.616Z",
+    "VulnerableBaselineCommit": "e6d3405c116e6dd5b52a018dc46dc7beb86a8562",
+    "SourceFixCommit": "f704c41266e512f90b88d01a90b0aacea69de8f8",
+    "TestFixCommits": [
+      "dfd4a361c8097bbd85e33c695f925a868c99fb6c",
+      "40e598a50421333ea37e1e9abdb2ab39520c5e9e"
+    ],
+    "ExactTestHead": "40e598a50421333ea37e1e9abdb2ab39520c5e9e",
+    "LocalBuild": "PASS_ZERO_WARNINGS_ZERO_ERRORS_SELFTEST_WORKSPACE_REPRO",
+    "LocalCandidateNative": "PASS_6_OF_6",
+    "LocalByteParity": "PASS_6_OF_6_UTF8_BOM_AND_NO_BOM_INCLUDING_PERSIAN",
+    "VulnerableBaseline": "PREDICTABLE_TEMP_HARDLINK_WRITE_THROUGH_REPRODUCED",
+    "Hosted": {
+      "PushRunId": 42643594516,
+      "PullRequestRunId": 42643606514,
+      "TotalJobs": 8,
+      "Passed": 8,
+      "Failed": 0,
+      "OS": [
+        "windows-2022",
+        "windows-2025"
+      ],
+      "TypedArtifacts": 8
+    },
+    "ExactHeadCI": {
+      "Count": 28,
+      "SuccessAfterSingleR291JobRerun": 28,
+      "FirstR291Windows2022": "FAIL_GLASS0_SETTINGS_MENU_NOT_FOUND",
+      "SingleRerun": "PASS",
+      "OriginalFailureRetained": true
+    },
+    "PR98": {
+      "Open": true,
+      "Mergeable": true,
+      "Merged": false,
+      "RequestedReviewer": "mohammadmohammadzadeh19960-code",
+      "IndependentReviewsSubmitted": 0,
+      "CommentId": 6743945217
+    },
+    "LocalReceipt": {
+      "Path": ".local/audit/r369-atomictext-local-20261109.json",
+      "SHA256": "A8590B336CB3261EB7BCA885F893451BEB242AC0B27AB55A8ACB532969841FEE"
+    },
+    "ClaimLimit": "Pre-created same-user NTFS hardlinks blocked. Does not guarantee race freedom against directory writer after temp handle closure.",
+    "PublicReleaseChanged": false,
+    "OwnerInstallChanged": false,
+    "NotionRestorePerformed": false
   }
 }
