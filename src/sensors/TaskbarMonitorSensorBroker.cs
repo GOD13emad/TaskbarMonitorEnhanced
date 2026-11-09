@@ -105,40 +105,46 @@ namespace TaskbarMonitorSensorBroker
             foreach(IHardware sub in hw.SubHardware)UpdateTree(sub);
         }
 
+        // R367: unique CREATE_NEW temp files reject pre-existing hard-link aliases.
+        // Never fall back to File.Copy, which can write through an aliased destination.
+        // Atomic replace failures are retried and then fail closed.
         private static void AtomicWrite(string path,string json)
         {
             string parent=Path.GetDirectoryName(path);
             if(!String.IsNullOrWhiteSpace(parent))Directory.CreateDirectory(parent);
-            string tmp=path+"."+Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture)+"."+Environment.TickCount.ToString(CultureInfo.InvariantCulture)+".tmp";
-            File.WriteAllText(tmp,json);
+            string tmp=path+"."+Guid.NewGuid().ToString("N")+".tmp";
+            bool tempCreated=false;
             Exception last=null;
-            for(int attempt=0;attempt<5;attempt++)
+            try
             {
-                try
+                using(FileStream stream=new FileStream(tmp,FileMode.CreateNew,FileAccess.Write,FileShare.None))
                 {
-                    if(File.Exists(path))
+                    tempCreated=true;
+                    byte[] bytes=new System.Text.UTF8Encoding(false).GetBytes(json);
+                    stream.Write(bytes,0,bytes.Length);
+                    stream.Flush();
+                }
+                for(int attempt=0;attempt<5;attempt++)
+                {
+                    try
                     {
-                        try
-                        {
-                            string bak=path+".bak";
-                            File.Replace(tmp,path,bak,true);
-                            try{File.Delete(bak);}catch{}
-                            return;
-                        }
-                        catch{}
+                        if(File.Exists(path))File.Replace(tmp,path,null,true);
+                        else File.Move(tmp,path);
+                        tempCreated=false;
+                        return;
                     }
-                    File.Copy(tmp,path,true);
-                    try{File.Delete(tmp);}catch{}
-                    return;
+                    catch(Exception ex)
+                    {
+                        last=ex;
+                        if(attempt<4)Thread.Sleep(60*(attempt+1));
+                    }
                 }
-                catch(Exception ex)
-                {
-                    last=ex;
-                    Thread.Sleep(60*(attempt+1));
-                }
+                if(last!=null)throw last;
             }
-            try{File.Delete(tmp);}catch{}
-            if(last!=null)throw last;
+            finally
+            {
+                if(tempCreated)try{File.Delete(tmp);}catch{}
+            }
         }
 
         private static string Json(Dictionary<string,object> m)

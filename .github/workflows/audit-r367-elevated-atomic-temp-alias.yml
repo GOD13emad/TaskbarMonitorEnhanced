@@ -1,0 +1,140 @@
+name: R367 Elevated sensor atomic temp hardlink boundary (disposable Windows)
+
+on:
+  push:
+    branches: [security/r347-r349-helper-hardening-v1710]
+    paths:
+      - src/sensors/TaskbarMonitorSensorSupervisor.cs
+      - src/sensors/TaskbarMonitorSensorBroker.cs
+      - build/Build.ps1
+      - build/dependencies.lock.json
+      - build/Test-R367-ElevatedAtomicTempAlias-Native.ps1
+      - .github/workflows/audit-r367-elevated-atomic-temp-alias.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - src/sensors/TaskbarMonitorSensorSupervisor.cs
+      - src/sensors/TaskbarMonitorSensorBroker.cs
+      - build/Build.ps1
+      - build/dependencies.lock.json
+      - build/Test-R367-ElevatedAtomicTempAlias-Native.ps1
+      - .github/workflows/audit-r367-elevated-atomic-temp-alias.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  native-atomic-alias-contract:
+    name: R367 ${{ matrix.variant }} ${{ matrix.host }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [baseline, candidate]
+        host: [A, B]
+        include:
+          - host: A
+            os: windows-2025
+          - host: B
+            os: windows-2022
+    steps:
+      - name: Checkout exact test harness revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: harness
+          persist-credentials: false
+
+      - name: Checkout exact baseline or candidate product source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ matrix.variant == 'baseline' && '035e8fc5db2fc020e539ec930a10770b9807d318' || github.event.pull_request.head.sha || github.sha }}
+          path: src
+          persist-credentials: false
+
+      - name: Require disposable Windows exact source and no preexisting product
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $expected="${{ matrix.variant == 'baseline' && '035e8fc5db2fc020e539ec930a10770b9807d318' || github.event.pull_request.head.sha || github.sha }}"
+          $expectedHarness="${{ github.event.pull_request.head.sha || github.sha }}"
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID' -or
+             (git -C src rev-parse HEAD).Trim() -cne $expected -or
+             (git -C harness rev-parse HEAD).Trim() -cne $expectedHarness){
+            throw 'R367_NOT_PINNED_DISPOSABLE_WINDOWS'
+          }
+          $actual=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
+          if(Test-Path -LiteralPath $actual){throw 'R367_HOSTED_EXISTING_LIVE_INSTALL_REFUSE'}
+          'R367_RUNNER_DISPOSABLE_AND_SOURCE_BOUND='+$expected
+
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Apply current SHA-pinned dependency fetcher to exact baseline and candidate checkouts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $harness=(Resolve-Path harness).Path
+          $source=(Resolve-Path src).Path
+          $sourceCommit=(git -C src rev-parse HEAD).Trim()
+          foreach($name in @('Build.ps1','dependencies.lock.json')){
+            $from=Join-Path $harness ('build\'+$name)
+            $to=Join-Path $source ('build\'+$name)
+            if(!(Test-Path -LiteralPath $from -PathType Leaf) -or
+               !(Test-Path -LiteralPath $to -PathType Leaf)){
+              throw ('R367_PINNED_BUILD_TOOLING_SOURCE_OR_TARGET_MISSING '+$name)
+            }
+            $expected=(Get-FileHash -LiteralPath $from -Algorithm SHA256).Hash
+            Copy-Item -LiteralPath $from -Destination $to -Force
+            if((Get-FileHash -LiteralPath $to -Algorithm SHA256).Hash -cne $expected){
+              throw ('R367_PINNED_BUILD_TOOLING_COPY_HASH_MISMATCH '+$name)
+            }
+            Write-Host ('R367_CURRENT_BUILD_TOOLING_SHA256=PASS file='+$name+' sha='+$expected)
+          }
+          if((git -C src rev-parse HEAD).Trim() -cne $sourceCommit){
+            throw 'R367_EXACT_PRODUCT_SOURCE_COMMIT_CHANGED_BY_BUILD_TOOLING_COPY'
+          }
+          Write-Host ('R367_EXACT_PRODUCT_SOURCE_COMMIT_PRESERVED='+$sourceCommit)
+
+      - name: Compile actual app, Broker, Supervisor and Setup
+        shell: pwsh
+        working-directory: src
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Build.ps1
+          if($LASTEXITCODE -ne 0 -or
+             !(Test-Path -LiteralPath build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe -PathType Leaf) -or
+             !(Test-Path -LiteralPath build/_out/Broker/TaskbarMonitorSensorBroker.exe -PathType Leaf)){
+            throw 'R367_EXACT_COMPILED_SENSOR_BINARIES_MISSING'
+          }
+          'R367_FULL_PRODUCT_BUILD_PASS'
+
+      - name: Execute compiled hardlink canaries with Windows PowerShell 5.1 (no worker launch)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $ps=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
+          $test=(Resolve-Path harness/build/Test-R367-ElevatedAtomicTempAlias-Native.ps1).Path
+          $source=(Resolve-Path src).Path
+          $sup=(Resolve-Path src/build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe).Path
+          $broker=(Resolve-Path src/build/_out/Broker/TaskbarMonitorSensorBroker.exe).Path
+          & $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $test `
+            -HostedGuest -HostLabel '${{ matrix.host }}' -Variant '${{ matrix.variant }}' `
+            -SourceRoot $source -SupervisorPath $sup -BrokerPath $broker
+          if($LASTEXITCODE -ne 0){throw 'R367_NATIVE_HARDLINK_GUEST_NOT_ACCEPTED'}
+
+      - name: Retain raw typed guest receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R367-${{ matrix.variant }}-${{ matrix.host }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/R367_*/R367_ELEVATED_TEMP_ALIAS.json
+          retention-days: 7
+          if-no-files-found: warn

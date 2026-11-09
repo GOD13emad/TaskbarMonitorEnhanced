@@ -441,10 +441,28 @@ internal static class TaskbarMonitorSensorSupervisor
                 "\"SupervisorVersion\":\""+SupervisorVersion+"\","+
                 "\"BrokerVersion\":\""+BrokerProtocolVersion+"\""+
                 "}";
-            string tmp=StatePath+".tmp";
-            File.WriteAllText(tmp,json);
-            if(File.Exists(StatePath))File.Replace(tmp,StatePath,null,true);
-            else File.Move(tmp,StatePath);
+            string tmp=StatePath+"."+Guid.NewGuid().ToString("N")+".tmp";
+            bool tempCreated=false;
+            try
+            {
+                using(FileStream stream=new FileStream(tmp,FileMode.CreateNew,FileAccess.Write,FileShare.None))
+                {
+                    tempCreated=true;
+                    byte[] bytes=new System.Text.UTF8Encoding(false).GetBytes(json);
+                    stream.Write(bytes,0,bytes.Length);
+                    stream.Flush();
+                }
+                if(File.Exists(StatePath))File.Replace(tmp,StatePath,null,true);
+                else File.Move(tmp,StatePath);
+                tempCreated=false;
+            }
+            finally
+            {
+                if(tempCreated)
+                {
+                    try{File.Delete(tmp);}catch{}
+                }
+            }
         }
         catch{}
     }
@@ -453,6 +471,8 @@ internal static class TaskbarMonitorSensorSupervisor
     // R338: the Supervisor may run with the task principal's highest available
     // token. Never let argv choose a worker executable or telemetry destination.
     // These are fail-closed path/reparse checks, not atomic rename-race or hardlink leases.
+    // R367 random CreateNew temp files reject pre-existing aliases; concurrent directory
+    // writers after the handle closes remain outside this guarantee.
     static bool NoReparseComponents(string fullPath)
     {
         string cursor=Path.GetFullPath(fullPath);
