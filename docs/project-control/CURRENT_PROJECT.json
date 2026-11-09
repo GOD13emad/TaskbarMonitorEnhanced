@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R359",
-  "Status": "PUBLIC_V1710_OWNER_INSTALLED_HASH_VERIFIED_R357_PRODUCT_CI_40_OF_40_R358_PIPE_CI_3_OF_3_R359_IDENTITY_CI_3_OF_3_LATEST_PR_CI_13_OF_13_HUMAN_REVIEW_PENDING_GUI_AUDIO_DEFERRED",
-  "UpdatedUtc": "2026-11-09T04:50:42.126Z",
+  "CurrentEngineeringRevision": "R364",
+  "Status": "PUBLIC_V1710_OWNER_INSTALLED_HASH_VERIFIED_R357_PRODUCT_CI_40_OF_40_R358_PIPE_3_OF_3_R359_IDENTITY_3_OF_3_R360_SETTINGS_STRESS_6_CYCLES_24_MODES_R363_API_ASSET_HARDENING_R364_PR_CI_13_OF_13_HUMAN_REVIEW_PENDING_GUI_AUDIO_DEFERRED",
+  "UpdatedUtc": "2026-11-09T06:10:04.950Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -89,17 +89,21 @@
     "R355: security branch synchronized with merged public-docs-only main; failure-only R291 native Settings HWND/parent/owner diagnostics added without product code or acceptance-threshold change. Exact test-source e1a8ac2 passed Build 4/4, R338 4/4, R290 2/2 and R291 2/2; exact CI head 0b8a216 passed 13/13 (Build 4/4, R338 4/4, R290 2/2, R291 3/3). Local Windows PowerShell 5.1 synthetic hidden-HWND harness executed the exact failure-only JSON block and verified Visible/WSVisible, parent/owner and ThresholdsUnchanged readback; diagnostic-only PASS, not root-cause or product UI proof. Current Helper, Setup, R352 test and workflow blobs match the R352 hosted-tested b937e25 commit; public release and owner installation unchanged; independent human review pending.",
     "R357: protected Broker tree deletion now rejects ReadOnly leaves/owner marker before mutation and deletes the ownership marker last; late Memory-Mapped leaf deletion failure preserves the marker. R350 passed 30/30 checks on each Windows Server 2022/2025 host. Exact candidate head 07c095c passed 12 hosted workflows / 40 jobs (40/40), including Build/Verification, R291 Explorer UI, R290 Z-order, R338, R337, R344, R347, R349, R350, R351 and R352. No owner installation or immutable release changed; PR #98 remains unmerged pending independent human review.",
     "R358: test-only acceptance added for the real Setup elevated-helper named-pipe transport. Exact Setup PE SHA256 7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06; R358 run 42559951920 passed 3/3 jobs, with 6/6 checks on Windows Server 2025 and 2022 (embedded helper/source match, PowerShell 5.1 compactor parse, bounded random pipe/runas bootstrap, wrong-PID rejection without payload, exact SHA256-pinned GZIP delivery and parse). No UAC or product mutation was performed. Latest PR branch tip 9130fabc5cd36b551fdf412d4a369d2a8ad523ea passed 13/13 PR jobs (Build 4/4 including R298/R299/R300, R338 4/4, R290 2/2, R291 3/3). R357 product-source head 07c095c remains 40/40 CI PASS; no product source changed after R357. PR #98 remains unmerged pending independent human review.",
-    "R359: added native Windows PowerShell 5.1 acceptance for the exact Setup-created named-pipe DACL and the R305 same-effective-SID fail-closed boundary. Exact Setup SHA256 7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06; run 42562923316 passed 3/3 jobs, with 6/6 checks on Windows Server 2025 and 2022. The native GetSecurityInfo inspection verified a protected DACL containing only owner and SYSTEM full-control ACEs; the embedded Helper rejected a distinct synthetic target SID with SENSOR_BOUNDARY_ELEVATED_TOKEN_ACCOUNT_MISMATCH before profile/install mutation; ProgramFiles root, target logs/payload, Broker task and sensor processes remained unchanged. No UAC, second account or product mutation was performed. First harness run 42562342803 failed because PipesAclExtensions is unavailable in .NET Framework Windows PowerShell 5.1; the test now uses native Win32 GetSecurityInfo and the exact rerun passed. Latest PR code/test head dc266f2 passed 13/13 PR jobs: Build 4/4 (R298/R299/R300), R338 4/4, R290 2/2, R291 3/3. R357 product-source head 07c095c remains 40/40 CI PASS; no product source changed after R357. R305 intentionally rejects different-SID UAC over-the-shoulder elevation before mutation; the main app can complete while optional protected sensors remain degraded. PR #98 remains unmerged pending independent human review."
+    "R359: added native Windows PowerShell 5.1 acceptance for the exact Setup-created named-pipe DACL and the R305 same-effective-SID fail-closed boundary. Exact Setup SHA256 7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06; run 42562923316 passed 3/3 jobs, with 6/6 checks on Windows Server 2025 and 2022. The native GetSecurityInfo inspection verified a protected DACL containing only owner and SYSTEM full-control ACEs; the embedded Helper rejected a distinct synthetic target SID with SENSOR_BOUNDARY_ELEVATED_TOKEN_ACCOUNT_MISMATCH before profile/install mutation; ProgramFiles root, target logs/payload, Broker task and sensor processes remained unchanged. No UAC, second account or product mutation was performed. First harness run 42562342803 failed because PipesAclExtensions is unavailable in .NET Framework Windows PowerShell 5.1; the test now uses native Win32 GetSecurityInfo and the exact rerun passed. Latest PR code/test head dc266f2 passed 13/13 PR jobs: Build 4/4 (R298/R299/R300), R338 4/4, R290 2/2, R291 3/3. R357 product-source head 07c095c remains 40/40 CI PASS; no product source changed after R357. R305 intentionally rejects different-SID UAC over-the-shoulder elevation before mutation; the main app can complete while optional protected sensors remain degraded. PR #98 remains unmerged pending independent human review.",
+    "R360: exact Setup hosted repeatability stress passed 3/3 jobs on Windows Server 2022/2025; 3 cycles per host, 6/6 cycles and 24/24 plain1/plain10/glass0/opaque100 mode executions, zero failure diagnostics; no owner PC touched.",
+    "R361/R362: bounded retry, SHA-pinned cache and partial-file fail-closed download handling added for the immutable predecessor Setup and locked LHM/PawnIO dependencies; local Windows PowerShell 5.1 negative/positive harness passed.",
+    "R363: GitHub Release Assets API IDs pinned for LHM/PawnIO/public v1.7.9 Setup with browser fallback; local API asset harness 3/3 and fallback/terminal-hash harness PASS; full local Build 0 warnings/0 errors, selftests 3/3, Setup /verify 25 resources, no PawnIO bundle; exact Setup/Main hashes match R360 candidate.",
+    "R364: R338 workflow now uses the exact candidate SHA-pinned build tooling for isolated baseline/candidate source builds while verifying product source Git HEAD remains unchanged; local copy harness PASS; push and PR R338 4/4; exact PR-head CI 13/13."
   ],
   "Open": [
     "OWNER_V179_TO_V1710_UPGRADE_TRANSACTION_PROVENANCE_NOT_INDEPENDENTLY_REVALIDATED",
     "ISSUE6_REPORTER_DRIVER_SHA_AND_INSTALL_ORIGIN_MISSING",
     "PR98_INDEPENDENT_HUMAN_SECURITY_REVIEW_PENDING"
   ],
-  "CriticalPath": "Official immutable public v1.7.10 remains accepted and unchanged. Owner-installed v1.7.10+r299 Main/Uninstall hashes and registry/install_state were read-only verified previously. R357 production/test source head 07c095c43e3a96e838bfaee7f51d86707326dda8 passed exact-source hosted CI: 12 workflows / 40 jobs (40/40), including R350 protected-tree deletion 30/30 per Windows 2022/2025 host and R352 actual Install-catch rollback 14/14 per host. R358 exact Setup PE pipe-transport acceptance passed 3/3 jobs with 6/6 checks on both Windows 2022/2025 hosts. R359 exact Setup same-account identity boundary passed 3/3 jobs with 6/6 checks per host; protected pipe DACL and the R305 different-SID fail-closed guard were verified before any product mutation. Latest PR code/test head dc266f2 passed 13/13 jobs (Build 4/4 including R298 cleanup, R299 synthetic v1.7.9-to-candidate upgrade and R300 fresh install; R338 4/4; R290 2/2; R291 3/3). All these hosted tests are disposable guests, not owner installation. No product source changed after R357. R305 intentionally rejects UAC over-the-shoulder credentials for a different admin SID before profile/log/ProgramFiles/task mutation; the main app install can complete but optional protected sensors remain unavailable on that path. PR #98 remains Ready for review, mergeable and unmerged; independent human approval is still required. Owner GUI/audio witness and complete personal upgrade transaction receipt remain deferred/unverified; Issue #6 awaits original reporter driver SHA/origin. Unsigned waiver and physical AC exclusion remain.",
-  "MainBlocker": "PR #98 remains unmerged and requires an actual independent human security review at latest code/test head dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0; no review has been submitted. Do not impersonate the requested reviewer or self-approve. Secondary evidence gaps are the original reporter's Issue #6 driver SHA/install origin and the complete personal v1.7.9-to-v1.7.10 upgrade receipt. Owner GUI/audio witnesses are deferred, not release failures. Do not force-close the running app, take desktop focus, or publish a new release.",
-  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R359_NOT_A_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Obtain and assess an actual independent human review of PR #98 at latest code/test head dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0. After a submitted review, address findings, rerun exact-head CI if code changes, and merge only if the review supports approval. Keep immutable public v1.7.10 and the owner installation unchanged. Issue #6 still requires the original reporter's affected driver SHA-256 and download/install origin; owner GUI/audio remains deferred unless a new defect and authorized attested GUI route arise.",
+  "CriticalPath": "Official immutable public v1.7.10 and the owner-installed v1.7.10+r299 remain unchanged. R357 production/test source 07c095c43e3a96e838bfaee7f51d86707326dda8 passed 12 workflows / 40 jobs (40/40). R358 pipe transport and R359 identity-boundary exact-Setup acceptance each passed 3/3 jobs and 6/6 checks per Windows 2022/2025 host. R360 repeated real Explorer Settings visibility passed 3/3 jobs, 6/6 cycles and 24/24 mode executions on disposable Windows 2022/2025 guests. R363 API-backed dependency acquisition passed local Windows PowerShell 5.1 download/fallback harnesses and full local Build; R364 exact PR head 724be329b5468f14509d62dc460d6eec161a35d6 passed 13/13 PR jobs (Build 4/4, R338 4/4, R290 2/2, R291 3/3), with R338 push and PR each 4/4. No production source changed after R357. All hosted install/UI tests ran on disposable GitHub guests, not the owner PC. PR #98 remains Ready for review, mergeable and unmerged; independent human approval is still required and zero reviews have been submitted. Owner GUI/audio witness and complete personal v1.7.9-to-v1.7.10 upgrade transaction receipt remain deferred/unverified; Issue #6 awaits the reporter's affected driver SHA-256 and install/download origin. The hosted R299 predecessor upgrade is synthetic/disposable, not owner acceptance. Unsigned waiver and physical AC exclusion remain.",
+  "MainBlocker": "PR #98 remains open, mergeable and unmerged and requires an actual independent human security review at latest exact code/test head 724be329b5468f14509d62dc460d6eec161a35d6; zero reviews have been submitted. Do not impersonate the requested reviewer or self-approve. Secondary evidence gaps remain the original reporter's Issue #6 driver SHA-256/install origin and the complete personal v1.7.9-to-v1.7.10 upgrade transaction receipt. Owner GUI/audio witnesses remain deferred, not PASS. Do not force-close the running app, take desktop focus, or publish a new release.",
+  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R364_NOT_A_SECOND_OPERATIONAL_BRAIN",
+  "ExactNextAction": "Obtain and assess an actual independent human review of PR #98 at exact head 724be329b5468f14509d62dc460d6eec161a35d6. After a submitted review, address findings, rerun exact-head CI if code changes, and merge only if the review supports approval. Keep immutable public v1.7.10 and the owner installation unchanged. Issue #6 still requires the original reporter's affected driver SHA-256 and download/install origin; owner GUI/audio remains deferred unless a new defect and authorized attested GUI route arise.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -138,7 +142,7 @@
   "SecurityCandidate": {
     "PullRequest": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/pull/98",
     "Branch": "security/r347-r349-helper-hardening-v1710",
-    "LatestReviewedByHostedCI": "dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0",
+    "LatestReviewedByHostedCI": "724be329b5468f14509d62dc460d6eec161a35d6",
     "LatestProductTestSource": "07c095c43e3a96e838bfaee7f51d86707326dda8",
     "R352Windows2022And2025": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455344",
     "R352ChecksPerHost": 14,
@@ -173,36 +177,37 @@
       }
     },
     "LatestExactBranchHeadCI": {
-      "Commit": "dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0",
+      "Commit": "724be329b5468f14509d62dc460d6eec161a35d6",
       "BuildAndVerification": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42562928487",
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42570091607",
         "Jobs": 4,
         "Result": "SUCCESS",
         "Includes": [
           "R298 original cleanup",
-          "R299 synthetic official v1.7.9 to candidate in-place upgrade",
-          "R300 fresh install"
+          "R299 official public v1.7.9 to candidate v1.7.10 hosted in-place upgrade/recovery",
+          "R300 fresh install",
+          "API asset SHA/size verification"
         ]
       },
       "R338": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42562928527",
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42570091574",
         "Jobs": 4,
         "Result": "SUCCESS"
       },
       "R290": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42562928543",
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42570091569",
         "Jobs": 2,
         "Result": "SUCCESS"
       },
       "R291": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42562928545",
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42570091577",
         "Jobs": 3,
         "Result": "SUCCESS"
       },
       "TotalChecks": 13,
       "Result": "SUCCESS"
     },
-    "LatestExactCITestedHead": "dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0",
+    "LatestExactCITestedHead": "724be329b5468f14509d62dc460d6eec161a35d6",
     "R355FailureDiagnosticHarness": {
       "Result": "PASS",
       "Environment": "Windows PowerShell 5.1.26100.9818",
@@ -236,52 +241,13 @@
       }
     },
     "LatestPushRegressionCI": {
-      "Commit": "07c095c43e3a96e838bfaee7f51d86707326dda8",
-      "R337": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455334",
-        "Jobs": 4,
-        "Result": "SUCCESS"
-      },
+      "Commit": "724be329b5468f14509d62dc460d6eec161a35d6",
       "R338": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455447",
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42570085924",
         "Jobs": 4,
         "Result": "SUCCESS"
       },
-      "R344": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455442",
-        "Jobs": 8,
-        "Result": "SUCCESS"
-      },
-      "R347": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455376",
-        "Jobs": 2,
-        "Result": "SUCCESS"
-      },
-      "R349": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455415",
-        "Jobs": 2,
-        "Result": "SUCCESS"
-      },
-      "R350": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455363",
-        "Jobs": 2,
-        "ChecksPerHost": 30,
-        "Result": "SUCCESS"
-      },
-      "R351": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455452",
-        "Jobs": 2,
-        "Result": "SUCCESS"
-      },
-      "R352": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455344",
-        "Jobs": 3,
-        "ChecksPerHost": 14,
-        "Result": "SUCCESS"
-      },
-      "TotalJobs": 27,
-      "Result": "SUCCESS",
-      "ValidForLatestBranchBecauseProductionSourceUnchangedAfterR357": true
+      "Scope": "R364 push-triggered R338 baseline/candidate workflow only; all other exact PR-head workflows are recorded in LatestExactBranchHeadCI."
     },
     "TotalExactHeadCI": {
       "Workflows": 12,
@@ -371,7 +337,7 @@
       }
     },
     "LatestPRHeadCI": {
-      "Commit": "dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0",
+      "Commit": "724be329b5468f14509d62dc460d6eec161a35d6",
       "Workflows": 4,
       "Jobs": 13,
       "Passed": 13,
@@ -425,18 +391,179 @@
         "RetestRunId": 42562923316,
         "RetestResult": "SUCCESS"
       }
+    },
+    "HistoricalR357PushRegressionCI": {
+      "Commit": "07c095c43e3a96e838bfaee7f51d86707326dda8",
+      "R337": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455334",
+        "Jobs": 4,
+        "Result": "SUCCESS"
+      },
+      "R338": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455447",
+        "Jobs": 4,
+        "Result": "SUCCESS"
+      },
+      "R344": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455442",
+        "Jobs": 8,
+        "Result": "SUCCESS"
+      },
+      "R347": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455376",
+        "Jobs": 2,
+        "Result": "SUCCESS"
+      },
+      "R349": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455415",
+        "Jobs": 2,
+        "Result": "SUCCESS"
+      },
+      "R350": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455363",
+        "Jobs": 2,
+        "ChecksPerHost": 30,
+        "Result": "SUCCESS"
+      },
+      "R351": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455452",
+        "Jobs": 2,
+        "Result": "SUCCESS"
+      },
+      "R352": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455344",
+        "Jobs": 3,
+        "ChecksPerHost": 14,
+        "Result": "SUCCESS"
+      },
+      "TotalJobs": 27,
+      "Result": "SUCCESS",
+      "ValidForLatestBranchBecauseProductionSourceUnchangedAfterR357": true
+    },
+    "R360SettingsVisibilityStress": {
+      "Commit": "a583bcfcaa2fe8d9df5741082d31e1fc80cb2868",
+      "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42568721956",
+      "Jobs": 3,
+      "Result": "SUCCESS",
+      "Hosts": [
+        "Windows Server 2022",
+        "Windows Server 2025"
+      ],
+      "CyclesPerHost": 3,
+      "TotalCycles": 6,
+      "Modes": [
+        "plain1",
+        "plain10",
+        "glass0",
+        "opaque100"
+      ],
+      "TotalModeExecutions": 24,
+      "FailureDiagnostics": 0,
+      "SetupSHA256": "7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06",
+      "MainSHA256": "7C046BB3A8AD8730AE561B8431CF31E5A31D11D8C967A589A9886D89C7CBADE9",
+      "Windows2022ReceiptArtifactId": 13651634781,
+      "Windows2025ReceiptArtifactId": 13652473254,
+      "SetupArtifactId": 13652511374,
+      "PersonalComputerTouched": false,
+      "ProductSourceChanged": false,
+      "UACActuallyInvoked": false
+    },
+    "R361R362DownloadRetry": {
+      "R361Commit": "43a38a96e24ed021c653e818344109df8d5495df",
+      "R362Commit": "d88ba4f74a4f86066f469642773b000bc5632ce4",
+      "Behavior": [
+        "SHA-256 cache hit skips network",
+        "Download to .partial and atomically move after hash verification",
+        "Bounded 3/8/20-second retries for transient failures",
+        "Permanent HTTP 4xx and SHA mismatch fail closed"
+      ],
+      "LocalPS51Harness": "PASS",
+      "Cases": [
+        "HTTP 504 then exact-hash success",
+        "verified cache hit",
+        "terminal HTTP 403",
+        "terminal SHA mismatch"
+      ]
+    },
+    "R363ApiReleaseAssets": {
+      "Commit": "a583bcfcaa2fe8d9df5741082d31e1fc80cb2868",
+      "Assets": {
+        "LibreHardwareMonitor": 355828308,
+        "PawnIO": 374375077,
+        "PublicV179Setup": 686770639
+      },
+      "LocalPS51ApiAssetHarness": {
+        "Passed": 3,
+        "Total": 3,
+        "Result": "PASS"
+      },
+      "ApiFallbackHarness": {
+        "Result": "PASS",
+        "Cases": [
+          "API 504 then browser fallback",
+          "API 403 then browser fallback",
+          "API SHA mismatch terminal fail-closed"
+        ]
+      },
+      "LocalBuild": {
+        "Result": "PASS",
+        "Warnings": 0,
+        "Errors": 0,
+        "WorkspaceSelfTests": 3,
+        "SetupVerifyResources": 25,
+        "PawnIOBundled": false,
+        "SetupSHA256": "7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06",
+        "MainSHA256": "7C046BB3A8AD8730AE561B8431CF31E5A31D11D8C967A589A9886D89C7CBADE9"
+      },
+      "HostedCI": {
+        "BuildJobs": 4,
+        "BuildResult": "SUCCESS",
+        "R290Jobs": 2,
+        "R290Result": "SUCCESS",
+        "R291Jobs": 3,
+        "R291Result": "SUCCESS",
+        "R338PushJobs": 4,
+        "R338PushResult": "SUCCESS",
+        "R338PRJobs": 3,
+        "R338PRTotal": 4,
+        "R338PRFailure": "Only baseline A: HTTP 504 from old direct-download Build.ps1 before R338 assertions"
+      }
+    },
+    "R364BaselineBuildTooling": {
+      "Commit": "724be329b5468f14509d62dc460d6eec161a35d6",
+      "Workflow": ".github/workflows/audit-r338-supervisor-argv-trust.yml",
+      "Behavior": "Copy exact candidate SHA-pinned Build.ps1 and dependency lock into isolated baseline/candidate source checkout before compile; verify copied hashes and unchanged source Git HEAD.",
+      "LocalCopyHarness": "PASS",
+      "BuildToolSHA256": "47588B1F3C28CCBF84815B2F0E0F0728F7C12D3741B06560855A90D960DB2D0A",
+      "DependencyLockSHA256": "E6D94B12B5D23283D70BB1555601372918B68E41EAF27D8BF75543E6F6D14246",
+      "BaselineProductSourceCommit": "035e8fc5db2fc020e539ec930a10770b9807d318",
+      "CandidateProductSourceCommit": "724be329b5468f14509d62dc460d6eec161a35d6",
+      "PushR338": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42570085924",
+        "Jobs": 4,
+        "Result": "SUCCESS"
+      },
+      "PRR338": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42570091574",
+        "Jobs": 4,
+        "Result": "SUCCESS"
+      },
+      "BaselineExpectedChecks": 3,
+      "CandidateStrictTrustChecks": 20
     }
   },
-  "CurrentVerificationRevision": "R359",
+  "CurrentVerificationRevision": "R364",
   "Deferred": [
     "OWNER_WINDOWS11_PERSONAL_START_SETTINGS_DYNAMIC_GUI_WITNESS_DEFERRED_NOT_PASS_OWNER_ACCEPTED_CURRENT_BEHAVIOR_NO_CURRENT_TAKEOVER_AUTHORITY",
     "OWNER_APP_OS_NOTIFICATION_BANNER_AND_AUDIBLE_SPEAKER_NOT_INDEPENDENTLY_WITNESSED_DEFERRED_NOT_PASS"
   ],
   "NotionCoordination": {
-    "Status": "SYNCED_AND_READ_BACK",
+    "Status": "PENDING_USER_CONFIRMATION_TO_RESTORE_LAST_INTACT_R359_VERSION_THEN_SYNC_R364",
     "Page": "https://app.notion.com/p/412d5b4a86f681c29173c01fc4c75842",
-    "LastVerifiedUtc": "2026-11-09T04:49:49.648Z",
-    "Scope": "R359 identity-boundary evidence, exact current PR test head dc266f2, remaining independent human review gate and same-SID elevation policy.",
-    "Authority": "Coordination mirror only; PROJECT_BRAIN.md and native test receipts remain technical authority."
+    "LastVerifiedUtc": "2026-11-09T04:54:27.207Z",
+    "Scope": "R360 repeated Explorer Settings stress, R361–R363 SHA-pinned/API-backed download hardening, R364 exact-baseline R338 build tooling and 13/13 exact PR-head CI; independent human review and owner/Issue #6 evidence gaps remain.",
+    "Authority": "Coordination mirror only; PROJECT_BRAIN.md and native test receipts remain technical authority.",
+    "RecoveryTargetUtc": "2026-11-09T04:54:27.398Z",
+    "RecoveryReason": "The 2026-11-09T06:05:33.663Z ChatGPT/MCP update_content operation removed 55 page blocks; version history attributes all 55 affected blocks to this operation only. Restore of the last intact R359 version requires explicit user confirmation before R364 synchronization."
   }
 }
