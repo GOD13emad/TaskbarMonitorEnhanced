@@ -1,0 +1,128 @@
+name: R369 AtomicTextFile predictable temp hardlink (disposable Windows)
+
+on:
+  push:
+    branches: [security/r347-r349-helper-hardening-v1710]
+    paths:
+      - src/TaskbarMonitorEnhanced.cs
+      - build/Test-R369-AtomicTextFile-Hardlink-Native.ps1
+      - build/Build.ps1
+      - build/dependencies.lock.json
+      - .github/workflows/audit-r369-atomic-text-file-hardlink.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - src/TaskbarMonitorEnhanced.cs
+      - build/Test-R369-AtomicTextFile-Hardlink-Native.ps1
+      - build/Build.ps1
+      - build/dependencies.lock.json
+      - .github/workflows/audit-r369-atomic-text-file-hardlink.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  native-atomic-text-hardlink:
+    name: R369 ${{ matrix.variant }} ${{ matrix.host }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [baseline, candidate]
+        host: [A, B]
+        include:
+          - host: A
+            os: windows-2025
+          - host: B
+            os: windows-2022
+    steps:
+      - name: Checkout exact current test harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: harness
+          persist-credentials: false
+
+      - name: Checkout exact vulnerable baseline or candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ matrix.variant == 'baseline' && 'e6d3405c116e6dd5b52a018dc46dc7beb86a8562' || github.event.pull_request.head.sha || github.sha }}
+          path: src
+          persist-credentials: false
+
+      - name: Verify disposable Windows and pinned source commits
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $expected='${{ matrix.variant == 'baseline' && 'e6d3405c116e6dd5b52a018dc46dc7beb86a8562' || github.event.pull_request.head.sha || github.sha }}'
+          $harnessExpected='${{ github.event.pull_request.head.sha || github.sha }}'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_OS -cne 'Windows' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID' -or
+             (git -C src rev-parse HEAD).Trim() -cne $expected -or
+             (git -C harness rev-parse HEAD).Trim() -cne $harnessExpected){
+            throw 'R369_NOT_PINNED_DISPOSABLE_WINDOWS'
+          }
+          if(Test-Path -LiteralPath (Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced')){
+            throw 'R369_EXISTING_REAL_INSTALL_REFUSED'
+          }
+          Write-Host ('R369_EXACT_WINDOWS_PRODUCT_COMMIT='+$expected)
+
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Apply current pinned Build/Lock tooling (not product source)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $sourceCommit=(git -C src rev-parse HEAD).Trim()
+          foreach($name in @('Build.ps1','dependencies.lock.json')){
+            $from=Join-Path (Resolve-Path harness).Path ('build\'+$name)
+            $to=Join-Path (Resolve-Path src).Path ('build\'+$name)
+            $expected=(Get-FileHash -LiteralPath $from -Algorithm SHA256).Hash
+            Copy-Item -LiteralPath $from -Destination $to -Force
+            if((Get-FileHash -LiteralPath $to -Algorithm SHA256).Hash -cne $expected){
+              throw ('R369_BUILD_TOOL_SHA256_MISMATCH_'+$name)
+            }
+          }
+          if((git -C src rev-parse HEAD).Trim() -cne $sourceCommit){
+            throw 'R369_PRODUCT_COMMIT_CHANGED'
+          }
+          Write-Host 'R369_SHA_PINNED_BUILD_TOOLS=PASS'
+
+      - name: Full product build including compiled App, Setup and 3 selftests
+        shell: pwsh
+        working-directory: src
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Build.ps1
+          if($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath build/_out/App/TaskbarMonitorEnhanced.exe -PathType Leaf)){
+            throw 'R369_FULL_PRODUCT_BUILD_FAILED'
+          }
+          Write-Host 'R369_FULL_BUILD=PASS'
+
+      - name: Native baseline/candidate compiled hardlink, backups and cleanup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $ps=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
+          $script=(Resolve-Path harness/build/Test-R369-AtomicTextFile-Hardlink-Native.ps1).Path
+          $src=(Resolve-Path src).Path
+          $exe=(Resolve-Path src/build/_out/App/TaskbarMonitorEnhanced.exe).Path
+          & $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script `
+            -HostedGuest -HostLabel '${{ matrix.host }}' -Variant '${{ matrix.variant }}' `
+            -SourceRoot $src -AppPath $exe
+          if($LASTEXITCODE -ne 0){throw 'R369_COMPILED_ATOMIC_HARDLINK_TEST_NOT_ACCEPTED'}
+
+      - name: Retain typed guest receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R369-${{ matrix.variant }}-${{ matrix.host }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/R369_*/R369_ATOMIC_TEXT_HARDLINK.json
+          if-no-files-found: warn
+          retention-days: 7

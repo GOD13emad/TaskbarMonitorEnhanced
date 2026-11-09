@@ -233,25 +233,34 @@ namespace TaskbarMonitorEnhanced
             if(String.IsNullOrWhiteSpace(path))throw new ArgumentException("path");
             string dir=Path.GetDirectoryName(path);
             if(!String.IsNullOrWhiteSpace(dir))Directory.CreateDirectory(dir);
-            string tmp=path+"."+Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture)+"."+Environment.TickCount.ToString(CultureInfo.InvariantCulture)+".tmp";
-            File.WriteAllText(tmp,value??"",encoding??Encoding.UTF8);
+            // R369: create a unique temp file exclusively before writing any bytes.
+            // Do not follow a pre-created hard-link alias at a predictable PID/tick path.
+            string tmp=path+"."+Guid.NewGuid().ToString("N")+".tmp";
+            bool tempCreated=false;
             try
             {
+                using(FileStream stream=new FileStream(tmp,FileMode.CreateNew,FileAccess.Write,FileShare.None))
+                {
+                    tempCreated=true;
+                    using(StreamWriter writer=new StreamWriter(stream,encoding??Encoding.UTF8))
+                        writer.Write(value??"");
+                }
                 if(File.Exists(path))
                 {
                     File.Replace(tmp,path,String.IsNullOrWhiteSpace(backupPath)?null:backupPath,true);
+                    tempCreated=false;
                 }
                 else
                 {
                     File.Move(tmp,path);
+                    tempCreated=false;
                     if(!String.IsNullOrWhiteSpace(backupPath)&&!File.Exists(backupPath))
-                        File.Copy(path,backupPath,true);
+                        File.Copy(path,backupPath,false);
                 }
             }
-            catch
+            finally
             {
-                try{if(File.Exists(tmp))File.Delete(tmp);}catch{}
-                throw;
+                if(tempCreated)try{File.Delete(tmp);}catch{}
             }
         }
     }
