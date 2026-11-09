@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R358",
-  "Status": "PUBLIC_V1710_OWNER_INSTALLED_HASH_VERIFIED_R357_PRODUCT_CI_40_OF_40_R358_PIPE_CI_3_OF_3_LATEST_PR_CI_13_OF_13_HUMAN_REVIEW_PENDING_GUI_AUDIO_DEFERRED",
-  "UpdatedUtc": "2026-11-09T04:13:20.075Z",
+  "CurrentEngineeringRevision": "R359",
+  "Status": "PUBLIC_V1710_OWNER_INSTALLED_HASH_VERIFIED_R357_PRODUCT_CI_40_OF_40_R358_PIPE_CI_3_OF_3_R359_IDENTITY_CI_3_OF_3_LATEST_PR_CI_13_OF_13_HUMAN_REVIEW_PENDING_GUI_AUDIO_DEFERRED",
+  "UpdatedUtc": "2026-11-09T04:50:42.126Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -88,17 +88,18 @@
     "R352 public status read-only corrected: installed v1.7.10+r299 Main/Uninstall hashes and HKCU/install_state 1.7.10 independently read back; this does not validate the complete owner upgrade transaction.",
     "R355: security branch synchronized with merged public-docs-only main; failure-only R291 native Settings HWND/parent/owner diagnostics added without product code or acceptance-threshold change. Exact test-source e1a8ac2 passed Build 4/4, R338 4/4, R290 2/2 and R291 2/2; exact CI head 0b8a216 passed 13/13 (Build 4/4, R338 4/4, R290 2/2, R291 3/3). Local Windows PowerShell 5.1 synthetic hidden-HWND harness executed the exact failure-only JSON block and verified Visible/WSVisible, parent/owner and ThresholdsUnchanged readback; diagnostic-only PASS, not root-cause or product UI proof. Current Helper, Setup, R352 test and workflow blobs match the R352 hosted-tested b937e25 commit; public release and owner installation unchanged; independent human review pending.",
     "R357: protected Broker tree deletion now rejects ReadOnly leaves/owner marker before mutation and deletes the ownership marker last; late Memory-Mapped leaf deletion failure preserves the marker. R350 passed 30/30 checks on each Windows Server 2022/2025 host. Exact candidate head 07c095c passed 12 hosted workflows / 40 jobs (40/40), including Build/Verification, R291 Explorer UI, R290 Z-order, R338, R337, R344, R347, R349, R350, R351 and R352. No owner installation or immutable release changed; PR #98 remains unmerged pending independent human review.",
-    "R358: test-only acceptance added for the real Setup elevated-helper named-pipe transport. Exact Setup PE SHA256 7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06; R358 run 42559951920 passed 3/3 jobs, with 6/6 checks on Windows Server 2025 and 2022 (embedded helper/source match, PowerShell 5.1 compactor parse, bounded random pipe/runas bootstrap, wrong-PID rejection without payload, exact SHA256-pinned GZIP delivery and parse). No UAC or product mutation was performed. Latest PR branch tip 9130fabc5cd36b551fdf412d4a369d2a8ad523ea passed 13/13 PR jobs (Build 4/4 including R298/R299/R300, R338 4/4, R290 2/2, R291 3/3). R357 product-source head 07c095c remains 40/40 CI PASS; no product source changed after R357. PR #98 remains unmerged pending independent human review."
+    "R358: test-only acceptance added for the real Setup elevated-helper named-pipe transport. Exact Setup PE SHA256 7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06; R358 run 42559951920 passed 3/3 jobs, with 6/6 checks on Windows Server 2025 and 2022 (embedded helper/source match, PowerShell 5.1 compactor parse, bounded random pipe/runas bootstrap, wrong-PID rejection without payload, exact SHA256-pinned GZIP delivery and parse). No UAC or product mutation was performed. Latest PR branch tip 9130fabc5cd36b551fdf412d4a369d2a8ad523ea passed 13/13 PR jobs (Build 4/4 including R298/R299/R300, R338 4/4, R290 2/2, R291 3/3). R357 product-source head 07c095c remains 40/40 CI PASS; no product source changed after R357. PR #98 remains unmerged pending independent human review.",
+    "R359: added native Windows PowerShell 5.1 acceptance for the exact Setup-created named-pipe DACL and the R305 same-effective-SID fail-closed boundary. Exact Setup SHA256 7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06; run 42562923316 passed 3/3 jobs, with 6/6 checks on Windows Server 2025 and 2022. The native GetSecurityInfo inspection verified a protected DACL containing only owner and SYSTEM full-control ACEs; the embedded Helper rejected a distinct synthetic target SID with SENSOR_BOUNDARY_ELEVATED_TOKEN_ACCOUNT_MISMATCH before profile/install mutation; ProgramFiles root, target logs/payload, Broker task and sensor processes remained unchanged. No UAC, second account or product mutation was performed. First harness run 42562342803 failed because PipesAclExtensions is unavailable in .NET Framework Windows PowerShell 5.1; the test now uses native Win32 GetSecurityInfo and the exact rerun passed. Latest PR code/test head dc266f2 passed 13/13 PR jobs: Build 4/4 (R298/R299/R300), R338 4/4, R290 2/2, R291 3/3. R357 product-source head 07c095c remains 40/40 CI PASS; no product source changed after R357. R305 intentionally rejects different-SID UAC over-the-shoulder elevation before mutation; the main app can complete while optional protected sensors remain degraded. PR #98 remains unmerged pending independent human review."
   ],
   "Open": [
     "OWNER_V179_TO_V1710_UPGRADE_TRANSACTION_PROVENANCE_NOT_INDEPENDENTLY_REVALIDATED",
     "ISSUE6_REPORTER_DRIVER_SHA_AND_INSTALL_ORIGIN_MISSING",
     "PR98_INDEPENDENT_HUMAN_SECURITY_REVIEW_PENDING"
   ],
-  "CriticalPath": "Official immutable public v1.7.10 remains accepted and unchanged. Owner-installed v1.7.10+r299 Main/Uninstall hashes and registry/install_state were read-only verified previously. R357 production/test source head 07c095c43e3a96e838bfaee7f51d86707326dda8 passed exact-source hosted CI: 12 workflows / 40 jobs (40/40), including R350 protected-tree deletion 30/30 per Windows 2022/2025 host and R352 actual Install-catch rollback 14/14 per host. R358 exact Setup PE pipe-transport acceptance passed 3/3 jobs with 6/6 checks on both Windows 2022/2025 hosts; the latest PR branch tip 9130fabc5cd36b551fdf412d4a369d2a8ad523ea passed 13/13 PR jobs including Build/Verification with synthetic R298 cleanup, R299 v1.7.9-to-candidate upgrade and R300 fresh install. These are disposable hosted guests, not owner installation. PR #98 remains Ready for review, mergeable and unmerged; independent human approval is still required. Owner GUI/audio witness and complete personal upgrade transaction receipt remain deferred/unverified; Issue #6 awaits original reporter driver SHA/origin. Unsigned waiver and physical AC exclusion remain.",
-  "MainBlocker": "PR #98 remains unmerged and requires an actual independent human security review at latest branch tip 9130fabc5cd36b551fdf412d4a369d2a8ad523ea; no review has been submitted. Do not impersonate the requested reviewer or self-approve. Secondary evidence gaps are the original reporter's Issue #6 driver SHA/install origin and the complete personal v1.7.9-to-v1.7.10 upgrade receipt. Owner GUI/audio witnesses are deferred, not release failures. Do not force-close the running app, take desktop focus, or publish a new release.",
-  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R358_NOT_A_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Obtain and assess an actual independent human review of PR #98 at latest branch tip 9130fabc5cd36b551fdf412d4a369d2a8ad523ea. After a submitted review, address any findings, rerun exact-head CI if code changes, and merge only if the review supports approval. Keep immutable public v1.7.10 and the owner installation unchanged. Issue #6 still requires the original reporter's affected driver SHA-256 and download/install origin; owner GUI/audio remains deferred unless a new defect and authorized attested GUI route arise.",
+  "CriticalPath": "Official immutable public v1.7.10 remains accepted and unchanged. Owner-installed v1.7.10+r299 Main/Uninstall hashes and registry/install_state were read-only verified previously. R357 production/test source head 07c095c43e3a96e838bfaee7f51d86707326dda8 passed exact-source hosted CI: 12 workflows / 40 jobs (40/40), including R350 protected-tree deletion 30/30 per Windows 2022/2025 host and R352 actual Install-catch rollback 14/14 per host. R358 exact Setup PE pipe-transport acceptance passed 3/3 jobs with 6/6 checks on both Windows 2022/2025 hosts. R359 exact Setup same-account identity boundary passed 3/3 jobs with 6/6 checks per host; protected pipe DACL and the R305 different-SID fail-closed guard were verified before any product mutation. Latest PR code/test head dc266f2 passed 13/13 jobs (Build 4/4 including R298 cleanup, R299 synthetic v1.7.9-to-candidate upgrade and R300 fresh install; R338 4/4; R290 2/2; R291 3/3). All these hosted tests are disposable guests, not owner installation. No product source changed after R357. R305 intentionally rejects UAC over-the-shoulder credentials for a different admin SID before profile/log/ProgramFiles/task mutation; the main app install can complete but optional protected sensors remain unavailable on that path. PR #98 remains Ready for review, mergeable and unmerged; independent human approval is still required. Owner GUI/audio witness and complete personal upgrade transaction receipt remain deferred/unverified; Issue #6 awaits original reporter driver SHA/origin. Unsigned waiver and physical AC exclusion remain.",
+  "MainBlocker": "PR #98 remains unmerged and requires an actual independent human security review at latest code/test head dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0; no review has been submitted. Do not impersonate the requested reviewer or self-approve. Secondary evidence gaps are the original reporter's Issue #6 driver SHA/install origin and the complete personal v1.7.9-to-v1.7.10 upgrade receipt. Owner GUI/audio witnesses are deferred, not release failures. Do not force-close the running app, take desktop focus, or publish a new release.",
+  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R359_NOT_A_SECOND_OPERATIONAL_BRAIN",
+  "ExactNextAction": "Obtain and assess an actual independent human review of PR #98 at latest code/test head dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0. After a submitted review, address findings, rerun exact-head CI if code changes, and merge only if the review supports approval. Keep immutable public v1.7.10 and the owner installation unchanged. Issue #6 still requires the original reporter's affected driver SHA-256 and download/install origin; owner GUI/audio remains deferred unless a new defect and authorized attested GUI route arise.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -137,7 +138,7 @@
   "SecurityCandidate": {
     "PullRequest": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/pull/98",
     "Branch": "security/r347-r349-helper-hardening-v1710",
-    "LatestReviewedByHostedCI": "9130fabc5cd36b551fdf412d4a369d2a8ad523ea",
+    "LatestReviewedByHostedCI": "dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0",
     "LatestProductTestSource": "07c095c43e3a96e838bfaee7f51d86707326dda8",
     "R352Windows2022And2025": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455344",
     "R352ChecksPerHost": 14,
@@ -172,9 +173,9 @@
       }
     },
     "LatestExactBranchHeadCI": {
-      "Commit": "9130fabc5cd36b551fdf412d4a369d2a8ad523ea",
+      "Commit": "dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0",
       "BuildAndVerification": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42559956321",
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42562928487",
         "Jobs": 4,
         "Result": "SUCCESS",
         "Includes": [
@@ -184,24 +185,24 @@
         ]
       },
       "R338": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42559956611",
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42562928527",
         "Jobs": 4,
         "Result": "SUCCESS"
       },
       "R290": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42559956486",
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42562928543",
         "Jobs": 2,
         "Result": "SUCCESS"
       },
       "R291": {
-        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42559956495",
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42562928545",
         "Jobs": 3,
         "Result": "SUCCESS"
       },
       "TotalChecks": 13,
       "Result": "SUCCESS"
     },
-    "LatestExactCITestedHead": "9130fabc5cd36b551fdf412d4a369d2a8ad523ea",
+    "LatestExactCITestedHead": "dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0",
     "R355FailureDiagnosticHarness": {
       "Result": "PASS",
       "Environment": "Windows PowerShell 5.1.26100.9818",
@@ -288,7 +289,7 @@
       "Passed": 40,
       "Failed": 0,
       "Result": "SUCCESS",
-      "Scope": "R357 production/test source head; no production source changes in R358 test-only commits."
+      "Scope": "R357 production/test source head; R358/R359 add test/workflow-only coverage; no production source changes after R357."
     },
     "BuildAcceptance": {
       "GlassAndChartSuites": 10,
@@ -370,17 +371,72 @@
       }
     },
     "LatestPRHeadCI": {
-      "Commit": "9130fabc5cd36b551fdf412d4a369d2a8ad523ea",
+      "Commit": "dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0",
       "Workflows": 4,
       "Jobs": 13,
       "Passed": 13,
       "Failed": 0,
       "Result": "SUCCESS"
+    },
+    "R359IdentityBoundary": {
+      "Commit": "dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0",
+      "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42562923316",
+      "Jobs": 3,
+      "Result": "SUCCESS",
+      "SetupSHA256": "7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06",
+      "WindowsServer2025": {
+        "Checks": 6,
+        "Result": "PASS",
+        "ReceiptArtifactId": 13650271363
+      },
+      "WindowsServer2022": {
+        "Checks": 6,
+        "Result": "PASS",
+        "ReceiptArtifactId": 13649897524
+      },
+      "SetupArtifactId": 13650117717,
+      "Checks": [
+        "HOSTED_RUNNER_ADMIN_IDENTITY_AND_DISTINCT_TARGET_SID_ESTABLISHED",
+        "EXACT_SETUP_PE_EMBEDS_CURRENT_HELPER_AND_R305_IDENTITY_GUARD",
+        "SETUP_PIPE_DACL_IS_PROTECTED_AND_RESTRICTED_TO_OWNER_AND_SYSTEM",
+        "EMBEDDED_HELPER_REJECTS_DIFFERENT_EFFECTIVE_USER_SID_BEFORE_PROFILE_OR_INSTALL_MUTATION",
+        "CROSS_ACCOUNT_REFUSAL_LEAVES_PROGRAMFILES_LOGS_PAYLOAD_TASK_AND_SENSOR_PROCESSES_UNCHANGED",
+        "NO_UAC_OR_PRODUCT_MUTATION_PERFORMED"
+      ],
+      "Policy": {
+        "SameEffectiveUserSIDRequired": true,
+        "DifferentSIDCredentialElevation": "FAIL_CLOSED_BEFORE_MUTATION",
+        "StandardUserOverTheShoulderSensorElevationSupported": false,
+        "MainApplicationInstallFallback": "INSTALL_COMPLETES_WITH_OPTIONAL_PROTECTED_SENSORS_DEGRADED_OR_NA",
+        "Evidence": "R305 helper guard; Windows UAC credential elevation runs under the administrator account whose credentials were entered.",
+        "MicrosoftReferences": [
+          "https://learn.microsoft.com/en-us/windows/win32/dxtecharts/user-account-control-for-game-developers",
+          "https://learn.microsoft.com/en-us/windows/security/application-security/application-control/user-account-control/how-it-works"
+        ]
+      },
+      "SyntheticDifferentTargetSID": true,
+      "UACActuallyInvoked": false,
+      "SecondAccountCreated": false,
+      "ProductInstallOrMutationPerformed": false,
+      "InitialHarnessFailure": {
+        "RunId": 42562342803,
+        "RootCause": "System.IO.Pipes.PipesAclExtensions is unavailable in .NET Framework Windows PowerShell 5.1.",
+        "Fix": "Inspect the actual pipe kernel-object DACL with native Win32 GetSecurityInfo/GetSecurityDescriptorControl/GetAclInformation/GetAce.",
+        "RetestRunId": 42562923316,
+        "RetestResult": "SUCCESS"
+      }
     }
   },
-  "CurrentVerificationRevision": "R358",
+  "CurrentVerificationRevision": "R359",
   "Deferred": [
     "OWNER_WINDOWS11_PERSONAL_START_SETTINGS_DYNAMIC_GUI_WITNESS_DEFERRED_NOT_PASS_OWNER_ACCEPTED_CURRENT_BEHAVIOR_NO_CURRENT_TAKEOVER_AUTHORITY",
     "OWNER_APP_OS_NOTIFICATION_BANNER_AND_AUDIBLE_SPEAKER_NOT_INDEPENDENTLY_WITNESSED_DEFERRED_NOT_PASS"
-  ]
+  ],
+  "NotionCoordination": {
+    "Status": "SYNCED_AND_READ_BACK",
+    "Page": "https://app.notion.com/p/412d5b4a86f681c29173c01fc4c75842",
+    "LastVerifiedUtc": "2026-11-09T04:49:49.648Z",
+    "Scope": "R359 identity-boundary evidence, exact current PR test head dc266f2, remaining independent human review gate and same-SID elevation policy.",
+    "Authority": "Coordination mirror only; PROJECT_BRAIN.md and native test receipts remain technical authority."
+  }
 }
