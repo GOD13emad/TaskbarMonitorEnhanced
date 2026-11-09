@@ -60,11 +60,11 @@ function Check([string]$name){
     Write-Output ('PASS '+$name)
 }
 function Has-AllowedFullControl([object[]]$Rules,[string]$Sid){
+    $full=[uint32]([IO.Pipes.PipeAccessRights]::FullControl)
     $matches=@($Rules|Where-Object{
-        $_.IdentityReference.Value -ceq $Sid -and
-        $_.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and
-        (($_.PipeAccessRights -band [IO.Pipes.PipeAccessRights]::FullControl) -eq [IO.Pipes.PipeAccessRights]::FullControl) -and
-        -not $_.IsInherited
+        $_.Sid -ceq $Sid -and $_.Type -eq 0 -and
+        (($_.Mask -band $full) -eq $full) -and
+        (($_.Flags -band 0x10) -eq 0)
     })
     return ($matches.Count -eq 1)
 }
@@ -146,11 +146,71 @@ try{
     if($null -eq $serverField){throw 'R359_REAL_SETUP_PIPE_SERVER_FIELD_MISSING'}
     $server=$serverField.GetValue($launch)
     if($null -eq $server){throw 'R359_REAL_SETUP_PIPE_SERVER_NULL'}
-    $security=[IO.Pipes.PipesAclExtensions]::GetAccessControl($server)
-    if(-not $security.AreAccessRulesProtected -or -not $security.AreAccessRulesCanonical){
-        throw 'R359_PIPE_DACL_NOT_PROTECTED_AND_CANONICAL'
+    Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
+public class R359PipeAce {
+ public string Sid {get;set;}
+ public uint Mask {get;set;}
+ public byte Type {get;set;}
+ public byte Flags {get;set;}
+}
+public class R359PipeDescriptor {
+ public string OwnerSid {get;set;}
+ public ushort Control {get;set;}
+ public R359PipeAce[] Aces {get;set;}
+}
+public static class R359PipeSecurityNative {
+ [StructLayout(LayoutKind.Sequential)]
+ struct ACL_SIZE_INFORMATION { public uint AceCount; public uint AclBytesInUse; public uint AclBytesFree; }
+ [DllImport("advapi32.dll",SetLastError=true)]
+ static extern uint GetSecurityInfo(IntPtr handle,int objectType,uint securityInfo,
+  out IntPtr owner,out IntPtr group,out IntPtr dacl,out IntPtr sacl,out IntPtr descriptor);
+ [DllImport("advapi32.dll",SetLastError=true)]
+ static extern bool GetSecurityDescriptorControl(IntPtr descriptor,out ushort control,out uint revision);
+ [DllImport("advapi32.dll",SetLastError=true)]
+ static extern bool GetSecurityDescriptorOwner(IntPtr descriptor,out IntPtr owner,[MarshalAs(UnmanagedType.Bool)] out bool defaulted);
+ [DllImport("advapi32.dll",SetLastError=true)]
+ static extern bool GetAclInformation(IntPtr acl,out ACL_SIZE_INFORMATION info,uint length,int informationClass);
+ [DllImport("advapi32.dll",SetLastError=true)]
+ static extern bool GetAce(IntPtr acl,uint index,out IntPtr ace);
+ [DllImport("kernel32.dll",SetLastError=true)]
+ static extern IntPtr LocalFree(IntPtr memory);
+ public static R359PipeDescriptor Get(IntPtr handle){
+  IntPtr owner,group,dacl,sacl,sd;
+  uint status=GetSecurityInfo(handle,6,0x5,out owner,out group,out dacl,out sacl,out sd);
+  if(status!=0)throw new Win32Exception((int)status,"GetSecurityInfo");
+  try{
+   ushort control;uint revision;
+   if(!GetSecurityDescriptorControl(sd,out control,out revision))throw new Win32Exception(Marshal.GetLastWin32Error(),"GetSecurityDescriptorControl");
+   IntPtr ownerSid;bool defaulted;
+   if(!GetSecurityDescriptorOwner(sd,out ownerSid,out defaulted))throw new Win32Exception(Marshal.GetLastWin32Error(),"GetSecurityDescriptorOwner");
+   ACL_SIZE_INFORMATION info;
+   if(dacl==IntPtr.Zero || !GetAclInformation(dacl,out info,(uint)Marshal.SizeOf(typeof(ACL_SIZE_INFORMATION)),2))
+    throw new Win32Exception(Marshal.GetLastWin32Error(),"GetAclInformation");
+   var rows=new R359PipeAce[info.AceCount];
+   for(uint i=0;i<info.AceCount;i++){
+    IntPtr ace;
+    if(!GetAce(dacl,i,out ace))throw new Win32Exception(Marshal.GetLastWin32Error(),"GetAce");
+    byte type=Marshal.ReadByte(ace,0);
+    if(type!=0 && type!=1)throw new InvalidOperationException("R359_PIPE_ACE_TYPE_NOT_ALLOW_OR_DENY");
+    byte flags=Marshal.ReadByte(ace,1);
+    uint mask=unchecked((uint)Marshal.ReadInt32(ace,4));
+    IntPtr sidPtr=IntPtr.Add(ace,8);
+    rows[i]=new R359PipeAce{Sid=new SecurityIdentifier(sidPtr).Value,Mask=mask,Type=type,Flags=flags};
+   }
+   return new R359PipeDescriptor{OwnerSid=new SecurityIdentifier(ownerSid).Value,Control=control,Aces=rows};
+  }finally{LocalFree(sd);}
+ }
+}
+'@ -ErrorAction Stop
+    $nativeSecurity=[R359PipeSecurityNative]::Get($server.SafePipeHandle.DangerousGetHandle())
+    if(($nativeSecurity.Control -band 0x1000) -eq 0 -or $nativeSecurity.OwnerSid -cne $currentSid){
+        throw 'R359_PIPE_DACL_NOT_PROTECTED_OR_OWNER_NOT_CURRENT_USER'
     }
-    $rules=@($security.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]))
+    $rules=@($nativeSecurity.Aces)
     $systemSid=[Security.Principal.SecurityIdentifier]::new([Security.Principal.WellKnownSidType]::LocalSystemSid,$null).Value
     $adminSid=[Security.Principal.SecurityIdentifier]::new([Security.Principal.WellKnownSidType]::BuiltinAdministratorsSid,$null).Value
     $usersSid=[Security.Principal.SecurityIdentifier]::new([Security.Principal.WellKnownSidType]::BuiltinUsersSid,$null).Value
@@ -159,14 +219,14 @@ try{
     if($rules.Count -ne 2 -or
        -not (Has-AllowedFullControl $rules $currentSid) -or
        -not (Has-AllowedFullControl $rules $systemSid) -or
-       @($rules|Where-Object{$_.IdentityReference.Value -cin @($adminSid,$usersSid,$authSid,$everyoneSid)}).Count -ne 0){
+       @($rules|Where-Object{$_.Sid -cin @($adminSid,$usersSid,$authSid,$everyoneSid)}).Count -ne 0){
         throw 'R359_PIPE_DACL_NOT_EXACT_OWNER_AND_SYSTEM_ONLY'
     }
     $daclRules=@($rules|ForEach-Object{[ordered]@{
-        Sid=$_.IdentityReference.Value
-        Rights=[string]$_.PipeAccessRights
-        Type=[string]$_.AccessControlType
-        Inherited=[bool]$_.IsInherited
+        Sid=$_.Sid
+        Rights=[string]([IO.Pipes.PipeAccessRights]$_.Mask)
+        Type=[int]$_.Type
+        Inherited=([bool](($_.Flags -band 0x10) -ne 0))
     }})
     Check 'SETUP_PIPE_DACL_IS_PROTECTED_AND_RESTRICTED_TO_OWNER_AND_SYSTEM'
 
