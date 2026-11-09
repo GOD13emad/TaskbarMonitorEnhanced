@@ -31,6 +31,7 @@ public static class R146Native {
  [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h,uint n);
  [DllImport("user32.dll")] public static extern IntPtr GetParent(IntPtr h);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h,StringBuilder s,int n);
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr h,StringBuilder s,int n);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string c,string t);
  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int s);
  [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h,uint m,IntPtr w,IntPtr l);
@@ -60,6 +61,7 @@ public static class R146Native {
  public static IntPtr[] Owned(uint pid,IntPtr tray){var list=new List<IntPtr>();EnumFn f=(h,d)=>{uint p;GetWindowThreadProcessId(h,out p);if(p==pid&&!list.Contains(h))list.Add(h);return true;};EnumWindows(f,IntPtr.Zero);EnumChildWindows(tray,f,IntPtr.Zero);return list.ToArray();}
  public static bool Above(IntPtr a,IntPtr b){for(int i=0;i<512;i++){b=GetWindow(b,3);if(b==IntPtr.Zero)return false;if(a==b)return true;}return false;}
  public static string Title(IntPtr h){var s=new StringBuilder(256);GetWindowText(h,s,s.Capacity);return s.ToString();}
+ public static string WindowClass(IntPtr h){var s=new StringBuilder(256);GetClassName(h,s,s.Capacity);return s.ToString();}
 }
 '@
 Add-Type -TypeDefinition $native -Language CSharp
@@ -285,6 +287,41 @@ try{
    $allSettings=New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::NameProperty,'Settings...')
    $otherMatches=[Windows.Automation.AutomationElement]::RootElement.FindAll([Windows.Automation.TreeScope]::Descendants,$allSettings)
    $matchSummary=@(foreach($item in $otherMatches){@{Pid=$item.Current.ProcessId;Type=$item.Current.ControlType.ProgrammaticName;Offscreen=$item.Current.IsOffscreen;Class=$item.Current.ClassName}})
+   # R375: failure-only Win32 topology distinguishes absent native popup
+   # from a real popup missed by UI Automation. Original strict throw is retained.
+   try{
+    $owned=[R146Native]::Owned([uint32]$process.Id,$taskbar)
+    $nativeWindows=New-Object 'Collections.Generic.List[object]'
+    for($i=0;$i -lt [Math]::Min(64,$owned.Length);$i++){
+     $h=$owned[$i];$rect=New-Object R146Native+Rect
+     $rectOk=[R146Native]::GetWindowRect($h,[ref]$rect)
+     $nativeWindows.Add([ordered]@{
+      Hwnd=$h.ToInt64();Class=[R146Native]::WindowClass($h)
+      Title=[R146Native]::Title($h);Visible=[R146Native]::IsWindowVisible($h)
+      Parent=[R146Native]::GetParent($h).ToInt64()
+      Owner=[R146Native]::GetWindow($h,4).ToInt64()
+      Rect=$(if($rectOk){@($rect.L,$rect.T,$rect.R,$rect.B)}else{@()})
+     })
+    }
+    $nativeFailure=[ordered]@{
+     Revision='R375';Mode=$mode;WaitMs=$menuWaitMs
+     ProductPid=$process.Id;MonitorHwnd=$monitor.ToInt64()
+     ClickXY=@($target.X,$target.Y)
+     HitHwndAfterWait=[R146Native]::WindowFromPoint($target).ToInt64()
+     ForegroundHwnd=$foreground.ToInt64();ForegroundPid=$foregroundPid
+     ForegroundClass=[R146Native]::WindowClass($foreground)
+     ForegroundTitle=$foregroundTitle
+     TaskbarHwnd=$taskbar.ToInt64()
+     NativeOwnedWindowCount=$owned.Length
+     NativeOwnedWindowListTruncated=($owned.Length -gt 64)
+     NativeOwnedWindows=@($nativeWindows.ToArray())
+     AllUIASettingsMatches=$matchSummary
+     OriginalStrictFiveSecondMenuGateUnchanged=$true
+     DiagnosticOnly=$true
+    }
+    [IO.File]::WriteAllText((Join-Path $out ($mode+'_SETTINGS_MENU_NATIVE_FAILURE.json')),
+     ($nativeFailure|ConvertTo-Json -Depth 9),[Text.UTF8Encoding]::new($false))
+   }catch{Write-Output ('R375_NATIVE_MENU_DIAGNOSTIC_WARNING '+$_.Exception.Message)}
    throw ('R146_REAL_SETTINGS_MENU_ITEM_NOT_FOUND MODE='+$mode+' WAIT_MS='+$menuWaitMs+' FG_PID='+$foregroundPid+' FG_TITLE='+$foregroundTitle+' UIA_MATCHES='+($matchSummary|ConvertTo-Json -Compress))
   }
   $evidence+=@{State=$mode+'_SETTINGS_MENU_ITEM';WaitMs=$menuWaitMs;ProcessId=$menuItem.Current.ProcessId;Name=$menuItem.Current.Name;ControlType=$menuItem.Current.ControlType.ProgrammaticName}
