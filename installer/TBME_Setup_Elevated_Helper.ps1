@@ -405,7 +405,7 @@ count=0;
 public sealed class TBMEProtectedBrokerTreeLease : IDisposable {
  const uint DELETE_ACCESS=0x00010000, FILE_LIST_DIRECTORY=0x00000001, FILE_READ_ATTRIBUTES=0x00000080, GENERIC_READ=0x80000000;
  const uint SHARE_READ=1, SHARE_WRITE=2, OPEN_EXISTING=3, BACKUP_SEMANTICS=0x02000000, OPEN_REPARSE_POINT=0x00200000;
- const uint ATTR_DIRECTORY=0x10, ATTR_REPARSE=0x400;
+ const uint ATTR_DIRECTORY=0x10, ATTR_REPARSE=0x400, ATTR_READONLY=0x1;
  const int FILE_ATTRIBUTE_TAG_INFO_CLASS=9, FILE_ID_BOTH_DIRECTORY_INFO_CLASS=10, FILE_ID_BOTH_DIRECTORY_RESTART_INFO_CLASS=11, FILE_DISPOSITION_INFO_CLASS=4;
  [DllImport("kernel32.dll",EntryPoint="CreateFileW",SetLastError=true,CharSet=CharSet.Unicode)]
  static extern SafeFileHandle OpenNative(string path,uint access,uint share,IntPtr security,uint creation,uint flags,IntPtr template);
@@ -434,7 +434,7 @@ public sealed class TBMEProtectedBrokerTreeLease : IDisposable {
  [DllImport("kernel32.dll",SetLastError=true)]
  static extern bool ReadFile(SafeFileHandle h,byte[] buffer,uint count,out uint read,IntPtr overlapped);
  public sealed class Entry { public string Name; public ulong Id; public uint Attributes; }
- sealed class DeleteNode { public SafeFileHandle Handle; public bool IsDirectory; public int Depth; }
+ sealed class DeleteNode { public SafeFileHandle Handle; public bool IsDirectory; public bool IsOwnerMarker; public int Depth; }
  readonly string programPath,productPath,brokerPath;
  SafeFileHandle programHandle,productHandle,brokerHandle,ownerMarkerHandle;
  readonly List<DeleteNode> pendingNodes=new List<DeleteNode>();
@@ -496,6 +496,7 @@ public sealed class TBMEProtectedBrokerTreeLease : IDisposable {
   if(h.IsInvalid){int e=Marshal.GetLastWin32Error();h.Dispose();throw new IOException("SENSOR_BROKER_TREE_FILE_OPEN_FAILED_WIN32_"+e);}
   try{
    FILE_ATTRIBUTE_TAG_INFO tag=Tag(h);
+   if((tag.Attributes&ATTR_READONLY)!=0)throw new IOException("SENSOR_BROKER_TREE_READONLY_FILE_REFUSED");
    if((tag.Attributes&(ATTR_DIRECTORY|ATTR_REPARSE))!=0)throw new IOException("SENSOR_BROKER_TREE_FILE_REPARSE_OR_TYPE_REFUSED");
    FILE_HANDLE_INFO i=Info(h);
    if(FileId(i)==0)throw new IOException("SENSOR_BROKER_TREE_FILE_ID_UNAVAILABLE");
@@ -527,6 +528,7 @@ public sealed class TBMEProtectedBrokerTreeLease : IDisposable {
   }
   try{
    FILE_ATTRIBUTE_TAG_INFO tag=Tag(h);
+   if((tag.Attributes&ATTR_READONLY)!=0)throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_READONLY_REFUSED");
    if((tag.Attributes&(ATTR_DIRECTORY|ATTR_REPARSE))!=0)throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_REPARSE_OR_TYPE_REFUSED");
    FILE_HANDLE_INFO i=Info(h);
    if(i.Links!=1||i.VolumeSerial!=volume||FileId(i)==0)throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_IDENTITY_REFUSED");
@@ -590,7 +592,7 @@ public sealed class TBMEProtectedBrokerTreeLease : IDisposable {
     if(depth!=0)throw new IOException("SENSOR_BROKER_TREE_NESTED_OWNER_MARKER_REFUSED");
     if(ownerMarkerHandle==null)throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_APPEARED_AFTER_MISSING_PROOF");
     VerifyIdentity(ownerMarkerHandle,volume,e.Id,"OWNER_MARKER");
-    pendingNodes.Add(new DeleteNode{Handle=ownerMarkerHandle,IsDirectory=false,Depth=depth+1});
+    pendingNodes.Add(new DeleteNode{Handle=ownerMarkerHandle,IsDirectory=false,IsOwnerMarker=true,Depth=depth+1});
     ownerMarkerHandle=null;ownerMarkerEnumerated=true;
    }else if((e.Attributes&ATTR_DIRECTORY)!=0){
     SafeFileHandle h=OpenDirectory(child,DELETE_ACCESS|FILE_LIST_DIRECTORY|FILE_READ_ATTRIBUTES,SHARE_READ,volume,e.Id);
@@ -640,13 +642,20 @@ public sealed class TBMEProtectedBrokerTreeLease : IDisposable {
   CollectDeleteNodes(brokerHandle,brokerPath,volume,0,ref count);
   if(ownerMarkerHandle!=null)throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_NOT_ENUMERATED");
   if(!allowMissingOwnerMarker&&!ownerMarkerEnumerated)throw new IOException("SENSOR_BROKER_TREE_OWNER_MARKER_REQUIRED");
+  // Preserve the ownership proof until every other member has been removed.
+  // A mapped/locked leaf can still fail at disposition time after preflight.
+  // If that happens, rollback/cold recovery must retain the owner marker.
   foreach(DeleteNode node in pendingNodes){
-   if(node.IsDirectory)continue;
+   if(node.IsDirectory||node.IsOwnerMarker)continue;
    MarkDelete(node.Handle);node.Handle.Dispose();node.Handle=null;
   }
   pendingNodes.Sort((a,b)=>b.Depth.CompareTo(a.Depth));
   foreach(DeleteNode node in pendingNodes){
    if(!node.IsDirectory)continue;
+   MarkDelete(node.Handle);node.Handle.Dispose();node.Handle=null;
+  }
+  foreach(DeleteNode node in pendingNodes){
+   if(!node.IsOwnerMarker)continue;
    MarkDelete(node.Handle);node.Handle.Dispose();node.Handle=null;
   }
   if(Enumerate(brokerHandle).Count!=0)throw new IOException("SENSOR_BROKER_TREE_ROOT_NOT_EMPTY");

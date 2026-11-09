@@ -78,6 +78,14 @@ function ExpectFailure([scriptblock]$Action,[string]$ExpectedMessage,[string]$Na
  }
  Check $Name
 }
+function ExpectFailurePrefix([scriptblock]$Action,[string]$ExpectedPrefix,[string]$Name){
+ $failed=$false;$message=''
+ try{& $Action|Out-Null}catch{$failed=$true;$message=(Cause $_.Exception).Message}
+ if(!$failed -or -not $message.StartsWith($ExpectedPrefix,[StringComparison]::Ordinal)){
+  throw ($Name+'_EXPECTED_PREFIX_'+$ExpectedPrefix+'_GOT_'+$message)
+ }
+ Check $Name
+}
 function Remove-OwnedBrokerFixture {
  if(-not $script:brokerFixtureCreated){
   if([IO.Directory]::Exists($broker)){
@@ -201,6 +209,66 @@ try{
  }
  if($validRemovedEntries -ne 5){throw ('R350_VALID_ENTRY_COUNT_'+$validRemovedEntries)}
  Check 'VALID_NESTED_TREE_DELETED_BY_FILE_ID_HANDLES_ONLY'
+ # Read-only leaves and owner markers must be rejected during the full preflight,
+ # before any member is marked for deletion.
+ New-TreeFixture $sid
+ $readonlyFile=Join-Path $broker 'zz-readonly.bin'
+ [IO.File]::WriteAllText($readonlyFile,'R350_READONLY_PREFLIGHT')
+ [IO.File]::SetAttributes($readonlyFile,[IO.FileAttributes]::ReadOnly)
+ ExpectFailure {Invoke-TreeDelete $sid $false} 'SENSOR_BROKER_TREE_READONLY_FILE_REFUSED' 'READONLY_LEAF_PREFLIGHT_REFUSED'
+ if(-not [IO.File]::Exists($readonlyFile) -or
+    -not [IO.File]::Exists((Join-Path $broker '.tbme-owner.sid')) -or
+    -not [IO.File]::Exists((Join-Path $broker 'TaskbarMonitorSensorBroker.exe')) -or
+    (Hash $canary) -cne $beforeCanary){
+  throw 'R350_READONLY_PREFLIGHT_PARTIAL_DELETE'
+ }
+ Check 'READONLY_LEAF_REFUSED_WITHOUT_PARTIAL_DELETE'
+ [IO.File]::SetAttributes($readonlyFile,[IO.FileAttributes]::Normal)
+ Remove-OwnedBrokerFixture
+ New-TreeFixture $sid
+ $readonlyMarker=Join-Path $broker '.tbme-owner.sid'
+ [IO.File]::SetAttributes($readonlyMarker,[IO.FileAttributes]::ReadOnly)
+ ExpectFailure {Invoke-TreeDelete $sid $false} 'SENSOR_BROKER_TREE_OWNER_MARKER_READONLY_REFUSED' 'READONLY_OWNER_MARKER_PREFLIGHT_REFUSED'
+ if(-not [IO.File]::Exists($readonlyMarker) -or
+    -not [IO.File]::Exists((Join-Path $broker 'TaskbarMonitorSensorBroker.exe')) -or
+    (Hash $canary) -cne $beforeCanary){
+  throw 'R350_READONLY_MARKER_PREFLIGHT_PARTIAL_DELETE'
+ }
+ Check 'READONLY_OWNER_MARKER_REFUSED_WITHOUT_PARTIAL_DELETE'
+ [IO.File]::SetAttributes($readonlyMarker,[IO.FileAttributes]::Normal)
+ Remove-OwnedBrokerFixture
+ # A mapped leaf can pass handle preflight but fail at disposition time.
+ # The ownership marker must remain until that late failure is reported.
+ New-TreeFixture $sid
+ $mappedFile=Join-Path $broker 'zz-mapped.bin'
+ [IO.File]::WriteAllText($mappedFile,'R350_MAPPED_LEAF')
+ $mappedStream=$null;$mappedMap=$null;$mappedView=$null
+ try{
+  $mappedStream=[IO.FileStream]::new($mappedFile,[IO.FileMode]::Open,[IO.FileAccess]::Read,
+    ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+  $mappedMap=[IO.MemoryMappedFiles.MemoryMappedFile]::CreateFromFile(
+    $mappedStream,('TBME_R350_'+$env:GITHUB_RUN_ID+'_'+$HostLabel),0,
+    [IO.MemoryMappedFiles.MemoryMappedFileAccess]::Read,[IO.HandleInheritability]::None,$false)
+  $mappedView=$mappedMap.CreateViewAccessor(0,0,[IO.MemoryMappedFiles.MemoryMappedFileAccess]::Read)
+  $names=@([IO.Directory]::GetFileSystemEntries($broker))
+  $markerIndex=[Array]::IndexOf([string[]]$names,(Join-Path $broker '.tbme-owner.sid'))
+  $mappedIndex=[Array]::IndexOf([string[]]$names,$mappedFile)
+  if($markerIndex -lt 0 -or $mappedIndex -lt 0 -or $markerIndex -ge $mappedIndex){
+   throw 'R350_MAPPED_FAILURE_FIXTURE_ORDER_NOT_DETERMINISTIC'
+  }
+  ExpectFailurePrefix {Invoke-TreeDelete $sid $false} 'SENSOR_BROKER_TREE_DELETE_MARK_FAILED_WIN32_' 'MAPPED_LEAF_DELETE_FAILURE_REPORTED'
+  if(-not [IO.File]::Exists((Join-Path $broker '.tbme-owner.sid')) -or
+     [IO.File]::ReadAllText((Join-Path $broker '.tbme-owner.sid'),[Text.Encoding]::ASCII) -cne $sid -or
+     -not [IO.File]::Exists($mappedFile) -or (Hash $canary) -cne $beforeCanary){
+   throw 'R350_MAPPED_FAILURE_OWNER_MARKER_OR_CANARY_LOST'
+  }
+  Check 'OWNER_MARKER_RETAINED_AFTER_LATE_DELETE_FAILURE'
+ }finally{
+  if($mappedView){$mappedView.Dispose()}
+  if($mappedMap){$mappedMap.Dispose()}
+  if($mappedStream){$mappedStream.Dispose()}
+ }
+ Remove-OwnedBrokerFixture
   New-TreeFixture $sid
   $lease=[TBMEProtectedBrokerTreeLease]::new($broker)
   try{
@@ -343,7 +411,7 @@ try{
  }catch{$failure+=' R350_CANARY_CLEANUP_REFUSED '+$_.Exception.ToString()}
  if([IO.Directory]::Exists($root)){
   [IO.File]::WriteAllText($receipt,([ordered]@{
-   Schema=1;Revision='R350';Status=$(if(!$failure -and $checks.Count -eq 24 -and $cleanupOk -and $validRemovedEntries -eq 5 -and $markerlessRemovedEntries -eq 4){'PASS_R350_PRIVILEGED_HANDLE_BOUND_TREE_DELETE'}else{'FAIL_R350_PRIVILEGED_HANDLE_BOUND_TREE_DELETE'})
+   Schema=1;Revision='R350';Status=$(if(!$failure -and $checks.Count -eq 30 -and $cleanupOk -and $validRemovedEntries -eq 5 -and $markerlessRemovedEntries -eq 4){'PASS_R350_PRIVILEGED_HANDLE_BOUND_TREE_DELETE'}else{'FAIL_R350_PRIVILEGED_HANDLE_BOUND_TREE_DELETE'})
    Host=$HostLabel;SourceCommit=$env:GITHUB_SHA;SetupSHA256=$(if([IO.File]::Exists($setup)){Hash $setup}else{''})
    ExactSetupEmbeddedHelper=$true;NativeClassCompiledByWindowsPowerShell51=$true
    RealProgramFilesDisposableFixture=$true;OwnerSidMarkerMatched=$true
@@ -357,7 +425,7 @@ try{
   }|ConvertTo-Json -Depth 7),[Text.UTF8Encoding]::new($false))
   Write-Output ('R350_NATIVE_RECEIPT='+$receipt)
  }
- $status=if(!$failure -and $checks.Count -eq 24 -and $cleanupOk -and $validRemovedEntries -eq 5 -and $markerlessRemovedEntries -eq 4){'PASS_R350_PRIVILEGED_HANDLE_BOUND_TREE_DELETE'}else{'FAIL_R350_PRIVILEGED_HANDLE_BOUND_TREE_DELETE'}
+ $status=if(!$failure -and $checks.Count -eq 30 -and $cleanupOk -and $validRemovedEntries -eq 5 -and $markerlessRemovedEntries -eq 4){'PASS_R350_PRIVILEGED_HANDLE_BOUND_TREE_DELETE'}else{'FAIL_R350_PRIVILEGED_HANDLE_BOUND_TREE_DELETE'}
  Write-Output ('R350_NATIVE_STATUS='+$status+' CHECKS='+$checks.Count)
 }
 if($failure){throw ('R350_NATIVE_TREE_DELETE_NOT_ACCEPTED '+$failure)}
