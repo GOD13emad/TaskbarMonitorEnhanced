@@ -2347,7 +2347,11 @@ internal static partial class SetupProgram
     {
         string path=Path.Combine(UpgradeRoot,"phase.txt");
         string tmp=Path.Combine(UpgradeRoot,"phase.tmp");
-        File.WriteAllText(tmp,UpgradeStageMarker+"|"+phase,Encoding.ASCII);
+        // R370: the stage journal has a fixed temp filename for crash recovery.
+        // Create it exclusively: never truncate a pre-planted hard-link alias.
+        using(FileStream stream=new FileStream(tmp,FileMode.CreateNew,FileAccess.Write,FileShare.None))
+        using(StreamWriter writer=new StreamWriter(stream,Encoding.ASCII))
+            writer.Write(UpgradeStageMarker+"|"+phase);
         if(File.Exists(path))File.Replace(tmp,path,null);
         else File.Move(tmp,path);
     }
