@@ -12,6 +12,50 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 # Child is launched and terminated by its parent ONLY on a new GitHub-hosted
 # Windows runner. This script NEVER tries to clean up or install drivers.
+# Resolve the exact Git checkout HEAD in-process. The R394 Windows GUI
+# PowerShell runspace must not start a console-subsystem git.exe, whose missing
+# stdout caused a null-value .Trim() during hosted preflight. Supports detached
+# checkout and loose or packed branch refs; invalid formats fail closed.
+function Get-R299CheckoutHead {
+ param([Parameter(Mandatory=$true)][string]$Repository)
+ $gitDir=Join-Path $Repository '.git'
+ if(!(Test-Path -LiteralPath $gitDir -PathType Container)){
+  throw 'R299_CRASH_CHILD_GIT_DIRECTORY_MISSING'
+ }
+ $headFile=Join-Path $gitDir 'HEAD'
+ if(!(Test-Path -LiteralPath $headFile -PathType Leaf)){
+  throw 'R299_CRASH_CHILD_GIT_HEAD_MISSING'
+ }
+ $head=[IO.File]::ReadAllText($headFile).Trim()
+ if($head -cmatch '^[a-f0-9]{40}$'){return $head}
+ if($head -cnotmatch '^ref: (refs/heads/[A-Za-z0-9._/-]+)$'){
+  throw 'R299_CRASH_CHILD_GIT_HEAD_FORMAT_UNTRUSTED'
+ }
+ $ref=[string]$Matches[1]
+ if($ref.Contains('..') -or $ref.Contains('//') -or
+    $ref.Contains('/.') -or $ref.EndsWith('/') -or $ref.EndsWith('.lock')){
+  throw 'R299_CRASH_CHILD_GIT_REF_FORMAT_UNTRUSTED'
+ }
+ $loose=Join-Path $gitDir ($ref.Replace('/',[IO.Path]::DirectorySeparatorChar))
+ $sha=$null
+ if(Test-Path -LiteralPath $loose -PathType Leaf){
+  $sha=[IO.File]::ReadAllText($loose).Trim()
+ }else{
+  $packed=Join-Path $gitDir 'packed-refs'
+  if(!(Test-Path -LiteralPath $packed -PathType Leaf)){
+   throw 'R299_CRASH_CHILD_GIT_REF_UNRESOLVED'
+  }
+  $matches=@([IO.File]::ReadAllLines($packed)|Where-Object {
+   $_ -cmatch ('^[a-f0-9]{40} '+[regex]::Escape($ref)+'$')
+  })
+  if($matches.Count -ne 1){throw 'R299_CRASH_CHILD_GIT_PACKED_REF_NOT_UNIQUE'}
+  $sha=[string]$matches[0].Substring(0,40)
+ }
+ if($sha -cnotmatch '^[a-f0-9]{40}$'){
+  throw 'R299_CRASH_CHILD_GIT_RESOLVED_SHA_INVALID'
+ }
+ return $sha
+}
 try{
  if($PSVersionTable.PSEdition -cne 'Desktop' -or
     $env:GITHUB_ACTIONS -cne 'true' -or
@@ -33,7 +77,9 @@ try{
  $entryReceipt=[ordered]@{Pid=$PID;Phase='HOSTED_IDENTITY_VERIFIED';GitSha=$env:GITHUB_SHA;RunId=$env:GITHUB_RUN_ID}
  [IO.File]::WriteAllText($entryPath,($entryReceipt|ConvertTo-Json -Compress),[Text.UTF8Encoding]::new($false))
  $repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
- if((git -C $repo rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R299_CRASH_CHILD_SOURCE_COMMIT_CHANGED'}
+ if((Get-R299CheckoutHead -Repository $repo) -cne $env:GITHUB_SHA){
+  throw 'R299_CRASH_CHILD_SOURCE_COMMIT_CHANGED'
+ }
  $canonical=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
  if(-not [string]::Equals([IO.Path]::GetFullPath($App),
   [IO.Path]::GetFullPath($canonical),[StringComparison]::OrdinalIgnoreCase)){
@@ -106,12 +152,21 @@ try{
  $phase=[object[]]::new(1);$phase[0]=[string]'COMMITTING'
  [void]$write.Invoke($null,$phase)
  # Two genuine replacements, still no registry/version commit.
- Add-Type -TypeDefinition 'using System.IO; public static class R299FileBridge { public static void ReplaceNoBackup(string src,string dst){File.Replace(src,dst,null);} }'
+ # Resolve the pre-existing .NET File.Replace overload without Add-Type/csc.exe,
+ # which would start another restricted console-subsystem process. Reflection
+ # preserves a true null backup argument; PowerShell's direct method binder
+ # can turn that null into an invalid empty backup path.
+ $replaceMethod=[IO.File].GetMethod('Replace',[type[]]@([string],[string],[string]))
+ if(!$replaceMethod){throw 'R299_CRASH_CHILD_FILE_REPLACE_OVERLOAD_MISSING'}
  foreach($rel in @('TaskbarMonitorEnhanced.exe','Source/TaskbarMonitorEnhanced.cs')){
   $source=Join-Path (Join-Path $stage 'new') $rel
   $live=Join-Path $App $rel
   if(!(Test-Path $source) -or !(Test-Path $live)){throw ('R299_CRASH_CHILD_STAGED_PATH_MISSING_'+$rel)}
-  [R299FileBridge]::ReplaceNoBackup($source,$live)
+  $replaceArgs=[object[]]::new(3)
+  $replaceArgs[0]=[string]$source
+  $replaceArgs[1]=[string]$live
+  $replaceArgs[2]=$null
+  [void]$replaceMethod.Invoke($null,$replaceArgs)
  }
  if((Get-FileHash $main -Algorithm SHA256).Hash -cne $ExpectedNewMainSha){
   throw 'R299_CRASH_CHILD_TWO_FILE_PARTIAL_MAIN_SHA_BAD'

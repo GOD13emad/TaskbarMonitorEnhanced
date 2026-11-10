@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R394",
-  "Status": "R394_GUI_SUBSYSTEM_CRASH_BOOTSTRAP_LOCAL_PASS_EXACT_HEAD_HOSTED_CI_PENDING_REVIEW_REQUIRED",
-  "UpdatedUtc": "2026-11-10T15:32:39.8287753Z",
+  "CurrentEngineeringRevision": "R395",
+  "Status": "R395_GUI_CHILD_CONSOLE_DEPENDENCY_REMOVAL_LOCAL_PASS_EXACT_HEAD_CI_PENDING_REVIEW_REQUIRED",
+  "UpdatedUtc": "2026-11-10T16:20:30.4009724Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -122,10 +122,10 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "Hosted R394 must establish successful GUI-subsystem bootstrap and original PowerShell script entry under verified restricted Medium token, stage two-file COMMITTING, then prove actual official v1.7.9-to-v1.7.10 Setup replay/recovery, canary preservation and exact idempotent update. Keep R385/production Setup unchanged; PR #98 not mergeable until exact-head CI and independent human security review.",
-  "MainBlocker": "R393 hosted R299 failed before script startup with 0xC0000142 despite CREATE_NEW_CONSOLE, while 29/30 other checks passed. R394 GUI embedded PowerShell bootstrap is locally proven on Medium token with fail-closed owner guard; hosted R299 full acceptance remains pending, plus independent human security review.",
+  "CriticalPath": "Validate R395 exact-head hosted R299: GUI bootstrap and original script entry, in-process HEAD verification without console git, genuine COMMITTING arm and two-file partial commit, force-kill, real official v1.7.9-to-v1.7.10 Setup recovery, canaries and idempotent update. Keep exact-head R360/PR checks green and independent human security review as a merge gate.",
+  "MainBlocker": "R394 exact-head R299 failed in original embedded PowerShell child preflight on a null-valued expression, after GUI/script entry and before startup. R395 locally removes the native git.exe and csc.exe dependencies in that restricted token context; full hosted acceptance and independent PR review remain pending.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Commit/push R394 GUI test-only bootstrap, inspect exact-head hosted R299 GUI-entry, child preflight, COMMITTING and actual Setup recovery/idempotence receipts. If failure persists, use earliest verified receipt/exit boundary. Do not merge, release or change owner install without full acceptance.",
+  "ExactNextAction": "Commit/push R395, verify its exact-head Build/Verification R299 receipts for preflight/COMMITTING/forced recovery/real Setup update and idempotence, diagnose first failing boundary if any; do not merge or alter public release/owner installation without full validation and independent review.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2289,13 +2289,80 @@
       "RequiredCIMarkers": "PASS",
       "GitDiffCheck": "PASS"
     },
-    "HostedCI": "NOT_YET_RUN_FOR_R394",
+    "HostedCI": {
+      "Run": 42846214839,
+      "Name": "Build and Verification",
+      "Status": "FAILURE",
+      "PassedJobs": 3,
+      "FailedJobs": 1,
+      "FailedJob": "r299-public-v179-inplace-upgrade",
+      "JobId": 129935715885,
+      "TotalExactHeadChecks": 30,
+      "PassedExactHeadChecks": 29,
+      "FailedExactHeadChecks": 1,
+      "R360PushRun": 42845937625,
+      "R360PushStatus": "SUCCESS",
+      "R299GuiBootstrapEntry": "PASS",
+      "R299OriginalScriptEntry": "PASS",
+      "R299OriginalScriptPreflight": "FAIL_BEFORE_STARTUP_RECEIPT",
+      "CrashChildExitCode": 81,
+      "Failure": "System.Management.Automation.RuntimeException: You cannot call a method on a null-valued expression. The error occurred inside original crash script preflight after GUI_BOOTSTRAP_STARTED and HOSTED_IDENTITY_VERIFIED receipts; before PREFLIGHT_PASSED, COMMITTING and actual Setup recovery.",
+      "SuspectedRootCause": "In-process PowerShell preflight calls native console git.exe and immediately .Trim() on its output; null stdout can raise the observed exception."
+    },
     "RealSetupRecoveryAndIdempotence": "PENDING_HOSTED_ACCEPTANCE",
     "ProductionSetupChanged": false,
     "R385GuardChanged": false,
     "OwnerInstallationChanged": false,
     "PublicReleaseChanged": false,
     "MergePerformed": false,
-    "Limit": "Local GUI/Powershell integration uses a harmless synthetic script and the real bootstrap only with fail-closed nonhosted args. Full hosted R299 Setup/COMMITTING recovery and idempotence are not yet proven. Independent human security review is still required for PR #98."
+    "Limit": "Hosted R299 proved GUI/embedded PowerShell script entry but failed before preflight startup receipt. R395 addresses the preflight native git.exe dependency and subsequent csc.exe dependency inside the restricted Medium crash child. No R299 recovery, real upgrade, or idempotence acceptance yet.",
+    "ImplementationCommit": "bebf23ece316518296f0cf3797e70d301068f983"
+  },
+  "R395": {
+    "Revision": "R395",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "BaseCommit": "bebf23ece316518296f0cf3797e70d301068f983",
+    "Objective": "Remove native console-subsystem child process dependencies from the R299 in-process PowerShell GUI crash fixture, while keeping exact Git HEAD integrity, immutable binary pins, and true File.Replace(null-backup) semantics.",
+    "Evidence": {
+      "R394Run": 42846214839,
+      "R394FailedJob": 129935715885,
+      "R394ExactHeadChecks": {
+        "Passed": 29,
+        "Total": 30
+      },
+      "R394GuiEntry": "PASS",
+      "R394ScriptEntry": "PASS",
+      "R394Preflight": "FAILED_BEFORE_STARTUP",
+      "R394Error": "You cannot call a method on a null-valued expression",
+      "ChildToken": "same-user restricted Medium, IL=0x2000, Administrators disabled",
+      "IdentifiedFailureBoundary": "Preflight git -C <repo> rev-parse HEAD .Trim() can dereference null stdout when native console git.exe cannot initialize under the hosted restricted token; embedded script error was reported before any file staging.",
+      "AdditionalRisk": "Add-Type in the same crash script starts csc.exe console compiler; eliminate this pending subprocess dependency before hosted retest."
+    },
+    "Change": "Replace native git.exe HEAD lookup with fail-closed, in-process read-only .git/HEAD resolution supporting detached, loose and packed branch refs. Reject malformed or traversal refs and SHA mismatch. Use the existing System.IO.File.Replace 3-string overload via reflection with a true null backup instead of spawning Add-Type/csc.exe. Preserve exact two replacements and all owner/disposable guards.",
+    "Files": [
+      "build/Test-R299-HostedCrashChild.ps1"
+    ],
+    "LocalValidation": {
+      "WindowsPowerShell51Parser": "PASS",
+      "ExistingRepoGitHeadReadback": "PASS",
+      "DetachedHead": "PASS",
+      "LooseRef": "PASS",
+      "PackedRef": "PASS",
+      "RefTraversalRejected": "PASS",
+      "InvalidPackedShaRejected": "PASS",
+      "ConsoleGitAndCompilerDependenciesRemoved": "PASS",
+      "ReflectionFileReplaceTrueNullBackup": "PASS",
+      "OwnerNonHostedRefusal": "PASS",
+      "OwnerNonHostedCreatedSignalFiles": false,
+      "WorkflowYamlParse": "PASS",
+      "GitDiffCheck": "PASS"
+    },
+    "HostedCI": "NOT_YET_RUN_FOR_R395",
+    "R385SecurityGuardChanged": false,
+    "ProductionSetupChanged": false,
+    "OwnerInstallationChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "Local validation verifies source parsing, in-process Git ref resolution, exact File.Replace semantics and nonhosted refusal only. Actual GitHub-hosted COMMITTING arm, forced kill, genuine Setup replay, canary preservation and exact second-update idempotence remain unverified; independent human security review still required for PR #98."
   }
 }
