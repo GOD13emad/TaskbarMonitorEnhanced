@@ -117,6 +117,7 @@ public static class R299HostedTokenLauncher
     private const uint TOKEN_ADJUST_DEFAULT = 0x0080;
     private const uint CREATE_UNICODE_ENVIRONMENT = 0x00000400;
     private const uint CREATE_NO_WINDOW = 0x08000000;
+    private const uint CREATE_NEW_CONSOLE = 0x00000010;
     private const uint DISABLE_MAX_PRIVILEGE = 0x00000001;
     private const uint SE_GROUP_INTEGRITY = 0x00000020;
     private const int TokenUser = 1;
@@ -568,11 +569,13 @@ public static class R299HostedTokenLauncher
             STARTUPINFO startup = new STARTUPINFO();
             startup.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO));
 
-            // CREATE_NO_WINDOW can make a restricted-token console-subsystem child
-            // terminate in the loader with STATUS_DLL_INIT_FAILED (0xC0000142).
-            // Preserve the old no-window behavior for Setup; allow normal console
-            // attach/creation only for the trusted PowerShell crash fixture.
-            uint creationFlags = CREATE_UNICODE_ENVIRONMENT | (consoleAllowed ? 0u : CREATE_NO_WINDOW);
+            // A restricted Medium PowerShell child failed DLL initialization with
+            // CREATE_NO_WINDOW. Allowing the default console still left it running
+            // without reaching script startup on the hosted service runner.
+            // Require an independent console for only the exact trusted crash
+            // fixture; retain CREATE_NO_WINDOW for every real GUI Setup update.
+            uint creationFlags = CREATE_UNICODE_ENVIRONMENT |
+                (consoleAllowed ? CREATE_NEW_CONSOLE : CREATE_NO_WINDOW);
             bool created;
             if (expectedUacDisabledAdmin)
             {

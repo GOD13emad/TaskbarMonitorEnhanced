@@ -1,3 +1,12 @@
+## R393 — isolate hosted restricted-Medium PowerShell crash console, require early entry receipt — locally validated; hosted pending
+
+- Authoritative baseline: commit `e25e8eaeff825a3e23be0990fd88605f3365f1b9`, PR #98 open/mergeable/unmerged and requested human security review not submitted. R392 exact-head Build/Verification [42836539517](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42836539517) succeeded build, R298 and R300 but failed R299; 29/30 checks passed overall; R360 push [42836527156](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42836527156) succeeded on Windows Server 2022 and 2025.
+- Failure boundary: the exact public v1.7.9 predecessor pins and negative tamper checks pass. The genuine SetupUpdate and PowerShell CrashChild both launch using same-user restricted Medium tokens (IL 0x2000, Administrators disabled, CreateProcessAsUser); the CrashChild remained RUNNING at the 19.5-second poll boundary, without .started.txt, .error.txt or COMMITTING arm. No recovery or idempotence evidence exists from this failed attempt. Distinct console allocation, not inferred Setup corruption, is the next testable hypothesis.
+- R393 test-only mutation: `R299-MediumTokenLauncher.cs` uses `CREATE_NEW_CONSOLE` (0x10) exclusively for `consoleAllowed=true`, itself strictly allowed only for the trusted system WindowsPowerShell.exe crash child. Every genuine GUI Setup child retains `CREATE_NO_WINDOW`. The CrashChild adds a `.entered.txt` receipt only after matching GitHub-hosted Windows runner identity and exact per-run runner-temp signal path; the parent checks entry PID/run/SHA/phase before the existing preflight and COMMITTING receipts. CI adds `R299_HOSTED_CRASH_CHILD_ENTRY=PASS`. Source [Microsoft Process Creation Flags](https://learn.microsoft.com/en-us/windows/desktop/ProcThread/process-creation-flags) distinguishes CREATE_NEW_CONSOLE from CREATE_NO_WINDOW; [CreateProcessAsUserW](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw) documents that successful creation does not prove child initialization.
+- Local validation PASS: PowerShell 5.1 parse of both scripts, .NET Framework C# compile, CREATE_NEW_CONSOLE numeric flag 0x10, bounded creation-mode source scope, harmless default-no-window child smoke, rejection of untrusted executable requesting console mode, YAML parse, CI marker coverage, git diff --check and owner/non-hosted fail-closed negative test producing no owner-side files. No owner-side new-console launch or real Setup upgrade was performed.
+- Security/scope: preserve existing R385 elevation guard and same-user Medium token validation, immutable published v1.7.10 release, owner installation/configuration, canonical runner path and all original R299 recovery/canary/idempotence assertions. Only four test/CI files changed, no changes to product Setup. R393 result remains unproven until exact-head hosted CI.
+- Next: commit/push this bounded draft, inspect the hosted R299 entry and preflight receipts then COMMITTING stage, actual forced termination and real Setup recovery/idempotence; do not merge PR #98 without complete CI and independent human security review.
+
 ## R392 — R299 PowerShell wrapper success-stream pollution — one typed process object proven locally; hosted pending
 
 - R391 exact-head Build/Verification [42835087137](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42835087137) completed 3/4 (build/R298/R300 PASS; only R299 FAIL). Hosted R299 verified SetupUpdate and CrashChild are launched via CreateProcessAsUser with same-user restricted Medium token (0x2000, Administrators disabled); crash child used `consoleAllowed=True` after the scoped CREATE_NO_WINDOW removal. The previous 0xC0000142 was not logged in this attempt, but crash-child script startup/COMMITTING were not proven.
@@ -1495,35 +1504,4 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Signing: `UNSIGNED_PENDING_EXTERNAL_PROVIDER`; no trusted Authenticode claim.
 - v1.2.0 and earlier public releases remain immutable and unchanged.
 - Product DoD: COMPLETE / FINAL_PUBLIC_RELEASE_ACCEPTED.
-- Post-publication closeout through commit `10e8bfdbe4f4c62262b756c0b7dd396c1dfde539`: CI run `36982325715` SUCCESS with exact 4/4 release hashes; temporary R33 branches deleted; remote branch surface only `main`.
-
-## R33F / FINAL REPOSITORY CLOSEOUT — 2026-10-02
-
-- Post-publication evidence/documentation commit: `10e8bfdbe4f4c62262b756c0b7dd396c1dfde539`.
-- Exact-head GitHub Actions run `36982325715`: SUCCESS.
-- That CI run again reproduced the immutable release binary hashes 4/4 and recreated provenance + Setup SBOM attestations.
-- Merged temporary branches `r33-final-hardening` and `release/v1.3.0-r33` were deleted only after ancestor guard PASS; local R33 branch was also deleted.
-- Remote branch surface after cleanup: only `main`.
-- v1.3.0 release remains Latest, public, non-draft, non-prerelease, immutable, seven assets, exact tag commit `fc5619d049de4a95cb23542a8c3318e12f064691`.
-- Live health closeout: `TBME_HEALTH_PROBE=PASS R21=True JOB=True RESILIENCE=STABLE SUP=True CPU=True/True GPU=True/True STORAGE=True/True`.
-- Product DoD: COMPLETE / FINAL_PUBLIC_RELEASE_ACCEPTED.
-- Open product blockers/gates: none.
-- Deferred external item only: publicly trusted Authenticode signing remains unproven; no trusted-signature claim is made.
-- This Brain-finalization commit is documentation-only. Its external exact-head CI result is the final control verifier; once green, no additional repository mutation is required for v1.3.0.
-- Exact next action: none for v1.3.0 product/release. Future work must start as a new scoped change set from `main` without mutating the immutable v1.3.0 tag/release.
-
-## R34 / v1.3.1 REAL THEME PREVIEW — 2026-10-02
-
-- Replaced synthetic palette preview with actual taskbar renderer preview in Display Settings.
-- Runtime preview uses active Overlay snapshot + history; changing Theme redraws immediately.
-- Off-screen render no longer mutates live OverlayForm size; render width is passed explicitly to layout selection.
-- Installed proof and tracked Settings screenshot show live CPU/RAM/Disk/GPU/VRAM/Network data and real graphs.
-- Release commit: `6e1edfe0f89ea9981360b904dd93fc198d891f04`; CI `36986831343` SUCCESS; release id `401668211`; 7/7 assets verified.
-- Exact hashes: Main `8009574BD5FBB44FC699476149F8F5315BA99D2045F3884F629D550B1FA3BBCF`; Setup `67CC88D429FFA9E8D17609ECF8814CF6ABF2C70979B10BB1840071A1AC5FDF26`.
-- Sensor binaries unchanged from v1.3.0.
-- Signing remains UNSIGNED_PENDING_EXTERNAL_PROVIDER.
-
-## R35 / v1.4.0 WINDOWS INTEGRATION & ACCESSIBILITY — 2026-10-02
-
-- Search/audit-driven scope focused on Windows integration, accessibility, update security and diagnostics rather than adding unrelated feature volume.
-- PerMoni
+- Post-publication closeout thr

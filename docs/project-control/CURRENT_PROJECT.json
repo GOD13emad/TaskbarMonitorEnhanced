@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R392",
-  "Status": "R392_R299_TYPED_PROCESS_OUTPUT_FIX_LOCAL_PASS_HOSTED_CI_PENDING_REVIEW_REQUIRED",
-  "UpdatedUtc": "2026-11-10T14:38:47.6904126Z",
+  "CurrentEngineeringRevision": "R393",
+  "Status": "R393_NEW_CONSOLE_HOSTED_CRASH_FIX_LOCAL_PASS_EXACT_HEAD_CI_PENDING_HUMAN_REVIEW",
+  "UpdatedUtc": "2026-11-10T15:12:21.7337940Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -122,10 +122,10 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "R392 must remove success-stream contamination from the R299 process wrapper, then prove on exact-head Windows CI that restricted-Medium PowerShell starts, arms COMMITTING, is killed, and real public v1.7.9-to-v1.7.10 Setup recovers, preserves canaries and remains idempotent. Keep PR #98 unmerged until 100% required checks and independent human review.",
-  "MainBlocker": "R391 hosted R299 failed on PowerShell wrapper output pollution: a PASS marker string caused $crashChild to be an array and .Dispose() failed. R392 has local isolated mock proof of the single-object result; hosted real R299 acceptance remains unproven, and human review is absent.",
+  "CriticalPath": "Validate R393 hosted R299 restricted Medium crash child with CREATE_NEW_CONSOLE, entry/preflight/COMMITTING receipts and real forced interruption; then prove official v1.7.9-to-v1.7.10 Setup recovery, canaries and idempotence. Keep R385/production Setup unchanged and PR #98 unmerged until required CI + independent human security review.",
+  "MainBlocker": "R392 exact-head CI was 29/30 PASS; R299 crash child remained RUNNING without entry or COMMITTING signal at 19.5s. R393 locally validated distinct console and exact-runner entry diagnostics; hosted end-to-end acceptance remains unproven; no independent human security review.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Commit/push R392 single-process-return fix, inspect exact-head R299 startup/arm/recovery/update/idempotence and complete R360 stress. Only proceed to merge after full CI and independent human review; do not alter owner installation or public release.",
+  "ExactNextAction": "Commit and push R393 diagnostic console change on the existing security branch, verify exact-head R299, R360 and other gates; if R299 remains non-PASS, inspect bounded entry/startup/arm diagnostics before changing anything else. Do not merge or publish without independent review and complete required CI.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2115,12 +2115,100 @@
       "NoOperatingSystemChildDuringMock": "PASS",
       "GitDiffCheck": "PASS"
     },
-    "HostedCI": "NOT_YET_RUN_FOR_R392",
+    "HostedCI": {
+      "ExactHead": "e25e8eaeff825a3e23be0990fd88605f3365f1b9",
+      "BuildAndVerification": {
+        "Run": 42836539517,
+        "Status": "FAILURE",
+        "Passed": 3,
+        "Total": 4,
+        "FailedJobId": 129901623367,
+        "Failure": "R299 created the correct restricted same-user Medium CrashChild via CreateProcessAsUserW but the child remained RUNNING after ~19.5s without producing the preflight/startup or COMMITTING signal. No .error.txt existed; real interrupted COMMITTING recovery and idempotence were not performed."
+      },
+      "R360Push": {
+        "Run": 42836527156,
+        "Status": "SUCCESS",
+        "Windows2022": "SUCCESS",
+        "Windows2025": "SUCCESS"
+      },
+      "PullRequestChecks": {
+        "Total": 30,
+        "Passed": 29,
+        "Failed": "r299-public-v179-inplace-upgrade",
+        "InProgress": 0
+      },
+      "SetupAndCrashChildCreation": "PASS_RESTRICTED_MEDIUM",
+      "R299CrashChildEntry": "NOT_REACHED",
+      "RealRecoveryAndIdempotence": "UNPROVEN"
+    },
     "SecurityAssertions": "Unchanged: same-user verified Medium token, restricted Administrators, strict disposable runner gate, R385 Setup elevation guard and full R299 binary/update/recovery/canary/idempotence assertions.",
     "ProductSetupChanged": false,
     "OwnerInstallChanged": false,
     "PublicReleaseChanged": false,
     "MergePerformed": false,
-    "Limit": "Mock test verifies output-stream typing only. GitHub-hosted R299 must still prove crash child startup, COMMITTING arm, real Setup recovery and idempotence. No independent human review for PR #98."
+    "Limit": "R392 local mock proved typed wrapper output, hosted process creation succeeded, but hosted PowerShell crash child remained RUNNING with neither startup nor arm receipt at the ~19.5s bound. R393 tests CREATE_NEW_CONSOLE exclusively for the trusted crash fixture and adds a diagnostic entry receipt. The actual recovery/update/idempotence is still not accepted.",
+    "ImplementationCommit": "e25e8eaeff825a3e23be0990fd88605f3365f1b9"
+  },
+  "R393": {
+    "Revision": "R393",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "BaselineHead": "e25e8eaeff825a3e23be0990fd88605f3365f1b9",
+    "Objective": "Resolve hosted R299 restricted-Medium PowerShell crash-child process startup hang (alive, no script-startup receipt after 19.5s) using an independently created console, with exact-host-only early-entry diagnostic; preserve all Setup security and acceptance assertions.",
+    "FailureEvidence": {
+      "HostedRun": 42836539517,
+      "Job": 129901623367,
+      "Failed": "R299_CRASH_CHILD_DID_NOT_ARM_hasExited=False_exitCode=RUNNING_startup=startup receipt missing_error=child did not produce arm signal",
+      "SetupChild": {
+        "TokenSource": "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT",
+        "CreationMethod": "CREATE_PROCESS_AS_USER",
+        "IntegrityRid": "0x2000",
+        "AdministratorsEnabled": false,
+        "ConsoleAllowed": false
+      },
+      "CrashChild": {
+        "TokenSource": "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT",
+        "CreationMethod": "CREATE_PROCESS_AS_USER",
+        "IntegrityRid": "0x2000",
+        "AdministratorsEnabled": false,
+        "ConsoleAllowed": true
+      },
+      "R360": {
+        "Run": 42836527156,
+        "Status": "SUCCESS"
+      },
+      "ExactHeadChecks": {
+        "Total": 30,
+        "Passed": 29,
+        "Failed": 1
+      },
+      "Hypothesis": "Console inherited from GitHub service parent is inaccessible or not initialized by a restricted Medium token. CREATE_NEW_CONSOLE is a narrow, documented alternative, not a proven cause until hosted test."
+    },
+    "Files": [
+      ".github/workflows/ci.yml",
+      "build/R299-MediumTokenLauncher.cs",
+      "build/Test-R299-HostedCrashChild.ps1",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1"
+    ],
+    "Change": "Use CREATE_NEW_CONSOLE (0x10) exclusively for the exact trusted system WindowsPowerShell.exe crash-child launcher. All production GUI Setup /update children still use CREATE_NO_WINDOW (0x08000000). Child writes an early entry receipt only after exact disposable runner identity and absolute runner-temp signal path match; parent requires matching PID, run, SHA and phase, retaining the stricter later preflight and COMMITTING receipts. CI requires the additional entry marker.",
+    "LocalValidation": {
+      "WindowsPowerShell51ParseBoth": "PASS",
+      "CSharpNetFrameworkCompile": "PASS",
+      "NewConsoleFlagConstant": "PASS_0x10",
+      "CreationFlagOnlyForConsoleAllowed": "PASS",
+      "DefaultNoWindowChildSmoke": "PASS",
+      "UntrustedExecutableConsoleFlagRefusal": "PASS",
+      "WorkflowYAMLParse": "PASS",
+      "ThreeCIChildMarkers": "PASS",
+      "GitDiffCheck": "PASS",
+      "OwnerOrNonHostedRefusal": "PASS",
+      "NoOwnerSideSignalFiles": "PASS"
+    },
+    "HostedCI": "NOT_YET_RUN_FOR_R393",
+    "ProductionSetupChanged": false,
+    "R385GuardChanged": false,
+    "OwnerInstallationChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "Only local compile, fail-closed guard and default-process behavior are validated; hosted CREATE_NEW_CONSOLE and real official 1.7.9-to-1.7.10 Setup recovery, canary preservation and idempotence are still unproven. PR #98 requires human security review."
   }
 }

@@ -296,7 +296,9 @@ if((Get-FileHash $tamper).Hash -cne [string]$pins['Source/StudioThemes.cs']){thr
 $childScript=Join-Path $PSScriptRoot 'Test-R299-HostedCrashChild.ps1'
 $signal=Join-Path $env:RUNNER_TEMP ('R299_ABRUPT_COMMITTING_ARMED_'+$env:GITHUB_RUN_ID+'.json')
 $startupSignal=$signal+'.started.txt'
-if(!(Test-Path $childScript) -or (Test-Path $signal) -or (Test-Path ($signal+'.error.txt')) -or (Test-Path $startupSignal)){
+$entrySignal=$signal+'.entered.txt'
+if(!(Test-Path $childScript) -or (Test-Path $signal) -or (Test-Path ($signal+'.error.txt')) -or
+   (Test-Path $startupSignal) -or (Test-Path $entrySignal)){
  throw 'R299_CRASH_FIXTURE_SOURCE_OR_SIGNAL_NOT_FRESH'
 }
 $trustedPowerShell=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell/v1.0/powershell.exe'
@@ -328,9 +330,19 @@ try{
   $childExitCode=if($childHasExited){[string]$crashChild.ExitCode}else{'RUNNING'}
   $childError=if(Test-Path ($signal+'.error.txt')){Get-Content ($signal+'.error.txt') -Raw}else{'child did not produce arm signal'}
   $startupError=if(Test-Path $startupSignal){Get-Content $startupSignal -Raw}else{'startup receipt missing'}
-  $failureDetail='hasExited='+$childHasExited+'_exitCode='+$childExitCode+'_startup='+$startupError+'_error='+$childError
+  $entryError=if(Test-Path $entrySignal){Get-Content $entrySignal -Raw}else{'entry receipt missing'}
+  $failureDetail='hasExited='+$childHasExited+'_exitCode='+$childExitCode+'_entry='+$entryError+'_startup='+$startupError+'_error='+$childError
   throw ('R299_CRASH_CHILD_DID_NOT_ARM_'+$failureDetail.Substring(0,[Math]::Min(1100,$failureDetail.Length)))
  }
+ if(!(Test-Path $entrySignal)){throw 'R299_CRASH_CHILD_ENTRY_RECEIPT_MISSING'}
+ $entryRecord=Get-Content $entrySignal -Raw|ConvertFrom-Json
+ if($entryRecord.Pid -ne $crashChild.Id -or
+    $entryRecord.Phase -cne 'HOSTED_IDENTITY_VERIFIED' -or
+    $entryRecord.GitSha -cne $env:GITHUB_SHA -or
+    $entryRecord.RunId -cne $env:GITHUB_RUN_ID){
+  throw 'R299_CRASH_CHILD_ENTRY_RECEIPT_IDENTITY_WRONG'
+ }
+ 'R299_HOSTED_CRASH_CHILD_ENTRY=PASS'
  if(!(Test-Path $startupSignal)){throw 'R299_CRASH_CHILD_STARTUP_RECEIPT_MISSING'}
  $startupRecord=Get-Content $startupSignal -Raw|ConvertFrom-Json
  if($startupRecord.Pid -ne $crashChild.Id -or
@@ -450,6 +462,7 @@ $receipt=[ordered]@{
  SetupUpdateProcessesVerifiedToken=$script:R299HostedSetupUpdateLaunchCount
  CrashFixtureProcessVerifiedToken=$script:R299HostedCrashChildLaunchCount
  CrashChildStartupVerified=$true
+ CrashChildEntryVerified=$true
  HostedTokenVerifiedForEveryChild=$true
  HostedTokenSources=@($script:R299HostedTokenSources.ToArray())
  HostedTokenCreationMethods=@($script:R299HostedTokenCreationMethods.ToArray())

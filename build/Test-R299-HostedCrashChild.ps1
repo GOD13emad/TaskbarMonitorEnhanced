@@ -23,6 +23,15 @@ try{
     $env:COMPUTERNAME -match '(?i)EMAD|ALIEMAD|LAPTOP|SAEID'){
   throw 'R299_CRASH_CHILD_REFUSES_ANY_NONDISPOSABLE_WINDOWS'
  }
+ $expectedSignal=Join-Path $env:RUNNER_TEMP ('R299_ABRUPT_COMMITTING_ARMED_'+$env:GITHUB_RUN_ID+'.json')
+ if(-not [string]::Equals([IO.Path]::GetFullPath($Signal),
+      [IO.Path]::GetFullPath($expectedSignal),[StringComparison]::OrdinalIgnoreCase)){
+  throw 'R299_CRASH_CHILD_REQUIRES_EXACT_RUNNER_TEMP_SIGNAL'
+ }
+ $entryPath=$Signal+'.entered.txt'
+ if(Test-Path $entryPath){throw 'R299_CRASH_CHILD_ENTRY_SIGNAL_PREEXISTS'}
+ $entryReceipt=[ordered]@{Pid=$PID;Phase='HOSTED_IDENTITY_VERIFIED';GitSha=$env:GITHUB_SHA;RunId=$env:GITHUB_RUN_ID}
+ [IO.File]::WriteAllText($entryPath,($entryReceipt|ConvertTo-Json -Compress),[Text.UTF8Encoding]::new($false))
  $repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
  if((git -C $repo rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R299_CRASH_CHILD_SOURCE_COMMIT_CHANGED'}
  $canonical=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
