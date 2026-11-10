@@ -939,6 +939,30 @@ namespace TaskbarMonitorEnhanced
             return info;
         }
 
+        // Reject directory junctions as well as a reparse-point installer leaf.
+        // Setup already checks canonical path ancestors. This preflight does
+        // not eliminate concurrent same-user path-replacement races.
+        internal static void RejectUpdateReparseAncestors(string path)
+        {
+            if(String.IsNullOrWhiteSpace(path)||!Path.IsPathRooted(path))
+                throw new InvalidDataException("Update path must be absolute.");
+            string cursor=Path.GetFullPath(path);
+            while(!String.IsNullOrEmpty(cursor))
+            {
+                try
+                {
+                    if((File.GetAttributes(cursor)&FileAttributes.ReparsePoint)!=0)
+                        throw new InvalidDataException("Update path contains a reparse point.");
+                }
+                catch(FileNotFoundException){}
+                catch(DirectoryNotFoundException){}
+                string parent=Path.GetDirectoryName(cursor);
+                if(String.IsNullOrEmpty(parent)||String.Equals(parent,cursor,StringComparison.OrdinalIgnoreCase))
+                    break;
+                cursor=parent;
+            }
+        }
+
         private static string Sha256File(string path)
         {
             using(SHA256 sha=SHA256.Create())using(FileStream fs=File.OpenRead(path)){byte[] b=sha.ComputeHash(fs);StringBuilder sb=new StringBuilder();foreach(byte x in b)sb.Append(x.ToString("X2",CultureInfo.InvariantCulture));return sb.ToString();}
@@ -956,10 +980,17 @@ namespace TaskbarMonitorEnhanced
                 throw new InvalidOperationException("Automatic installation is blocked because release identity metadata is not canonical.");
             if(!info.Immutable)throw new InvalidOperationException("Automatic installation is blocked because the GitHub Release is mutable. Open the release page and review it manually.");
             Uri u=new Uri(info.SetupUrl);if(!IsOfficialSetupUrl(info.SetupUrl,info.Version,expectedName))throw new InvalidDataException("Unexpected update URL: "+u.Host+u.AbsolutePath);
+            RejectUpdateReparseAncestors(AppPaths.Updates);
             Directory.CreateDirectory(AppPaths.Updates);string safe=Path.GetFileName(info.SetupName);if(!String.Equals(safe,expectedName,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Unexpected update asset name.");string path=Path.Combine(AppPaths.Updates,safe);
-            string partial=path+".download";try{if(File.Exists(partial))File.Delete(partial);}catch{}
+            string partial=path+".download";
+            RejectUpdateReparseAncestors(path);
+            RejectUpdateReparseAncestors(partial);
+            try{if(File.Exists(partial))File.Delete(partial);}catch{}
             using(WebClient wc=Client())wc.DownloadFile(info.SetupUrl,partial);
+            RejectUpdateReparseAncestors(partial);
             string expected=info.SetupDigest.Substring(info.SetupDigest.IndexOf(':')+1).Trim().ToUpperInvariant();string actual=Sha256File(partial);if(!String.Equals(expected,actual,StringComparison.OrdinalIgnoreCase)){try{File.Delete(partial);}catch{}throw new InvalidDataException("Update SHA-256 mismatch. Expected="+expected+" Actual="+actual);}
+            RejectUpdateReparseAncestors(path);
+            RejectUpdateReparseAncestors(partial);
             if(File.Exists(path))File.Delete(path);File.Move(partial,path);Log.Write("INFO","UPDATE_DOWNLOAD_VERIFIED version="+info.Version+" sha256="+actual+" path="+path);return path;
         }
 
@@ -967,6 +998,7 @@ namespace TaskbarMonitorEnhanced
         {
             if(String.IsNullOrWhiteSpace(path)||!File.Exists(path))throw new FileNotFoundException("Verified update installer not found.",path);
             if(!IsStrictSha256Digest(expectedDigest))throw new InvalidDataException("Expected installer digest is invalid.");
+            RejectUpdateReparseAncestors(path);
             FileAttributes attrs=File.GetAttributes(path);if((attrs&FileAttributes.ReparsePoint)!=0)throw new InvalidDataException("Verified update installer path is a reparse point.");
             string expected=expectedDigest.Substring(expectedDigest.IndexOf(':')+1).Trim().ToUpperInvariant();
             string actual=Sha256File(path);if(!String.Equals(expected,actual,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Installer changed after verification.");

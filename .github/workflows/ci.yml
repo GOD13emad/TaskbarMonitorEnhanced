@@ -74,6 +74,24 @@ jobs:
         shell: pwsh
         run: ./build/Build.ps1
 
+      - name: R398 compiled Updater rejects parent junction and redirects before writes
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R398-UpdateReparseAncestor.ps1 -AppPath ./build/_out/App/TaskbarMonitorEnhanced.exe -SourceRoot . -HostedGuest)
+          foreach($mark in @(
+            'R398_PASS_REAL_COMPILED_VERIFIER_ACCEPTS_UNLINKED_FIXTURE',
+            'R398_PASS_COMPILED_VERIFIER_REJECTS_PARENT_JUNCTION',
+            'R398_PASS_COMPILED_PREWRITE_GUARD_REJECTS_JUNCTION',
+            'R398_PASS_COMPILED_PREWRITE_GUARD_ACCEPTS_NORMAL_PATH',
+            'R398_PASS_FIXTURE_CONTENT_UNCHANGED',
+            'R398_PASS_NO_INSTALLER_LAUNCHED',
+            'R398_RESULT=PASS_SCOPED_UPDATER_PARENT_JUNCTION_BLOCKED'
+          )){
+            if($proof -cnotcontains $mark){throw ('R398_MISSING_NATIVE_REPARSE_PROOF_'+$mark)}
+          }
+          $proof
+
       # R298: this compiles the actual PE-embedded cleanup source, then
       # invokes the pin/delete primitive ONLY on a freshly created Temp fixture.
       # It never invokes the owner uninstall or alters an installed product.
