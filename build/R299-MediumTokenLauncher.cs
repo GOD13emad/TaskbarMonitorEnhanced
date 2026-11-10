@@ -11,12 +11,14 @@ public sealed class R299MediumProcess : IDisposable
     private IntPtr _processHandle;
     public int Id { get; private set; }
     public string TokenSource { get; private set; }
+    public string CreationMethod { get; private set; }
 
-    internal R299MediumProcess(IntPtr processHandle, uint processId, string tokenSource)
+    internal R299MediumProcess(IntPtr processHandle, uint processId, string tokenSource, string creationMethod)
     {
         _processHandle = processHandle;
         Id = checked((int)processId);
         TokenSource = tokenSource;
+        CreationMethod = creationMethod;
     }
 
     private void EnsureOpen()
@@ -190,6 +192,12 @@ public static class R299MediumTokenLauncher
         IntPtr processAttributes, IntPtr threadAttributes, bool inheritHandles, uint creationFlags,
         IntPtr environment, string currentDirectory, ref STARTUPINFO startupInfo,
         out PROCESS_INFORMATION processInformation);
+
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode, ExactSpelling = true)]
+    private static extern bool CreateProcessAsUserW(IntPtr token, string applicationName,
+        StringBuilder commandLine, IntPtr processAttributes, IntPtr threadAttributes,
+        bool inheritHandles, uint creationFlags, IntPtr environment, string currentDirectory,
+        ref STARTUPINFO startupInfo, out PROCESS_INFORMATION processInformation);
 
     [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern bool CreateProcessWithTokenW(IntPtr token, uint logonFlags,
@@ -406,6 +414,7 @@ public static class R299MediumTokenLauncher
         IntPtr environment = IntPtr.Zero;
         PROCESS_INFORMATION processInfo = new PROCESS_INFORMATION();
         string tokenSource = null;
+        string creationMethod = null;
         int targetElevationType = 0;
         bool createWithExplicitToken = false;
         bool expectedRestricted = false;
@@ -480,17 +489,56 @@ public static class R299MediumTokenLauncher
             STARTUPINFO startup = new STARTUPINFO();
             startup.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO));
 
-            StringBuilder mutableCommand = new StringBuilder(command);
             uint creationFlags = CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW;
-            bool created = createWithExplicitToken
-                ? CreateProcessWithTokenW(primaryToken, 1, application, mutableCommand,
-                    creationFlags, environment, workingDirectory, ref startup, out processInfo)
-                : CreateProcessW(application, mutableCommand, IntPtr.Zero, IntPtr.Zero, false,
+            bool created;
+            if (expectedRestricted)
+            {
+                StringBuilder asUserCommand = new StringBuilder(command);
+                created = CreateProcessAsUserW(primaryToken, application, asUserCommand,
+                    IntPtr.Zero, IntPtr.Zero, false, creationFlags, environment,
+                    workingDirectory, ref startup, out processInfo);
+                if (created)
+                {
+                    creationMethod = "CREATE_PROCESS_AS_USER";
+                }
+                else
+                {
+                    int asUserError = Marshal.GetLastWin32Error();
+                    if (asUserError != 1314)
+                        throw new Win32Exception(asUserError, "R299_CREATE_PROCESS_AS_USER_RESTRICTED_TOKEN_FAILED");
+
+                    StringBuilder fallbackCommand = new StringBuilder(command);
+                    created = CreateProcessWithTokenW(primaryToken, 1, application, fallbackCommand,
+                        creationFlags, environment, workingDirectory, ref startup, out processInfo);
+                    if (!created)
+                    {
+                        int fallbackError = Marshal.GetLastWin32Error();
+                        throw new Win32Exception(fallbackError,
+                            "R299_CREATE_PROCESS_RESTRICTED_TOKEN_FAILED_ASUSER_1314_AND_WITHTOKEN");
+                    }
+                    creationMethod = "CREATE_PROCESS_WITH_TOKEN_FALLBACK_AFTER_ASUSER_1314";
+                }
+            }
+            else if (createWithExplicitToken)
+            {
+                StringBuilder explicitCommand = new StringBuilder(command);
+                created = CreateProcessWithTokenW(primaryToken, 1, application, explicitCommand,
                     creationFlags, environment, workingDirectory, ref startup, out processInfo);
-            if (!created)
-                throw new Win32Exception(Marshal.GetLastWin32Error(),
-                    createWithExplicitToken ? "R299_CREATE_PROCESS_WITH_EXPLICIT_MEDIUM_TOKEN_FAILED" :
-                    "R299_CREATE_PROCESS_WITH_CURRENT_MEDIUM_TOKEN_FAILED");
+                if (!created)
+                    throw new Win32Exception(Marshal.GetLastWin32Error(),
+                        "R299_CREATE_PROCESS_WITH_EXPLICIT_MEDIUM_TOKEN_FAILED");
+                creationMethod = "CREATE_PROCESS_WITH_TOKEN";
+            }
+            else
+            {
+                StringBuilder currentCommand = new StringBuilder(command);
+                created = CreateProcessW(application, currentCommand, IntPtr.Zero, IntPtr.Zero, false,
+                    creationFlags, environment, workingDirectory, ref startup, out processInfo);
+                if (!created)
+                    throw new Win32Exception(Marshal.GetLastWin32Error(),
+                        "R299_CREATE_PROCESS_WITH_CURRENT_MEDIUM_TOKEN_FAILED");
+                creationMethod = "CREATE_PROCESS_CURRENT_TOKEN";
+            }
 
             IntPtr childToken = IntPtr.Zero;
             try
@@ -506,7 +554,8 @@ public static class R299MediumTokenLauncher
                 if (childToken != IntPtr.Zero) CloseHandle(childToken);
             }
 
-            R299MediumProcess result = new R299MediumProcess(processInfo.hProcess, processInfo.dwProcessId, tokenSource);
+            R299MediumProcess result = new R299MediumProcess(
+                processInfo.hProcess, processInfo.dwProcessId, tokenSource, creationMethod);
             processInfo.hProcess = IntPtr.Zero;
             return result;
         }

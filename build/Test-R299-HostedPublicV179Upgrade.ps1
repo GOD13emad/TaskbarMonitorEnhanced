@@ -31,6 +31,7 @@ if(-not ('R299MediumTokenLauncher' -as [type])){
 $script:R299MediumSetupUpdateLaunchCount=0
 $script:R299MediumCrashChildLaunchCount=0
 $script:R299MediumTokenSources=New-Object 'System.Collections.Generic.List[string]'
+$script:R299MediumTokenCreationMethods=New-Object 'System.Collections.Generic.List[string]'
 function New-R299MediumEnvironmentBlock {
     $names=@(
         'SystemRoot','windir','PATH','PATHEXT','PSModulePath','TEMP','TMP',
@@ -67,7 +68,8 @@ function Start-R299MediumProcess {
     if($Purpose -eq 'SetupUpdate'){$script:R299MediumSetupUpdateLaunchCount++}
     else{$script:R299MediumCrashChildLaunchCount++}
     $script:R299MediumTokenSources.Add([string]$process.TokenSource)
-    Write-Host ('R299_MEDIUM_INTEGRITY_CHILD_TOKEN=PASS purpose='+$Purpose+' source='+$process.TokenSource+' pid='+$process.Id)
+    $script:R299MediumTokenCreationMethods.Add([string]$process.CreationMethod)
+    Write-Host ('R299_MEDIUM_INTEGRITY_CHILD_TOKEN=PASS purpose='+$Purpose+' source='+$process.TokenSource+' method='+$process.CreationMethod+' pid='+$process.Id)
     return $process
 }
 
@@ -362,7 +364,8 @@ AssertUnaffected
 # created under the verified same-user medium-integrity token.
 if($script:R299MediumSetupUpdateLaunchCount -ne 3 -or
    $script:R299MediumCrashChildLaunchCount -ne 1 -or
-   $script:R299MediumTokenSources.Count -ne 4){
+   $script:R299MediumTokenSources.Count -ne 4 -or
+   $script:R299MediumTokenCreationMethods.Count -ne 4){
  throw 'R299_MEDIUM_TOKEN_LAUNCH_COUNTS_UNEXPECTED'
 }
 'R299_MEDIUM_INTEGRITY_TOKEN_PROCESS_CREATION=PASS'
@@ -383,6 +386,7 @@ $receipt=[ordered]@{
  CrashFixtureProcessMediumIntegrity=$script:R299MediumCrashChildLaunchCount
  MediumTokenVerifiedForEveryChild=$true
  MediumTokenSources=@($script:R299MediumTokenSources.ToArray())
+ MediumTokenCreationMethods=@($script:R299MediumTokenCreationMethods.ToArray())
  TamperedPredecessorDiagnosticSHA256=$negativeDiagnosticSHA
  PersonalDeviceWasNotUsed=$true
  Utc=[DateTime]::UtcNow.ToString('o')
