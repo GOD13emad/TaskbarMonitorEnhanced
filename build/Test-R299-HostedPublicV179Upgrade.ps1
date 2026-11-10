@@ -15,9 +15,12 @@ if($PSVersionTable.PSEdition -cne 'Desktop' -or
 }
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 if((git -C $root rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R299_REFUSE_NONEXACT_COMMIT'}
-# The GitHub-hosted Windows workflow shell is elevated. Per-user Setup updates
-# must run with the same account's linked UAC-limited token, not the elevated
-# workflow token. This launcher verifies the actual child token before use.
+$diagnosticRoot=Join-Path $env:RUNNER_TEMP 'TBME_R126_STABLE_UPDATE'
+if(Test-Path $diagnosticRoot){throw 'R299_SETUP_DIAGNOSTIC_ROOT_PREEXISTS'}
+[IO.Directory]::CreateDirectory($diagnosticRoot)|Out-Null
+# The hosted workflow may run with a filtered medium token or a full elevated
+# token. Per-user Setup updates must always run at medium integrity: inherit an
+# already-medium parent token, or use its linked limited token when parent is elevated.
 $launcherPath=Join-Path $PSScriptRoot 'R299-MediumTokenLauncher.cs'
 if(!(Test-Path $launcherPath -PathType Leaf)){throw 'R299_MEDIUM_TOKEN_LAUNCHER_SOURCE_MISSING'}
 if(-not ('R299MediumTokenLauncher' -as [type])){
@@ -26,6 +29,7 @@ if(-not ('R299MediumTokenLauncher' -as [type])){
 
 $script:R299MediumSetupUpdateLaunchCount=0
 $script:R299MediumCrashChildLaunchCount=0
+$script:R299MediumTokenSources=New-Object 'System.Collections.Generic.List[string]'
 function New-R299MediumEnvironmentBlock {
     $names=@(
         'SystemRoot','windir','PATH','PATHEXT','PSModulePath','TEMP','TMP',
@@ -33,7 +37,8 @@ function New-R299MediumEnvironmentBlock {
         'ProgramFiles','ProgramFiles(x86)','ProgramData','OS','USERNAME','USERDOMAIN',
         'SESSIONNAME','PROCESSOR_ARCHITECTURE','NUMBER_OF_PROCESSORS','COMPUTERNAME',
         'GITHUB_ACTIONS','RUNNER_ENVIRONMENT','RUNNER_OS','GITHUB_REPOSITORY',
-        'GITHUB_RUN_ID','GITHUB_SHA','RUNNER_TEMP','GITHUB_WORKSPACE','RUNNER_TOOL_CACHE'
+        'GITHUB_RUN_ID','GITHUB_SHA','RUNNER_TEMP','GITHUB_WORKSPACE','RUNNER_TOOL_CACHE',
+        'TBME_UPDATE_DIAGNOSTIC_PHASE'
     )
     $entries=New-Object 'System.Collections.Generic.List[string]'
     foreach($name in $names){
@@ -60,7 +65,8 @@ function Start-R299MediumProcess {
     )
     if($Purpose -eq 'SetupUpdate'){$script:R299MediumSetupUpdateLaunchCount++}
     else{$script:R299MediumCrashChildLaunchCount++}
-    Write-Host ('R299_MEDIUM_INTEGRITY_CHILD_TOKEN=PASS purpose='+$Purpose+' pid='+$process.Id)
+    $script:R299MediumTokenSources.Add([string]$process.TokenSource)
+    Write-Host ('R299_MEDIUM_INTEGRITY_CHILD_TOKEN=PASS purpose='+$Purpose+' source='+$process.TokenSource+' pid='+$process.Id)
     return $process
 }
 
@@ -194,7 +200,18 @@ function AssertUnaffected {
  $run=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($runKey,$false)
  try{if($run.GetValue($startupName) -cne $startup){throw 'R299_STARTUP_PREFERENCE_CHANGED'}}finally{$run.Dispose()}
 }
+function Get-R299SetupFailureDiagnostic {
+ param([Parameter(Mandatory=$true)][string]$Phase)
+ $path=Join-Path $diagnosticRoot ('R129_DIAG_'+$Phase+'.txt')
+ if(!(Test-Path -LiteralPath $path -PathType Leaf)){
+  return ('R299_SETUP_DIAGNOSTIC_MISSING path='+$path)
+ }
+ return (Get-Content -LiteralPath $path -Raw)
+}
 function InvokeCandidateUpdate {
+ param([Parameter(Mandatory=$true)][ValidateSet('NEGATIVE_USER_EDIT','POSITIVE_OFFICIAL_STABLE','IDEMPOTENT')][string]$Phase)
+ $env:TBME_UPDATE_DIAGNOSTIC_PHASE=$Phase
+ $script:R299MediumEnvironmentBlock=New-R299MediumEnvironmentBlock
  $child=Start-R299MediumProcess -FileName $newSetup -ArgumentList @('/update','/quiet') -WorkingDirectory $env:RUNNER_TEMP -Purpose SetupUpdate
  try{
   if(!$child.WaitForExit(150000)){
@@ -210,8 +227,18 @@ $tamper=Join-Path $app 'Source/StudioThemes.cs'
 [IO.File]::AppendAllText($tamper,'R299_TAMPER_PROBE')
 $stateBefore=(Get-FileHash $state).Hash
 $mainBefore=(Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe')).Hash
-$code=InvokeCandidateUpdate
-if($code -ne 34){throw ('R299_TAMPERED_PREDECESSOR_NOT_REFUSED_EXIT_'+$code)}
+$code=InvokeCandidateUpdate -Phase NEGATIVE_USER_EDIT
+if($code -ne 34){$detail=Get-R299SetupFailureDiagnostic -Phase NEGATIVE_USER_EDIT;throw ('R299_TAMPERED_PREDECESSOR_NOT_REFUSED_EXIT_'+$code+'; '+$detail)}
+$negativeDiagnosticPath=Join-Path $diagnosticRoot 'R129_DIAG_NEGATIVE_USER_EDIT.txt'
+$negativeDiagnostic=Get-R299SetupFailureDiagnostic -Phase NEGATIVE_USER_EDIT
+if($negativeDiagnostic -notmatch 'R129_FAIL_CLOSED_DIAGNOSTIC' -or
+   $negativeDiagnostic -notmatch 'TEST_PHASE=NEGATIVE_USER_EDIT' -or
+   $negativeDiagnostic -notmatch [regex]::Escape('GIT_SHA='+$env:GITHUB_SHA) -or
+   $negativeDiagnostic -notmatch [regex]::Escape('Protected/edited/missing old program component Source/StudioThemes.cs; NO files changed.') -or
+   $negativeDiagnostic -match 'R385: per-user in-place update requires a non-elevated process'){
+ throw 'R299_TAMPER_NEGATIVE_SETUP_DIAGNOSTIC_INVALID_OR_ELEVATION_BLOCKED'
+}
+$negativeDiagnosticSHA=(Get-FileHash -LiteralPath $negativeDiagnosticPath -Algorithm SHA256).Hash
 if((Get-FileHash $state).Hash -cne $stateBefore -or
    (Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe')).Hash -cne $mainBefore){
  throw 'R299_TAMPER_REFUSAL_MODIFIED_MANAGED_PRODUCT'
@@ -244,6 +271,8 @@ if(!(Test-Path $childScript) -or (Test-Path $signal) -or (Test-Path ($signal+'.e
 }
 $trustedPowerShell=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell/v1.0/powershell.exe'
 if(!(Test-Path $trustedPowerShell)){throw 'R299_CRASH_CHILD_HOST_UNAVAILABLE'}
+$env:TBME_UPDATE_DIAGNOSTIC_PHASE=''
+$script:R299MediumEnvironmentBlock=New-R299MediumEnvironmentBlock
 $crashArguments=@(
  '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$childScript,
  '-CandidateSetup',$newSetup,'-App',$app,'-Signal',$signal,
@@ -290,8 +319,8 @@ try{
 }
 # The first genuine binary update below must replay the interrupted
 # COMMITTING stage to the official predecessor, then perform the upgrade.
-$code=InvokeCandidateUpdate
-if($code -ne 0){throw ('R299_OFFICIAL_179_TO_1710_REAL_SETUP_UPDATE_FAILED_EXIT_'+$code)}
+$code=InvokeCandidateUpdate -Phase POSITIVE_OFFICIAL_STABLE
+if($code -ne 0){$detail=Get-R299SetupFailureDiagnostic -Phase POSITIVE_OFFICIAL_STABLE;throw ('R299_OFFICIAL_179_TO_1710_REAL_SETUP_UPDATE_FAILED_EXIT_'+$code+'; '+$detail)}
 if(!(Test-Path (Join-Path $app 'TaskbarMonitorEnhanced.exe')) -or
    (Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe')).Hash -cne $expectedMain[0].SHA256 -or
    (Get-FileHash (Join-Path $app 'Uninstall.exe')).Hash -cne $expectedNew[0].SHA256){
@@ -319,9 +348,9 @@ if(Test-Path (Join-Path $app '.tbme-upgrade')){throw 'R299_CRASH_RECOVERY_LEFT_T
 $mainAfter=(Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe')).Hash
 $setupAfter=(Get-FileHash (Join-Path $app 'Uninstall.exe')).Hash
 $stateHashAfter=(Get-FileHash $state).Hash
-$code=InvokeCandidateUpdate
-if($code -ne 0 -or
-   (Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe')).Hash -cne $mainAfter -or
+$code=InvokeCandidateUpdate -Phase IDEMPOTENT
+if($code -ne 0){$detail=Get-R299SetupFailureDiagnostic -Phase IDEMPOTENT;throw ('R299_IDEMPOTENT_SECOND_UPDATE_FAILED_EXIT_'+$code+'; '+$detail)}
+if((Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe')).Hash -cne $mainAfter -or
    (Get-FileHash (Join-Path $app 'Uninstall.exe')).Hash -cne $setupAfter -or
    (Get-FileHash $state).Hash -cne $stateHashAfter){
  throw 'R299_SECOND_UPDATE_NOT_EXACT_IDEMPOTENT'
@@ -329,12 +358,13 @@ if($code -ne 0 -or
 AssertUnaffected
 'R299_HOSTED_EXACT_SECOND_UPDATE_IDEMPOTENT=PASS'
 # Every actual Setup /update invocation and the crash fixture must be
-# created under the verified same-user medium-integrity linked token.
+# created under the verified same-user medium-integrity token.
 if($script:R299MediumSetupUpdateLaunchCount -ne 3 -or
-   $script:R299MediumCrashChildLaunchCount -ne 1){
+   $script:R299MediumCrashChildLaunchCount -ne 1 -or
+   $script:R299MediumTokenSources.Count -ne 4){
  throw 'R299_MEDIUM_TOKEN_LAUNCH_COUNTS_UNEXPECTED'
 }
-'R299_MEDIUM_INTEGRITY_TOKEN_LINKED_PROCESS_CREATION=PASS'
+'R299_MEDIUM_INTEGRITY_TOKEN_PROCESS_CREATION=PASS'
 # Preserve a deterministic compact receipt, never emit user data.
 $receipt=[ordered]@{
  Status='PASS_ORIGINAL_PUBLIC_V179_TO_V1710_REAL_SETUP_UPDATE'
@@ -351,6 +381,8 @@ $receipt=[ordered]@{
  SetupUpdateProcessesMediumIntegrity=$script:R299MediumSetupUpdateLaunchCount
  CrashFixtureProcessMediumIntegrity=$script:R299MediumCrashChildLaunchCount
  MediumTokenVerifiedForEveryChild=$true
+ MediumTokenSources=@($script:R299MediumTokenSources.ToArray())
+ TamperedPredecessorDiagnosticSHA256=$negativeDiagnosticSHA
  PersonalDeviceWasNotUsed=$true
  Utc=[DateTime]::UtcNow.ToString('o')
 }

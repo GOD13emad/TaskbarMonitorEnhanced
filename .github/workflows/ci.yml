@@ -423,7 +423,7 @@ jobs:
           $published=Join-Path $env:RUNNER_TEMP 'R299_OFFICIAL_v1.7.9_SETUP.exe'
           $proof=@(& ./build/Test-R299-HostedPublicV179Upgrade.ps1 -OfficialSetup $published)
           foreach($mark in @(
-            'R299_MEDIUM_INTEGRITY_TOKEN_LINKED_PROCESS_CREATION=PASS',
+            'R299_MEDIUM_INTEGRITY_TOKEN_PROCESS_CREATION=PASS',
             'R299_HOSTED_TAMPERED_OFFICIAL_PREDECESSOR_REFUSED_BEFORE_MUTATION=PASS',
             'R299_HOSTED_ABRUPT_TWO_FILE_COMMITTING_RECOVERED_BY_REAL_SETUP=PASS',
             'R299_HOSTED_ORIGINAL_SETUP_OFFICIAL_179_TO_1710_INPLACE_UPGRADE=PASS',
@@ -438,6 +438,15 @@ jobs:
           New-Item -ItemType Directory -Path './artifacts' -Force|Out-Null
           Copy-Item -LiteralPath $receipt -Destination './artifacts/R299_PUBLIC179_HOSTED_UPGRADE_RECEIPT.json' -ErrorAction Stop
           $proof
+
+      - name: Upload R299 hosted Setup failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: r299-public-v179-failure-diagnostics
+          path: ${{ runner.temp }}/TBME_R126_STABLE_UPDATE/R129_DIAG_*.txt
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload original-PE official 1.7.9 upgrade receipt
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

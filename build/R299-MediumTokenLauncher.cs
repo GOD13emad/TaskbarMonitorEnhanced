@@ -1,5 +1,5 @@
-// R299 hosted-only test helper. Creates child processes using the same account's
-// linked UAC-limited token and verifies the actual child token is medium integrity.
+// R299 hosted-only test helper. Uses the current same-user medium token when
+// already unelevated, or the linked UAC-limited token when the parent is elevated.
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
@@ -9,11 +9,13 @@ public sealed class R299MediumProcess : IDisposable
 {
     private IntPtr _processHandle;
     public int Id { get; private set; }
+    public string TokenSource { get; private set; }
 
-    internal R299MediumProcess(IntPtr processHandle, uint processId)
+    internal R299MediumProcess(IntPtr processHandle, uint processId, string tokenSource)
     {
         _processHandle = processHandle;
         Id = checked((int)processId);
+        TokenSource = tokenSource;
     }
 
     private void EnsureOpen()
@@ -103,7 +105,6 @@ public static class R299MediumTokenLauncher
     private const int TokenImpersonationLevel = 9;
     private const int TokenElevationType = 18;
     private const int TokenLinkedToken = 19;
-    private const int TokenElevation = 20;
     private const int TokenIntegrityLevel = 25;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -155,6 +156,12 @@ public static class R299MediumTokenLauncher
     private static extern bool DuplicateTokenEx(IntPtr existingToken, uint desiredAccess,
         IntPtr tokenAttributes, int impersonationLevel, int tokenType, out IntPtr newToken);
 
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode, ExactSpelling = true)]
+    private static extern bool CreateProcessW(string applicationName, StringBuilder commandLine,
+        IntPtr processAttributes, IntPtr threadAttributes, bool inheritHandles, uint creationFlags,
+        IntPtr environment, string currentDirectory, ref STARTUPINFO startupInfo,
+        out PROCESS_INFORMATION processInformation);
+
     [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern bool CreateProcessWithTokenW(IntPtr token, uint logonFlags,
         string applicationName, StringBuilder commandLine, uint creationFlags,
@@ -176,10 +183,12 @@ public static class R299MediumTokenLauncher
     private static IntPtr QueryTokenBuffer(IntPtr token, int informationClass)
     {
         int required = 0;
-        GetTokenInformation(token, informationClass, IntPtr.Zero, 0, out required);
+        bool sizeQuerySucceeded = GetTokenInformation(token, informationClass, IntPtr.Zero, 0, out required);
         int firstError = Marshal.GetLastWin32Error();
-        if (required <= 0 || firstError != 122)
-            throw new Win32Exception(firstError, "R299_TOKEN_INFORMATION_SIZE_QUERY_FAILED_CLASS_" + informationClass);
+        if (required <= 0 || (!sizeQuerySucceeded && firstError != 122))
+            throw new Win32Exception(firstError,
+                "R299_TOKEN_INFORMATION_SIZE_QUERY_FAILED_CLASS_" + informationClass +
+                "_required=" + required + "_sizeQuerySucceeded=" + sizeQuerySucceeded);
 
         IntPtr buffer = Marshal.AllocHGlobal(required);
         if (!GetTokenInformation(token, informationClass, buffer, required, out required))
@@ -232,21 +241,22 @@ public static class R299MediumTokenLauncher
         finally { Marshal.FreeHGlobal(buffer); }
     }
 
-    private static void ValidateMediumToken(IntPtr token, string expectedUserSid, string label, bool requirePrimary)
+    private static void ValidateMediumToken(IntPtr token, string expectedUserSid, string label,
+        bool requirePrimary, int expectedElevationType)
     {
         int elevationType = ReadTokenInt(token, TokenElevationType);
-        int elevated = ReadTokenInt(token, TokenElevation);
         int tokenType = ReadTokenInt(token, TokenType);
         int impersonationLevel = tokenType == 2 ? ReadTokenInt(token, TokenImpersonationLevel) : 0;
         int integrityRid = ReadIntegrityRid(token);
         string userSid = ReadTokenUserSid(token);
         bool usableTokenType = tokenType == 1 || (!requirePrimary && tokenType == 2 && impersonationLevel >= 2);
         bool sameUser = String.Equals(userSid, expectedUserSid, StringComparison.OrdinalIgnoreCase);
-        if (elevationType != 3 || elevated != 0 || !usableTokenType || integrityRid != 0x2000 || !sameUser)
+        if (elevationType != expectedElevationType || !usableTokenType ||
+            integrityRid != 0x2000 || !sameUser)
         {
             throw new InvalidOperationException(
-                "R299_" + label + "_TOKEN_NOT_MEDIUM_LIMITED_SAME_USER" +
-                "_type=" + elevationType + "_elevated=" + elevated +
+                "R299_" + label + "_TOKEN_NOT_MEDIUM_SAME_USER" +
+                "_type=" + elevationType + "_expectedType=" + expectedElevationType +
                 "_tokenType=" + tokenType + "_impersonationLevel=" + impersonationLevel +
                 "_integrity=0x" + integrityRid.ToString("X") + "_sameUser=" + sameUser);
         }
@@ -291,28 +301,54 @@ public static class R299MediumTokenLauncher
         IntPtr parentToken = IntPtr.Zero;
         IntPtr linkedBuffer = IntPtr.Zero;
         IntPtr linkedToken = IntPtr.Zero;
+        IntPtr sourceToken = IntPtr.Zero;
         IntPtr primaryToken = IntPtr.Zero;
         IntPtr environment = IntPtr.Zero;
         PROCESS_INFORMATION processInfo = new PROCESS_INFORMATION();
+        string tokenSource = null;
+        int targetElevationType = 0;
+        bool createWithLinkedToken = false;
         try
         {
             if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, out parentToken))
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_OPEN_PARENT_TOKEN_FAILED");
-            if (ReadTokenInt(parentToken, TokenElevationType) != 2 ||
-                ReadTokenInt(parentToken, TokenElevation) != 1)
-                throw new InvalidOperationException("R299_PARENT_MUST_HAVE_FULL_UAC_ELEVATION_TOKEN");
 
+            int parentElevationType = ReadTokenInt(parentToken, TokenElevationType);
+            int parentIntegrityRid = ReadIntegrityRid(parentToken);
             string parentSid = ReadTokenUserSid(parentToken);
-            linkedBuffer = QueryTokenBuffer(parentToken, TokenLinkedToken);
-            linkedToken = Marshal.ReadIntPtr(linkedBuffer);
-            if (linkedToken == IntPtr.Zero) throw new InvalidOperationException("R299_LINKED_LIMITED_TOKEN_MISSING");
-            ValidateMediumToken(linkedToken, parentSid, "LINKED", false);
 
-            const uint requiredTokenAccess = TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY;
-            if (!DuplicateTokenEx(linkedToken, requiredTokenAccess, IntPtr.Zero,
-                2, 1, out primaryToken))
-                throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_DUPLICATE_LINKED_PRIMARY_TOKEN_FAILED");
-            ValidateMediumToken(primaryToken, parentSid, "DUPLICATED", true);
+            if (parentElevationType == 2 && parentIntegrityRid >= 0x3000)
+            {
+                linkedBuffer = QueryTokenBuffer(parentToken, TokenLinkedToken);
+                linkedToken = Marshal.ReadIntPtr(linkedBuffer);
+                if (linkedToken == IntPtr.Zero) throw new InvalidOperationException("R299_LINKED_LIMITED_TOKEN_MISSING");
+                ValidateMediumToken(linkedToken, parentSid, "LINKED", false, 3);
+                sourceToken = linkedToken;
+                targetElevationType = 3;
+                tokenSource = "LINKED_LIMITED_TOKEN";
+                createWithLinkedToken = true;
+            }
+            else if (parentElevationType == 3 || parentElevationType == 1)
+            {
+                ValidateMediumToken(parentToken, parentSid, "PARENT_MEDIUM", true, parentElevationType);
+                targetElevationType = parentElevationType;
+                tokenSource = "CURRENT_MEDIUM_TOKEN";
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    "R299_PARENT_TOKEN_CANNOT_PRODUCE_MEDIUM_CHILD_type=" + parentElevationType +
+                    "_integrity=0x" + parentIntegrityRid.ToString("X"));
+            }
+
+            if (createWithLinkedToken)
+            {
+                const uint requiredTokenAccess = TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY;
+                if (!DuplicateTokenEx(sourceToken, requiredTokenAccess, IntPtr.Zero,
+                    2, 1, out primaryToken))
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_DUPLICATE_LINKED_MEDIUM_PRIMARY_TOKEN_FAILED");
+                ValidateMediumToken(primaryToken, parentSid, "DUPLICATED", true, targetElevationType);
+            }
 
             string command = QuoteArgument(application);
             if (arguments != null)
@@ -329,24 +365,31 @@ public static class R299MediumTokenLauncher
             STARTUPINFO startup = new STARTUPINFO();
             startup.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO));
 
-            if (!CreateProcessWithTokenW(primaryToken, 1, application,
-                new StringBuilder(command), CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW,
-                environment, workingDirectory, ref startup, out processInfo))
-                throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_CREATE_PROCESS_WITH_LINKED_MEDIUM_TOKEN_FAILED");
+            StringBuilder mutableCommand = new StringBuilder(command);
+            uint creationFlags = CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW;
+            bool created = createWithLinkedToken
+                ? CreateProcessWithTokenW(primaryToken, 1, application, mutableCommand,
+                    creationFlags, environment, workingDirectory, ref startup, out processInfo)
+                : CreateProcessW(application, mutableCommand, IntPtr.Zero, IntPtr.Zero, false,
+                    creationFlags, environment, workingDirectory, ref startup, out processInfo);
+            if (!created)
+                throw new Win32Exception(Marshal.GetLastWin32Error(),
+                    createWithLinkedToken ? "R299_CREATE_PROCESS_WITH_LINKED_MEDIUM_TOKEN_FAILED" :
+                    "R299_CREATE_PROCESS_WITH_CURRENT_MEDIUM_TOKEN_FAILED");
 
             IntPtr childToken = IntPtr.Zero;
             try
             {
                 if (!OpenProcessToken(processInfo.hProcess, TOKEN_QUERY, out childToken))
                     throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_OPEN_CREATED_CHILD_TOKEN_FAILED");
-                ValidateMediumToken(childToken, parentSid, "CREATED_CHILD", true);
+                ValidateMediumToken(childToken, parentSid, "CREATED_CHILD", true, targetElevationType);
             }
             finally
             {
                 if (childToken != IntPtr.Zero) CloseHandle(childToken);
             }
 
-            R299MediumProcess result = new R299MediumProcess(processInfo.hProcess, processInfo.dwProcessId);
+            R299MediumProcess result = new R299MediumProcess(processInfo.hProcess, processInfo.dwProcessId, tokenSource);
             processInfo.hProcess = IntPtr.Zero;
             return result;
         }
