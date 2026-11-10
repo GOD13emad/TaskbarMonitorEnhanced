@@ -179,6 +179,37 @@ try{
   }
   Pass 'CANDIDATE_ONLY_INDEXED_NESTED_DIRECTORIES_CLEANED'
  }
+ # R379: refuse an untrusted junction before recursive enumeration beyond Stage.
+ if($Variant -eq 'candidate'){
+  $linked=Join-Path $root 'cleanup-junction-stage'
+  $outside=Join-Path $root 'cleanup-junction-external'
+  $rel='Docs/sub/proof.txt'
+  foreach($part in @('old','new')){
+   $folder=Join-Path (Join-Path $linked $part) 'Docs/sub'
+   [void][IO.Directory]::CreateDirectory($folder)
+   [IO.File]::WriteAllText((Join-Path $folder 'proof.txt'),'R379_INDEXED')
+  }
+  [void][IO.Directory]::CreateDirectory($outside)
+  $outsideFile=Join-Path $outside 'private-external-canary.txt'
+  [IO.File]::WriteAllText($outsideFile,'R379_EXTERNAL_UNTOUCHED')
+  $outsideHash=Sha $outsideFile
+  $junction=Join-Path (Join-Path $linked 'old') 'Docs/sub/outside-junction'
+  New-Item -ItemType Junction -Path $junction -Target $outside -ErrorAction Stop|Out-Null
+  try{
+   $preflightRefused=$false
+   try{[R377CleanupFixture]::Run($linked,$rel)}
+   catch [System.IO.IOException]{$preflightRefused=($_.Exception.Message -match 'reparse directory')}
+   if(!$preflightRefused -or !(Test-Path -LiteralPath $junction) -or !(Test-Path -LiteralPath $linked) -or (Sha $outsideFile) -cne $outsideHash){
+    throw 'R379_CANDIDATE_DID_NOT_REFUSE_JUNCTION_BEFORE_ENUMERATION'
+   }
+   Pass 'CANDIDATE_REPARSE_DIRECTORY_PREFLIGHT_BLOCKS_EXTERNAL_TRAVERSAL'
+  }finally{
+   if(Test-Path -LiteralPath $junction){
+    if(([IO.File]::GetAttributes($junction) -band [IO.FileAttributes]::ReparsePoint) -eq 0){throw 'R379_JUNCTION_IDENTITY_CHANGED'}
+    [IO.Directory]::Delete($junction,$false)
+   }
+  }
+ }
  $receiptRoot=if($HostedGuest){$env:RUNNER_TEMP}else{$env:TEMP}
  $dir=Join-Path $receiptRoot ('R370_'+$Variant+'_'+$HostLabel+'_'+[Guid]::NewGuid().ToString('N'))
  [void][IO.Directory]::CreateDirectory($dir)

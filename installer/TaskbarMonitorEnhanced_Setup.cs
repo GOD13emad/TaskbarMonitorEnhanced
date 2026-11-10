@@ -2473,14 +2473,29 @@ internal static partial class SetupProgram
                 }
             }
         }
-        foreach(string path in Directory.GetFiles(UpgradeRoot,"*",SearchOption.AllDirectories))
-            if(!known.Contains(Path.GetFullPath(path)))
-                throw new InvalidOperationException("Unknown file inside update stage; leave stage intact: "+path);
-        foreach(string path in Directory.GetDirectories(UpgradeRoot,"*",SearchOption.AllDirectories)){
-            if((File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0)
+        // R379: never descend across a junction before checking its identity.
+        // Recursive GetFiles traverses NTFS directory junctions to outside
+        // the stage before the old reparse-directory check could reject them.
+        // Enumerate one level at a time, validate every child, then descend.
+        Stack<string> pending=new Stack<string>();
+        pending.Push(stageRoot);
+        while(pending.Count!=0){
+            string directory=pending.Pop();
+            if((File.GetAttributes(directory)&FileAttributes.ReparsePoint)!=0)
                 throw new IOException("Unexpected upgrade stage reparse directory.");
-            if(!knownDirectories.Contains(Path.GetFullPath(path)))
-                throw new InvalidOperationException("Unknown directory inside update stage; leave stage intact: "+path);
+            foreach(string path in Directory.GetFiles(directory,"*",SearchOption.TopDirectoryOnly)){
+                if((File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0)
+                    throw new IOException("Unexpected upgrade stage reparse file.");
+                if(!known.Contains(Path.GetFullPath(path)))
+                    throw new InvalidOperationException("Unknown file inside update stage; leave stage intact: "+path);
+            }
+            foreach(string path in Directory.GetDirectories(directory,"*",SearchOption.TopDirectoryOnly)){
+                if((File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0)
+                    throw new IOException("Unexpected upgrade stage reparse directory.");
+                if(!knownDirectories.Contains(Path.GetFullPath(path)))
+                    throw new InvalidOperationException("Unknown directory inside update stage; leave stage intact: "+path);
+                pending.Push(path);
+            }
         }
         Directory.Delete(UpgradeRoot,true);
     }
