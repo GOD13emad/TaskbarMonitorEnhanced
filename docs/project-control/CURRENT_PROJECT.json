@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R391",
-  "Status": "R391_RESTRICTED_MEDIUM_CRASH_CONSOLE_FLAG_FIX_LOCAL_PASS_EXACT_HEAD_CI_PENDING",
-  "UpdatedUtc": "2026-11-10T14:30:15.3812784Z",
+  "CurrentEngineeringRevision": "R392",
+  "Status": "R392_R299_TYPED_PROCESS_OUTPUT_FIX_LOCAL_PASS_HOSTED_CI_PENDING_REVIEW_REQUIRED",
+  "UpdatedUtc": "2026-11-10T14:38:47.6904126Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -122,10 +122,10 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "R391 hosted R299 must prove the restricted-Medium PowerShell crash fixture initializes without CREATE_NO_WINDOW, emits startup and COMMITTING receipts, is forcibly terminated, then real official v1.7.9-to-v1.7.10 Setup performs recovery, preserves canaries and is idempotent. Keep Setup/R385 security code unchanged; merge blocked on full exact-head CI and independent human review.",
-  "MainBlocker": "R390 exact-head R299 failed before crash-child script startup with NTSTATUS 0xC0000142 STATUS_DLL_INIT_FAILED; all 29 other checks passed. R391 scoped console-creation correction is locally validated, hosted acceptance pending; PR #98 still has no independent human review.",
+  "CriticalPath": "R392 must remove success-stream contamination from the R299 process wrapper, then prove on exact-head Windows CI that restricted-Medium PowerShell starts, arms COMMITTING, is killed, and real public v1.7.9-to-v1.7.10 Setup recovers, preserves canaries and remains idempotent. Keep PR #98 unmerged until 100% required checks and independent human review.",
+  "MainBlocker": "R391 hosted R299 failed on PowerShell wrapper output pollution: a PASS marker string caused $crashChild to be an array and .Dispose() failed. R392 has local isolated mock proof of the single-object result; hosted real R299 acceptance remains unproven, and human review is absent.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Commit/push R391 and inspect exact-head R299 child console/startup/arm proof, full Setup recovery/update/idempotence receipt and R360 regressions. If R299 still fails, use first evidenced failure boundary for the next bounded fix. Do not merge PR #98 without human security review.",
+  "ExactNextAction": "Commit/push R392 single-process-return fix, inspect exact-head R299 startup/arm/recovery/update/idempotence and complete R360 stress. Only proceed to merge after full CI and independent human review; do not alter owner installation or public release.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2051,12 +2051,76 @@
       "GitDiffCheck": "PASS",
       "DirectConsoleChildOnOwner": "NOT_RUN_TO_AVOID_OWNER_VISIBLE_CONSOLE"
     },
-    "HostedCI": "NOT_YET_RUN_FOR_R391",
+    "HostedCI": {
+      "ExactHead": "ad6179fba3d86fc8940c0a2308181b6d3133fe48",
+      "BuildAndVerification": {
+        "Run": 42835087137,
+        "Status": "FAILURE",
+        "Jobs": 4,
+        "Passed": 3,
+        "Failed": 1,
+        "FailedJobId": 129897085655,
+        "Failure": "The R299 wrapper accidentally emitted the literal crash-console CI PASS marker on its success output stream alongside the R299HostedProcess object; the caller assigned the resulting string+object array to $crashChild. The first .Dispose() on that value raised 'System.String does not contain a method named Dispose'. No valid crash/COMMITTING acceptance followed."
+      },
+      "R299ChildTokens": {
+        "SetupUpdate": "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT",
+        "CrashChild": "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT",
+        "Integrity": "0x2000",
+        "AdministratorsEnabled": false,
+        "CrashConsoleAllowed": true
+      },
+      "R360Push": {
+        "Run": 42835076925,
+        "Status": "IN_PROGRESS"
+      },
+      "PullRequestChecks": {
+        "Total": 30,
+        "Passed": 27,
+        "Failed": 1,
+        "InProgress": 2
+      }
+    },
     "R385GuardChanged": false,
     "ProductionSetupChanged": false,
     "OwnerInstallChanged": false,
     "PublicReleaseChanged": false,
     "MergePerformed": false,
-    "Limit": "Hosted run must prove crash-child startup, actual COMMITTING arm, forced kill, real Setup rollback/replay, canaries and exact second-update idempotence. Local compilation alone does not close R299 or permit merge."
+    "Limit": "The trusted console-only crash-child launch reached the PowerShell wrapper but the wrapper's PASS marker contaminated its object return value. This masks the actual child outcome; R391 does not prove DLL initialization was fixed, crash staging, real COMMITTING recovery or idempotence. R392 fixes only PowerShell success-stream pollution.",
+    "ImplementationCommit": "ad6179fba3d86fc8940c0a2308181b6d3133fe48"
+  },
+  "R392": {
+    "Revision": "R392",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "BaseCommit": "ad6179fba3d86fc8940c0a2308181b6d3133fe48",
+    "Objective": "Preserve the process-returning PowerShell wrapper's single typed R299HostedProcess result; emit the console-flag CI marker only at top-level after verifying its result type and ConsoleAllowed true.",
+    "FailureEvidence": {
+      "HostedRun": 42835087137,
+      "Job": 129897085655,
+      "Status": "FAIL_BEFORE_COMMITTING_ACCEPTANCE",
+      "Message": "[System.String] does not contain a method named Dispose",
+      "Cause": "A literal R299_HOSTED_CRASH_CHILD_CONSOLE_ALLOWED=PASS string was emitted on Start-R299HostedProcess's success output stream, making $crashChild an array instead of a typed process."
+    },
+    "Changes": [
+      "Remove CI marker from Start-R299HostedProcess function success stream.",
+      "After assigning $crashChild, assert it is exactly a R299HostedProcess with ConsoleAllowed true, then emit the expected CI marker at top-level script only."
+    ],
+    "Files": [
+      "build/Test-R299-HostedPublicV179Upgrade.ps1"
+    ],
+    "LocalValidation": {
+      "WindowsPowerShell51ASTParse": "PASS",
+      "MockedWrapperSetupUpdateTypedSingleObject": "PASS",
+      "MockedWrapperCrashChildTypedSingleObject": "PASS",
+      "PurposeBoundConsoleFlag": "PASS",
+      "NoOperatingSystemChildDuringMock": "PASS",
+      "GitDiffCheck": "PASS"
+    },
+    "HostedCI": "NOT_YET_RUN_FOR_R392",
+    "SecurityAssertions": "Unchanged: same-user verified Medium token, restricted Administrators, strict disposable runner gate, R385 Setup elevation guard and full R299 binary/update/recovery/canary/idempotence assertions.",
+    "ProductSetupChanged": false,
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "Mock test verifies output-stream typing only. GitHub-hosted R299 must still prove crash child startup, COMMITTING arm, real Setup recovery and idempotence. No independent human review for PR #98."
   }
 }

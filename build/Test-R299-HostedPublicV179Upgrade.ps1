@@ -83,7 +83,6 @@ function Start-R299HostedProcess {
      $process.Dispose()
      throw 'R299_CHILD_CONSOLE_FLAG_NOT_STRICTLY_SCOPED'
     }
-    if($Purpose -ceq 'CrashChild'){'R299_HOSTED_CRASH_CHILD_CONSOLE_ALLOWED=PASS'}
     $script:R299HostedTokenSources.Add([string]$process.TokenSource)
     $script:R299HostedTokenCreationMethods.Add([string]$process.CreationMethod)
     $script:R299HostedTokenElevationTypes.Add([int]$process.TokenElevationType)
@@ -313,6 +312,10 @@ $crashArguments=@(
  '-ExpectedNewMainSha',[string]$expectedMain[0].SHA256
 )
 $crashChild=Start-R299HostedProcess -FileName $trustedPowerShell -ArgumentList $crashArguments -WorkingDirectory $env:RUNNER_TEMP -Purpose CrashChild
+if($crashChild -isnot [R299HostedProcess] -or !$crashChild.ConsoleAllowed){
+ throw 'R299_CRASH_CHILD_LAUNCH_MUST_RETURN_SINGLE_CONSOLE_ENABLED_PROCESS'
+}
+'R299_HOSTED_CRASH_CHILD_CONSOLE_ALLOWED=PASS'
 try{
  $armed=$false
  for($probe=0;$probe -lt 130;$probe++){

@@ -1,3 +1,12 @@
+## R392 — R299 PowerShell wrapper success-stream pollution — one typed process object proven locally; hosted pending
+
+- R391 exact-head Build/Verification [42835087137](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42835087137) completed 3/4 (build/R298/R300 PASS; only R299 FAIL). Hosted R299 verified SetupUpdate and CrashChild are launched via CreateProcessAsUser with same-user restricted Medium token (0x2000, Administrators disabled); crash child used `consoleAllowed=True` after the scoped CREATE_NO_WINDOW removal. The previous 0xC0000142 was not logged in this attempt, but crash-child script startup/COMMITTING were not proven.
+- Precise R391 failure: `Start-R299HostedProcess` returned the literal `R299_HOSTED_CRASH_CHILD_CONSOLE_ALLOWED=PASS` on its PowerShell success stream in addition to `R299HostedProcess`. Assignment to `$crashChild` created a string+process array, so `$crashChild.Dispose()` failed with `[System.String] does not contain a method named Dispose`. This is a test harness return-type defect introduced in R391, not evidence of a product Setup failure.
+- R392 objective: remove only the CI marker from the process-returning function; after the top-level `$crashChild=Start-R299HostedProcess` assignment, require `$crashChild -is [R299HostedProcess]` with `ConsoleAllowed` true, then emit the required `R299_HOSTED_CRASH_CHILD_CONSOLE_ALLOWED=PASS` marker on the script's top-level success stream. No other code changes or acceptance weakening.
+- Local validation PASS: Windows PowerShell 5.1 AST parse; source-extracted `Start-R299HostedProcess` function executed with a harmless mocked `R299HostedTokenLauncher.Start` returning a simulated process (no real OS child). Both SetupUpdate and CrashChild returned exactly one typed `R299HostedProcess`; purpose-to-console boolean and invocation counters matched; git diff --check PASS. This proof validates output-stream behavior only, not hosted process execution.
+- Hosted R391 R360 push [42835076925](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42835076925) was still running when recorded; the latest R391 PR checks had 27 PASS, 1 FAIL (R299), 2 running. R390 had 29/30 PASS and the prior NTSTATUS failure; its diagnostics remain preserved. Product Setup, R385 security guard, owner installed app/config and public v1.7.10 release unchanged. PR #98 open/unmerged with zero independent human security reviews.
+- Next: commit/push R392 exact head, inspect real R299 crash fixture startup/COMMITTING, forced terminate, official Setup recovery/update, canary preservation and exact second-update idempotence. Do not equate the local mocked return test with end-to-end PASS.
+
 ## R391 — fix restricted-Medium console child startup without relaxing Setup security — local checks PASS, hosted pending
 
 - R390 exact-head Build/Verification [42833174560](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42833174560) finished 3/4 (build, R298, R300 PASS; only R299 FAIL). Exact-head PR/push total: 29/30 SUCCESS including R360 [42833157723](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42833157723) on Windows Server 2022/2025. The official public v1.7.9 Setup SHA, exact predecessor pins and modified StudioThemes.cs fail-closed negative passed. R299 created verified same-user restricted Medium children for Setup and CrashChild via CreateProcessAsUser; both tokens had integrity 0x2000 with Administrators disabled.
@@ -1517,29 +1526,4 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 ## R35 / v1.4.0 WINDOWS INTEGRATION & ACCESSIBILITY — 2026-10-02
 
 - Search/audit-driven scope focused on Windows integration, accessibility, update security and diagnostics rather than adding unrelated feature volume.
-- PerMonitorV2 DPI is supplied through deployed `TaskbarMonitorEnhanced.exe.config`; dedicated CI provenance attests that runtime configuration.
-- Taskbar target policy supports primary/discovered secondary taskbars, shares one selector across placement/recovery/shell paths and falls back safely to primary when a configured target disappears.
-- Current host inventory: one 3440×1440 monitor at 96 DPI and one `Shell_TrayWnd`; physical two-monitor proof is unavailable and explicitly not claimed.
-- Follow-Windows light/dark maps Windows app appearance to user-selected built-in themes and reacts to user-preference notifications.
-- High Contrast uses Windows system colors. Settings proof checks 143 controls with zero style gaps.
-- Accessibility metadata proof checks 67 interactive controls with zero accessible-name gaps; Ctrl+1…Ctrl+9, Ctrl+S and F5 shortcuts are supported.
-- Automatic update acceptance now requires canonical repository tag/release/setup URLs, blocks draft/prerelease/reparse-point installers and re-hashes the installer immediately before launch.
-- Process DLL search is hardened with `SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)`.
-- Privacy-safe `last_crash.json` redacts user-profile/TBME data paths and is included in user-initiated support bundles when present.
-- Candidate suite 9/9 PASS; post-install suite 10/10 PASS; health/shell/Start/hardware/temperature regression PASS.
-- Exact release commit `924b9bd140b531733c08ca6297d3f8beedc8bb18`; release branch CI `36998041954`; main CI `37000835504`; both SUCCESS.
-- GitHub Release id `401760081`; immutable/latest; seven assets; Setup SHA256 `7d528911113c6be86a42aa6174957d85367d5b8d8f607c66f46d6e42e349fd6a`.
-- Product DoD: COMPLETE / FINAL_PUBLIC_RELEASE_ACCEPTED.
-- Temporary release branch `release/v1.4.0-r35` was deleted after ancestor guard PASS; remote branch surface is now only `main`. This documentation/evidence commit is the final repository mutation for v1.4.0. Its exact-head CI is the final external control verifier; once green, no further v1.4.0 mutation is required.
-
-
-## R36 / v1.5.0 ACTIONABLE ALERTS & SESSION EXPORT — CANDIDATE
-
-- Previous accepted state: immutable v1.4.0 public release on main.
-- Current delta: Main/UI-only candidate adds optional temperature notifications with 3 C hysteresis + 10-minute lane cooldown, bounded 3,600-sample session CSV export, and Open Task Manager quick action.
-- Protected sensor authority unchanged: Broker 1.1.2+r21; Supervisor 1.3.0+r33; no sensor source mutation in R36.
-- Benchmark/method choice: existing WinForms NotifyIcon is reused per Microsoft platform documentation; no Windows App SDK dependency or plugin framework added because those would increase architecture/deployment cost without being required for the identified gap.
-- Pre-commit gates: app compile 0 warnings/0 errors PASS; selftest PASS; feature-contract selftest PASS; full Build.ps1 -NoDownload PASS and Setup 1.5.0 produced.
-- Determinism pre-commit run: INVALID/EXPECTED FAIL because verifier clones committed HEAD (v1.4.0) while R36 was uncommitted. Root cause confirmed; rerun required after candidate commit.
-- Current Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
-- Open gates: exact-commit determinism, candidate proof su
+- PerMoni
