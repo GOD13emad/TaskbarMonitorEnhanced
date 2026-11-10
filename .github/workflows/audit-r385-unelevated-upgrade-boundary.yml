@@ -1,0 +1,87 @@
+name: R385 unelevated per-user upgrade boundary (disposable Windows)
+
+on:
+  push:
+    branches: [security/r347-r349-helper-hardening-v1710]
+    paths:
+      - installer/TaskbarMonitorEnhanced_Setup.cs
+      - build/Test-R385-ElevatedUpgradeBoundary.ps1
+      - .github/workflows/audit-r385-unelevated-upgrade-boundary.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - installer/TaskbarMonitorEnhanced_Setup.cs
+      - build/Test-R385-ElevatedUpgradeBoundary.ps1
+      - .github/workflows/audit-r385-unelevated-upgrade-boundary.yml
+
+permissions:
+  contents: read
+
+jobs:
+  elevated-upgrade-boundary:
+    name: R385 ${{ matrix.variant }} ${{ matrix.host }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [baseline, candidate]
+        host: [A, B]
+        include:
+          - host: A
+            os: windows-2025
+          - host: B
+            os: windows-2022
+    steps:
+      - name: Checkout exact current R385 test harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: harness
+          persist-credentials: false
+
+      - name: Checkout exact vulnerable baseline or candidate source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ matrix.variant == 'baseline' && 'f59e1dcf410b97cf16350bc385b4fcbedbf3b093' || github.event.pull_request.head.sha || github.sha }}
+          path: src
+          persist-credentials: false
+
+      - name: Verify disposable Windows and pinned commits
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $expected='${{ matrix.variant == 'baseline' && 'f59e1dcf410b97cf16350bc385b4fcbedbf3b093' || github.event.pull_request.head.sha || github.sha }}'
+          $harnessExpected='${{ github.event.pull_request.head.sha || github.sha }}'
+          if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_OS -cne 'Windows' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID' -or
+             (git -C src rev-parse HEAD).Trim() -cne $expected -or
+             (git -C harness rev-parse HEAD).Trim() -cne $harnessExpected){
+            throw 'R385_NOT_PINNED_DISPOSABLE_WINDOWS'
+          }
+          if(Test-Path -LiteralPath (Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced')){
+            throw 'R385_EXISTING_REAL_INSTALL_REFUSED'
+          }
+          Write-Host ('R385_EXACT_SOURCE_COMMIT='+$expected)
+
+      - name: Execute exact-source elevated-update boundary regression
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $ps=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
+          $script=(Resolve-Path harness/build/Test-R385-ElevatedUpgradeBoundary.ps1).Path
+          $src=(Resolve-Path src).Path
+          $expected='${{ matrix.variant == 'baseline' && 'f59e1dcf410b97cf16350bc385b4fcbedbf3b093' || github.event.pull_request.head.sha || github.sha }}'
+          & $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -HostedGuest -HostLabel '${{ matrix.host }}' -Variant '${{ matrix.variant }}' -SourceRoot $src -ExpectedSourceCommit $expected
+          if($LASTEXITCODE -ne 0){throw 'R385_ELEVATED_UPGRADE_BOUNDARY_NOT_ACCEPTED'}
+
+      - name: Retain typed guest receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R385-${{ matrix.variant }}-${{ matrix.host }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/R385_*/R385_UPGRADE_BOUNDARY.json
+          if-no-files-found: warn
+          retention-days: 7

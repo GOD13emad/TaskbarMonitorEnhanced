@@ -1130,6 +1130,29 @@ static string AppExe { get { return Path.Combine(AppRoot,"TaskbarMonitorEnhanced
         }
         catch{return false;}
     }
+    // R385: per-user upgrade cleanup must never run from a UAC-elevated
+    // Setup process. AppRoot is user-writable; path-based reparse preflights
+    // cannot make a concurrent same-user directory replacement atomic.
+    // UAC-disabled systems have no separate medium/high token boundary.
+    static bool IsUacEnabled()
+    {
+        try
+        {
+            using(RegistryKey hive=RegistryKey.OpenBaseKey(RegistryHive.LocalMachine,RegistryView.Registry64))
+            using(RegistryKey key=hive.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",false))
+            {
+                object value=key==null?null:key.GetValue("EnableLUA");
+                return value==null || Convert.ToInt32(value)!=0;
+            }
+        }
+        catch{return true;}
+    }
+
+    static bool IsElevatedUpdateContext()
+    {
+        return IsUacEnabled() && IsCurrentProcessElevated();
+    }
+
 
     static SensorOutcome Install(bool desktop,bool startup)
     {
@@ -2642,6 +2665,10 @@ internal static partial class SetupProgram
 
     static SensorOutcome UpgradeExisting()
     {
+        // R385: only the unelevated per-user Setup may recover or clean this
+        // user-writable stage. The optional sensor helper is elevated separately.
+        if(IsElevatedUpdateContext())
+            throw new InvalidOperationException("In-place upgrades must run without elevation while UAC is enabled; start Setup normally. Only the protected sensor helper requests elevation.");
         if(!Directory.Exists(AppRoot))throw new InvalidOperationException("Canonical user app root missing; /update cannot create a second installation.");
         CheckNoReparse(AppRoot);
         // Recovery must run before AppExe identity checks: an interrupted file swap
