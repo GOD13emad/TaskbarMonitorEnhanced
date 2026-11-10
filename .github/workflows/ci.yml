@@ -92,6 +92,24 @@ jobs:
           }
           $proof
 
+      - name: R399 real compiled Explorer folder arguments remain one quoted path
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R399-ExplorerFolderArgs.ps1 -AppPath ./build/_out/App/TaskbarMonitorEnhanced.exe -SourceRoot . -HostedGuest)
+          foreach($mark in @(
+            'R399_PASS_COMPILED_EXPLORER_ABSOLUTE_AND_QUOTED',
+            'R399_PASS_NATIVE_DOTNET_ARGUMENT_SINGLE_PATH',
+            'R399_PASS_RELATIVE_FOLDER_REJECTED',
+            'R399_PASS_QUOTE_INJECTION_REJECTED',
+            'R399_PASS_MISSING_FOLDER_REJECTED',
+            'R399_PASS_THREE_UI_FOLDER_CALLS_PINNED',
+            'R399_PASS_NO_REAL_EXPLORER_LAUNCHED',
+            'R399_RESULT=PASS_SCOPED_EXPLORER_FOLDER_ARG_QUOTING'
+          )){
+            if($proof -cnotcontains $mark){throw ('R399_MISSING_NATIVE_EXPLORER_PROOF_'+$mark)}
+          }
+          $proof
       # R298: this compiles the actual PE-embedded cleanup source, then
       # invokes the pin/delete primitive ONLY on a freshly created Temp fixture.
       # It never invokes the owner uninstall or alters an installed product.

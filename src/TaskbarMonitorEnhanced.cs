@@ -75,6 +75,38 @@ namespace TaskbarMonitorEnhanced
         public static readonly string Log = Path.Combine(Logs, "tbme_csharp_" + DateTime.Now.ToString("yyyyMMdd") + ".log");
     }
 
+    internal static class ExplorerFolderLauncher
+    {
+        // .NET Framework ProcessStartInfo.Arguments is a single command-line
+        // string. Preserve one folder argument even when a profile has spaces.
+        internal static ProcessStartInfo BuildStartInfo(string folder)
+        {
+            if(String.IsNullOrWhiteSpace(folder)||folder.IndexOf('"')>=0||
+               !Path.IsPathRooted(folder))
+                throw new InvalidDataException("Explorer folder path is invalid.");
+            string full=Path.GetFullPath(folder);
+            if(!Directory.Exists(full))
+                throw new DirectoryNotFoundException("Explorer folder is missing.");
+            string windows=Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            if(String.IsNullOrWhiteSpace(windows))
+                throw new InvalidOperationException("Windows directory is unavailable.");
+            string explorer=Path.Combine(windows,"explorer.exe");
+            if(!File.Exists(explorer))
+                throw new FileNotFoundException("Windows Explorer is unavailable.",explorer);
+            ProcessStartInfo psi=new ProcessStartInfo();
+            psi.FileName=explorer;
+            psi.Arguments="\""+full+"\"";
+            psi.UseShellExecute=false;
+            return psi;
+        }
+
+        internal static void Open(string folder)
+        {
+            Process p=Process.Start(BuildStartInfo(folder));
+            if(p!=null)p.Dispose();
+        }
+    }
+
     internal static class SensorSupervisorSelfHeal
     {
         public const int StartupGraceSeconds=90;
@@ -4486,7 +4518,7 @@ namespace TaskbarMonitorEnhanced
             updateMenuItem=new ToolStripMenuItem("Updates...");updateMenuItem.Click+=delegate{OpenSettings("Updates");};m.Items.Add(updateMenuItem);
             pauseMenuItem=new ToolStripMenuItem("Pause monitoring");pauseMenuItem.Click+=delegate{SetUserTelemetryPaused(!userTelemetryPaused);};m.Items.Add(pauseMenuItem);
             ToolStripMenuItem taskManager=new ToolStripMenuItem("Open Task Manager");taskManager.Click+=delegate{try{Process.Start(new ProcessStartInfo("taskmgr.exe"){UseShellExecute=true});Log.Write("INFO","TASK_MANAGER_OPEN");}catch(Exception ex){Log.Write("WARN","TASK_MANAGER_OPEN_FAIL "+ex.Message);}};m.Items.Add(taskManager);
-            ToolStripMenuItem logs=new ToolStripMenuItem("Open Logs"); logs.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Logs);}catch{}}; m.Items.Add(logs);
+            ToolStripMenuItem logs=new ToolStripMenuItem("Open Logs"); logs.Click+=delegate{try{ExplorerFolderLauncher.Open(AppPaths.Logs);}catch{}}; m.Items.Add(logs);
             m.Items.Add(new ToolStripSeparator());
             ToolStripMenuItem exit=new ToolStripMenuItem("Exit"); exit.Click+=delegate{UserExitRequested=true;Close();}; m.Items.Add(exit);
             return m;
@@ -7441,14 +7473,14 @@ namespace TaskbarMonitorEnhanced
             diagnosticsText=new TextBox();SetA11y(diagnosticsText,"Diagnostics report","Read-only runtime health and diagnostics report.");diagnosticsText.Location=new Point(24,72);diagnosticsText.Size=new Size(800,390);diagnosticsText.Multiline=true;diagnosticsText.ReadOnly=true;diagnosticsText.ScrollBars=ScrollBars.Both;diagnosticsText.WordWrap=false;diagnosticsText.Font=new Font("Cascadia Mono",9f);diagnostics.Controls.Add(diagnosticsText);
             refreshDiagnostics=new Button();refreshDiagnostics.Text="Refresh health";refreshDiagnostics.Location=new Point(24,24);refreshDiagnostics.Size=new Size(130,34);refreshDiagnostics.Click+=delegate{RefreshDiagnostics();};diagnostics.Controls.Add(refreshDiagnostics);
             saveDiagnostics=new Button();saveDiagnostics.Text="Save report...";saveDiagnostics.Location=new Point(168,24);saveDiagnostics.Size=new Size(130,34);saveDiagnostics.Click+=delegate{SaveDiagnosticsReport();};diagnostics.Controls.Add(saveDiagnostics);
-            openDataFolder=new Button();openDataFolder.Text="Open data folder";openDataFolder.Location=new Point(312,24);openDataFolder.Size=new Size(135,34);openDataFolder.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Root);}catch{}};diagnostics.Controls.Add(openDataFolder);
+            openDataFolder=new Button();openDataFolder.Text="Open data folder";openDataFolder.Location=new Point(312,24);openDataFolder.Size=new Size(135,34);openDataFolder.Click+=delegate{try{ExplorerFolderLauncher.Open(AppPaths.Root);}catch{}};diagnostics.Controls.Add(openDataFolder);
             repairSensors=new Button();repairSensors.Text="Repair protected sensors...";repairSensors.Location=new Point(461,24);repairSensors.Size=new Size(185,34);repairSensors.Click+=delegate{RepairProtectedSensors();};diagnostics.Controls.Add(repairSensors);
             healthBadge=new Label();healthBadge.Location=new Point(24,478);healthBadge.Size=new Size(205,34);healthBadge.TextAlign=ContentAlignment.MiddleCenter;healthBadge.Font=new Font("Segoe UI Semibold",9.3f,FontStyle.Bold);healthBadge.BorderStyle=BorderStyle.FixedSingle;healthBadge.Text="Health: checking...";diagnostics.Controls.Add(healthBadge);
             copyDiagnostics=new Button();copyDiagnostics.Text="Copy diagnostics";copyDiagnostics.Location=new Point(246,478);copyDiagnostics.Size=new Size(135,34);copyDiagnostics.Click+=delegate{CopyDiagnosticsToClipboard();};diagnostics.Controls.Add(copyDiagnostics);
             exportSupportBundle=new Button();exportSupportBundle.Text="Export support ZIP...";exportSupportBundle.Location=new Point(396,478);exportSupportBundle.Size=new Size(165,34);exportSupportBundle.Click+=delegate{ExportSupportBundleZip();};diagnostics.Controls.Add(exportSupportBundle);
             exportSessionCsv=new Button();exportSessionCsv.Text="Export session CSV...";SetA11y(exportSessionCsv,"Export session CSV","Export the bounded in-memory telemetry history for this application session as CSV.");exportSessionCsv.Location=new Point(576,478);exportSessionCsv.Size=new Size(165,34);exportSessionCsv.Click+=delegate{ExportSessionCsvFile();};diagnostics.Controls.Add(exportSessionCsv);
 
-            Button openLog=new Button();openLog.Text="Open Logs";openLog.Location=new Point(24,28);openLog.Width=120;openLog.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Logs);}catch{}};advanced.Controls.Add(openLog);
+            Button openLog=new Button();openLog.Text="Open Logs";openLog.Location=new Point(24,28);openLog.Width=120;openLog.Click+=delegate{try{ExplorerFolderLauncher.Open(AppPaths.Logs);}catch{}};advanced.Controls.Add(openLog);
             resetDefaults=new Button();resetDefaults.Text="Load safe defaults...";resetDefaults.Location=new Point(24,78);resetDefaults.Size=new Size(155,34);resetDefaults.Click+=delegate{ResetControlsToSafeDefaults();};advanced.Controls.Add(resetDefaults);
             Label note=new Label();note.AutoSize=false;note.Location=new Point(24,138);note.Size=new Size(690,300);note.Text="Startup resilience uses dual per-user registration plus continuous low-pressure self-heal. Protected sensors remain process-isolated. Safe reset creates a timestamped config backup, loads defaults into this form, and does not change the running monitor until Save & Apply.";advanced.Controls.Add(note);
 
