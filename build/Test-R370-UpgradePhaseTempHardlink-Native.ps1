@@ -210,6 +210,59 @@ try{
    }
   }
  }
+ # R383_POSTSCAN_UNKNOWN_FILE_DELTA: extract exact old and current production
+ # CleanOwnedStage methods. Inject a canary ONLY into disposable test method
+ # after its preflight loop: model an unindexed late writer deterministically.
+ # The production source has no test hook and the owner app is never touched.
+ if($Variant -eq 'candidate'){
+  $oldCommit='5dd6bd9919656b63b0db45b74d34ff8221ee018e'
+  $oldLines=@(git -C $source show ($oldCommit+':installer/TaskbarMonitorEnhanced_Setup.cs') 2>&1)
+  if($LASTEXITCODE -ne 0){throw 'R383_PINNED_R379_SOURCE_UNAVAILABLE'}
+  $oldSource=$oldLines -join [Environment]::NewLine
+  $oldMatch=[regex]::Match($oldSource,'(?s)    static void CleanOwnedStage\(List<StageEntry> rows\)\r?\n    \{.*?\r?\n    \}\r?\n\s*static void RestoreInterruptedUpgrade')
+  if(!$oldMatch.Success -or [regex]::Matches($oldSource,'static void CleanOwnedStage\(').Count -ne 1){
+   throw 'R383_BASELINE_CLEANUP_METHOD_NOT_EXACT'
+  }
+  $oldMethod=$oldMatch.Value.Substring(0,$oldMatch.Value.IndexOf('    static void RestoreInterruptedUpgrade'))
+  $redAnchor='        Directory.Delete(UpgradeRoot,true);'
+  if([regex]::Matches($oldMethod,[regex]::Escape($redAnchor)).Count -ne 1){
+   throw 'R383_BASELINE_RECURSIVE_FINAL_DELETE_NOT_FOUND'
+  }
+  $canaryName='late-unindexed-after-scan.txt'
+  $testOnlyWrite='        File.WriteAllText(Path.Combine(UpgradeRoot,"late-unindexed-after-scan.txt"),"R383_UNKNOWN_LATE");'
+  $oldInjected=$oldMethod.Replace($redAnchor,$testOnlyWrite+[Environment]::NewLine+$redAnchor)
+  $oldFixture=$cleanupFixture.Replace('R377CleanupFixture','R383R379OldCleanupFixture').Replace($cleanMethod,$oldInjected)
+  Add-Type -TypeDefinition $oldFixture -ErrorAction Stop
+  $oldRoot=Join-Path $root 'r383-postscan-original-r379'
+  [void][IO.Directory]::CreateDirectory($oldRoot)
+  [IO.File]::WriteAllText((Join-Path $oldRoot 'owner.txt'),'R383_INDEXED_ONLY')
+  [R383R379OldCleanupFixture]::Run($oldRoot,'')
+  if(Test-Path -LiteralPath $oldRoot){throw 'R383_R379_NEGATIVE_CONTROL_DID_NOT_DELETE_LATE_UNKNOWN'}
+  Pass 'BASELINE_R379_POSTSCAN_UNKNOWN_FILE_RECURSIVELY_DELETED'
+
+  $safeAnchor='        foreach(string file in known){'
+  if([regex]::Matches($cleanMethod,[regex]::Escape($safeAnchor)).Count -ne 1 -or
+     $cleanMethod.Contains($redAnchor) -or
+     !$cleanMethod.Contains('            Directory.Delete(directory,false);')){
+   throw 'R383_CANDIDATE_EXACT_NONRECURSIVE_GUARD_NOT_FOUND'
+  }
+  $safeInjected=$cleanMethod.Replace($safeAnchor,$testOnlyWrite+[Environment]::NewLine+$safeAnchor)
+  $safeFixture=$cleanupFixture.Replace('R377CleanupFixture','R383SafeCleanupFixture').Replace($cleanMethod,$safeInjected)
+  Add-Type -TypeDefinition $safeFixture -ErrorAction Stop
+  $safeRoot=Join-Path $root 'r383-postscan-candidate'
+  [void][IO.Directory]::CreateDirectory($safeRoot)
+  [IO.File]::WriteAllText((Join-Path $safeRoot 'owner.txt'),'R383_INDEXED_ONLY')
+  $refused=$false
+  try{[R383SafeCleanupFixture]::Run($safeRoot,'')}
+  catch [System.IO.IOException]{$refused=$true}
+  $late=Join-Path $safeRoot $canaryName
+  if(!$refused -or !(Test-Path -LiteralPath $late) -or
+     [IO.File]::ReadAllText($late) -cne 'R383_UNKNOWN_LATE' -or
+     !(Test-Path -LiteralPath $safeRoot)){
+   throw 'R383_CANDIDATE_LATE_UNKNOWN_DELETION_OR_MISSING_REFUSAL'
+  }
+  Pass 'CANDIDATE_R383_POSTSCAN_UNKNOWN_FILE_PRESERVED_FAIL_CLOSED'
+ }
  $receiptRoot=if($HostedGuest){$env:RUNNER_TEMP}else{$env:TEMP}
  $dir=Join-Path $receiptRoot ('R370_'+$Variant+'_'+$HostLabel+'_'+[Guid]::NewGuid().ToString('N'))
  [void][IO.Directory]::CreateDirectory($dir)

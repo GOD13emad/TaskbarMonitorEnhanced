@@ -2497,7 +2497,29 @@ internal static partial class SetupProgram
                 pending.Push(path);
             }
         }
-        Directory.Delete(UpgradeRoot,true);
+        // R383: after the exact inventory, remove ONLY indexed entries.
+        // Recursive deletion would erase a foreign file/empty directory added
+        // after the preflight scan. Deleting only known files and then named
+        // EMPTY directories refuses late unknown members instead of wiping them.
+        // This is fail-closed preservation, not an atomic guard against a
+        // concurrent directory rename/reparse swap.
+        foreach(string file in known){
+            if(!File.Exists(file))continue;
+            if((File.GetAttributes(file)&FileAttributes.ReparsePoint)!=0)
+                throw new IOException("Upgrade cleanup refuses a changed reparse file.");
+            File.Delete(file);
+        }
+        List<string> deepestFirst=new List<string>(knownDirectories);
+        deepestFirst.Sort(delegate(string a,string b){
+            int length=b.Length.CompareTo(a.Length);
+            return length!=0?length:StringComparer.OrdinalIgnoreCase.Compare(a,b);
+        });
+        foreach(string directory in deepestFirst){
+            if(!Directory.Exists(directory))continue;
+            if((File.GetAttributes(directory)&FileAttributes.ReparsePoint)!=0)
+                throw new IOException("Upgrade cleanup refuses a changed reparse directory.");
+            Directory.Delete(directory,false);
+        }
     }
     static void RestoreInterruptedUpgrade(List<StageEntry> rows)
     {
