@@ -15,6 +15,55 @@ if($PSVersionTable.PSEdition -cne 'Desktop' -or
 }
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 if((git -C $root rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R299_REFUSE_NONEXACT_COMMIT'}
+# The GitHub-hosted Windows workflow shell is elevated. Per-user Setup updates
+# must run with the same account's linked UAC-limited token, not the elevated
+# workflow token. This launcher verifies the actual child token before use.
+$launcherPath=Join-Path $PSScriptRoot 'R299-MediumTokenLauncher.cs'
+if(!(Test-Path $launcherPath -PathType Leaf)){throw 'R299_MEDIUM_TOKEN_LAUNCHER_SOURCE_MISSING'}
+if(-not ('R299MediumTokenLauncher' -as [type])){
+ Add-Type -Path $launcherPath -ErrorAction Stop
+}
+
+$script:R299MediumSetupUpdateLaunchCount=0
+$script:R299MediumCrashChildLaunchCount=0
+function New-R299MediumEnvironmentBlock {
+    $names=@(
+        'SystemRoot','windir','PATH','PATHEXT','PSModulePath','TEMP','TMP',
+        'LOCALAPPDATA','APPDATA','USERPROFILE','HOMEDRIVE','HOMEPATH','COMSPEC',
+        'ProgramFiles','ProgramFiles(x86)','ProgramData','OS','USERNAME','USERDOMAIN',
+        'SESSIONNAME','PROCESSOR_ARCHITECTURE','NUMBER_OF_PROCESSORS','COMPUTERNAME',
+        'GITHUB_ACTIONS','RUNNER_ENVIRONMENT','RUNNER_OS','GITHUB_REPOSITORY',
+        'GITHUB_RUN_ID','GITHUB_SHA','RUNNER_TEMP','GITHUB_WORKSPACE','RUNNER_TOOL_CACHE'
+    )
+    $entries=New-Object 'System.Collections.Generic.List[string]'
+    foreach($name in $names){
+        $value=[Environment]::GetEnvironmentVariable($name)
+        if($null -ne $value){$entries.Add($name+'='+$value)}
+    }
+    $sorted=@($entries | Sort-Object { $_.Substring(0,$_.IndexOf('=')) })
+    return ([string]::Join([string][char]0,[string[]]$sorted)+[char]0+[char]0)
+}
+$script:R299MediumEnvironmentBlock=New-R299MediumEnvironmentBlock
+
+function Start-R299MediumProcess {
+    param(
+        [Parameter(Mandatory=$true)][string]$FileName,
+        [string[]]$ArgumentList=@(),
+        [Parameter(Mandatory=$true)][string]$WorkingDirectory,
+        [Parameter(Mandatory=$true)][ValidateSet('SetupUpdate','CrashChild')][string]$Purpose
+    )
+    $process=[R299MediumTokenLauncher]::Start(
+        [IO.Path]::GetFullPath($FileName),
+        [string[]]$ArgumentList,
+        [IO.Path]::GetFullPath($WorkingDirectory),
+        [string]$script:R299MediumEnvironmentBlock
+    )
+    if($Purpose -eq 'SetupUpdate'){$script:R299MediumSetupUpdateLaunchCount++}
+    else{$script:R299MediumCrashChildLaunchCount++}
+    Write-Host ('R299_MEDIUM_INTEGRITY_CHILD_TOKEN=PASS purpose='+$Purpose+' pid='+$process.Id)
+    return $process
+}
+
 $app=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
 $expectedLocal=Join-Path ([Environment]::GetFolderPath('UserProfile')) 'AppData/Local'
 if(-not [string]::Equals([IO.Path]::GetFullPath((Split-Path $app)),
@@ -146,14 +195,7 @@ function AssertUnaffected {
  try{if($run.GetValue($startupName) -cne $startup){throw 'R299_STARTUP_PREFERENCE_CHANGED'}}finally{$run.Dispose()}
 }
 function InvokeCandidateUpdate {
- $p=[Diagnostics.ProcessStartInfo]::new()
- $p.FileName=$newSetup
- $p.Arguments='/update /quiet'
- $p.WorkingDirectory=$env:RUNNER_TEMP
- $p.UseShellExecute=$false
- $p.CreateNoWindow=$true
- $child=[Diagnostics.Process]::Start($p)
- if(!$child){throw 'R299_UPDATE_PROCESS_NOT_CREATED'}
+ $child=Start-R299MediumProcess -FileName $newSetup -ArgumentList @('/update','/quiet') -WorkingDirectory $env:RUNNER_TEMP -Purpose SetupUpdate
  try{
   if(!$child.WaitForExit(150000)){
    try{$child.Kill();$child.WaitForExit(8000)|Out-Null}catch{}
@@ -202,19 +244,15 @@ if(!(Test-Path $childScript) -or (Test-Path $signal) -or (Test-Path ($signal+'.e
 }
 $trustedPowerShell=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell/v1.0/powershell.exe'
 if(!(Test-Path $trustedPowerShell)){throw 'R299_CRASH_CHILD_HOST_UNAVAILABLE'}
-$psi=[Diagnostics.ProcessStartInfo]::new()
-$psi.FileName=$trustedPowerShell
-$psi.WorkingDirectory=$env:RUNNER_TEMP
-$psi.UseShellExecute=$false
-$psi.CreateNoWindow=$true
-$psi.Arguments='-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "'+$childScript+
-  '" -CandidateSetup "'+$newSetup+'" -App "'+$app+'" -Signal "'+$signal+
-  '" -ExpectedSetupSha '+[string]$expectedNew[0].SHA256+
-  ' -ExpectedPriorSetupSha '+$publicSha+
-  ' -ExpectedPriorMainSha 04776E870A492733BBA33A550F732F5DB688A6585FC6533224A56687F1A6D88E'+
-  ' -ExpectedNewMainSha '+[string]$expectedMain[0].SHA256
-$crashChild=[Diagnostics.Process]::Start($psi)
-if(!$crashChild){throw 'R299_OWNED_CRASH_CHILD_NOT_STARTED'}
+$crashArguments=@(
+ '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$childScript,
+ '-CandidateSetup',$newSetup,'-App',$app,'-Signal',$signal,
+ '-ExpectedSetupSha',[string]$expectedNew[0].SHA256,
+ '-ExpectedPriorSetupSha',$publicSha,
+ '-ExpectedPriorMainSha','04776E870A492733BBA33A550F732F5DB688A6585FC6533224A56687F1A6D88E',
+ '-ExpectedNewMainSha',[string]$expectedMain[0].SHA256
+)
+$crashChild=Start-R299MediumProcess -FileName $trustedPowerShell -ArgumentList $crashArguments -WorkingDirectory $env:RUNNER_TEMP -Purpose CrashChild
 try{
  $armed=$false
  for($probe=0;$probe -lt 130;$probe++){
@@ -290,6 +328,13 @@ if($code -ne 0 -or
 }
 AssertUnaffected
 'R299_HOSTED_EXACT_SECOND_UPDATE_IDEMPOTENT=PASS'
+# Every actual Setup /update invocation and the crash fixture must be
+# created under the verified same-user medium-integrity linked token.
+if($script:R299MediumSetupUpdateLaunchCount -ne 3 -or
+   $script:R299MediumCrashChildLaunchCount -ne 1){
+ throw 'R299_MEDIUM_TOKEN_LAUNCH_COUNTS_UNEXPECTED'
+}
+'R299_MEDIUM_INTEGRITY_TOKEN_LINKED_PROCESS_CREATION=PASS'
 # Preserve a deterministic compact receipt, never emit user data.
 $receipt=[ordered]@{
  Status='PASS_ORIGINAL_PUBLIC_V179_TO_V1710_REAL_SETUP_UPDATE'
@@ -303,6 +348,9 @@ $receipt=[ordered]@{
  InterruptedCommitRecovered=$true
  UpgradePreservedUserCanaries=$true
  ExactSecondUpdateIdempotent=$true
+ SetupUpdateProcessesMediumIntegrity=$script:R299MediumSetupUpdateLaunchCount
+ CrashFixtureProcessMediumIntegrity=$script:R299MediumCrashChildLaunchCount
+ MediumTokenVerifiedForEveryChild=$true
  PersonalDeviceWasNotUsed=$true
  Utc=[DateTime]::UtcNow.ToString('o')
 }
