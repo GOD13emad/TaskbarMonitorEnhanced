@@ -1,30 +1,41 @@
-// R299 hosted-only test helper. Uses the current same-user medium token when
-// already medium, the linked UAC-limited token when Full/elevated, or a restricted
-// same-user medium token when the parent is Default/High (for UAC-disabled hosts).
+// R299 hosted-only test helper. Uses a verified same-user Medium token when UAC
+// is enabled, or preserves the same-user High administrator token only when UAC
+// is disabled (the product's explicitly supported compatibility path).
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
+using Microsoft.Win32;
 
-public sealed class R299MediumProcess : IDisposable
+public sealed class R299HostedProcess : IDisposable
 {
     private IntPtr _processHandle;
     public int Id { get; private set; }
     public string TokenSource { get; private set; }
     public string CreationMethod { get; private set; }
+    public int TokenElevationType { get; private set; }
+    public int TokenIntegrityRid { get; private set; }
+    public bool AdministratorsGroupEnabled { get; private set; }
+    public bool UacEnabled { get; private set; }
 
-    internal R299MediumProcess(IntPtr processHandle, uint processId, string tokenSource, string creationMethod)
+    internal R299HostedProcess(IntPtr processHandle, uint processId, string tokenSource,
+        string creationMethod, int tokenElevationType, int tokenIntegrityRid,
+        bool administratorsGroupEnabled, bool uacEnabled)
     {
         _processHandle = processHandle;
         Id = checked((int)processId);
         TokenSource = tokenSource;
         CreationMethod = creationMethod;
+        TokenElevationType = tokenElevationType;
+        TokenIntegrityRid = tokenIntegrityRid;
+        AdministratorsGroupEnabled = administratorsGroupEnabled;
+        UacEnabled = uacEnabled;
     }
 
     private void EnsureOpen()
     {
         if (_processHandle == IntPtr.Zero)
-            throw new ObjectDisposedException("R299MediumProcess");
+            throw new ObjectDisposedException("R299HostedProcess");
     }
 
     public bool HasExited
@@ -96,7 +107,7 @@ public sealed class R299MediumProcess : IDisposable
     private static extern bool CloseHandle(IntPtr handle);
 }
 
-public static class R299MediumTokenLauncher
+public static class R299HostedTokenLauncher
 {
     private const uint TOKEN_ASSIGN_PRIMARY = 0x0001;
     private const uint TOKEN_DUPLICATE = 0x0002;
@@ -346,6 +357,44 @@ public static class R299MediumTokenLauncher
         }
     }
 
+    private static bool IsUacEnabled()
+    {
+        try
+        {
+            using (RegistryKey hive = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+            using (RegistryKey key = hive.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System", false))
+            {
+                object value = key == null ? null : key.GetValue("EnableLUA");
+                return value == null || Convert.ToInt32(value) != 0;
+            }
+        }
+        catch
+        {
+            // Fail closed: unknown UAC state must never authorize a High token.
+            return true;
+        }
+    }
+
+    private static void ValidateUacDisabledAdminToken(IntPtr token, string expectedUserSid, string label)
+    {
+        int elevationType = ReadTokenInt(token, TokenElevationType);
+        int tokenType = ReadTokenInt(token, TokenType);
+        int integrityRid = ReadIntegrityRid(token);
+        string userSid = ReadTokenUserSid(token);
+        bool sameUser = String.Equals(userSid, expectedUserSid, StringComparison.OrdinalIgnoreCase);
+        bool adminEnabled = IsEnabledMember(token, "S-1-5-32-544");
+        bool uacEnabled = IsUacEnabled();
+        if (uacEnabled || elevationType != 1 || tokenType != 1 ||
+            integrityRid != 0x3000 || !sameUser || !adminEnabled)
+        {
+            throw new InvalidOperationException(
+                "R299_" + label + "_NOT_UAC_DISABLED_SAME_USER_HIGH_ADMIN" +
+                "_uacEnabled=" + uacEnabled + "_type=" + elevationType +
+                "_tokenType=" + tokenType + "_integrity=0x" + integrityRid.ToString("X") +
+                "_sameUser=" + sameUser + "_adminEnabled=" + adminEnabled);
+        }
+    }
+
     private static void ValidateMediumToken(IntPtr token, string expectedUserSid, string label,
         bool requirePrimary, int expectedElevationType)
     {
@@ -393,7 +442,7 @@ public static class R299MediumTokenLauncher
         return result.ToString();
     }
 
-    public static R299MediumProcess Start(string application, string[] arguments,
+    public static R299HostedProcess Start(string application, string[] arguments,
         string workingDirectory, string environmentBlock)
     {
         if (String.IsNullOrWhiteSpace(application) || !System.IO.Path.IsPathRooted(application))
@@ -418,6 +467,8 @@ public static class R299MediumTokenLauncher
         int targetElevationType = 0;
         bool createWithExplicitToken = false;
         bool expectedRestricted = false;
+        bool expectedUacDisabledAdmin = false;
+        bool uacEnabled = IsUacEnabled();
         try
         {
             if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ADJUST_DEFAULT, out parentToken))
@@ -443,6 +494,16 @@ public static class R299MediumTokenLauncher
                 ValidateMediumToken(parentToken, parentSid, "PARENT_MEDIUM", true, parentElevationType);
                 targetElevationType = parentElevationType;
                 tokenSource = "CURRENT_MEDIUM_TOKEN";
+            }
+            else if (parentElevationType == 1 && parentIntegrityRid >= 0x3000 && !uacEnabled)
+            {
+                // UAC-disabled Windows has no separate filtered Medium token.
+                // Preserve the same-user High admin token that R385 explicitly allows.
+                ValidateUacDisabledAdminToken(parentToken, parentSid, "PARENT_UAC_DISABLED_ADMIN");
+                targetElevationType = parentElevationType;
+                sourceToken = parentToken;
+                tokenSource = "CURRENT_UAC_DISABLED_ADMIN_TOKEN";
+                expectedUacDisabledAdmin = true;
             }
             else if (parentElevationType == 1 && parentIntegrityRid >= 0x3000)
             {
@@ -491,7 +552,20 @@ public static class R299MediumTokenLauncher
 
             uint creationFlags = CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW;
             bool created;
-            if (expectedRestricted)
+            if (expectedUacDisabledAdmin)
+            {
+                StringBuilder adminCommand = new StringBuilder(command);
+                created = CreateProcessW(application, adminCommand, IntPtr.Zero, IntPtr.Zero, false,
+                    creationFlags, environment, workingDirectory, ref startup, out processInfo);
+                if (!created)
+                {
+                    int adminError = Marshal.GetLastWin32Error();
+                    throw new Win32Exception(adminError,
+                        "R299_CREATE_PROCESS_UAC_DISABLED_ADMIN_CURRENT_TOKEN_FAILED_WIN32_" + adminError);
+                }
+                creationMethod = "CREATE_PROCESS_CURRENT_UAC_DISABLED_ADMIN_TOKEN";
+            }
+            else if (expectedRestricted)
             {
                 StringBuilder asUserCommand = new StringBuilder(command);
                 created = CreateProcessAsUserW(primaryToken, application, asUserCommand,
@@ -505,7 +579,8 @@ public static class R299MediumTokenLauncher
                 {
                     int asUserError = Marshal.GetLastWin32Error();
                     if (asUserError != 1314)
-                        throw new Win32Exception(asUserError, "R299_CREATE_PROCESS_AS_USER_RESTRICTED_TOKEN_FAILED");
+                        throw new Win32Exception(asUserError,
+                            "R299_CREATE_PROCESS_AS_USER_RESTRICTED_TOKEN_FAILED_WIN32_" + asUserError);
 
                     StringBuilder fallbackCommand = new StringBuilder(command);
                     created = CreateProcessWithTokenW(primaryToken, 1, application, fallbackCommand,
@@ -514,7 +589,8 @@ public static class R299MediumTokenLauncher
                     {
                         int fallbackError = Marshal.GetLastWin32Error();
                         throw new Win32Exception(fallbackError,
-                            "R299_CREATE_PROCESS_RESTRICTED_TOKEN_FAILED_ASUSER_1314_AND_WITHTOKEN");
+                            "R299_CREATE_PROCESS_RESTRICTED_TOKEN_FAILED_ASUSER_WIN32_" +
+                            asUserError + "_WITHTOKEN_WIN32_" + fallbackError);
                     }
                     creationMethod = "CREATE_PROCESS_WITH_TOKEN_FALLBACK_AFTER_ASUSER_1314";
                 }
@@ -525,8 +601,11 @@ public static class R299MediumTokenLauncher
                 created = CreateProcessWithTokenW(primaryToken, 1, application, explicitCommand,
                     creationFlags, environment, workingDirectory, ref startup, out processInfo);
                 if (!created)
-                    throw new Win32Exception(Marshal.GetLastWin32Error(),
-                        "R299_CREATE_PROCESS_WITH_EXPLICIT_MEDIUM_TOKEN_FAILED");
+                {
+                    int explicitError = Marshal.GetLastWin32Error();
+                    throw new Win32Exception(explicitError,
+                        "R299_CREATE_PROCESS_WITH_EXPLICIT_MEDIUM_TOKEN_FAILED_WIN32_" + explicitError);
+                }
                 creationMethod = "CREATE_PROCESS_WITH_TOKEN";
             }
             else
@@ -535,27 +614,40 @@ public static class R299MediumTokenLauncher
                 created = CreateProcessW(application, currentCommand, IntPtr.Zero, IntPtr.Zero, false,
                     creationFlags, environment, workingDirectory, ref startup, out processInfo);
                 if (!created)
-                    throw new Win32Exception(Marshal.GetLastWin32Error(),
-                        "R299_CREATE_PROCESS_WITH_CURRENT_MEDIUM_TOKEN_FAILED");
+                {
+                    int currentError = Marshal.GetLastWin32Error();
+                    throw new Win32Exception(currentError,
+                        "R299_CREATE_PROCESS_WITH_CURRENT_MEDIUM_TOKEN_FAILED_WIN32_" + currentError);
+                }
                 creationMethod = "CREATE_PROCESS_CURRENT_TOKEN";
             }
 
             IntPtr childToken = IntPtr.Zero;
+            int childElevationType = 0;
+            int childIntegrityRid = 0;
+            bool childAdministratorsEnabled = false;
             try
             {
                 if (!OpenProcessToken(processInfo.hProcess, TOKEN_QUERY | TOKEN_DUPLICATE, out childToken))
                     throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_OPEN_CREATED_CHILD_TOKEN_FAILED");
-                ValidateMediumToken(childToken, parentSid, "CREATED_CHILD", true, targetElevationType);
+                if (expectedUacDisabledAdmin)
+                    ValidateUacDisabledAdminToken(childToken, parentSid, "CREATED_UAC_DISABLED_ADMIN_CHILD");
+                else
+                    ValidateMediumToken(childToken, parentSid, "CREATED_CHILD", true, targetElevationType);
                 if (expectedRestricted && IsEnabledMember(childToken, "S-1-5-32-544"))
                     throw new InvalidOperationException("R299_CREATED_RESTRICTED_CHILD_ADMIN_GROUP_ENABLED");
+                childElevationType = ReadTokenInt(childToken, TokenElevationType);
+                childIntegrityRid = ReadIntegrityRid(childToken);
+                childAdministratorsEnabled = IsEnabledMember(childToken, "S-1-5-32-544");
             }
             finally
             {
                 if (childToken != IntPtr.Zero) CloseHandle(childToken);
             }
 
-            R299MediumProcess result = new R299MediumProcess(
-                processInfo.hProcess, processInfo.dwProcessId, tokenSource, creationMethod);
+            R299HostedProcess result = new R299HostedProcess(
+                processInfo.hProcess, processInfo.dwProcessId, tokenSource, creationMethod,
+                childElevationType, childIntegrityRid, childAdministratorsEnabled, uacEnabled);
             processInfo.hProcess = IntPtr.Zero;
             return result;
         }

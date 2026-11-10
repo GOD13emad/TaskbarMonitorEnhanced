@@ -18,21 +18,32 @@ if((git -C $root rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R299_REFUSE
 $diagnosticRoot=Join-Path $env:RUNNER_TEMP 'TBME_R126_STABLE_UPDATE'
 if(Test-Path $diagnosticRoot){throw 'R299_SETUP_DIAGNOSTIC_ROOT_PREEXISTS'}
 [IO.Directory]::CreateDirectory($diagnosticRoot)|Out-Null
-# The hosted workflow may run with a filtered medium token, a Full/elevated
-# token, or a Default/High token on UAC-disabled hosts. Per-user Setup updates
-# must always run at medium integrity: inherit medium, use the linked limited token,
-# or create a restricted same-user medium token with Administrators deny-only.
+# Match the actual Setup/R385 security boundary: UAC-enabled updates require a
+# verified same-user Medium token. UAC-disabled Windows has no Medium/High split;
+# the same-user High administrator token is permitted only when EnableLUA is zero.
 $launcherPath=Join-Path $PSScriptRoot 'R299-MediumTokenLauncher.cs'
 if(!(Test-Path $launcherPath -PathType Leaf)){throw 'R299_MEDIUM_TOKEN_LAUNCHER_SOURCE_MISSING'}
-if(-not ('R299MediumTokenLauncher' -as [type])){
+if(-not ('R299HostedTokenLauncher' -as [type])){
  Add-Type -Path $launcherPath -ErrorAction Stop
 }
 
-$script:R299MediumSetupUpdateLaunchCount=0
-$script:R299MediumCrashChildLaunchCount=0
-$script:R299MediumTokenSources=New-Object 'System.Collections.Generic.List[string]'
-$script:R299MediumTokenCreationMethods=New-Object 'System.Collections.Generic.List[string]'
-function New-R299MediumEnvironmentBlock {
+$script:R299HostedSetupUpdateLaunchCount=0
+$script:R299HostedCrashChildLaunchCount=0
+$script:R299HostedTokenSources=New-Object 'System.Collections.Generic.List[string]'
+$script:R299HostedTokenCreationMethods=New-Object 'System.Collections.Generic.List[string]'
+$script:R299HostedTokenElevationTypes=New-Object 'System.Collections.Generic.List[int]'
+$script:R299HostedTokenIntegrityRids=New-Object 'System.Collections.Generic.List[int]'
+$script:R299HostedAdministratorsGroupEnabled=New-Object 'System.Collections.Generic.List[bool]'
+$script:R299HostedUacEnabled=New-Object 'System.Collections.Generic.List[bool]'
+$flags=[Reflection.BindingFlags]::Static -bor [Reflection.BindingFlags]::NonPublic
+$parentUacEnabled=[bool][R299HostedTokenLauncher].GetMethod('IsUacEnabled',$flags).Invoke($null,@())
+$parentIdentity=[Security.Principal.WindowsIdentity]::GetCurrent()
+try{
+ $parentPrincipal=New-Object Security.Principal.WindowsPrincipal -ArgumentList $parentIdentity
+ $parentAdminEnabled=$parentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+ Write-Host ('R299_PARENT_TOKEN_POLICY=PASS uacEnabled='+$parentUacEnabled+' administratorsEnabled='+$parentAdminEnabled+' userSid='+$parentIdentity.User.Value)
+}finally{$parentIdentity.Dispose()}
+function New-R299HostedEnvironmentBlock {
     $names=@(
         'SystemRoot','windir','PATH','PATHEXT','PSModulePath','TEMP','TMP',
         'LOCALAPPDATA','APPDATA','USERPROFILE','HOMEDRIVE','HOMEPATH','COMSPEC',
@@ -50,26 +61,35 @@ function New-R299MediumEnvironmentBlock {
     $sorted=@($entries | Sort-Object { $_.Substring(0,$_.IndexOf('=')) })
     return ([string]::Join([string][char]0,[string[]]$sorted)+[char]0+[char]0)
 }
-$script:R299MediumEnvironmentBlock=New-R299MediumEnvironmentBlock
+$script:R299HostedEnvironmentBlock=New-R299HostedEnvironmentBlock
 
-function Start-R299MediumProcess {
+function Start-R299HostedProcess {
     param(
         [Parameter(Mandatory=$true)][string]$FileName,
         [string[]]$ArgumentList=@(),
         [Parameter(Mandatory=$true)][string]$WorkingDirectory,
         [Parameter(Mandatory=$true)][ValidateSet('SetupUpdate','CrashChild')][string]$Purpose
     )
-    $process=[R299MediumTokenLauncher]::Start(
+    $process=[R299HostedTokenLauncher]::Start(
         [IO.Path]::GetFullPath($FileName),
         [string[]]$ArgumentList,
         [IO.Path]::GetFullPath($WorkingDirectory),
-        [string]$script:R299MediumEnvironmentBlock
+        [string]$script:R299HostedEnvironmentBlock
     )
-    if($Purpose -eq 'SetupUpdate'){$script:R299MediumSetupUpdateLaunchCount++}
-    else{$script:R299MediumCrashChildLaunchCount++}
-    $script:R299MediumTokenSources.Add([string]$process.TokenSource)
-    $script:R299MediumTokenCreationMethods.Add([string]$process.CreationMethod)
-    Write-Host ('R299_MEDIUM_INTEGRITY_CHILD_TOKEN=PASS purpose='+$Purpose+' source='+$process.TokenSource+' method='+$process.CreationMethod+' pid='+$process.Id)
+    if($Purpose -eq 'SetupUpdate'){$script:R299HostedSetupUpdateLaunchCount++}
+    else{$script:R299HostedCrashChildLaunchCount++}
+    $script:R299HostedTokenSources.Add([string]$process.TokenSource)
+    $script:R299HostedTokenCreationMethods.Add([string]$process.CreationMethod)
+    $script:R299HostedTokenElevationTypes.Add([int]$process.TokenElevationType)
+    $script:R299HostedTokenIntegrityRids.Add([int]$process.TokenIntegrityRid)
+    $script:R299HostedAdministratorsGroupEnabled.Add([bool]$process.AdministratorsGroupEnabled)
+    $script:R299HostedUacEnabled.Add([bool]$process.UacEnabled)
+    Write-Host ('R299_HOSTED_CHILD_TOKEN=PASS purpose='+$Purpose+
+        ' source='+$process.TokenSource+' method='+$process.CreationMethod+
+        ' elevationType='+$process.TokenElevationType+
+        ' integrity=0x'+$process.TokenIntegrityRid.ToString('X')+
+        ' administratorsEnabled='+$process.AdministratorsGroupEnabled+
+        ' uacEnabled='+$process.UacEnabled+' pid='+$process.Id)
     return $process
 }
 
@@ -214,8 +234,8 @@ function Get-R299SetupFailureDiagnostic {
 function InvokeCandidateUpdate {
  param([Parameter(Mandatory=$true)][ValidateSet('NEGATIVE_USER_EDIT','POSITIVE_OFFICIAL_STABLE','IDEMPOTENT')][string]$Phase)
  $env:TBME_UPDATE_DIAGNOSTIC_PHASE=$Phase
- $script:R299MediumEnvironmentBlock=New-R299MediumEnvironmentBlock
- $child=Start-R299MediumProcess -FileName $newSetup -ArgumentList @('/update','/quiet') -WorkingDirectory $env:RUNNER_TEMP -Purpose SetupUpdate
+ $script:R299HostedEnvironmentBlock=New-R299HostedEnvironmentBlock
+ $child=Start-R299HostedProcess -FileName $newSetup -ArgumentList @('/update','/quiet') -WorkingDirectory $env:RUNNER_TEMP -Purpose SetupUpdate
  try{
   if(!$child.WaitForExit(150000)){
    try{$child.Kill();$child.WaitForExit(8000)|Out-Null}catch{}
@@ -275,7 +295,7 @@ if(!(Test-Path $childScript) -or (Test-Path $signal) -or (Test-Path ($signal+'.e
 $trustedPowerShell=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell/v1.0/powershell.exe'
 if(!(Test-Path $trustedPowerShell)){throw 'R299_CRASH_CHILD_HOST_UNAVAILABLE'}
 $env:TBME_UPDATE_DIAGNOSTIC_PHASE=''
-$script:R299MediumEnvironmentBlock=New-R299MediumEnvironmentBlock
+$script:R299HostedEnvironmentBlock=New-R299HostedEnvironmentBlock
 $crashArguments=@(
  '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$childScript,
  '-CandidateSetup',$newSetup,'-App',$app,'-Signal',$signal,
@@ -284,7 +304,7 @@ $crashArguments=@(
  '-ExpectedPriorMainSha','04776E870A492733BBA33A550F732F5DB688A6585FC6533224A56687F1A6D88E',
  '-ExpectedNewMainSha',[string]$expectedMain[0].SHA256
 )
-$crashChild=Start-R299MediumProcess -FileName $trustedPowerShell -ArgumentList $crashArguments -WorkingDirectory $env:RUNNER_TEMP -Purpose CrashChild
+$crashChild=Start-R299HostedProcess -FileName $trustedPowerShell -ArgumentList $crashArguments -WorkingDirectory $env:RUNNER_TEMP -Purpose CrashChild
 try{
  $armed=$false
  for($probe=0;$probe -lt 130;$probe++){
@@ -360,15 +380,36 @@ if((Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe')).Hash -cne $mainA
 }
 AssertUnaffected
 'R299_HOSTED_EXACT_SECOND_UPDATE_IDEMPOTENT=PASS'
-# Every actual Setup /update invocation and the crash fixture must be
-# created under the verified same-user medium-integrity token.
-if($script:R299MediumSetupUpdateLaunchCount -ne 3 -or
-   $script:R299MediumCrashChildLaunchCount -ne 1 -or
-   $script:R299MediumTokenSources.Count -ne 4 -or
-   $script:R299MediumTokenCreationMethods.Count -ne 4){
- throw 'R299_MEDIUM_TOKEN_LAUNCH_COUNTS_UNEXPECTED'
+# Every Setup /update invocation and the crash fixture must use one verified
+# same-user token context. UAC-enabled guests must be Medium; a High token is
+# accepted only when the 64-bit HKLM EnableLUA value proves UAC is disabled.
+if($script:R299HostedSetupUpdateLaunchCount -ne 3 -or
+   $script:R299HostedCrashChildLaunchCount -ne 1 -or
+   $script:R299HostedTokenSources.Count -ne 4 -or
+   $script:R299HostedTokenCreationMethods.Count -ne 4 -or
+   $script:R299HostedTokenElevationTypes.Count -ne 4 -or
+   $script:R299HostedTokenIntegrityRids.Count -ne 4 -or
+   $script:R299HostedAdministratorsGroupEnabled.Count -ne 4 -or
+   $script:R299HostedUacEnabled.Count -ne 4){
+ throw 'R299_HOSTED_TOKEN_LAUNCH_COUNTS_UNEXPECTED'
 }
-'R299_MEDIUM_INTEGRITY_TOKEN_PROCESS_CREATION=PASS'
+$uacStates=@($script:R299HostedUacEnabled.ToArray()|Select-Object -Unique)
+$integrityStates=@($script:R299HostedTokenIntegrityRids.ToArray()|Select-Object -Unique)
+$adminStates=@($script:R299HostedAdministratorsGroupEnabled.ToArray()|Select-Object -Unique)
+$elevationStates=@($script:R299HostedTokenElevationTypes.ToArray()|Select-Object -Unique)
+$sourceStates=@($script:R299HostedTokenSources.ToArray()|Select-Object -Unique)
+$creationStates=@($script:R299HostedTokenCreationMethods.ToArray()|Select-Object -Unique)
+if($uacStates.Count -ne 1 -or $integrityStates.Count -ne 1 -or $adminStates.Count -ne 1 -or
+   $elevationStates.Count -ne 1 -or $sourceStates.Count -ne 1 -or $creationStates.Count -ne 1){
+ throw 'R299_HOSTED_CHILD_TOKEN_CONTEXT_CHANGED_DURING_ACCEPTANCE'
+}
+if($uacStates[0] -and $integrityStates[0] -ne 0x2000){
+ throw 'R299_UAC_ENABLED_CHILD_NOT_MEDIUM_INTEGRITY'
+}
+if(!$uacStates[0] -and $integrityStates[0] -ge 0x3000 -and !$adminStates[0]){
+ throw 'R299_UAC_DISABLED_HIGH_CHILD_NOT_ADMINISTRATOR'
+}
+'R299_HOSTED_TOKEN_PROCESS_CREATION=PASS'
 # Preserve a deterministic compact receipt, never emit user data.
 $receipt=[ordered]@{
  Status='PASS_ORIGINAL_PUBLIC_V179_TO_V1710_REAL_SETUP_UPDATE'
@@ -382,11 +423,15 @@ $receipt=[ordered]@{
  InterruptedCommitRecovered=$true
  UpgradePreservedUserCanaries=$true
  ExactSecondUpdateIdempotent=$true
- SetupUpdateProcessesMediumIntegrity=$script:R299MediumSetupUpdateLaunchCount
- CrashFixtureProcessMediumIntegrity=$script:R299MediumCrashChildLaunchCount
- MediumTokenVerifiedForEveryChild=$true
- MediumTokenSources=@($script:R299MediumTokenSources.ToArray())
- MediumTokenCreationMethods=@($script:R299MediumTokenCreationMethods.ToArray())
+ SetupUpdateProcessesVerifiedToken=$script:R299HostedSetupUpdateLaunchCount
+ CrashFixtureProcessVerifiedToken=$script:R299HostedCrashChildLaunchCount
+ HostedTokenVerifiedForEveryChild=$true
+ HostedTokenSources=@($script:R299HostedTokenSources.ToArray())
+ HostedTokenCreationMethods=@($script:R299HostedTokenCreationMethods.ToArray())
+ ChildTokenElevationTypes=@($script:R299HostedTokenElevationTypes.ToArray())
+ ChildTokenIntegrityRids=@($script:R299HostedTokenIntegrityRids.ToArray())
+ ChildAdministratorsGroupEnabled=@($script:R299HostedAdministratorsGroupEnabled.ToArray())
+ ChildUacEnabled=@($script:R299HostedUacEnabled.ToArray())
  TamperedPredecessorDiagnosticSHA256=$negativeDiagnosticSHA
  PersonalDeviceWasNotUsed=$true
  Utc=[DateTime]::UtcNow.ToString('o')
