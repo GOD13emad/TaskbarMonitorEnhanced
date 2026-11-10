@@ -2448,22 +2448,42 @@ internal static partial class SetupProgram
 
     static void CleanOwnedStage(List<StageEntry> rows)
     {
+        // Only the exactly indexed files AND their implied directories belong
+        // to this transient stage. An unknown empty directory must survive:
+        // Directory.Delete(root,true) would otherwise silently remove it.
+        string stageRoot=Path.GetFullPath(UpgradeRoot);
         HashSet<string> known=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> knownDirectories=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        knownDirectories.Add(stageRoot);
+        knownDirectories.Add(Path.GetFullPath(Path.Combine(stageRoot,"old")));
+        knownDirectories.Add(Path.GetFullPath(Path.Combine(stageRoot,"new")));
         foreach(string filename in new string[]{"owner.txt","phase.txt","index.txt","phase.tmp","previous_version.txt"})
             known.Add(Path.GetFullPath(Path.Combine(UpgradeRoot,filename)));
         foreach(StageEntry r in rows){
-            known.Add(Path.GetFullPath(Stage("old",r.Rel)));
-            known.Add(Path.GetFullPath(Stage("new",r.Rel)));
+            foreach(string part in new string[]{"old","new"}){
+                string file=Path.GetFullPath(Stage(part,r.Rel));
+                known.Add(file);
+                string directory=Path.GetDirectoryName(file);
+                while(!String.Equals(directory,stageRoot,StringComparison.OrdinalIgnoreCase)){
+                    if(String.IsNullOrEmpty(directory) ||
+                       !directory.StartsWith(stageRoot+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))
+                        throw new IOException("Upgrade stage entry escaped its canonical root.");
+                    knownDirectories.Add(directory);
+                    directory=Path.GetDirectoryName(directory);
+                }
+            }
         }
         foreach(string path in Directory.GetFiles(UpgradeRoot,"*",SearchOption.AllDirectories))
             if(!known.Contains(Path.GetFullPath(path)))
                 throw new InvalidOperationException("Unknown file inside update stage; leave stage intact: "+path);
-        foreach(string path in Directory.GetDirectories(UpgradeRoot,"*",SearchOption.AllDirectories))
+        foreach(string path in Directory.GetDirectories(UpgradeRoot,"*",SearchOption.AllDirectories)){
             if((File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0)
                 throw new IOException("Unexpected upgrade stage reparse directory.");
+            if(!knownDirectories.Contains(Path.GetFullPath(path)))
+                throw new InvalidOperationException("Unknown directory inside update stage; leave stage intact: "+path);
+        }
         Directory.Delete(UpgradeRoot,true);
     }
-
     static void RestoreInterruptedUpgrade(List<StageEntry> rows)
     {
         string priorVersionPath=Path.Combine(UpgradeRoot,"previous_version.txt");

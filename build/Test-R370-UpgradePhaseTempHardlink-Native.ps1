@@ -37,6 +37,34 @@ if(!$match.Success -or ([regex]::Matches($src,'static void WritePhase\(string ph
  throw 'R370_SOURCE_EXTRACT_NOT_UNIQUE'
 }
 $method=$match.Value.Substring(0,$match.Value.IndexOf('    static string GetPhase()'))
+# R377: compile the exact production stage cleanup method from both
+# baseline and candidate. A formerly silently deleted unknown empty directory
+# is a mandatory negative control; indexed nested stages must still clean.
+$cleanMatch=[regex]::Match($src,'(?s)    static void CleanOwnedStage\(List<StageEntry> rows\)\r?\n    \{.*?\r?\n    \}\r?\n\s*static void RestoreInterruptedUpgrade')
+if(!$cleanMatch.Success -or ([regex]::Matches($src,'static void CleanOwnedStage\(')).Count -ne 1){
+ throw 'R377_STAGE_CLEANUP_METHOD_EXTRACT_NOT_UNIQUE'
+}
+$cleanMethod=$cleanMatch.Value.Substring(0,$cleanMatch.Value.IndexOf('    static void RestoreInterruptedUpgrade'))
+$cleanupFixture=@'
+using System;
+using System.IO;
+using System.Collections.Generic;
+public static class R377CleanupFixture {
+ public static string Root;
+ static string UpgradeRoot {get{return Root;}}
+ sealed class StageEntry {internal string Rel;internal StageEntry(string rel){Rel=rel;}}
+ static string Stage(string part,string rel){
+  return Path.Combine(UpgradeRoot,part,rel.Replace('/',Path.DirectorySeparatorChar));
+ }
+ public static void Run(string root,string rel){
+  Root=root;
+  var rows=new List<StageEntry>();
+  if(!String.IsNullOrEmpty(rel))rows.Add(new StageEntry(rel));
+  CleanOwnedStage(rows);
+ }
+'@+[Environment]::NewLine+$cleanMethod+[Environment]::NewLine+'}'
+Add-Type -TypeDefinition $cleanupFixture -ErrorAction Stop
+
 # This fixture compiles the exact extracted production method, substituting only its
 # root accessor. Never load/call SetupProgram.WritePhase against an owner installation.
 $fixture=@'
@@ -120,6 +148,36 @@ try{
    throw 'R370_DESTINATION_ALIAS_WRITE_THROUGH'
   }
   Pass 'CANDIDATE_DESTINATION_HARDLINK_REPLACED_CANARY_UNCHANGED'
+ }
+ # R377: isolated unknown EMPTY stage directory must never be silently deleted.
+ $cleanupRoot=Join-Path $root ('cleanup-unknown-'+$Variant)
+ $unknown=Join-Path $cleanupRoot 'outside-index-empty'
+ [void][IO.Directory]::CreateDirectory($unknown)
+ $cleanupRefused=$false
+ try{[R377CleanupFixture]::Run($cleanupRoot,'')}
+ catch [InvalidOperationException]{$cleanupRefused=$true}
+ if($Variant -eq 'baseline'){
+  if($cleanupRefused -or (Test-Path -LiteralPath $unknown) -or (Test-Path -LiteralPath $cleanupRoot)){
+   throw 'R377_BASELINE_UNKNOWN_EMPTY_DIRECTORY_DELETION_NOT_REPRODUCED'
+  }
+  Pass 'BASELINE_UNKNOWN_EMPTY_DIRECTORY_DELETION_REPRODUCED'
+ }else{
+  if(!$cleanupRefused -or !(Test-Path -LiteralPath $unknown)){
+   throw 'R377_CANDIDATE_UNKNOWN_EMPTY_DIRECTORY_NOT_PRESERVED'
+  }
+  Pass 'CANDIDATE_UNKNOWN_EMPTY_DIRECTORY_PRESERVED_AND_CLEANUP_REFUSED'
+  $legitimate=Join-Path $root 'cleanup-only-owned'
+  $rel='Docs/sub/proof.txt'
+  foreach($part in @('old','new')){
+   $folder=Join-Path (Join-Path $legitimate $part) 'Docs/sub'
+   [void][IO.Directory]::CreateDirectory($folder)
+   [IO.File]::WriteAllText((Join-Path $folder 'proof.txt'),'R377_INDEXED_DATA')
+  }
+  [R377CleanupFixture]::Run($legitimate,$rel)
+  if(Test-Path -LiteralPath $legitimate){
+   throw 'R377_CANDIDATE_LEGITIMATE_NESTED_CLEANUP_FAILED'
+  }
+  Pass 'CANDIDATE_ONLY_INDEXED_NESTED_DIRECTORIES_CLEANED'
  }
  $receiptRoot=if($HostedGuest){$env:RUNNER_TEMP}else{$env:TEMP}
  $dir=Join-Path $receiptRoot ('R370_'+$Variant+'_'+$HostLabel+'_'+[Guid]::NewGuid().ToString('N'))
