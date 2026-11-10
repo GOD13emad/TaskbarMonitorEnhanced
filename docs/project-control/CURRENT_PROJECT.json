@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R396",
-  "Status": "R396_R299_PRECHECKPOINT_DIAGNOSTICS_LOCAL_PASS_HOSTED_PENDING_REVIEW_REQUIRED",
-  "UpdatedUtc": "2026-11-10T16:45:01.9959898Z",
+  "CurrentEngineeringRevision": "R397",
+  "Status": "R397_INPROCESS_SHA_AND_90S_DISPOSABLE_CRASH_WAIT_LOCAL_PASS_HOSTED_PENDING_REVIEW_REQUIRED",
+  "UpdatedUtc": "2026-11-10T17:00:23.4797494Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -122,10 +122,10 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "R396 hosted R299 must identify its first blocked checkpoint between identity entry, exact HEAD/binary preflight and Setup staging. Once diagnosed, apply only a cause-proven fix; then prove genuine official v1.7.9-to-v1.7.10 Setup recovery and idempotence. Keep PR #98 open/unmerged pending independent human security review.",
-  "MainBlocker": "R395 exact-head Build/Verification failed only in R299 (29/30 checks PASS). The restricted-Medium GUI child started, verified GitHub identity and stayed running without preflight/startup/arm/error receipt. Exact stuck operation is unknown; R396 adds bounded per-run diagnostic checkpoints before any staging. Independent human PR review is absent.",
+  "CriticalPath": "R397 must prove R299 repeatability under CI by avoiding the GUI crash fixture's Get-FileHash auto-import and using a bounded 90-second staging wait. Preserve R396 PR acceptance as historical proof; require independent latest-head CI, real v1.7.9-to-v1.7.10 COMMITTING recovery/canaries/idempotence and human security review before merge.",
+  "MainBlocker": "R396 exact-head PR Build/Verification PASS 4/4, including genuine R299 Setup recovery receipt. The same branch HEAD manual run failed R299 at checkpoint BEFORE_BINARY_PINS after 30s; intermittent test-only SHA preflight/timeout remains. R397 targeted test-only fix locally PASS; independent human PR review still missing.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Commit/push R396 checkpoint diagnostics and inspect its exact-head hosted R299 last checkpoint. Repair the evidenced stuck operation and revalidate the real official Setup upgrade/recovery/idempotence. No merge/public release or owner installation changes without verified gates.",
+  "ExactNextAction": "Commit/push R397; run exact-head PR and independent workflow_dispatch R299; check both genuine recovery receipts with correct PR merge-ref or branch SHA. If all stable, preserve green code head and await the already-requested independent human review without evidence-only commits that invalidate checks.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2414,11 +2414,80 @@
       "IsolatedCheckpointJsonOverwrite": "PASS",
       "OwnerNonHostedRefusalNoSignals": "PASS"
     },
-    "HostedCI": "PENDING_AFTER_PUSH",
+    "HostedCI": {
+      "ExactBranchHead": "921ff14060cee1989183b40df40041172c38367d",
+      "PullRequestBuildVerification": {
+        "Run": 42858789063,
+        "Status": "SUCCESS",
+        "PassedJobs": 4,
+        "TotalJobs": 4,
+        "R299Job": 129981077400,
+        "R299ReceiptSHA256": "A0C2383A983BCE4DAFD5C556E592C3B18538DC21ED727D11D86CB08FB0F74A58",
+        "GITHUB_SHA_ExpectedPRMergeRef": "90528e40970d4225bf6686ee8dac596e448beaa7",
+        "VerifiedClaims": ["Official v1.7.9 Setup SHA and predecessor pins","Tampered predecessor refusal","4 same-user restricted Medium child token checks","Interrupted COMMITTING recovery by actual Setup","Exact v1.7.10 update","User canary preservation","Second update idempotence"]
+      },
+      "WorkflowDispatchBuildVerification": {
+        "Run": 42858662091,
+        "Status": "FAILURE",
+        "PassedJobs": 3,
+        "FailedJob": "r299-public-v179-inplace-upgrade",
+        "FailedJobId": 129980454333,
+        "LastCrashChildCheckpoint": "BEFORE_BINARY_PINS",
+        "ExitState": "STILL_RUNNING_AT_30S_TIMEOUT",
+        "Evidence": "The script completed in-process HEAD and canonical root verification, then stalled during three Get-FileHash SHA256 checks before PREFLIGHT_PASSED. No Setup COMMITTING acceptance occurred in this run."
+      },
+      "R360Push": {"Run": 42858203029,"Windows2022": "SUCCESS","Windows2025": "SUCCESS"},
+      "R291PullRequest": {"Run": 42858788741,"Status": "SUCCESS"},
+      "R385PullRequest": {"Run": 42858788887,"Status": "SUCCESS"},
+      "CrossRunRepeatability": "NOT_YET_PROVEN"
+    },
     "ProductSetupChanged": false,
     "OwnerInstallationChanged": false,
     "PublicReleaseChanged": false,
     "MergePerformed": false,
     "Limit": "Only diagnostic instrumentation; no actual hosted COMMITTING/recovery/idempotence proof yet. R395 29/30 checks were valid only for exact prior SHA. Independent human security review for PR #98 required."
+  },
+  "R397": {
+    "Revision": "R397",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "BaseCommit": "921ff14060cee1989183b40df40041172c38367d",
+    "Objective": "Eliminate Get-FileHash command/module import from the restricted-Medium GUI crash-child preflight and widen its disposable-only bounded staging wait from 30s to 90s, without changing the Setup or validation predicates.",
+    "Evidence": {
+      "R396ManualRun": 42858662091,
+      "R396ManualLastCheckpoint": "BEFORE_BINARY_PINS",
+      "R396ManualTimeoutSeconds": 30,
+      "R396PRRun": 42858789063,
+      "R396PRResult": "SUCCESS_4_OF_4",
+      "R396PRReceiptSHA256": "A0C2383A983BCE4DAFD5C556E592C3B18538DC21ED727D11D86CB08FB0F74A58",
+      "R396PRMergeRefSHA": "90528e40970d4225bf6686ee8dac596e448beaa7",
+      "R396PRRecoveryAccepted": true,
+      "Important": "The same code head passed full PR R299 and failed manual R299 in a 30s SHA preflight; exact cause is not proven but module loading latency is a bounded testable hypothesis."
+    },
+    "Files": [
+      "build/Test-R299-HostedCrashChild.ps1",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1"
+    ],
+    "Changes": [
+      "Replace all crash-child Get-FileHash calls with explicitly rooted, in-process System.Security.Cryptography.SHA256 over read-only file streams; preserve uppercase exact SHA pin comparisons.",
+      "Record successive binary pin checkpoint indexes to discriminate each SHA check.",
+      "Increase only the hosted disposable crash-child arm poll from 200x150ms to 600x150ms (90s), retaining failure on timeout and the workflow's 15-minute cap."
+    ],
+    "LocalValidation": {
+      "PowerShell51ParseChild": "PASS",
+      "PowerShell51ParseParent": "PASS",
+      "NativeSHA256ByteMatchGetFileHash": "PASS",
+      "TamperSensitiveSHA256": "PASS",
+      "RelativePathRejected": "PASS",
+      "NoGetFileHashInCrashChild": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "GitDiffCheck": "PASS"
+    },
+    "HostedCI": "PENDING_AFTER_PUSH",
+    "R385GuardChanged": false,
+    "ProductSetupChanged": false,
+    "OwnerInstallationChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "PR R396 acceptance is real but same-head manual repeatability failed. R397 is test-only and must be revalidated on its exact head; human independent review of PR #98 still absent."
   }
 }

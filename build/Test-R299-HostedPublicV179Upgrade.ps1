@@ -344,7 +344,9 @@ if($crashChild -isnot [R299HostedProcess] -or $crashChild.ConsoleAllowed){
 'R299_HOSTED_CRASH_CHILD_GUI_HOST=PASS'
 try{
  $armed=$false
- for($probe=0;$probe -lt 200;$probe++){
+ # Hosted Windows runner staging can exceed 30s. Preserve fail-closed
+ # behavior with a bounded 90s diagnostic wait; never accept on timeout.
+ for($probe=0;$probe -lt 600;$probe++){
   if(Test-Path $signal){$armed=$true;break}
   if($crashChild.HasExited){break}
   Start-Sleep -Milliseconds 150

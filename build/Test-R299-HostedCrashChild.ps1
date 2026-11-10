@@ -56,6 +56,19 @@ function Get-R299CheckoutHead {
  }
  return $sha
 }
+# In-process SHA256 avoids importing Get-FileHash/PowerShell.Utility inside
+# a restricted-Medium GUI runspace while preserving exact hash comparisons.
+function Get-R299InProcessSHA256 {
+ param([Parameter(Mandatory=$true)][string]$Path)
+ if(-not [IO.Path]::IsPathRooted($Path)){throw 'R299_SHA_PATH_MUST_BE_ABSOLUTE'}
+ $full=[IO.Path]::GetFullPath($Path)
+ $algorithm=[Security.Cryptography.SHA256]::Create()
+ try{
+  $stream=[IO.File]::OpenRead($full)
+  try{return [BitConverter]::ToString($algorithm.ComputeHash($stream)).Replace('-','')}
+  finally{$stream.Dispose()}
+ }finally{$algorithm.Dispose()}
+}
 try{
  if($PSVersionTable.PSEdition -cne 'Desktop' -or
     $env:GITHUB_ACTIONS -cne 'true' -or
@@ -107,14 +120,17 @@ try{
  $stage=Join-Path $App '.tbme-upgrade'
  if(Test-Path $stage){throw 'R299_CRASH_CHILD_STAGE_PREEXISTS'}
  Write-R299CrashCheckpoint 'BEFORE_BINARY_PINS'
+ $pinIndex=0
  foreach($probe in @(
   @{p=$CandidateSetup;sha=$ExpectedSetupSha},
   @{p=$priorSetup;sha=$ExpectedPriorSetupSha},
   @{p=$main;sha=$ExpectedPriorMainSha}
  )){
-  if((Get-FileHash -LiteralPath $probe.p -Algorithm SHA256).Hash -cne $probe.sha){
+  $pinIndex++
+  if((Get-R299InProcessSHA256 -Path $probe.p) -cne $probe.sha){
    throw ('R299_CRASH_CHILD_BINARY_SHA_UNEXPECTED_'+$probe.p)
   }
+  Write-R299CrashCheckpoint ('BINARY_PIN_'+$pinIndex+'_VALIDATED')
  }
  Write-R299CrashCheckpoint 'BINARY_PINS_VALIDATED'
  Write-R299CrashCheckpoint 'BEFORE_PROCESS_CHECK'
@@ -193,10 +209,10 @@ try{
   $replaceArgs[2]=$null
   [void]$replaceMethod.Invoke($null,$replaceArgs)
  }
- if((Get-FileHash $main -Algorithm SHA256).Hash -cne $ExpectedNewMainSha){
+ if((Get-R299InProcessSHA256 -Path $main) -cne $ExpectedNewMainSha){
   throw 'R299_CRASH_CHILD_TWO_FILE_PARTIAL_MAIN_SHA_BAD'
  }
- if((Get-FileHash $priorSetup -Algorithm SHA256).Hash -cne $ExpectedPriorSetupSha){
+ if((Get-R299InProcessSHA256 -Path $priorSetup) -cne $ExpectedPriorSetupSha){
   throw 'R299_CRASH_CHILD_CHANGED_UNINSTALL_BEFORE_KILL'
  }
  if((Get-Content (Join-Path $stage 'phase.txt') -Raw) -cnotmatch '\|COMMITTING$'){
