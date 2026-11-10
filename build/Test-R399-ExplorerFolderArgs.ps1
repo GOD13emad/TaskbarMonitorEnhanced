@@ -42,13 +42,14 @@ $temp=Join-Path $env:TEMP ('tbme-r399-explorer-args-'+[Guid]::NewGuid().ToString
 try{
     $folder=Join-Path $temp 'directory with spaces'
     [IO.Directory]::CreateDirectory($folder)|Out-Null
+    $canonical=[IO.Path]::GetFullPath($folder)
     $built=Get-BuildResult $folder
     if($built.Error -or !$built.Info){throw 'R399_BUILDER_NORMAL_PATH_REJECTED'}
     $info=[Diagnostics.ProcessStartInfo]$built.Info
     $windows=Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)) 'explorer.exe'
-    if($info.FileName -cne $windows -or $info.UseShellExecute -or
-       $info.Arguments -cne ('"'+$folder+'"')){
-        throw 'R399_START_INFO_NOT_PINNED_AND_QUOTED'
+    if($info.FileName -ine $windows -or $info.UseShellExecute -or
+       $info.Arguments -cne ('"'+$canonical+'"')){
+        throw ("R399_START_INFO_NOT_PINNED_AND_QUOTED file="+$info.FileName+" expected="+$windows+" arguments="+$info.Arguments)
     }
     'R399_PASS_COMPILED_EXPLORER_ABSOLUTE_AND_QUOTED'
 
@@ -64,7 +65,7 @@ try{
         $stdout=$child.StandardOutput.ReadToEnd()
         if(!$child.WaitForExit(5000)){throw 'R399_ECHO_TIMEOUT'}
         $rows=@($stdout -split '\r?\n' | Where-Object {$_ -ne ''})
-        if($rows.Count -ne 2 -or $rows[0] -cne '1' -or $rows[1] -cne $folder){
+        if($rows.Count -ne 2 -or $rows[0] -cne '1' -or $rows[1] -cne $canonical){
             throw 'R399_COMPILED_ARGUMENTS_SPLIT'
         }
     }finally{$child.Dispose()}
