@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R384",
-  "Status": "R384_STAGE_JOURNAL_PRESERVATION_LOCAL_10_OF_10_SOURCE_HEAD_CI_63_OF_63_CURRENT_PR_HEAD_CI_29_OF_29_R370_8_OF_8_R360_6_CYCLES_R299_R300_PASS_HUMAN_REVIEW_REQUIRED",
-  "UpdatedUtc": "2026-11-10T10:39:21.5023799Z",
+  "CurrentEngineeringRevision": "R390",
+  "Status": "R390_R299_CRASH_CHILD_STARTUP_DIAGNOSTICS_LOCAL_PASS_CI_PENDING_REVIEW_REQUIRED",
+  "UpdatedUtc": "2026-11-10T14:17:03.5933135Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -122,10 +122,10 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "Official immutable public v1.7.10 and owner-installed v1.7.10 unchanged. R370 8d0b43b is latest product source; test-only R375 commit dc625f5 passed PR checks 28/28 and native R291 2/2 hosts (run 42697474249), R360 6/6 cycles / 24 modes (run 42697462258). R373 plus R375 receipts total 20 host-cycles / 80 UI modes and native hide samples, 29-513 ms median 239.5, all taskbar/monitor pre/post conditions passed, original strict 1100ms gate unchanged. Failure-only R375 native popup topology diagnostic passed local PowerShell 5.1 synthetic branch execution but was not exercised by real CI because the intermittent fault did not recur. R371 historical Windows 2022 Settings-menu/taskbar-hide failures remain NON-PASS with root cause UNPROVEN. R374 reviewer handoff is posted. PR #98 OPEN/mergeable/unmerged at documentation-only head 581d46a (engineering source f59e1dc), current exact-head CI 29/29 SUCCESS, REVIEW_REQUIRED, zero independent human reviews; no merge/release. Issue #6 reporter SHA/origin, owner upgrade transaction, physical GUI/audio witness and Notion restore consent are separate OPEN/DEFERRED gates. New independent R375 owner-host thermal proof: 98/98 Glass renderer theme/background cases passed on BOTH exact private Candidate and official owner-installed 1.7.10 Main, red hot 95C >=2790 pixels and zero cold 60C red; owner currently config GlassMode=false and Opacity=0.01 (normal mode), CPU threshold 90C; synthetic matching-mode 1-percent opacity at 95C had zero strong red versus true Glass 3000. Owner config/exe/PID untouched, physical onscreen/audio witness still NOT PASS. R375 latest read-only owner normal-mode taskbar crop shows readable UI and live CPU temperature approximately 86C below configured 90C warning threshold; true GlassMode is still disabled, so no live hot Glass alarm was witnessed. Windows has an alternate active Realtek USB Audio Speakers endpoint while current default is NVIDIA Mi monitor; choosing output is owner preference, no system audio change was made. New R375 supplemental stress on PR HEAD 2c41cfc: GitHub run 42717624532 succeeded 3/3 jobs, fresh 6/6 Windows guest cycles and 24/24 strict native hide samples (2-528 ms). With prior raw receipts this exact private Candidate has 26 cycles / 104/104 strict hide samples at 2-528 ms median 247.5, limit unchanged at 1100ms. Independent review still absent; intermittent historical negative remains unproven. Owner live full-screen observation: Chrome fullscreen means monitor purposefully hidden and Windows SHQueryUserNotificationState=QUNS_BUSY=2 (notification eligibility restricted). The 90C hot CPU warning sound request while fullscreen does not prove physical audio. CoreAudio SystemSounds sessions are unmuted at volume 1.0 on default roles; Mi monitor default route and owner physical speaker connection remain unresolved. No owner configuration change, Glass acceptance or historical UI root cause closure. R376: 850ms link preseed was too short on one Windows 2025 guest (R369 baseline A failed to reproduce); bounded 8000ms preseed and timestamped actual writer introduced test-only. Local 350 links, 10 aligned compiled Candidate calls, 6 tests PASS; historical negative control remains strict and hosted matrix PENDING. R376 exact-source hosted 36/36 CI SUCCESS. Two complete R369 runs independently 8/8 raw strict negative and candidate controls PASS; R360 six host cycles/24 samples 49-492ms PASS. Product source and owner installation unchanged. Independent human review remains the merge gate. R377 new source preservation fix after independent code audit: previously CleanOwnedStage silently removed unexpected empty upgrade-stage directory; strict baseline local negative control reproduced, candidate retained it and legitimate nested stage cleanup PASS. Full local Build+3 selftests PASS. Hosted exact-head CI and human last-push review required, no public or owner installation changes. R377 hosted exact source HEAD 8ff5632: 67/67 GitHub checks SUCCESS incl. 4/4 R370 raw baseline/candidate Windows A/B receipts and 6/6 R360 native guest cycles, 24/24 strict hide samples (113–506 ms); built candidate Setup SHA B1E8121E... identical local/guests, Main BAB436AC... identical. Reviewer approval still absent. Documentation-only upsert needs fresh CI status. R379 source 5dd6bd9 fixes externally traversed Stage junction via TopDirectoryOnly reparse preflight; exact-head hosted 63/63, R370 push+PR 8/8 baseline/candidate raw receipts, R360 six Windows guest cycles/24 strict hide samples PASS; local source-level red/green plus full build and /verify PASS. Human approval still zero; no owner/public release change. R380 direct installed-v1.7.10 owner-host synthetic thermal red, Glass text, charts and native offscreen layered alpha upload PASS; same live owner PID 10892 and config preserved. Actual visible Glass on Taskbar and sound witness remain OPEN; security review zero. R381 direct owner-installed v1.7.10 real Taskbar native Glass compositing PASS (2173 text,2446 chart pixel differences, four mode transitions) and Windows Exclamation output audio endpoint event peak 0.3456726 above baseline 0 PASS, no configuration/owner app changes. Human reviewer approval still zero. R382 two distinct original R371 Windows 2022 glass0 negative artifacts independently recovered by IDs, both remain NON-PASS, menu alpha-zero click and UI timer delay only hypotheses. Owner v1.7.10 --settingsproof nine pages/73 a11y controls/152 High Contrast checks PASS, private PNGs, config unchanged. R383 engineering 52f3967 preserves postscan late unknown Stage member in isolated source-extracted method; preexisting R379 recursive deletion reproduced. Full local build and 25-resource verify PASS, R370 baseline 2/2+candidate 8/8. Initial hosted 52f candidate failure (shallow Git baseline unavailable) fixed in workflow-only 04ca643; 2 Windows R370 matrices 8/8 PASS and exact source/workflow head CI 29/29 PASS. Reviewer laptop read-only static 15/15/PS39 PASS, not human approval. No owner/public/Notion mutation. R384 commit f59e1dc: second full per-level inventory before any Stage deletion. Local exact method baseline 2/2, Candidate 10/10 including late root file/empty dir/nested file and preservation of all five journal markers; full build 0 warnings/errors, 3 selftests, Setup /verify 25/25. Engineering source-head CI 63/63; current documentation-only PR head 581d46a CI 29/29; hosted R370 push+PR 8/8; R360 6 real Windows 2022/2025 cycles and 24/24 hide samples 28-498ms median 233.5ms; R299 public v1.7.9 in-place update and R300 fresh install PASS with exact Setup SHA 01A208F1FF0929AD6E03D895803AD08A65BB39F1B0014EB0B2A4DF4FC31D8CB9. Aggregate receipt .local/audit/r384-hosted-acceptance-exact-head-20261110.json SHA256 66EA0AC59B24D5B0C67B2961E084CAAB8F3CE2778774D418818DB070C6A05266. Reviewer-host AI static 14/14 and PowerShell 39 parse PASS, not human review. R371 historical failure root cause remains unproven; no product change made. Notion restore still awaits explicit user consent.",
-  "MainBlocker": "PR #98 is open at current documentation-only head 581d46a with 29/29 exact-head CI PASS; underlying R384 engineering source f59e1dc has 63/63 checks PASS. REVIEW_REQUIRED and zero genuine human reviews; requested reviewer remains pending. Historical R371 Windows 2022 glass0 failures remain NON-PASS/root cause unproven; Notion R359 restoration still requires explicit user confirmation.",
+  "CriticalPath": "R390 crash-child startup/preflight/exit evidence must identify why hosted R299 is not arming COMMITTING; then fix exactly that cause and prove real official v1.7.9-to-v1.7.10 upgrade with crash recovery, canaries and idempotence. Preserve exact R385 security guard and independent review gate. PR #98 remains open and unmerged.",
+  "MainBlocker": "R389 exact-head Build/Verification is 3/4: R299 failed when a verified Medium crash child exited before COMMITTING signal. The underlying cause is unproven and R390 adds diagnostics. PR #98 still lacks independent human security review.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Obtain genuine independent human security review of current PR #98 head 581d46a; address any findings, then reassess merge gates. Keep R371 historical UI failure, Issue #6 reporter provenance, owner foreground Settings/audio acceptance, and explicit Notion restoration consent as separate gates. No merge or release mutation.",
+  "ExactNextAction": "Commit/push R390 diagnostics, inspect its exact-head hosted R299 failure receipts including child exit code/preflight and startup identity. Implement only a proven cause-specific fix; do not merge until complete CI and independent human review.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -1510,5 +1510,472 @@
       "Pending": 0,
       "Scope": "Exact R384 engineering source/test commit; no production or test source changed by the subsequent documentation-only PR commit."
     }
+  },
+  "R385": {
+    "Revision": "R385",
+    "EngineeringCommit": "4536bc7666be3773d1f9934c7d5a0592b064c266",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "Change": "Refuse per-user in-place upgrade/recovery before AppRoot or stage access when UAC is enabled and Setup runs elevated; preserve medium-integrity and UAC-disabled admin compatibility.",
+    "LocalBaseline": {
+      "Status": "PASS",
+      "Checks": 2,
+      "ReceiptSHA256": "93EC3FDCF29C3554220152A2914CF5FDB634E969B30BB116B584E8212200C908"
+    },
+    "LocalCandidate": {
+      "Status": "PASS",
+      "Checks": 6,
+      "ReceiptSHA256": "4123D51090F6BF55302A4B2D16104131589E1A2F7F7B5532D144DAAE92C94A14"
+    },
+    "LocalBuild": {
+      "Status": "PASS",
+      "Warnings": 0,
+      "Errors": 0,
+      "SelfTests": 3,
+      "SetupVerifyResources": 25,
+      "ReproBuild": true,
+      "SetupSHA256": "8FA5B5530D38601CE41354DCC22ED43E4AE5459C1293E3AF4EB7832A2391056B",
+      "MainSHA256": "BAB436ACD0C531DE04DD6BF21B8A4D015F29529798997BEA1931B6FECD8803B6"
+    },
+    "PowerShell51Parse": "PASS",
+    "WorkflowYamlParse": "PASS",
+    "GitDiffCheck": "PASS",
+    "HostedCI": {
+      "Status": "R385_DEDICATED_PUSH_AND_PR_MATRICES_PASS_R291_RETRY_AND_R360_PRIOR_STRESS_PASS_R388_EXACT_HEAD_VALIDATION_PENDING",
+      "ExactHead": "4536bc7666be3773d1f9934c7d5a0592b064c266",
+      "PushRun": 42814394318,
+      "PullRequestRun": 42814404634,
+      "Push": {
+        "Jobs": 4,
+        "Passed": 4,
+        "Failed": 0
+      },
+      "PullRequest": {
+        "Jobs": 4,
+        "Passed": 4,
+        "Failed": 0
+      },
+      "Windows2022": {
+        "Baseline": {
+          "Status": "SUCCESS",
+          "Checks": 2,
+          "ReceiptSHA256": "5491A954C3B9C184404477C8077E8367D9C9F7FE4F3FBBE3A01F40F60704A158"
+        },
+        "Candidate": {
+          "Status": "SUCCESS",
+          "Checks": 6,
+          "ReceiptSHA256": "D9E4BFF3661695B50DA0618D71C894069B1B01B92D0EAA6684F1CE0326050584"
+        }
+      },
+      "Windows2025": {
+        "Baseline": {
+          "Status": "SUCCESS",
+          "Checks": 2,
+          "ReceiptSHA256": "263A43167312169D0C00BD2119B2C77168D08EC2A8EBA6E01D38CD2E4D71595F"
+        },
+        "Candidate": {
+          "Status": "SUCCESS",
+          "Checks": 6,
+          "ReceiptSHA256": "B610CD008B40265511D66AFB5A48490A001BE6523F5A5FDA255EF5973092ADEC"
+        }
+      },
+      "ArtifactValidation": "4/4 push receipts + 4/4 PR receipts; ZIP digest and JSON receipt SHA256 verified.",
+      "BroaderPR": {
+        "BuildVerification": {
+          "Run": 42814404560,
+          "Jobs": 4,
+          "Passed": 3,
+          "Failed": 1,
+          "Failure": "R299 Setup process returned generic exit 34 through the catch path. That run did not set TBME_UPDATE_DIAGNOSTIC_PHASE, so the underlying exception was not captured; prior attribution to the R385 elevation guard is unsupported.",
+          "R386Attempt": {
+            "Run": 42817756016,
+            "Status": "FAILED_BEFORE_SETUP_LAUNCH",
+            "Failure": "R299_PARENT_MUST_HAVE_FULL_UAC_ELEVATION_TOKEN; runner parent was already medium; no Setup process was created."
+          },
+          "R387FixCommit": "0100e61e980419b1f325f29e751b8989ea55453c"
+        },
+        "R291": {
+          "Run": 42814404550,
+          "InitialAttempt": {
+            "Jobs": 3,
+            "Passed": 2,
+            "Failed": 1,
+            "Failure": "Windows 2025 hidden Settings HWND; R146_SETTINGS_NOT_REAL_FOREGROUND; Visible=false; WS_VISIBLE=false; 5111ms; original artifact retained."
+          },
+          "DiagnosticRetry": {
+            "Attempt": 2,
+            "Status": "SUCCESS",
+            "Jobs": 3,
+            "Passed": 3,
+            "Failed": 0,
+            "FailedJobId": 129826772496,
+            "Windows2025ArtifactSHA256": "66452172d85b8567b845e49509dce1b27752688f61d72d9345d36397354db58e",
+            "Windows2022ArtifactSHA256": "ce09a2b5575c1886b0a5615c693919c371662c920ef270dc7843f85e0bf5b056",
+            "Windows2025SettingsForegroundWaitMs": [
+              2,
+              0,
+              0,
+              0
+            ]
+          },
+          "OriginalFailureRetained": true,
+          "RootCause": "Not established; retry passed, R360 three-cycle stress remains pending.",
+          "R360Stress": {
+            "Run": 42817747115,
+            "Status": "SUCCESS",
+            "Cycles": 3,
+            "Windows2022": "SUCCESS",
+            "Windows2025": "SUCCESS"
+          }
+        }
+      },
+      "OtherPRWorkflows": {
+        "R290": "SUCCESS",
+        "R338": "SUCCESS",
+        "R367": "SUCCESS",
+        "R369": "SUCCESS",
+        "R370": "SUCCESS"
+      }
+    },
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "Limit": "No full Setup invocation, real UAC prompt or owner installation upgrade was performed; native fixture compiles exact production helper methods and simulates the extracted guard."
+  },
+  "R386": {
+    "Revision": "R386",
+    "EngineeringCommit": "4f3625a81004b35603d7b0ae150dba0ea1ff0dea",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "Change": "Test-infrastructure-only R299 launcher starts per-user Setup and crash fixture under verified same-user linked UAC-limited medium-integrity token; production R385 guard unchanged.",
+    "Files": [
+      ".github/workflows/ci.yml",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1",
+      "build/R299-MediumTokenLauncher.cs"
+    ],
+    "LocalValidation": {
+      "PowerShell51Parse": "PASS",
+      "CSharpCompileNetFramework": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "GitDiffCheck": "PASS"
+    },
+    "SetupUpdateChildLaunches": 3,
+    "CrashFixtureChildLaunches": 1,
+    "ChildTokenAssertions": [
+      "Same user SID",
+      "TokenElevationType=Limited",
+      "TokenElevation=0",
+      "TokenIntegrityLevel=Medium (0x2000)",
+      "Primary token"
+    ],
+    "HostedCI": {
+      "BuildAndVerification": {
+        "Run": 42817756016,
+        "Status": "FAILED_BEFORE_SETUP_LAUNCH",
+        "Failure": "R299_PARENT_MUST_HAVE_FULL_UAC_ELEVATION_TOKEN"
+      },
+      "R291PR": {
+        "Run": 42817756118,
+        "Status": "QUEUED"
+      },
+      "R385PR": {
+        "Run": 42817755998,
+        "Status": "QUEUED"
+      },
+      "R360Stress": {
+        "Run": 42817747115,
+        "Status": "IN_PROGRESS",
+        "Build": "SUCCESS",
+        "Windows2022": "QUEUED",
+        "Windows2025": "QUEUED"
+      },
+      "R338": {
+        "Run": 42817756020,
+        "Status": "QUEUED_OR_IN_PROGRESS"
+      },
+      "R367": {
+        "Run": 42817756017,
+        "Status": "QUEUED"
+      },
+      "R369": {
+        "Run": 42817756211,
+        "Status": "QUEUED"
+      },
+      "R370": {
+        "Run": 42817756155,
+        "Status": "QUEUED"
+      },
+      "R290": {
+        "Run": 42817756028,
+        "Status": "QUEUED"
+      }
+    },
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "R386 hosted run failed before creating any Setup process; it did not test the product or R385 guard.",
+    "Status": "SUPERSEDED_BY_R387_AFTER_HOSTED_PARENT_TOKEN_ASSUMPTION_FAILED_BEFORE_SETUP"
+  },
+  "R387": {
+    "Revision": "R387",
+    "EngineeringCommit": "0100e61e980419b1f325f29e751b8989ea55453c",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "Change": "Test-only launcher supports already-medium workflow token or linked limited token from Full parent; adds per-phase Setup diagnostics and uploads raw failure diagnostics. Production code unchanged.",
+    "Files": [
+      ".github/workflows/ci.yml",
+      "build/R299-MediumTokenLauncher.cs",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1"
+    ],
+    "LocalValidation": {
+      "PowerShell51Parse": "PASS",
+      "CSharpCompileNetFramework": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "GitDiffCheck": "PASS",
+      "NativeMediumChildSmoke": "PASS",
+      "WhitelistedEnvironmentPropagation": "PASS",
+      "NativeSmokeChild": "whoami.exe /groups",
+      "TokenSource": "CURRENT_MEDIUM_TOKEN"
+    },
+    "SetupUpdateChildLaunches": 3,
+    "CrashFixtureChildLaunches": 1,
+    "DiagnosticPhases": [
+      "NEGATIVE_USER_EDIT",
+      "POSITIVE_OFFICIAL_STABLE",
+      "IDEMPOTENT"
+    ],
+    "TamperDiagnosticAssertion": "Must identify modified Source/StudioThemes.cs predecessor and must not be the R385 elevation refusal.",
+    "HostedCI": {
+      "BuildAndVerification": {
+        "Run": 42820827177,
+        "Status": "FAILED_BEFORE_SETUP_LAUNCH",
+        "Failure": "Parent token was TokenElevationType Default, primary, High integrity 0x3000; neither Medium nor Full/linked-token path. No Setup process was created."
+      },
+      "R360Push": {
+        "Run": 42820814782,
+        "Status": "IN_PROGRESS"
+      },
+      "R291PR": {
+        "Run": 42820827126,
+        "Status": "QUEUED"
+      },
+      "R385PR": {
+        "Run": 42820827224,
+        "Status": "QUEUED"
+      },
+      "R338": {
+        "Run": 42820827209,
+        "Status": "QUEUED"
+      },
+      "R367": {
+        "Run": 42820827104,
+        "Status": "IN_PROGRESS"
+      },
+      "R369": {
+        "Run": 42820827063,
+        "Status": "IN_PROGRESS"
+      },
+      "R370": {
+        "Run": 42820827139,
+        "Status": "QUEUED"
+      },
+      "R290": {
+        "Run": 42820827042,
+        "Status": "IN_PROGRESS"
+      }
+    },
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "Hosted execution of the new child-token path and actual Setup upgrade/diagnostic have not yet been validated.",
+    "Status": "SUPERSEDED_BY_R388_DEFAULT_HIGH_TOKEN_SUPPORT"
+  },
+  "R388": {
+    "Revision": "R388",
+    "EngineeringCommit": "bc328976c6e7ed7bb449a52f4baed90fd7a5979d",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "Change": "Test-only restricted-medium-token fallback for Default/High parent; disables Administrators SID and maximum privileges, lowers token IL to Medium, verifies same user and child token. Existing current-medium and linked-limited paths retained.",
+    "Files": [
+      "build/R299-MediumTokenLauncher.cs",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1"
+    ],
+    "LocalValidation": {
+      "PowerShell51Parse": "PASS",
+      "CSharpCompileNetFramework": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "GitDiffCheck": "PASS",
+      "NativeCurrentMediumChildSmoke": "PASS",
+      "RestrictedTokenCreationSmoke": "PASS",
+      "RestrictedTokenElevationType": 3,
+      "RestrictedTokenIntegrity": "0x2000",
+      "TokenSource": "CURRENT_MEDIUM_TOKEN"
+    },
+    "HostedCI": {
+      "R360Push": {
+        "Run": 42822651632,
+        "Status": "SUCCESS",
+        "Jobs": 3,
+        "Passed": 3,
+        "Failed": 0
+      },
+      "BuildAndVerification": {
+        "Run": 42822663126,
+        "Status": "FAILURE",
+        "Jobs": 4,
+        "Passed": 3,
+        "Failed": 1,
+        "FailedJobId": 129853549067,
+        "Failure": "R299 failed while creating the explicit restricted Medium child through CreateProcessWithTokenW. The helper failed before any Setup child was created; the real in-place upgrade, crash recovery and idempotence were not exercised. The R388 helper did not preserve the Win32 error code."
+      },
+      "R385PullRequest": {
+        "Run": 42822663157,
+        "Status": "SUCCESS",
+        "Jobs": 4,
+        "Passed": 4,
+        "Failed": 0
+      }
+    },
+    "DiagnosticPhases": [
+      "NEGATIVE_USER_EDIT",
+      "POSITIVE_OFFICIAL_STABLE",
+      "IDEMPOTENT"
+    ],
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "The hosted R299 run did not create a Setup child. R360 push and R385 PR matrices passed, but neither validates the R299 actual Setup upgrade. R389 supersedes the R388 token-launch policy.",
+    "FollowUpCommit": "50cf86a7d932452f4cb4509e333824f3830f2d80",
+    "Status": "SUPERSEDED_AFTER_R299_HOSTED_EXPLICIT_TOKEN_PROCESS_CREATION_FAILURE"
+  },
+  "R389": {
+    "Revision": "R389",
+    "ImplementationCommit": "83bc2c16d0b13631b929646ee6c0555c592de9c2",
+    "ParentCommit": "50cf86a7d932452f4cb4509e333824f3830f2d80",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "Change": "R299 hosted test launcher now follows the actual R385 UAC boundary: UAC-enabled Windows requires a verified same-user Medium child; UAC-disabled Windows may retain the same-user High administrator token only when 64-bit HKLM EnableLUA=0 and the token is primary, TokenElevationType Default, exactly High IL and Administrators-enabled. Unknown UAC state fails closed.",
+    "Files": [
+      ".github/workflows/ci.yml",
+      "build/R299-MediumTokenLauncher.cs",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1"
+    ],
+    "LocalValidation": {
+      "PowerShell51Parse": "PASS",
+      "CSharpCompileNetFramework": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "GitDiffCheck": "PASS",
+      "CurrentMediumChildSmoke": "PASS",
+      "CurrentHostUacEnabled": true,
+      "CurrentChildTokenElevationType": 3,
+      "CurrentChildIntegrity": "0x2000",
+      "CurrentChildAdministratorsEnabled": false,
+      "UacRegistry64Readback": "PASS",
+      "EnvironmentBlockPropagation": "PASS",
+      "ParentTokenDiagnosticSmoke": "PASS",
+      "ReceiptContextAssertions": "PASS",
+      "RequiredCIMarkers": "7/7 PASS",
+      "StaleMediumOnlyMarkerScan": "PASS"
+    },
+    "HostedCI": {
+      "ExactHead": "83bc2c16d0b13631b929646ee6c0555c592de9c2",
+      "BuildAndVerification": {
+        "Run": 42827227428,
+        "Status": "FAILURE",
+        "Jobs": 4,
+        "Passed": 3,
+        "Failed": 1,
+        "FailedJobId": 129869262253,
+        "Failure": "R299 Setup negative tamper test passed with exact Source/StudioThemes.cs diagnostic. The verified restricted Medium token successfully launched Setup and the CrashChild. The crash child exited before producing the COMMITTING arm signal, without a .error.txt; R390 adds preflight/startup/exit-code diagnostics."
+      },
+      "R360Push": {
+        "Run": 42827203984,
+        "Status": "SUCCESS",
+        "Windows2022": "SUCCESS",
+        "Windows2025": "SUCCESS",
+        "Jobs": 3,
+        "Passed": 3,
+        "Failed": 0
+      },
+      "PullRequestChecks": {
+        "Total": 30,
+        "Passed": 29,
+        "Failed": 1,
+        "InProgress": 0,
+        "Failing": "r299-public-v179-inplace-upgrade"
+      },
+      "R385PullRequest": {
+        "Run": 42827227621,
+        "Status": "SUCCESS",
+        "Jobs": 4,
+        "Passed": 4,
+        "Failed": 0
+      }
+    },
+    "TokenPolicy": {
+      "UacEnabled": "Only verified same-user Medium token is accepted.",
+      "UacDisabled": "Only same-user primary Default-elevation token with exactly High IL, enabled Administrators membership and 64-bit HKLM EnableLUA=0 is accepted.",
+      "UnknownUacState": "Fail closed as UAC enabled."
+    },
+    "SetupUpdateChildLaunches": 3,
+    "CrashFixtureChildLaunches": 1,
+    "ChildTokenFactsRecorded": true,
+    "SingleTokenContextAcrossFourChildren": true,
+    "ProductionSetupChanged": false,
+    "R385SecurityGuardChanged": false,
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "R389 hosted R299 verified restricted Medium child creation, tampered official predecessor rejection and exact phase diagnostic. Crash child exited before signaling COMMITTING; real recovery and idempotence were not exercised. R390 adds diagnostic receipts, not a claimed fix of the underlying crash-child cause."
+  },
+  "R390": {
+    "Revision": "R390",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "Objective": "Diagnose why R299 hosted crash fixture exits before COMMITTING arm signal, without altering product Setup, R385 guard or acceptance gates.",
+    "PredecessorCommit": "83bc2c16d0b13631b929646ee6c0555c592de9c2",
+    "FailureEvidence": {
+      "Run": 42827227428,
+      "Job": 129869262253,
+      "Status": "FAILURE_BEFORE_COMMITTING_SIGNAL",
+      "ParentUacEnabled": true,
+      "ParentAdministratorsEnabled": true,
+      "SetupChild": {
+        "TokenSource": "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT",
+        "Method": "CREATE_PROCESS_AS_USER",
+        "Integrity": "0x2000",
+        "AdministratorsEnabled": false
+      },
+      "CrashChild": {
+        "TokenSource": "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT",
+        "Method": "CREATE_PROCESS_AS_USER",
+        "Integrity": "0x2000",
+        "AdministratorsEnabled": false
+      },
+      "TamperDiagnostic": "PASS_SOURCE_STUDIOTHEMES_CS_EXACT_NEGATIVE",
+      "CrashFixtureFailure": "R299_CRASH_CHILD_DID_NOT_ARM_child did not produce arm signal",
+      "Artifact": {
+        "Id": 13770420064,
+        "Digest": "sha256:bfe64a1e4c8a0e78ab05f472f82bd7f21f9e56d1eae6823d51bd4c1f5dee665d",
+        "Contents": "R129_DIAG_NEGATIVE_USER_EDIT.txt"
+      },
+      "ProductSetupCodeChanged": false
+    },
+    "Changes": [
+      "Crash child captures preflight exceptions into its bounded disposable-runner .error.txt and records a PID, run, SHA and environment-bound startup receipt only after validating the exact disposable runner and canonical app root.",
+      "Parent reports child exit status, error and startup receipt if COMMITTING arm signal is absent; validates startup identity before accepting the crash fixture.",
+      "CI requires explicit crash-child startup marker and receipt includes CrashChildStartupVerified."
+    ],
+    "Files": [
+      "build/Test-R299-HostedCrashChild.ps1",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1",
+      ".github/workflows/ci.yml"
+    ],
+    "LocalValidation": {
+      "PowerShell51ParseBoth": "PASS",
+      "CSharpCompileNetFramework": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "RequiredCIMarkers": "8/8 PASS",
+      "GitDiffCheck": "PASS",
+      "ArgumentEnvironmentPropagation": "PASS"
+    },
+    "HostedCI": "NOT_YET_RUN_FOR_R390",
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "Diagnostics are validated locally but the actual GitHub-hosted crash-child fault and full Setup update/recovery/idempotence acceptance remain unproven."
   }
 }

@@ -289,7 +289,8 @@ if((Get-FileHash $tamper).Hash -cne [string]$pins['Source/StudioThemes.cs']){thr
 # that exact test-owned child, and the REAL candidate Setup must recover.
 $childScript=Join-Path $PSScriptRoot 'Test-R299-HostedCrashChild.ps1'
 $signal=Join-Path $env:RUNNER_TEMP ('R299_ABRUPT_COMMITTING_ARMED_'+$env:GITHUB_RUN_ID+'.json')
-if(!(Test-Path $childScript) -or (Test-Path $signal) -or (Test-Path ($signal+'.error.txt'))){
+$startupSignal=$signal+'.started.txt'
+if(!(Test-Path $childScript) -or (Test-Path $signal) -or (Test-Path ($signal+'.error.txt')) -or (Test-Path $startupSignal)){
  throw 'R299_CRASH_FIXTURE_SOURCE_OR_SIGNAL_NOT_FRESH'
 }
 $trustedPowerShell=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell/v1.0/powershell.exe'
@@ -313,9 +314,22 @@ try{
   Start-Sleep -Milliseconds 150
  }
  if(!$armed){
+  $childHasExited=[bool]$crashChild.HasExited
+  $childExitCode=if($childHasExited){[string]$crashChild.ExitCode}else{'RUNNING'}
   $childError=if(Test-Path ($signal+'.error.txt')){Get-Content ($signal+'.error.txt') -Raw}else{'child did not produce arm signal'}
-  throw ('R299_CRASH_CHILD_DID_NOT_ARM_'+$childError.Substring(0,[Math]::Min(680,$childError.Length)))
+  $startupError=if(Test-Path $startupSignal){Get-Content $startupSignal -Raw}else{'startup receipt missing'}
+  $failureDetail='hasExited='+$childHasExited+'_exitCode='+$childExitCode+'_startup='+$startupError+'_error='+$childError
+  throw ('R299_CRASH_CHILD_DID_NOT_ARM_'+$failureDetail.Substring(0,[Math]::Min(1100,$failureDetail.Length)))
  }
+ if(!(Test-Path $startupSignal)){throw 'R299_CRASH_CHILD_STARTUP_RECEIPT_MISSING'}
+ $startupRecord=Get-Content $startupSignal -Raw|ConvertFrom-Json
+ if($startupRecord.Pid -ne $crashChild.Id -or
+    $startupRecord.Phase -cne 'PREFLIGHT_PASSED' -or
+    $startupRecord.GitSha -cne $env:GITHUB_SHA -or
+    $startupRecord.RunId -cne $env:GITHUB_RUN_ID){
+  throw 'R299_CRASH_CHILD_STARTUP_RECEIPT_IDENTITY_WRONG'
+ }
+ 'R299_HOSTED_CRASH_CHILD_STARTUP=PASS'
  $record=Get-Content $signal -Raw|ConvertFrom-Json
  if($record.Pid -ne $crashChild.Id -or
     $record.Phase -cne 'COMMITTING' -or
@@ -425,6 +439,7 @@ $receipt=[ordered]@{
  ExactSecondUpdateIdempotent=$true
  SetupUpdateProcessesVerifiedToken=$script:R299HostedSetupUpdateLaunchCount
  CrashFixtureProcessVerifiedToken=$script:R299HostedCrashChildLaunchCount
+ CrashChildStartupVerified=$true
  HostedTokenVerifiedForEveryChild=$true
  HostedTokenSources=@($script:R299HostedTokenSources.ToArray())
  HostedTokenCreationMethods=@($script:R299HostedTokenCreationMethods.ToArray())
