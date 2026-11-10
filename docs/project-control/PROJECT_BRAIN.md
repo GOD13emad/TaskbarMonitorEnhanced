@@ -1,3 +1,12 @@
+## R394 — eliminate console-subsystem loader failure using a GUI-hosted PowerShell crash fixture — local integration PASS; hosted pending
+
+- R393 exact-head [Build/Verification 42842652486](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42842652486) finished build/R298/R300 PASS, R299 FAIL; 29/30 other exact-head checks PASS. R360 push [42842321660](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42842321660) succeeded Windows Server 2022/2025. PR #98 at `65c4dd5e5e502e4a3aa70f9f9ad55cce1565bc58` remained open/unmerged/mergeable but blocked on CI and independent human security review.
+- Root boundary: exact immutable public v1.7.9 Setup SHA, 22 predecessor pins, five negative identities and exact StudioThemes.cs tamper refusal passed. SetupUpdate and CrashChild processes were created with same-user restricted Medium token (IL 0x2000, Administrators disabled) via `CreateProcessAsUserW`. Even `CREATE_NEW_CONSOLE` did not initialize `powershell.exe`: exit code -1073741502 = 0xC0000142 STATUS_DLL_INIT_FAILED before entry/startup/error/COMMITTING receipts. The three console launch modes (CREATE_NO_WINDOW, default, new console) have not proven a viable hosted PowerShell child. No genuine crash recovery/idempotence occurred. Microsoft [CreateProcessAsUserW](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw) notes successful process creation can precede DLL initialization failure.
+- R394 technical decision: preserve the original `build/Test-R299-HostedCrashChild.ps1` and all original acceptance gates, but host it through a new compiled GUI-subsystem `build/R299-HostedCrashGuiBootstrap.cs` with `System.Management.Automation.PowerShell` in-process. Compile the WindowsApplication binary only after the exact disposable-runner guard, to RUNNER_TEMP; verify PE subsystem 2, retain its source via exact repo SHA and emit the compiled binary SHA. Bootstrap checks exact GitHub-hosted Windows repo, run/SHA formats and runner-scoped signal path before writing, then emits a PID/run/SHA `.gui.entered.txt` receipt and invokes the same PS script. All Setup/CrashChild processes use the already verified same-user Medium token and no console; Setup still uses unchanged CREATE_NO_WINDOW. The parent requires GUI bootstrap entry, original script entry/preflight, COMMITTING proof, forced kill and real Setup replay, and records bounded bootstrap errors. CI requires `R299_HOSTED_CRASH_CHILD_GUI_HOST=PASS` and `R299_HOSTED_CRASH_GUI_BOOTSTRAP=PASS` in addition to the original recovery/canary/idempotence markers.
+- Local validation PASS: Windows PowerShell 5.1 parse of both scripts; compiled existing Medium launcher C#; compiled Windows-subsystem GUI exe with PE Subsystem=2; benign embedded PowerShell in-process test successfully invoked a synthetic script and wrote the expected marker; real GUI bootstrap launched as a verified Medium-integrity child without Administrators and failed closed on the owner/nonhosted machine (exit 81, no files); workflow YAML parse; six essential CI markers match; git diff --check. No production Setup or owner data changed.
+- Scope/risk: this is a test-only workaround for an observed console host initialization fault, not a demonstrated fix for product Setup. The new GUI bootstrap adds no installation, registry or sensor mutation of its own; the original child script remains guarded and unchanged. The entire real hosted v1.7.9-to-v1.7.10 interrupted COMMITTING upgrade/recovery, canary preservation and idempotent second update remain pending CI. PR #98 independent human review remains missing.
+- Next: commit/push R394 exact head, inspect GUI bootstrap receipt then original script receipt, stage/kill/recovery and idempotence. Do not merge PR #98 until exact-head CI plus independent security review pass.
+
 ## R393 — isolate hosted restricted-Medium PowerShell crash console, require early entry receipt — locally validated; hosted pending
 
 - Authoritative baseline: commit `e25e8eaeff825a3e23be0990fd88605f3365f1b9`, PR #98 open/mergeable/unmerged and requested human security review not submitted. R392 exact-head Build/Verification [42836539517](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42836539517) succeeded build, R298 and R300 but failed R299; 29/30 checks passed overall; R360 push [42836527156](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42836527156) succeeded on Windows Server 2022 and 2025.
@@ -1478,30 +1487,4 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
   - worktree at audit time: clean.
 - Product DoD: COMPLETE / FINAL_PUBLIC_RELEASE_ACCEPTED.
 - Project Brain Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
-- Open product blockers/gates: none.
-- Deferred external item: publicly trusted Authenticode signing remains external/unproven; no signing claim is made.
-- Exact next action: none required for v1.2.0. Future work should begin as a new scoped change set from current `main`; do not mutate the immutable v1.2.0 tag/release.
-
-## R33 / v1.3.0 FINAL PUBLIC RELEASE — 2026-10-02
-
-- Release: `v1.3.0 — Reliability, Alerts & Support Tools`.
-- Release URL: `https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/tag/v1.3.0`.
-- Release id: `401629671`; immutable=true; draft=false; prerelease=false; Latest=v1.3.0.
-- Annotated tag object: `8d9314a60ceaaa074b5f877aaf4d224337780fb3`.
-- Peeled release commit: `fc5619d049de4a95cb23542a8c3318e12f064691`.
-- Main exact-release CI run `36980902415`: SUCCESS. Release-branch exact-head run `36980484008`: SUCCESS.
-- Main CI artifact: id `11215586294`; digest `sha256:078d7886bf4613ad586dfdeea7685181a6a8ce8fc176754bd121c465e3c98a1f`.
-- Final release hashes: Main `B11BF06BBA341AE87B46829580C19D4184FB87A39D5797DF803436F6D8331F90`; Broker `182D634616434AECADD3A9AF54A746BB61FD70EC0F788DC12429679AA197D833`; Supervisor `0E28911AACDE0C3B1C6997C8BC6FF141C0FAA650B58438A9991CB3AD6C13C785`; Setup `508BB69F48D992FFC5AF240F3F775B5E2CAA1B052BFDB48302DEC40364B521BF`.
-- R32 Storage defect is closed by R33 completion-contract hardening: valid fresh output is accepted independently of near-boundary worker exit; timeout is 20 s with 3 s exit grace and bounded reap. Live soak PASS: 73 samples, 5 new attempts, 0 failure samples, max 292 ms.
-- R32 startup redundancy defect is closed by continuous 60 s maintenance. Live final-hash fault injections repaired primary Run in 16.1 s and recovery shortcut in 30.1 s without fallback.
-- Sensor identity is explicit: R21 architecture retained; Broker protocol remains `1.1.2+r21`; hardened Supervisor build is `1.3.0+r33`. Installer exact-hash/live-health reuse gate passed and a final reinstall reused the protected layer without restarting sensor processes.
-- Ten capability package accepted: temperature thresholds/hot-state accents, adaptive battery polling, Session Pause/Resume, configurable history, Copy Diagnostics, Support ZIP, Safe Defaults, live health badge, plus dedicated Alerts Settings page.
-- Privacy/reliability hardening: support manifest omits machine name and absolute source paths; Safe Defaults backup helper is preservation-tested and collision-safe.
-- GPU native fault review: worker isolation plus bounded backoff 5/15/30/60/120/300 s is retained; no destructive driver-level validation was used.
-- Final visual/runtime suite: 15/15 PASS, 136 artifacts; themes 28/28; compact 592+500 zero overflow; Settings 9/9; Start transition 24/24; health/shell/hardware/temperature PASS.
-- Published assets 7/7 digest-verified. Setup asset SHA256 `508bb69f48d992ffc5af240f3f775b5e2caa1b052bfdb48302dec40364b521bf`.
-- Public acceptance: `docs/acceptance/v1.3.0/PUBLIC_RELEASE_ACCEPTANCE.json`.
-- Signing: `UNSIGNED_PENDING_EXTERNAL_PROVIDER`; no trusted Authenticode claim.
-- v1.2.0 and earlier public releases remain immutable and unchanged.
-- Product DoD: COMPLETE / FINAL_PUBLIC_RELEASE_ACCEPTED.
-- Post-publication closeout thr
+- Open product bl

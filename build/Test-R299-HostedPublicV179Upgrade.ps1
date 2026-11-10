@@ -75,13 +75,13 @@ function Start-R299HostedProcess {
         [string[]]$ArgumentList,
         [IO.Path]::GetFullPath($WorkingDirectory),
         [string]$script:R299HostedEnvironmentBlock,
-        [bool]($Purpose -ceq 'CrashChild')
+        [bool]$false
     )
     if($Purpose -eq 'SetupUpdate'){$script:R299HostedSetupUpdateLaunchCount++}
     else{$script:R299HostedCrashChildLaunchCount++}
-    if($process.ConsoleAllowed -ne ($Purpose -ceq 'CrashChild')){
+    if($process.ConsoleAllowed){
      $process.Dispose()
-     throw 'R299_CHILD_CONSOLE_FLAG_NOT_STRICTLY_SCOPED'
+     throw 'R299_GUI_SETUP_OR_CRASH_CHILD_CONSOLE_FLAG_UNEXPECTED'
     }
     $script:R299HostedTokenSources.Add([string]$process.TokenSource)
     $script:R299HostedTokenCreationMethods.Add([string]$process.CreationMethod)
@@ -294,33 +294,56 @@ if((Get-FileHash $tamper).Hash -cne [string]$pins['Source/StudioThemes.cs']){thr
 # files and writes an owned COMMITTING marker. The parent terminates ONLY
 # that exact test-owned child, and the REAL candidate Setup must recover.
 $childScript=Join-Path $PSScriptRoot 'Test-R299-HostedCrashChild.ps1'
+$guiSource=Join-Path $PSScriptRoot 'R299-HostedCrashGuiBootstrap.cs'
 $signal=Join-Path $env:RUNNER_TEMP ('R299_ABRUPT_COMMITTING_ARMED_'+$env:GITHUB_RUN_ID+'.json')
 $startupSignal=$signal+'.started.txt'
 $entrySignal=$signal+'.entered.txt'
-if(!(Test-Path $childScript) -or (Test-Path $signal) -or (Test-Path ($signal+'.error.txt')) -or
-   (Test-Path $startupSignal) -or (Test-Path $entrySignal)){
+$guiEntrySignal=$signal+'.gui.entered.txt'
+$bootstrapErrorSignal=$signal+'.bootstrap.error.txt'
+if(!(Test-Path $childScript -PathType Leaf) -or
+   !(Test-Path $guiSource -PathType Leaf) -or
+   (Test-Path $signal) -or
+   (Test-Path ($signal+'.error.txt')) -or
+   (Test-Path $bootstrapErrorSignal) -or
+   (Test-Path $startupSignal) -or
+   (Test-Path $entrySignal) -or
+   (Test-Path $guiEntrySignal)){
  throw 'R299_CRASH_FIXTURE_SOURCE_OR_SIGNAL_NOT_FRESH'
 }
-$trustedPowerShell=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell/v1.0/powershell.exe'
-if(!(Test-Path $trustedPowerShell)){throw 'R299_CRASH_CHILD_HOST_UNAVAILABLE'}
+$guiExe=Join-Path $env:RUNNER_TEMP ('R299_HostedCrashGui_'+$env:GITHUB_RUN_ID+'.exe')
+if(Test-Path $guiExe){throw 'R299_GUI_BOOTSTRAP_BINARY_PREEXISTS'}
+$psAssembly=[System.Management.Automation.PowerShell].Assembly.Location
+if(!(Test-Path $psAssembly -PathType Leaf)){throw 'R299_GUI_BOOTSTRAP_POWERSHELL_ASSEMBLY_MISSING'}
+Add-Type -TypeDefinition ([IO.File]::ReadAllText($guiSource)) -ReferencedAssemblies @(
+ 'System.dll','System.Core.dll',$psAssembly
+) -OutputAssembly $guiExe -OutputType WindowsApplication -ErrorAction Stop
+if(!(Test-Path $guiExe -PathType Leaf)){throw 'R299_GUI_BOOTSTRAP_COMPILE_OUTPUT_MISSING'}
+$pe=[IO.File]::ReadAllBytes($guiExe)
+$peOffset=[BitConverter]::ToInt32($pe,0x3C)
+if($peOffset -lt 0 -or $peOffset+24+70 -gt $pe.Length -or
+   [BitConverter]::ToUInt16($pe,$peOffset+24+68) -ne 2){
+ throw 'R299_GUI_BOOTSTRAP_NOT_WINDOWS_SUBSYSTEM'
+}
+Write-Host ('R299_GUI_BOOTSTRAP_SHA256='+(Get-FileHash -LiteralPath $guiExe -Algorithm SHA256).Hash)
 $env:TBME_UPDATE_DIAGNOSTIC_PHASE=''
 $script:R299HostedEnvironmentBlock=New-R299HostedEnvironmentBlock
 $crashArguments=@(
- '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$childScript,
- '-CandidateSetup',$newSetup,'-App',$app,'-Signal',$signal,
- '-ExpectedSetupSha',[string]$expectedNew[0].SHA256,
- '-ExpectedPriorSetupSha',$publicSha,
- '-ExpectedPriorMainSha','04776E870A492733BBA33A550F732F5DB688A6585FC6533224A56687F1A6D88E',
- '-ExpectedNewMainSha',[string]$expectedMain[0].SHA256
+ $newSetup,
+ $app,
+ $signal,
+ [string]$expectedNew[0].SHA256,
+ $publicSha,
+ '04776E870A492733BBA33A550F732F5DB688A6585FC6533224A56687F1A6D88E',
+ [string]$expectedMain[0].SHA256
 )
-$crashChild=Start-R299HostedProcess -FileName $trustedPowerShell -ArgumentList $crashArguments -WorkingDirectory $env:RUNNER_TEMP -Purpose CrashChild
-if($crashChild -isnot [R299HostedProcess] -or !$crashChild.ConsoleAllowed){
- throw 'R299_CRASH_CHILD_LAUNCH_MUST_RETURN_SINGLE_CONSOLE_ENABLED_PROCESS'
+$crashChild=Start-R299HostedProcess -FileName $guiExe -ArgumentList $crashArguments -WorkingDirectory $env:RUNNER_TEMP -Purpose CrashChild
+if($crashChild -isnot [R299HostedProcess] -or $crashChild.ConsoleAllowed){
+ throw 'R299_CRASH_CHILD_LAUNCH_MUST_RETURN_SINGLE_NONCONSOLE_GUI_PROCESS'
 }
-'R299_HOSTED_CRASH_CHILD_CONSOLE_ALLOWED=PASS'
+'R299_HOSTED_CRASH_CHILD_GUI_HOST=PASS'
 try{
  $armed=$false
- for($probe=0;$probe -lt 130;$probe++){
+ for($probe=0;$probe -lt 200;$probe++){
   if(Test-Path $signal){$armed=$true;break}
   if($crashChild.HasExited){break}
   Start-Sleep -Milliseconds 150
@@ -328,12 +351,23 @@ try{
  if(!$armed){
   $childHasExited=[bool]$crashChild.HasExited
   $childExitCode=if($childHasExited){[string]$crashChild.ExitCode}else{'RUNNING'}
+  $bootstrapEntry=if(Test-Path $guiEntrySignal){Get-Content $guiEntrySignal -Raw}else{'GUI bootstrap entry missing'}
+  $bootstrapError=if(Test-Path $bootstrapErrorSignal){Get-Content $bootstrapErrorSignal -Raw}else{'GUI bootstrap error missing'}
   $childError=if(Test-Path ($signal+'.error.txt')){Get-Content ($signal+'.error.txt') -Raw}else{'child did not produce arm signal'}
   $startupError=if(Test-Path $startupSignal){Get-Content $startupSignal -Raw}else{'startup receipt missing'}
   $entryError=if(Test-Path $entrySignal){Get-Content $entrySignal -Raw}else{'entry receipt missing'}
-  $failureDetail='hasExited='+$childHasExited+'_exitCode='+$childExitCode+'_entry='+$entryError+'_startup='+$startupError+'_error='+$childError
-  throw ('R299_CRASH_CHILD_DID_NOT_ARM_'+$failureDetail.Substring(0,[Math]::Min(1100,$failureDetail.Length)))
+  $failureDetail='hasExited='+$childHasExited+'_exitCode='+$childExitCode+'_guiEntry='+$bootstrapEntry+'_guiError='+$bootstrapError+'_entry='+$entryError+'_startup='+$startupError+'_error='+$childError
+  throw ('R299_CRASH_CHILD_DID_NOT_ARM_'+$failureDetail.Substring(0,[Math]::Min(1500,$failureDetail.Length)))
  }
+ if(!(Test-Path $guiEntrySignal)){throw 'R299_CRASH_GUI_BOOTSTRAP_ENTRY_RECEIPT_MISSING'}
+ $guiEntryRecord=Get-Content $guiEntrySignal -Raw|ConvertFrom-Json
+ if($guiEntryRecord.Pid -ne $crashChild.Id -or
+    $guiEntryRecord.Phase -cne 'GUI_BOOTSTRAP_STARTED' -or
+    $guiEntryRecord.GitSha -cne $env:GITHUB_SHA -or
+    $guiEntryRecord.RunId -cne $env:GITHUB_RUN_ID){
+  throw 'R299_CRASH_GUI_BOOTSTRAP_RECEIPT_IDENTITY_WRONG'
+ }
+ 'R299_HOSTED_CRASH_GUI_BOOTSTRAP=PASS'
  if(!(Test-Path $entrySignal)){throw 'R299_CRASH_CHILD_ENTRY_RECEIPT_MISSING'}
  $entryRecord=Get-Content $entrySignal -Raw|ConvertFrom-Json
  if($entryRecord.Pid -ne $crashChild.Id -or
@@ -461,6 +495,7 @@ $receipt=[ordered]@{
  ExactSecondUpdateIdempotent=$true
  SetupUpdateProcessesVerifiedToken=$script:R299HostedSetupUpdateLaunchCount
  CrashFixtureProcessVerifiedToken=$script:R299HostedCrashChildLaunchCount
+ CrashGuiBootstrapVerified=$true
  CrashChildStartupVerified=$true
  CrashChildEntryVerified=$true
  HostedTokenVerifiedForEveryChild=$true

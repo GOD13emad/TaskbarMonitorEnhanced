@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R393",
-  "Status": "R393_NEW_CONSOLE_HOSTED_CRASH_FIX_LOCAL_PASS_EXACT_HEAD_CI_PENDING_HUMAN_REVIEW",
-  "UpdatedUtc": "2026-11-10T15:12:21.7337940Z",
+  "CurrentEngineeringRevision": "R394",
+  "Status": "R394_GUI_SUBSYSTEM_CRASH_BOOTSTRAP_LOCAL_PASS_EXACT_HEAD_HOSTED_CI_PENDING_REVIEW_REQUIRED",
+  "UpdatedUtc": "2026-11-10T15:32:39.8287753Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -122,10 +122,10 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "Validate R393 hosted R299 restricted Medium crash child with CREATE_NEW_CONSOLE, entry/preflight/COMMITTING receipts and real forced interruption; then prove official v1.7.9-to-v1.7.10 Setup recovery, canaries and idempotence. Keep R385/production Setup unchanged and PR #98 unmerged until required CI + independent human security review.",
-  "MainBlocker": "R392 exact-head CI was 29/30 PASS; R299 crash child remained RUNNING without entry or COMMITTING signal at 19.5s. R393 locally validated distinct console and exact-runner entry diagnostics; hosted end-to-end acceptance remains unproven; no independent human security review.",
+  "CriticalPath": "Hosted R394 must establish successful GUI-subsystem bootstrap and original PowerShell script entry under verified restricted Medium token, stage two-file COMMITTING, then prove actual official v1.7.9-to-v1.7.10 Setup replay/recovery, canary preservation and exact idempotent update. Keep R385/production Setup unchanged; PR #98 not mergeable until exact-head CI and independent human security review.",
+  "MainBlocker": "R393 hosted R299 failed before script startup with 0xC0000142 despite CREATE_NEW_CONSOLE, while 29/30 other checks passed. R394 GUI embedded PowerShell bootstrap is locally proven on Medium token with fail-closed owner guard; hosted R299 full acceptance remains pending, plus independent human security review.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Commit and push R393 diagnostic console change on the existing security branch, verify exact-head R299, R360 and other gates; if R299 remains non-PASS, inspect bounded entry/startup/arm diagnostics before changing anything else. Do not merge or publish without independent review and complete required CI.",
+  "ExactNextAction": "Commit/push R394 GUI test-only bootstrap, inspect exact-head hosted R299 GUI-entry, child preflight, COMMITTING and actual Setup recovery/idempotence receipts. If failure persists, use earliest verified receipt/exit boundary. Do not merge, release or change owner install without full acceptance.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2203,12 +2203,99 @@
       "OwnerOrNonHostedRefusal": "PASS",
       "NoOwnerSideSignalFiles": "PASS"
     },
-    "HostedCI": "NOT_YET_RUN_FOR_R393",
+    "HostedCI": {
+      "ExactHead": "65c4dd5e5e502e4a3aa70f9f9ad55cce1565bc58",
+      "BuildAndVerification": {
+        "Run": 42842652486,
+        "Status": "FAILURE",
+        "Jobs": 4,
+        "Passed": 3,
+        "Failed": 1,
+        "FailedJobId": 129924700872,
+        "Failure": "R299 created a verified restricted Medium Setup child and GUI-mode WindowsPowerShell crash child via CreateProcessAsUser, but crash child died before script startup with exit code -1073741502 (NTSTATUS 0xC0000142 STATUS_DLL_INIT_FAILED). No .gui.entered.txt, .entered.txt, .started.txt or COMMITTING signal was written."
+      },
+      "R360Push": {
+        "Run": 42842321660,
+        "Status": "SUCCESS",
+        "Windows2022": "SUCCESS",
+        "Windows2025": "SUCCESS"
+      },
+      "PullRequestChecks": {
+        "Total": 30,
+        "Passed": 29,
+        "Failed": 1,
+        "InProgress": 0,
+        "Failing": "r299-public-v179-inplace-upgrade"
+      },
+      "OriginalPublic179SetupPins": "PASS",
+      "ExactTamperNegative": "PASS",
+      "RealInterruptedCommittingRecovery": "UNPROVEN",
+      "ExactSecondUpdateIdempotence": "UNPROVEN"
+    },
     "ProductionSetupChanged": false,
     "R385GuardChanged": false,
     "OwnerInstallationChanged": false,
     "PublicReleaseChanged": false,
     "MergePerformed": false,
-    "Limit": "Only local compile, fail-closed guard and default-process behavior are validated; hosted CREATE_NEW_CONSOLE and real official 1.7.9-to-1.7.10 Setup recovery, canary preservation and idempotence are still unproven. PR #98 requires human security review."
+    "Limit": "Hosted R393 proved that CREATE_NEW_CONSOLE does not solve the restricted Medium powershell.exe initialization: child terminated with NTSTATUS 0xC0000142 before even the early entry receipt. R394 retains the original test script but invokes it inside a small .NET Framework Windows-subsystem GUI process. Real upgrade/recovery and idempotence remain unproven.",
+    "ImplementationCommit": "65c4dd5e5e502e4a3aa70f9f9ad55cce1565bc58"
+  },
+  "R394": {
+    "Revision": "R394",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "BaseCommit": "65c4dd5e5e502e4a3aa70f9f9ad55cce1565bc58",
+    "Objective": "Replace only the R299 restricted-Medium console-subsystem PowerShell crash-child process with a compiled .NET Framework Windows-subsystem GUI bootstrap embedding the same PowerShell 5.1 script in-process, preserving all original security and COMMITTING/recovery assertions.",
+    "Evidence": {
+      "R393HostedRun": 42842652486,
+      "R393FailedJob": 129924700872,
+      "R393Failure": "STATUS_DLL_INIT_FAILED_0xC0000142_BEFORE_SCRIPT_ENTRY",
+      "MediumToken": "0x2000_ADMINISTRATORS_DISABLED",
+      "ConsoleVariantsTested": [
+        "CREATE_NO_WINDOW",
+        "DEFAULT_CONSOLE",
+        "CREATE_NEW_CONSOLE"
+      ],
+      "AllFailedToProduceVerifiedCrashScriptEntry": true,
+      "R393Checks": {
+        "Total": 30,
+        "Passed": 29,
+        "Failed": 1
+      },
+      "R360Push": {
+        "Run": 42842321660,
+        "Status": "SUCCESS"
+      }
+    },
+    "Changes": [
+      "A new CI-only C# GUI bootstrap validates exact hosted Windows identity, immutable run/SHA formats, workspace and runner-temp signal path before any disk write.",
+      "It emits a strict per-PID GUI-entry receipt and invokes unchanged Test-R299-HostedCrashChild.ps1 in-process with System.Management.Automation.PowerShell rather than launching console-subsystem powershell.exe.",
+      "The parent compiles this Windows-subsystem binary exclusively on the disposable runner, records its SHA and verifies PE subsystem=2, then launches it via the existing same-user restricted Medium token path with no console enabled.",
+      "The parent validates GUI bootstrap, script entry, preflight and COMMITTING receipts and includes bounded bootstrap errors/exit status on failure; CI requires new GUI host and GUI bootstrap markers without dropping original recovery, canary and idempotence gates."
+    ],
+    "Files": [
+      "build/R299-HostedCrashGuiBootstrap.cs",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1",
+      ".github/workflows/ci.yml"
+    ],
+    "LocalValidation": {
+      "WindowsPowerShell51ParseBoth": "PASS",
+      "CSharpLauncherNetFrameworkCompile": "PASS",
+      "GuiWindowsSubsystemCompilation": "PASS_PE_SUBSYSTEM_2",
+      "GuiEmbeddedPowerShellInProcessScript": "PASS",
+      "GuiBootstrapCurrentMediumTokenProcess": "PASS_MEDIUM_IL_0x2000",
+      "GuiBootstrapNonHostedRefusal": "PASS_EXIT_81",
+      "GuiBootstrapCreatedOwnerFiles": false,
+      "WorkflowYamlParse": "PASS",
+      "RequiredCIMarkers": "PASS",
+      "GitDiffCheck": "PASS"
+    },
+    "HostedCI": "NOT_YET_RUN_FOR_R394",
+    "RealSetupRecoveryAndIdempotence": "PENDING_HOSTED_ACCEPTANCE",
+    "ProductionSetupChanged": false,
+    "R385GuardChanged": false,
+    "OwnerInstallationChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "Local GUI/Powershell integration uses a harmless synthetic script and the real bootstrap only with fail-closed nonhosted args. Full hosted R299 Setup/COMMITTING recovery and idempotence are not yet proven. Independent human security review is still required for PR #98."
   }
 }
