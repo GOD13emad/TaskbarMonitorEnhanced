@@ -2497,6 +2497,29 @@ internal static partial class SetupProgram
                 pending.Push(path);
             }
         }
+        // R384: repeat the complete per-level inventory immediately before
+        // deleting ANY journal or payload file. This catches late unindexed
+        // members introduced after the first preflight and leaves the complete
+        // recovery journal intact when cleanup must fail closed.
+        pending.Push(stageRoot);
+        while(pending.Count!=0){
+            string directory=pending.Pop();
+            if((File.GetAttributes(directory)&FileAttributes.ReparsePoint)!=0)
+                throw new IOException("Unexpected upgrade stage reparse directory.");
+            foreach(string path in Directory.GetFiles(directory,"*",SearchOption.TopDirectoryOnly)){
+                if((File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0)
+                    throw new IOException("Unexpected upgrade stage reparse file.");
+                if(!known.Contains(Path.GetFullPath(path)))
+                    throw new InvalidOperationException("Unknown file inside update stage; leave stage intact: "+path);
+            }
+            foreach(string path in Directory.GetDirectories(directory,"*",SearchOption.TopDirectoryOnly)){
+                if((File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0)
+                    throw new IOException("Unexpected upgrade stage reparse directory.");
+                if(!knownDirectories.Contains(Path.GetFullPath(path)))
+                    throw new InvalidOperationException("Unknown directory inside update stage; leave stage intact: "+path);
+                pending.Push(path);
+            }
+        }
         // R383: after the exact inventory, remove ONLY indexed entries.
         // Recursive deletion would erase a foreign file/empty directory added
         // after the preflight scan. Deleting only known files and then named
