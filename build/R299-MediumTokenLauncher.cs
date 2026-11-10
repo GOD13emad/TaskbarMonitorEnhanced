@@ -17,10 +17,11 @@ public sealed class R299HostedProcess : IDisposable
     public int TokenIntegrityRid { get; private set; }
     public bool AdministratorsGroupEnabled { get; private set; }
     public bool UacEnabled { get; private set; }
+    public bool ConsoleAllowed { get; private set; }
 
     internal R299HostedProcess(IntPtr processHandle, uint processId, string tokenSource,
         string creationMethod, int tokenElevationType, int tokenIntegrityRid,
-        bool administratorsGroupEnabled, bool uacEnabled)
+        bool administratorsGroupEnabled, bool uacEnabled, bool consoleAllowed)
     {
         _processHandle = processHandle;
         Id = checked((int)processId);
@@ -30,6 +31,7 @@ public sealed class R299HostedProcess : IDisposable
         TokenIntegrityRid = tokenIntegrityRid;
         AdministratorsGroupEnabled = administratorsGroupEnabled;
         UacEnabled = uacEnabled;
+        ConsoleAllowed = consoleAllowed;
     }
 
     private void EnsureOpen()
@@ -445,10 +447,26 @@ public static class R299HostedTokenLauncher
     public static R299HostedProcess Start(string application, string[] arguments,
         string workingDirectory, string environmentBlock)
     {
+        return Start(application, arguments, workingDirectory, environmentBlock, false);
+    }
+
+    public static R299HostedProcess Start(string application, string[] arguments,
+        string workingDirectory, string environmentBlock, bool consoleAllowed)
+    {
         if (String.IsNullOrWhiteSpace(application) || !System.IO.Path.IsPathRooted(application))
             throw new ArgumentException("R299_APPLICATION_MUST_BE_ABSOLUTE", "application");
         if (String.IsNullOrWhiteSpace(workingDirectory) || !System.IO.Path.IsPathRooted(workingDirectory))
             throw new ArgumentException("R299_WORKING_DIRECTORY_MUST_BE_ABSOLUTE", "workingDirectory");
+        if (consoleAllowed)
+        {
+            // Only the trusted, disposable-runner crash fixture uses a console-subsystem
+            // executable. Never change process flags for the real GUI Setup /update.
+            string trustedConsoleHost = System.IO.Path.Combine(
+                Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
+            if (!String.Equals(System.IO.Path.GetFullPath(application), trustedConsoleHost,
+                    StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("R299_CONSOLE_ONLY_ALLOWED_FOR_TRUSTED_WINDOWS_POWERSHELL", "application");
+        }
         if (String.IsNullOrEmpty(environmentBlock) || environmentBlock.Length < 2 ||
             environmentBlock[environmentBlock.Length - 1] != '\0' ||
             environmentBlock[environmentBlock.Length - 2] != '\0')
@@ -550,7 +568,11 @@ public static class R299HostedTokenLauncher
             STARTUPINFO startup = new STARTUPINFO();
             startup.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO));
 
-            uint creationFlags = CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW;
+            // CREATE_NO_WINDOW can make a restricted-token console-subsystem child
+            // terminate in the loader with STATUS_DLL_INIT_FAILED (0xC0000142).
+            // Preserve the old no-window behavior for Setup; allow normal console
+            // attach/creation only for the trusted PowerShell crash fixture.
+            uint creationFlags = CREATE_UNICODE_ENVIRONMENT | (consoleAllowed ? 0u : CREATE_NO_WINDOW);
             bool created;
             if (expectedUacDisabledAdmin)
             {
@@ -647,7 +669,8 @@ public static class R299HostedTokenLauncher
 
             R299HostedProcess result = new R299HostedProcess(
                 processInfo.hProcess, processInfo.dwProcessId, tokenSource, creationMethod,
-                childElevationType, childIntegrityRid, childAdministratorsEnabled, uacEnabled);
+                childElevationType, childIntegrityRid, childAdministratorsEnabled, uacEnabled,
+                consoleAllowed);
             processInfo.hProcess = IntPtr.Zero;
             return result;
         }

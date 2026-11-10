@@ -74,10 +74,16 @@ function Start-R299HostedProcess {
         [IO.Path]::GetFullPath($FileName),
         [string[]]$ArgumentList,
         [IO.Path]::GetFullPath($WorkingDirectory),
-        [string]$script:R299HostedEnvironmentBlock
+        [string]$script:R299HostedEnvironmentBlock,
+        [bool]($Purpose -ceq 'CrashChild')
     )
     if($Purpose -eq 'SetupUpdate'){$script:R299HostedSetupUpdateLaunchCount++}
     else{$script:R299HostedCrashChildLaunchCount++}
+    if($process.ConsoleAllowed -ne ($Purpose -ceq 'CrashChild')){
+     $process.Dispose()
+     throw 'R299_CHILD_CONSOLE_FLAG_NOT_STRICTLY_SCOPED'
+    }
+    if($Purpose -ceq 'CrashChild'){'R299_HOSTED_CRASH_CHILD_CONSOLE_ALLOWED=PASS'}
     $script:R299HostedTokenSources.Add([string]$process.TokenSource)
     $script:R299HostedTokenCreationMethods.Add([string]$process.CreationMethod)
     $script:R299HostedTokenElevationTypes.Add([int]$process.TokenElevationType)
@@ -89,7 +95,8 @@ function Start-R299HostedProcess {
         ' elevationType='+$process.TokenElevationType+
         ' integrity=0x'+$process.TokenIntegrityRid.ToString('X')+
         ' administratorsEnabled='+$process.AdministratorsGroupEnabled+
-        ' uacEnabled='+$process.UacEnabled+' pid='+$process.Id)
+        ' uacEnabled='+$process.UacEnabled+' consoleAllowed='+$process.ConsoleAllowed+
+        ' pid='+$process.Id)
     return $process
 }
 

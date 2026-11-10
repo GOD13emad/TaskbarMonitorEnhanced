@@ -1,3 +1,12 @@
+## R391 — fix restricted-Medium console child startup without relaxing Setup security — local checks PASS, hosted pending
+
+- R390 exact-head Build/Verification [42833174560](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42833174560) finished 3/4 (build, R298, R300 PASS; only R299 FAIL). Exact-head PR/push total: 29/30 SUCCESS including R360 [42833157723](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42833157723) on Windows Server 2022/2025. The official public v1.7.9 Setup SHA, exact predecessor pins and modified StudioThemes.cs fail-closed negative passed. R299 created verified same-user restricted Medium children for Setup and CrashChild via CreateProcessAsUser; both tokens had integrity 0x2000 with Administrators disabled.
+- Critical diagnostic: CrashChild terminated before script startup with signed exit code -1073741502 = NTSTATUS 0xC0000142 STATUS_DLL_INIT_FAILED. Neither child preflight/startup nor `.error.txt` was reached, so the failure occurs in Windows process initialization, not the crash test's reflection/staging or product Setup recovery. [Microsoft NTSTATUS](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55) and [Process Creation Flags](https://learn.microsoft.com/en-us/windows/desktop/ProcThread/process-creation-flags) document the status and console-mode semantics. The interaction of CREATE_NO_WINDOW with the restricted token and console-subsystem PowerShell is a testable hypothesis, not established root cause until hosted acceptance.
+- R391 bounded test-only correction: add `Start(..., bool consoleAllowed)` overload with default false; only the exact trusted `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe` can pass true. With true, use `CREATE_UNICODE_ENVIRONMENT` without `CREATE_NO_WINDOW`, allowing console attachment/creation; real GUI Setup still gets unchanged CREATE_NO_WINDOW. The parent binds true exclusively to Purpose=CrashChild, checks the returned process mode, records it and CI requires `R299_HOSTED_CRASH_CHILD_CONSOLE_ALLOWED=PASS`. Same token selection, SID, Medium IL, denied Administrators, test/CI safety and all original R299 recovery/canary/idempotence assertions are preserved.
+- Local validation: PowerShell 5.1 parse both scripts PASS, .NET Framework C# compile PASS, harmless current-Medium default-no-window child PASS, console-mode request for untrusted `whoami.exe` rejected PASS, YAML parse PASS, CI console marker PASS, `git diff --check` PASS. No visible owner-side console test or production Setup update was attempted. Three test-only files changed: `build/R299-MediumTokenLauncher.cs`, `build/Test-R299-HostedPublicV179Upgrade.ps1`, `.github/workflows/ci.yml`.
+- Scope: product Setup/R385 guard, owner installation, data, configuration, task/service and immutable public v1.7.10 unchanged. PR #98 remains open/unmerged, independent human security review required; historical R371 Windows 2022 UI negative remains unresolved.
+- Next: push R391 exact head, require the crash child to arm `COMMITTING` and prove forced recovery through the real Setup binary, preserve canaries and exact idempotent second update. If it still fails, only change the next evidenced failure boundary.
+
 ## R390 — R299 crash child exits before COMMITTING arm — preflight/startup/exit diagnostics locally validated; hosted pending
 
 - R389 exact-head Build/Verification [42827227428](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42827227428) completed 3/4 (R298, R300 and build SUCCESS; R299 FAILURE). Other exact-head PR/push checks: 29/30 SUCCESS, R360 push [42827203984](https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42827203984) SUCCESS on both Windows Server 2022 and 2025. PR #98 remains open/mergeable/unmerged and no independent review has been submitted.
@@ -1533,37 +1542,4 @@ This section is the current authority and supersedes the R31/R31B/R31C candidate
 - Pre-commit gates: app compile 0 warnings/0 errors PASS; selftest PASS; feature-contract selftest PASS; full Build.ps1 -NoDownload PASS and Setup 1.5.0 produced.
 - Determinism pre-commit run: INVALID/EXPECTED FAIL because verifier clones committed HEAD (v1.4.0) while R36 was uncommitted. Root cause confirmed; rerun required after candidate commit.
 - Current Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
-- Open gates: exact-commit determinism, candidate proof suite, live install with sensor-layer reuse, installed runtime regression, GitHub CI/provenance, immutable release asset verification.
-- Exact next action: commit R36 candidate, rerun clean-clone determinism on that exact commit, then continue through runtime/release gates.
-
-- R36 determinism defect: Setup-only mismatch traced to missing EOL policy for installer/setup.manifest; minimum fix is LF pin in .gitattributes. Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
-
-- R36 live-install gate: FAIL due stale install_state Version/PublicVersion=1.4.0 despite deployed Main 1.5.0. Root cause confirmed as two installer hardcodes; narrow fix applied. Rebuild/determinism/reinstall pending.
-
-
-## R36 milestone — LOCAL CANDIDATE ACCEPTED / GITHUB CI NEXT
-
-- Local release gates are green: reproducible build PASS, clean-clone determinism PASS, candidate 11/11, installed/postinstall 11/11, installed hashes 5/5 exact, config migration preservation PASS, health STABLE.
-- v1.5.0 is installed on the validation host with exact current Main/Setup hashes and unchanged protected sensor pair (Broker 1.1.2+r21, Supervisor 1.3.0+r33).
-- Authority remains CANDIDATE; v1.4.0 remains public Latest.
-- Critical path: release-branch exact-head CI/provenance -> main exact-head CI/provenance -> immutable v1.5.0 tag/assets/digests/public acceptance.
-- Exact next action: commit acceptance records and push release/v1.5.0-r36.
-
-
-## FINAL — v1.5.0 PUBLIC RELEASE / CURRENT AUTHORITY
-
-- Final objective reached for R36: v1.5.0 Actionable Alerts & Session Export is published as the immutable GitHub Latest release.
-- Release authority: tag v1.5.0 -> d952a87fab02fe74046b8d19ae14a2801d6da644; release ID 401880404; immutable=true; 7/7 asset digest verification PASS.
-- Product gates: build 0 warnings/0 errors; reproducible build PASS; deterministic clean clone PASS; candidate 11/11; installed/postinstall 11/11; installed hashes 5/5; migration preservation PASS; final health STABLE.
-- CI/provenance gates: release-branch run 37017612215 PASS; main run 37018027405 PASS on the same exact SHA; binary/runtime-config provenance and Setup SBOM attestation PASS.
-- Protected sensor authority unchanged: Broker 1.1.2+r21; Supervisor 1.3.0+r33.
-- Public signing: UNSIGNED_PENDING_EXTERNAL_PROVIDER; no public-trust signature claim.
-- Previous authority: v1.4.0 remains immutable.
-- Current Project Brain Status: CURRENT_LOCAL_CANDIDATE_VERIFICATION
-- Open blocker for v1.5.0 product finalization: NONE. External optional future gate only: publicly trusted Authenticode provider.
-- Exact next action for future development: branch from immutable v1.5.0/main baseline; do not mutate v1.5.0 tag/assets.
-
-
-## R39 / v1.7.0 WALLPAPER STUDIO + SEKIRO — SOURCE CANDIDATE PASS — 2026-10-05
-
-- Previous accepted state is preserved: immutable v1.6.0/R38, product source `1652989b80c5c6d301c6f05818c48c5207fd9b7a`, installed Main SHA-256 `05F9E069C45
+- Open gates: exact-commit determinism, candidate proof su

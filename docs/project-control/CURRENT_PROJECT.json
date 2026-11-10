@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R390",
-  "Status": "R390_R299_CRASH_CHILD_STARTUP_DIAGNOSTICS_LOCAL_PASS_CI_PENDING_REVIEW_REQUIRED",
-  "UpdatedUtc": "2026-11-10T14:17:03.5933135Z",
+  "CurrentEngineeringRevision": "R391",
+  "Status": "R391_RESTRICTED_MEDIUM_CRASH_CONSOLE_FLAG_FIX_LOCAL_PASS_EXACT_HEAD_CI_PENDING",
+  "UpdatedUtc": "2026-11-10T14:30:15.3812784Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -122,10 +122,10 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "R390 crash-child startup/preflight/exit evidence must identify why hosted R299 is not arming COMMITTING; then fix exactly that cause and prove real official v1.7.9-to-v1.7.10 upgrade with crash recovery, canaries and idempotence. Preserve exact R385 security guard and independent review gate. PR #98 remains open and unmerged.",
-  "MainBlocker": "R389 exact-head Build/Verification is 3/4: R299 failed when a verified Medium crash child exited before COMMITTING signal. The underlying cause is unproven and R390 adds diagnostics. PR #98 still lacks independent human security review.",
+  "CriticalPath": "R391 hosted R299 must prove the restricted-Medium PowerShell crash fixture initializes without CREATE_NO_WINDOW, emits startup and COMMITTING receipts, is forcibly terminated, then real official v1.7.9-to-v1.7.10 Setup performs recovery, preserves canaries and is idempotent. Keep Setup/R385 security code unchanged; merge blocked on full exact-head CI and independent human review.",
+  "MainBlocker": "R390 exact-head R299 failed before crash-child script startup with NTSTATUS 0xC0000142 STATUS_DLL_INIT_FAILED; all 29 other checks passed. R391 scoped console-creation correction is locally validated, hosted acceptance pending; PR #98 still has no independent human review.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Commit/push R390 diagnostics, inspect its exact-head hosted R299 failure receipts including child exit code/preflight and startup identity. Implement only a proven cause-specific fix; do not merge until complete CI and independent human review.",
+  "ExactNextAction": "Commit/push R391 and inspect exact-head R299 child console/startup/arm proof, full Setup recovery/update/idempotence receipt and R360 regressions. If R299 still fails, use first evidenced failure boundary for the next bounded fix. Do not merge PR #98 without human security review.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -1972,10 +1972,91 @@
       "GitDiffCheck": "PASS",
       "ArgumentEnvironmentPropagation": "PASS"
     },
-    "HostedCI": "NOT_YET_RUN_FOR_R390",
+    "HostedCI": {
+      "ExactHead": "b2a85c4f8c7c9d41fb609b2a601f2564f1809ca3",
+      "BuildAndVerification": {
+        "Run": 42833174560,
+        "Status": "FAILURE",
+        "Jobs": 4,
+        "Passed": 3,
+        "Failed": 1,
+        "FailedJobId": 129890740074,
+        "Failure": "The verified Medium CrashChild process terminated before script startup with ExitCode -1073741502 = 0xC0000142 STATUS_DLL_INIT_FAILED; no startup receipt and no script-level error. The failure is in process initialization, before the fixture code."
+      },
+      "R360Push": {
+        "Run": 42833157723,
+        "Status": "SUCCESS",
+        "Windows2022": "SUCCESS",
+        "Windows2025": "SUCCESS"
+      },
+      "PullRequestChecks": {
+        "Total": 30,
+        "Passed": 29,
+        "Failed": 1,
+        "InProgress": 0,
+        "Failing": "r299-public-v179-inplace-upgrade"
+      },
+      "R299NegativeTamperDiagnostic": "PASS",
+      "R299CrashChildStartup": "NOT_REACHED"
+    },
     "OwnerInstallChanged": false,
     "PublicReleaseChanged": false,
     "MergePerformed": false,
-    "Limit": "Diagnostics are validated locally but the actual GitHub-hosted crash-child fault and full Setup update/recovery/idempotence acceptance remain unproven."
+    "Limit": "Hosted CI proved a Windows process-initialization failure (STATUS_DLL_INIT_FAILED, 0xC0000142) before PowerShell script startup. The code changes in R390 diagnosed it but did not fix it or exercise real interrupted COMMITTING recovery and idempotence; R391 tests a narrowly scoped process-creation flag correction."
+  },
+  "R391": {
+    "Revision": "R391",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "BaseCommit": "b2a85c4f8c7c9d41fb609b2a601f2564f1809ca3",
+    "Objective": "Allow normal console attachment/creation only for trusted WindowsPowerShell crash fixture when launched with the same restricted Medium token, to address hosted exit 0xC0000142 before script startup.",
+    "DiagnosticEvidence": {
+      "SourceRun": 42833174560,
+      "SourceJob": 129890740074,
+      "ChildExitCode": -1073741502,
+      "UnsignedNTStatus": "0xC0000142",
+      "NtStatus": "STATUS_DLL_INIT_FAILED",
+      "ChildStartupReceipt": "MISSING",
+      "ChildErrorFile": "MISSING",
+      "ChildTokenSource": "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT",
+      "Integrity": "0x2000",
+      "PriorTamperNegative": "PASS",
+      "OtherExactHeadChecks": {
+        "Passed": 29,
+        "Total": 30
+      },
+      "R360Push": {
+        "Run": 42833157723,
+        "Status": "SUCCESS"
+      },
+      "OfficialDocumentation": [
+        "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55",
+        "https://learn.microsoft.com/en-us/windows/desktop/ProcThread/process-creation-flags",
+        "https://learn.microsoft.com/en-us/windows/desktop/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw"
+      ],
+      "CausalInterpretation": "STATUS_DLL_INIT_FAILED is verified; CREATE_NO_WINDOW on a restricted-token console child is the current testable hypothesis, not yet an accepted root cause."
+    },
+    "Change": "The test-only launcher retains CREATE_NO_WINDOW for all GUI Setup invocations but allows normal console attachment/creation for the exact trusted system WindowsPowerShell.exe crash fixture. New boolean overload is default-off; the helper fails closed for any other executable and asserts purpose-bound console mode in the PowerShell wrapper. Same token, same IL, same strict hosted guard and original recovery/tamper assertions remain unchanged.",
+    "Files": [
+      "build/R299-MediumTokenLauncher.cs",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1",
+      ".github/workflows/ci.yml"
+    ],
+    "LocalValidation": {
+      "PowerShell51ParseBoth": "PASS",
+      "CSharpCompileNetFramework": "PASS",
+      "DefaultNoWindowChild": "PASS",
+      "ConsoleFlagUntrustedExeRejected": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "ConsoleCIMarker": "PASS",
+      "GitDiffCheck": "PASS",
+      "DirectConsoleChildOnOwner": "NOT_RUN_TO_AVOID_OWNER_VISIBLE_CONSOLE"
+    },
+    "HostedCI": "NOT_YET_RUN_FOR_R391",
+    "R385GuardChanged": false,
+    "ProductionSetupChanged": false,
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "Hosted run must prove crash-child startup, actual COMMITTING arm, forced kill, real Setup rollback/replay, canaries and exact second-update idempotence. Local compilation alone does not close R299 or permit merge."
   }
 }

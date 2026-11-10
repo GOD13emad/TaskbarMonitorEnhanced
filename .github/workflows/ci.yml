@@ -424,6 +424,7 @@ jobs:
           $proof=@(& ./build/Test-R299-HostedPublicV179Upgrade.ps1 -OfficialSetup $published)
           foreach($mark in @(
             'R299_HOSTED_TOKEN_PROCESS_CREATION=PASS',
+            'R299_HOSTED_CRASH_CHILD_CONSOLE_ALLOWED=PASS',
             'R299_HOSTED_CRASH_CHILD_STARTUP=PASS',
             'R299_HOSTED_TAMPERED_OFFICIAL_PREDECESSOR_REFUSED_BEFORE_MUTATION=PASS',
             'R299_HOSTED_ABRUPT_TWO_FILE_COMMITTING_RECOVERED_BY_REAL_SETUP=PASS',
