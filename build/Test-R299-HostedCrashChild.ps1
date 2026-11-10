@@ -76,8 +76,24 @@ try{
  if(Test-Path $entryPath){throw 'R299_CRASH_CHILD_ENTRY_SIGNAL_PREEXISTS'}
  $entryReceipt=[ordered]@{Pid=$PID;Phase='HOSTED_IDENTITY_VERIFIED';GitSha=$env:GITHUB_SHA;RunId=$env:GITHUB_RUN_ID}
  [IO.File]::WriteAllText($entryPath,($entryReceipt|ConvertTo-Json -Compress),[Text.UTF8Encoding]::new($false))
+ # Single overwritten, per-run diagnostic inside RUNNER_TEMP. It starts only
+ # AFTER exact hosted identity and runner-scoped signal path have been verified.
+ # It is not an acceptance marker or a production file.
+ $checkpointPath=$Signal+'.checkpoint.json'
+ function Write-R299CrashCheckpoint {
+  param([Parameter(Mandatory=$true)][string]$Phase)
+  $checkpoint=[ordered]@{
+   Pid=$PID;GitSha=$env:GITHUB_SHA;RunId=$env:GITHUB_RUN_ID
+   Phase=$Phase;Utc=[DateTime]::UtcNow.ToString('o')
+  }
+  [IO.File]::WriteAllText($checkpointPath,($checkpoint|ConvertTo-Json -Compress),[Text.UTF8Encoding]::new($false))
+ }
+ Write-R299CrashCheckpoint 'BEFORE_REPO_RESOLVE'
  $repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
- if((Get-R299CheckoutHead -Repository $repo) -cne $env:GITHUB_SHA){
+ Write-R299CrashCheckpoint 'BEFORE_INPROCESS_HEAD_READ'
+ $head=(Get-R299CheckoutHead -Repository $repo)
+ Write-R299CrashCheckpoint 'AFTER_INPROCESS_HEAD_READ'
+ if($head -cne $env:GITHUB_SHA){
   throw 'R299_CRASH_CHILD_SOURCE_COMMIT_CHANGED'
  }
  $canonical=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
@@ -85,10 +101,12 @@ try{
   [IO.Path]::GetFullPath($canonical),[StringComparison]::OrdinalIgnoreCase)){
   throw 'R299_CRASH_CHILD_REQUIRES_EXACT_TEST_ROOT'
  }
+ Write-R299CrashCheckpoint 'CANONICAL_APP_VALIDATED'
  $main=Join-Path $App 'TaskbarMonitorEnhanced.exe'
  $priorSetup=Join-Path $App 'Uninstall.exe'
  $stage=Join-Path $App '.tbme-upgrade'
  if(Test-Path $stage){throw 'R299_CRASH_CHILD_STAGE_PREEXISTS'}
+ Write-R299CrashCheckpoint 'BEFORE_BINARY_PINS'
  foreach($probe in @(
   @{p=$CandidateSetup;sha=$ExpectedSetupSha},
   @{p=$priorSetup;sha=$ExpectedPriorSetupSha},
@@ -98,9 +116,13 @@ try{
    throw ('R299_CRASH_CHILD_BINARY_SHA_UNEXPECTED_'+$probe.p)
   }
  }
+ Write-R299CrashCheckpoint 'BINARY_PINS_VALIDATED'
+ Write-R299CrashCheckpoint 'BEFORE_PROCESS_CHECK'
  if(@(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){throw 'R299_CRASH_CHILD_MAIN_RUNNING'}
+ Write-R299CrashCheckpoint 'PROCESS_ABSENCE_VALIDATED'
  $oldState=Get-Content (Join-Path $App 'install_state.json') -Raw
  if($oldState -cnotmatch '"Version"\s*:\s*"1.7.9"'){throw 'R299_CRASH_CHILD_PRIOR_VERSION_CHANGED'}
+ Write-R299CrashCheckpoint 'ALL_PREFLIGHT_PINS_VALIDATED'
  # Use original candidate Setup PE's unmodified private stage and journal
  # factories; reflect the exact same code used by real /update.
 }catch{
@@ -128,6 +150,7 @@ $startupPath=$Signal+'.started.txt'
 if(Test-Path $startupPath){throw 'R299_CRASH_CHILD_STARTUP_SIGNAL_ALREADY_EXISTS'}
 $startupReceipt=[ordered]@{Pid=$PID;Phase='PREFLIGHT_PASSED';GitSha=$env:GITHUB_SHA;RunId=$env:GITHUB_RUN_ID;ComputerName=$env:COMPUTERNAME}
 [IO.File]::WriteAllText($startupPath,($startupReceipt|ConvertTo-Json -Compress),[Text.UTF8Encoding]::new($false))
+Write-R299CrashCheckpoint 'SETUP_REFLECTION_BEGIN'
 
 try{
  $assembly=[Reflection.Assembly]::LoadFrom([IO.Path]::GetFullPath($CandidateSetup))
@@ -149,8 +172,10 @@ try{
  $a[0]=$newData;$a[1]=$legacy;$a[2]=[string]$oldState
  $a[3]=[string]'1.7.9';$a[4]=[string]'OFFICIAL_STABLE_V179'
  [void]$stageMethod.Invoke($null,$a)
+ Write-R299CrashCheckpoint 'MANAGED_STAGE_CREATED'
  $phase=[object[]]::new(1);$phase[0]=[string]'COMMITTING'
  [void]$write.Invoke($null,$phase)
+ Write-R299CrashCheckpoint 'COMMITTING_JOURNAL_WRITTEN'
  # Two genuine replacements, still no registry/version commit.
  # Resolve the pre-existing .NET File.Replace overload without Add-Type/csc.exe,
  # which would start another restricted console-subsystem process. Reflection
@@ -177,6 +202,7 @@ try{
  if((Get-Content (Join-Path $stage 'phase.txt') -Raw) -cnotmatch '\|COMMITTING$'){
   throw 'R299_CRASH_CHILD_NOT_IN_COMMITTING_PHASE'
  }
+ Write-R299CrashCheckpoint 'TWO_FILE_PARTIAL_COMMIT_VALIDATED'
  $ack=[ordered]@{Pid=$PID;Phase='COMMITTING';ChangedFiles=2;GitSha=$env:GITHUB_SHA;Utc=[DateTime]::UtcNow.ToString('o')}
  if(Test-Path $Signal){throw 'R299_CRASH_CHILD_SIGNAL_ALREADY_EXISTS'}
  [IO.File]::WriteAllText($Signal,($ack|ConvertTo-Json -Compress),[Text.UTF8Encoding]::new($false))

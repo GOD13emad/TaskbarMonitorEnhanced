@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R395",
-  "Status": "R395_GUI_CHILD_CONSOLE_DEPENDENCY_REMOVAL_LOCAL_PASS_EXACT_HEAD_CI_PENDING_REVIEW_REQUIRED",
-  "UpdatedUtc": "2026-11-10T16:20:30.4009724Z",
+  "CurrentEngineeringRevision": "R396",
+  "Status": "R396_R299_PRECHECKPOINT_DIAGNOSTICS_LOCAL_PASS_HOSTED_PENDING_REVIEW_REQUIRED",
+  "UpdatedUtc": "2026-11-10T16:45:01.9959898Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -122,10 +122,10 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "Validate R395 exact-head hosted R299: GUI bootstrap and original script entry, in-process HEAD verification without console git, genuine COMMITTING arm and two-file partial commit, force-kill, real official v1.7.9-to-v1.7.10 Setup recovery, canaries and idempotent update. Keep exact-head R360/PR checks green and independent human security review as a merge gate.",
-  "MainBlocker": "R394 exact-head R299 failed in original embedded PowerShell child preflight on a null-valued expression, after GUI/script entry and before startup. R395 locally removes the native git.exe and csc.exe dependencies in that restricted token context; full hosted acceptance and independent PR review remain pending.",
+  "CriticalPath": "R396 hosted R299 must identify its first blocked checkpoint between identity entry, exact HEAD/binary preflight and Setup staging. Once diagnosed, apply only a cause-proven fix; then prove genuine official v1.7.9-to-v1.7.10 Setup recovery and idempotence. Keep PR #98 open/unmerged pending independent human security review.",
+  "MainBlocker": "R395 exact-head Build/Verification failed only in R299 (29/30 checks PASS). The restricted-Medium GUI child started, verified GitHub identity and stayed running without preflight/startup/arm/error receipt. Exact stuck operation is unknown; R396 adds bounded per-run diagnostic checkpoints before any staging. Independent human PR review is absent.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Commit/push R395, verify its exact-head Build/Verification R299 receipts for preflight/COMMITTING/forced recovery/real Setup update and idempotence, diagnose first failing boundary if any; do not merge or alter public release/owner installation without full validation and independent review.",
+  "ExactNextAction": "Commit/push R396 checkpoint diagnostics and inspect its exact-head hosted R299 last checkpoint. Repair the evidenced stuck operation and revalidate the real official Setup upgrade/recovery/idempotence. No merge/public release or owner installation changes without verified gates.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2357,12 +2357,68 @@
       "WorkflowYamlParse": "PASS",
       "GitDiffCheck": "PASS"
     },
-    "HostedCI": "NOT_YET_RUN_FOR_R395",
+    "HostedCI": {
+      "ExactHead": "6d7d71399d541276d7b63fc8510f720edb4c077f",
+      "BuildAndVerification": {
+        "Run": 42855656529,
+        "Status": "FAILURE",
+        "PassedJobs": 3,
+        "FailedJobs": 1,
+        "FailedJob": "r299-public-v179-inplace-upgrade",
+        "FailedJobId": 129969807393
+      },
+      "ExactHeadChecks": {"Passed": 29, "Total": 30},
+      "Failure": "R299 protected GUI child started, wrote GUI_BOOTSTRAP_STARTED and HOSTED_IDENTITY_VERIFIED for matching run/PID/SHA, then remained RUNNING for ~30s without PREFLIGHT_PASSED, COMMITTING, .error.txt or bootstrap error. Exact blocked preflight operation is not established.",
+      "NegativePredecessorTamper": "PASS",
+      "RealCrashRecoveryAndIdempotence": "UNPROVEN"
+    },
     "R385SecurityGuardChanged": false,
     "ProductionSetupChanged": false,
     "OwnerInstallationChanged": false,
     "PublicReleaseChanged": false,
     "MergePerformed": false,
     "Limit": "Local validation verifies source parsing, in-process Git ref resolution, exact File.Replace semantics and nonhosted refusal only. Actual GitHub-hosted COMMITTING arm, forced kill, genuine Setup replay, canary preservation and exact second-update idempotence remain unverified; independent human security review still required for PR #98."
+  },
+  "R396": {
+    "Revision": "R396",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "BaseCommit": "6d7d71399d541276d7b63fc8510f720edb4c077f",
+    "Objective": "Discriminate the exact stalled operation inside the R299 restricted-Medium GUI-hosted PowerShell child before COMMITTING, using a single bounded run-scoped checkpoint receipt.",
+    "FailureEvidence": {
+      "Run": 42855656529,
+      "FailedJob": 129969807393,
+      "ExactHeadChecksPassed": 29,
+      "ExactHeadChecksTotal": 30,
+      "ParentToken": "UAC-enabled elevated GitHub runner",
+      "ChildToken": "same-user restricted Medium IL 0x2000; Administrators disabled",
+      "GuiBootstrapEntry": "PASS",
+      "EmbeddedScriptIdentityEntry": "PASS",
+      "OriginalScriptPreflight": "NO_STARTUP_NO_ERROR_RUNNING",
+      "RealRecovery": "NOT_PERFORMED"
+    },
+    "Changes": [
+      "After the exact disposable GitHub Windows identity and runner-temporary signal are verified, write a bounded overwritten JSON checkpoint containing only PID, run, GitSHA, phase and UTC.",
+      "Checkpoint before/after in-process Git HEAD resolution, canonical root check, SHA pins, process query and state, plus start and staging/COMMITTING milestones.",
+      "On timeout the parent includes the final checkpoint in the R299 failure detail and refuses a stale checkpoint before launching."
+    ],
+    "Files": [
+      "build/Test-R299-HostedCrashChild.ps1",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1"
+    ],
+    "LocalValidation": {
+      "WindowsPowerShell51ParseChild": "PASS",
+      "WindowsPowerShell51ParseParent": "PASS",
+      "NetFrameworkLauncherCompile": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "GitDiffCheck": "PASS",
+      "IsolatedCheckpointJsonOverwrite": "PASS",
+      "OwnerNonHostedRefusalNoSignals": "PASS"
+    },
+    "HostedCI": "PENDING_AFTER_PUSH",
+    "ProductSetupChanged": false,
+    "OwnerInstallationChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "Only diagnostic instrumentation; no actual hosted COMMITTING/recovery/idempotence proof yet. R395 29/30 checks were valid only for exact prior SHA. Independent human security review for PR #98 required."
   }
 }

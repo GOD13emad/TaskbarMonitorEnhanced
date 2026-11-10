@@ -307,7 +307,8 @@ if(!(Test-Path $childScript -PathType Leaf) -or
    (Test-Path $bootstrapErrorSignal) -or
    (Test-Path $startupSignal) -or
    (Test-Path $entrySignal) -or
-   (Test-Path $guiEntrySignal)){
+   (Test-Path $guiEntrySignal) -or
+   (Test-Path ($signal+'.checkpoint.json'))){
  throw 'R299_CRASH_FIXTURE_SOURCE_OR_SIGNAL_NOT_FRESH'
 }
 $guiExe=Join-Path $env:RUNNER_TEMP ('R299_HostedCrashGui_'+$env:GITHUB_RUN_ID+'.exe')
@@ -356,8 +357,10 @@ try{
   $childError=if(Test-Path ($signal+'.error.txt')){Get-Content ($signal+'.error.txt') -Raw}else{'child did not produce arm signal'}
   $startupError=if(Test-Path $startupSignal){Get-Content $startupSignal -Raw}else{'startup receipt missing'}
   $entryError=if(Test-Path $entrySignal){Get-Content $entrySignal -Raw}else{'entry receipt missing'}
-  $failureDetail='hasExited='+$childHasExited+'_exitCode='+$childExitCode+'_guiEntry='+$bootstrapEntry+'_guiError='+$bootstrapError+'_entry='+$entryError+'_startup='+$startupError+'_error='+$childError
-  throw ('R299_CRASH_CHILD_DID_NOT_ARM_'+$failureDetail.Substring(0,[Math]::Min(1500,$failureDetail.Length)))
+  $checkpointPath=$signal+'.checkpoint.json'
+  $checkpoint=if(Test-Path $checkpointPath){Get-Content $checkpointPath -Raw}else{'checkpoint not reached'}
+  $failureDetail='hasExited='+$childHasExited+'_exitCode='+$childExitCode+'_guiEntry='+$bootstrapEntry+'_guiError='+$bootstrapError+'_entry='+$entryError+'_checkpoint='+$checkpoint+'_startup='+$startupError+'_error='+$childError
+  throw ('R299_CRASH_CHILD_DID_NOT_ARM_'+$failureDetail.Substring(0,[Math]::Min(1900,$failureDetail.Length)))
  }
  if(!(Test-Path $guiEntrySignal)){throw 'R299_CRASH_GUI_BOOTSTRAP_ENTRY_RECEIPT_MISSING'}
  $guiEntryRecord=Get-Content $guiEntrySignal -Raw|ConvertFrom-Json
