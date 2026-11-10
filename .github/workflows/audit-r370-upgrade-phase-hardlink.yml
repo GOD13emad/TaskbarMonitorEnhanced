@@ -48,6 +48,10 @@ jobs:
       - name: Checkout exact vulnerable baseline or candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          # R383 strict negative control extracts immutable 5dd6bd9 via git show.
+          # Default shallow checkout omits this ancestor; fetch full history
+          # while still checking out the exact source SHA with no persisted creds.
+          fetch-depth: 0
           ref: ${{ matrix.variant == 'baseline' && 'a8fadee40ade2fb871c5d4d1adce7776576270de' || github.event.pull_request.head.sha || github.sha }}
           path: src
           persist-credentials: false
