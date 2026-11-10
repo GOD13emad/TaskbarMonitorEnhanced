@@ -18,9 +18,10 @@ if((git -C $root rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R299_REFUSE
 $diagnosticRoot=Join-Path $env:RUNNER_TEMP 'TBME_R126_STABLE_UPDATE'
 if(Test-Path $diagnosticRoot){throw 'R299_SETUP_DIAGNOSTIC_ROOT_PREEXISTS'}
 [IO.Directory]::CreateDirectory($diagnosticRoot)|Out-Null
-# The hosted workflow may run with a filtered medium token or a full elevated
-# token. Per-user Setup updates must always run at medium integrity: inherit an
-# already-medium parent token, or use its linked limited token when parent is elevated.
+# The hosted workflow may run with a filtered medium token, a Full/elevated
+# token, or a Default/High token on UAC-disabled hosts. Per-user Setup updates
+# must always run at medium integrity: inherit medium, use the linked limited token,
+# or create a restricted same-user medium token with Administrators deny-only.
 $launcherPath=Join-Path $PSScriptRoot 'R299-MediumTokenLauncher.cs'
 if(!(Test-Path $launcherPath -PathType Leaf)){throw 'R299_MEDIUM_TOKEN_LAUNCHER_SOURCE_MISSING'}
 if(-not ('R299MediumTokenLauncher' -as [type])){

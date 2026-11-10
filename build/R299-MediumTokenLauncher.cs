@@ -1,5 +1,6 @@
 // R299 hosted-only test helper. Uses the current same-user medium token when
-// already unelevated, or the linked UAC-limited token when the parent is elevated.
+// already medium, the linked UAC-limited token when Full/elevated, or a restricted
+// same-user medium token when the parent is Default/High (for UAC-disabled hosts).
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
@@ -98,8 +99,11 @@ public static class R299MediumTokenLauncher
     private const uint TOKEN_ASSIGN_PRIMARY = 0x0001;
     private const uint TOKEN_DUPLICATE = 0x0002;
     private const uint TOKEN_QUERY = 0x0008;
+    private const uint TOKEN_ADJUST_DEFAULT = 0x0080;
     private const uint CREATE_UNICODE_ENVIRONMENT = 0x00000400;
     private const uint CREATE_NO_WINDOW = 0x08000000;
+    private const uint DISABLE_MAX_PRIVILEGE = 0x00000001;
+    private const uint SE_GROUP_INTEGRITY = 0x00000020;
     private const int TokenUser = 1;
     private const int TokenType = 8;
     private const int TokenImpersonationLevel = 9;
@@ -131,6 +135,13 @@ public static class R299MediumTokenLauncher
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    private struct SID_AND_ATTRIBUTES
+    {
+        public IntPtr Sid;
+        public uint Attributes;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct PROCESS_INFORMATION
     {
         public IntPtr hProcess;
@@ -151,6 +162,24 @@ public static class R299MediumTokenLauncher
     [DllImport("advapi32.dll", SetLastError = true)]
     private static extern bool GetTokenInformation(IntPtr token, int informationClass,
         IntPtr information, int informationLength, out int returnLength);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool CreateRestrictedToken(IntPtr existingToken, uint flags,
+        uint disableSidCount, ref SID_AND_ATTRIBUTES sidsToDisable,
+        uint deletePrivilegeCount, IntPtr privilegesToDelete,
+        uint restrictedSidCount, IntPtr sidsToRestrict, out IntPtr newToken);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool SetTokenInformation(IntPtr token, int informationClass,
+        IntPtr information, int informationLength);
+
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "ConvertStringSidToSidW")]
+    private static extern bool ConvertStringSidToSid(string stringSid, out IntPtr sid);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CheckTokenMembership(IntPtr token, IntPtr sid,
+        [MarshalAs(UnmanagedType.Bool)] out bool isMember);
 
     [DllImport("advapi32.dll", SetLastError = true)]
     private static extern bool DuplicateTokenEx(IntPtr existingToken, uint desiredAccess,
@@ -241,6 +270,74 @@ public static class R299MediumTokenLauncher
         finally { Marshal.FreeHGlobal(buffer); }
     }
 
+    private static bool IsEnabledMember(IntPtr token, string sidText)
+    {
+        IntPtr sid = IntPtr.Zero;
+        IntPtr membershipToken = IntPtr.Zero;
+        try
+        {
+            if (!ConvertStringSidToSid(sidText, out sid))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_CONVERT_MEMBERSHIP_SID_FAILED");
+            if (!DuplicateTokenEx(token, TOKEN_QUERY, IntPtr.Zero, 1, 2, out membershipToken))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_DUPLICATE_MEMBERSHIP_IMPERSONATION_TOKEN_FAILED");
+            bool isMember;
+            if (!CheckTokenMembership(membershipToken, sid, out isMember))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_CHECK_TOKEN_MEMBERSHIP_FAILED");
+            return isMember;
+        }
+        finally
+        {
+            if (membershipToken != IntPtr.Zero) CloseHandle(membershipToken);
+            if (sid != IntPtr.Zero) LocalFree(sid);
+        }
+    }
+
+    private static IntPtr CreateRestrictedMediumToken(IntPtr parentToken)
+    {
+        IntPtr adminSid = IntPtr.Zero;
+        IntPtr mediumSid = IntPtr.Zero;
+        IntPtr labelBuffer = IntPtr.Zero;
+        IntPtr restrictedToken = IntPtr.Zero;
+        try
+        {
+            if (!ConvertStringSidToSid("S-1-5-32-544", out adminSid))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_CONVERT_ADMIN_SID_FAILED");
+            SID_AND_ATTRIBUTES disableAdmin = new SID_AND_ATTRIBUTES();
+            disableAdmin.Sid = adminSid;
+            disableAdmin.Attributes = 0;
+
+            if (!CreateRestrictedToken(parentToken, DISABLE_MAX_PRIVILEGE,
+                1, ref disableAdmin, 0, IntPtr.Zero, 0, IntPtr.Zero, out restrictedToken))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_CREATE_RESTRICTED_MEDIUM_TOKEN_FAILED");
+
+            if (!ConvertStringSidToSid("S-1-16-8192", out mediumSid))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_CONVERT_MEDIUM_INTEGRITY_SID_FAILED");
+            SID_AND_ATTRIBUTES label = new SID_AND_ATTRIBUTES();
+            label.Sid = mediumSid;
+            label.Attributes = SE_GROUP_INTEGRITY;
+            int labelSize = Marshal.SizeOf(typeof(SID_AND_ATTRIBUTES));
+            labelBuffer = Marshal.AllocHGlobal(labelSize);
+            Marshal.StructureToPtr(label, labelBuffer, false);
+            if (!SetTokenInformation(restrictedToken, TokenIntegrityLevel, labelBuffer, labelSize))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_SET_RESTRICTED_TOKEN_MEDIUM_INTEGRITY_FAILED");
+
+            if (ReadIntegrityRid(restrictedToken) != 0x2000 ||
+                IsEnabledMember(restrictedToken, "S-1-5-32-544"))
+                throw new InvalidOperationException("R299_RESTRICTED_TOKEN_NOT_MEDIUM_OR_ADMIN_GROUP_STILL_ENABLED");
+
+            IntPtr result = restrictedToken;
+            restrictedToken = IntPtr.Zero;
+            return result;
+        }
+        finally
+        {
+            if (labelBuffer != IntPtr.Zero) Marshal.FreeHGlobal(labelBuffer);
+            if (mediumSid != IntPtr.Zero) LocalFree(mediumSid);
+            if (adminSid != IntPtr.Zero) LocalFree(adminSid);
+            if (restrictedToken != IntPtr.Zero) CloseHandle(restrictedToken);
+        }
+    }
+
     private static void ValidateMediumToken(IntPtr token, string expectedUserSid, string label,
         bool requirePrimary, int expectedElevationType)
     {
@@ -251,14 +348,16 @@ public static class R299MediumTokenLauncher
         string userSid = ReadTokenUserSid(token);
         bool usableTokenType = tokenType == 1 || (!requirePrimary && tokenType == 2 && impersonationLevel >= 2);
         bool sameUser = String.Equals(userSid, expectedUserSid, StringComparison.OrdinalIgnoreCase);
+        bool adminEnabled = IsEnabledMember(token, "S-1-5-32-544");
         if (elevationType != expectedElevationType || !usableTokenType ||
-            integrityRid != 0x2000 || !sameUser)
+            integrityRid != 0x2000 || !sameUser || adminEnabled)
         {
             throw new InvalidOperationException(
                 "R299_" + label + "_TOKEN_NOT_MEDIUM_SAME_USER" +
                 "_type=" + elevationType + "_expectedType=" + expectedElevationType +
                 "_tokenType=" + tokenType + "_impersonationLevel=" + impersonationLevel +
-                "_integrity=0x" + integrityRid.ToString("X") + "_sameUser=" + sameUser);
+                "_integrity=0x" + integrityRid.ToString("X") + "_sameUser=" + sameUser +
+                "_adminEnabled=" + adminEnabled);
         }
     }
 
@@ -301,16 +400,18 @@ public static class R299MediumTokenLauncher
         IntPtr parentToken = IntPtr.Zero;
         IntPtr linkedBuffer = IntPtr.Zero;
         IntPtr linkedToken = IntPtr.Zero;
+        IntPtr restrictedToken = IntPtr.Zero;
         IntPtr sourceToken = IntPtr.Zero;
         IntPtr primaryToken = IntPtr.Zero;
         IntPtr environment = IntPtr.Zero;
         PROCESS_INFORMATION processInfo = new PROCESS_INFORMATION();
         string tokenSource = null;
         int targetElevationType = 0;
-        bool createWithLinkedToken = false;
+        bool createWithExplicitToken = false;
+        bool expectedRestricted = false;
         try
         {
-            if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, out parentToken))
+            if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ADJUST_DEFAULT, out parentToken))
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_OPEN_PARENT_TOKEN_FAILED");
 
             int parentElevationType = ReadTokenInt(parentToken, TokenElevationType);
@@ -326,13 +427,25 @@ public static class R299MediumTokenLauncher
                 sourceToken = linkedToken;
                 targetElevationType = 3;
                 tokenSource = "LINKED_LIMITED_TOKEN";
-                createWithLinkedToken = true;
+                createWithExplicitToken = true;
             }
-            else if (parentElevationType == 3 || parentElevationType == 1)
+            else if ((parentElevationType == 3 || parentElevationType == 1) && parentIntegrityRid == 0x2000)
             {
                 ValidateMediumToken(parentToken, parentSid, "PARENT_MEDIUM", true, parentElevationType);
                 targetElevationType = parentElevationType;
                 tokenSource = "CURRENT_MEDIUM_TOKEN";
+            }
+            else if (parentElevationType == 1 && parentIntegrityRid >= 0x3000)
+            {
+                restrictedToken = CreateRestrictedMediumToken(parentToken);
+                targetElevationType = ReadTokenInt(restrictedToken, TokenElevationType);
+                if (targetElevationType != 1 && targetElevationType != 3)
+                    throw new InvalidOperationException("R299_RESTRICTED_MEDIUM_TOKEN_UNEXPECTED_ELEVATION_TYPE_" + targetElevationType);
+                ValidateMediumToken(restrictedToken, parentSid, "RESTRICTED", true, targetElevationType);
+                sourceToken = restrictedToken;
+                tokenSource = "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT";
+                createWithExplicitToken = true;
+                expectedRestricted = true;
             }
             else
             {
@@ -341,13 +454,15 @@ public static class R299MediumTokenLauncher
                     "_integrity=0x" + parentIntegrityRid.ToString("X"));
             }
 
-            if (createWithLinkedToken)
+            if (createWithExplicitToken)
             {
                 const uint requiredTokenAccess = TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY;
                 if (!DuplicateTokenEx(sourceToken, requiredTokenAccess, IntPtr.Zero,
                     2, 1, out primaryToken))
-                    throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_DUPLICATE_LINKED_MEDIUM_PRIMARY_TOKEN_FAILED");
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_DUPLICATE_EXPLICIT_MEDIUM_PRIMARY_TOKEN_FAILED");
                 ValidateMediumToken(primaryToken, parentSid, "DUPLICATED", true, targetElevationType);
+                if (expectedRestricted && IsEnabledMember(primaryToken, "S-1-5-32-544"))
+                    throw new InvalidOperationException("R299_DUPLICATED_RESTRICTED_TOKEN_ADMIN_GROUP_ENABLED");
             }
 
             string command = QuoteArgument(application);
@@ -367,22 +482,24 @@ public static class R299MediumTokenLauncher
 
             StringBuilder mutableCommand = new StringBuilder(command);
             uint creationFlags = CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW;
-            bool created = createWithLinkedToken
+            bool created = createWithExplicitToken
                 ? CreateProcessWithTokenW(primaryToken, 1, application, mutableCommand,
                     creationFlags, environment, workingDirectory, ref startup, out processInfo)
                 : CreateProcessW(application, mutableCommand, IntPtr.Zero, IntPtr.Zero, false,
                     creationFlags, environment, workingDirectory, ref startup, out processInfo);
             if (!created)
                 throw new Win32Exception(Marshal.GetLastWin32Error(),
-                    createWithLinkedToken ? "R299_CREATE_PROCESS_WITH_LINKED_MEDIUM_TOKEN_FAILED" :
+                    createWithExplicitToken ? "R299_CREATE_PROCESS_WITH_EXPLICIT_MEDIUM_TOKEN_FAILED" :
                     "R299_CREATE_PROCESS_WITH_CURRENT_MEDIUM_TOKEN_FAILED");
 
             IntPtr childToken = IntPtr.Zero;
             try
             {
-                if (!OpenProcessToken(processInfo.hProcess, TOKEN_QUERY, out childToken))
+                if (!OpenProcessToken(processInfo.hProcess, TOKEN_QUERY | TOKEN_DUPLICATE, out childToken))
                     throw new Win32Exception(Marshal.GetLastWin32Error(), "R299_OPEN_CREATED_CHILD_TOKEN_FAILED");
                 ValidateMediumToken(childToken, parentSid, "CREATED_CHILD", true, targetElevationType);
+                if (expectedRestricted && IsEnabledMember(childToken, "S-1-5-32-544"))
+                    throw new InvalidOperationException("R299_CREATED_RESTRICTED_CHILD_ADMIN_GROUP_ENABLED");
             }
             finally
             {
@@ -408,6 +525,7 @@ public static class R299MediumTokenLauncher
             if (processInfo.hProcess != IntPtr.Zero) CloseHandle(processInfo.hProcess);
             if (environment != IntPtr.Zero) Marshal.FreeHGlobal(environment);
             if (primaryToken != IntPtr.Zero) CloseHandle(primaryToken);
+            if (restrictedToken != IntPtr.Zero) CloseHandle(restrictedToken);
             if (linkedToken != IntPtr.Zero) CloseHandle(linkedToken);
             if (linkedBuffer != IntPtr.Zero) Marshal.FreeHGlobal(linkedBuffer);
             if (parentToken != IntPtr.Zero) CloseHandle(parentToken);
