@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R377",
-  "Status": "R377_PRODUCT_LOCAL_AND_HOSTED_67_OF_67_PASS_DOCS_HEAD_CI_DYNAMIC_HUMAN_REVIEW_REQUIRED_OWNER_V1710_UNCHANGED",
-  "UpdatedUtc": "2026-11-10T01:11:50.6058582Z",
+  "CurrentEngineeringRevision": "R379",
+  "Status": "R379_EXACT_SOURCE_63_OF_63_CI_PASS_HOSTED_R370_8_OF_8_R360_24_OF_24_OWNER_PUBLIC_V1710_UNCHANGED_REVIEW_REQUIRED",
+  "UpdatedUtc": "2026-11-10T03:31:34.9874431Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -106,7 +106,8 @@
     "R374: independent human-review handoff for PR #98 posted at https://github.com/GOD13emad/TaskbarMonitorEnhanced/pull/98#issuecomment-6750739912 and read back; still zero human reviews. Read-only owner v1.7.10 SHA/process/sensor check; isolated .NET File.Replace pre-existing backup-hardlink canary stayed byte-identical, scope limited to direct .NET fixture.",
     "R375: test-only failure-only native Settings-menu HWND/class/foreground topology diagnostic committed dc625f5; Windows PowerShell 5.1 parser/native C# compile/unchanged strict gate and isolated real failure-branch synthetic JSON test PASS. PR CI 28/28 SUCCESS; R291 two Windows hosts PASS; R360 six fresh guest cycles/24 modes PASS. Combined R373/R375 20 host-cycles/80 UI modes/80 native hide samples PASS at 29-513 ms median 239.5 under unchanged 1100ms gate; original R371 failures remain NON-PASS/UNPROVEN. Additional independent owner-host thermal proof of exact official and private Candidate binaries: both 98/98 bitmap cases PASS; Glass current saved OFF at 1-percent normal opacity, which gives zero strong red under simulated 95C in Mission Control versus 3000 in true Glass; no installation/config change. Supplemental exact-head R360 6/6 guest cycles, 24/24 native hide samples PASS; scope aggregate 26 cycles/104/104 samples; historical R371 negative preserved. Read-only owner fullscreen/shell notification state diagnostic showed hidden monitor and QUNS_BUSY=2 with correct 90C warning request; CoreAudio SystemSounds session readback unmuted at 1.0, no physical sound witness.",
     "R376: repaired R369 negative-control test timing only, local exact Candidate 350 links/10 aligned writes PASS, GitHub exact-head R369 runs 42724136143 and 42724144960 both 4/4 PASS with all eight raw receipts validating baseline real write-through and Candidate canary protection. Exact PR head 0c2a5a4 CI 36/36 SUCCESS, R360 run 42724136388 real Windows 2022/2025 six cycles/24 native hide samples PASS. Previous R369 false-negative and historical R371 UI failures preserved; independent security review not submitted.",
-    "R377: LOCAL_ONLY baseline vulnerable empty-directory deletion reproduced and Candidate exact production CleanOwnedStage preservation/refusal + indexed nested cleanup PASS; full 0-warning Setup/Broker/Supervisor/Main build and 3 workspace selftests PASS. Hosted CI now PASS 67/67 on exact R377 engineering commit 8ff5632, native R370 4/4 and R360 6 cycles / 24 samples with raw SHA receipts; independent human review remains OPEN."
+    "R377: LOCAL_ONLY baseline vulnerable empty-directory deletion reproduced and Candidate exact production CleanOwnedStage preservation/refusal + indexed nested cleanup PASS; full 0-warning Setup/Broker/Supervisor/Main build and 3 workspace selftests PASS. Hosted CI now PASS 67/67 on exact R377 engineering commit 8ff5632, native R370 4/4 and R360 6 cycles / 24 samples with raw SHA receipts; independent human review remains OPEN.",
+    "R379: old R377 Candidate outside-Stage junction filename traversal reproduced in disposable NTFS; exact source-level strict regression failed before fix and passed after per-level TopDirectoryOnly reparse preflight. Local baseline 2/2, Candidate 6/6, full build 0 warnings/errors and Setup /verify 25 resources. Hosted source HEAD 5dd6bd9: 63/63 CI; R370 8/8 push/PR Windows 2022/2025 jobs; R360 6/6 guest cycles, 24/24 native hide samples PASS at 59-507ms. Human security review and historical UI root cause remain OPEN."
   ],
   "Open": [
     "OWNER_V179_TO_V1710_UPGRADE_TRANSACTION_PROVENANCE_NOT_INDEPENDENTLY_REVALIDATED",
@@ -116,10 +117,10 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "Official immutable public v1.7.10 and owner-installed v1.7.10 unchanged. R370 8d0b43b is latest product source; test-only R375 commit dc625f5 passed PR checks 28/28 and native R291 2/2 hosts (run 42697474249), R360 6/6 cycles / 24 modes (run 42697462258). R373 plus R375 receipts total 20 host-cycles / 80 UI modes and native hide samples, 29-513 ms median 239.5, all taskbar/monitor pre/post conditions passed, original strict 1100ms gate unchanged. Failure-only R375 native popup topology diagnostic passed local PowerShell 5.1 synthetic branch execution but was not exercised by real CI because the intermittent fault did not recur. R371 historical Windows 2022 Settings-menu/taskbar-hide failures remain NON-PASS with root cause UNPROVEN. R374 reviewer handoff is posted. PR #98 OPEN/mergeable/unmerged, REVIEW_REQUIRED, zero independent human reviews; no merge/release. Issue #6 reporter SHA/origin, owner upgrade transaction, physical GUI/audio witness and Notion restore consent are separate OPEN/DEFERRED gates. New independent R375 owner-host thermal proof: 98/98 Glass renderer theme/background cases passed on BOTH exact private Candidate and official owner-installed 1.7.10 Main, red hot 95C >=2790 pixels and zero cold 60C red; owner currently config GlassMode=false and Opacity=0.01 (normal mode), CPU threshold 90C; synthetic matching-mode 1-percent opacity at 95C had zero strong red versus true Glass 3000. Owner config/exe/PID untouched, physical onscreen/audio witness still NOT PASS. R375 latest read-only owner normal-mode taskbar crop shows readable UI and live CPU temperature approximately 86C below configured 90C warning threshold; true GlassMode is still disabled, so no live hot Glass alarm was witnessed. Windows has an alternate active Realtek USB Audio Speakers endpoint while current default is NVIDIA Mi monitor; choosing output is owner preference, no system audio change was made. New R375 supplemental stress on PR HEAD 2c41cfc: GitHub run 42717624532 succeeded 3/3 jobs, fresh 6/6 Windows guest cycles and 24/24 strict native hide samples (2-528 ms). With prior raw receipts this exact private Candidate has 26 cycles / 104/104 strict hide samples at 2-528 ms median 247.5, limit unchanged at 1100ms. Independent review still absent; intermittent historical negative remains unproven. Owner live full-screen observation: Chrome fullscreen means monitor purposefully hidden and Windows SHQueryUserNotificationState=QUNS_BUSY=2 (notification eligibility restricted). The 90C hot CPU warning sound request while fullscreen does not prove physical audio. CoreAudio SystemSounds sessions are unmuted at volume 1.0 on default roles; Mi monitor default route and owner physical speaker connection remain unresolved. No owner configuration change, Glass acceptance or historical UI root cause closure. R376: 850ms link preseed was too short on one Windows 2025 guest (R369 baseline A failed to reproduce); bounded 8000ms preseed and timestamped actual writer introduced test-only. Local 350 links, 10 aligned compiled Candidate calls, 6 tests PASS; historical negative control remains strict and hosted matrix PENDING. R376 exact-source hosted 36/36 CI SUCCESS. Two complete R369 runs independently 8/8 raw strict negative and candidate controls PASS; R360 six host cycles/24 samples 49-492ms PASS. Product source and owner installation unchanged. Independent human review remains the merge gate. R377 new source preservation fix after independent code audit: previously CleanOwnedStage silently removed unexpected empty upgrade-stage directory; strict baseline local negative control reproduced, candidate retained it and legitimate nested stage cleanup PASS. Full local Build+3 selftests PASS. Hosted exact-head CI and human last-push review required, no public or owner installation changes. R377 hosted exact source HEAD 8ff5632: 67/67 GitHub checks SUCCESS incl. 4/4 R370 raw baseline/candidate Windows A/B receipts and 6/6 R360 native guest cycles, 24/24 strict hide samples (113–506 ms); built candidate Setup SHA B1E8121E... identical local/guests, Main BAB436AC... identical. Reviewer approval still absent. Documentation-only upsert needs fresh CI status.",
-  "MainBlocker": "R377 hosted and local source-level security tests PASS on engineering commit 8ff5632 (67/67 CI), but PR #98 remains REVIEW_REQUIRED with ZERO genuine independent human reviews; documentation-only latest head must be freshly verified.",
+  "CriticalPath": "Official immutable public v1.7.10 and owner-installed v1.7.10 unchanged. R370 8d0b43b is latest product source; test-only R375 commit dc625f5 passed PR checks 28/28 and native R291 2/2 hosts (run 42697474249), R360 6/6 cycles / 24 modes (run 42697462258). R373 plus R375 receipts total 20 host-cycles / 80 UI modes and native hide samples, 29-513 ms median 239.5, all taskbar/monitor pre/post conditions passed, original strict 1100ms gate unchanged. Failure-only R375 native popup topology diagnostic passed local PowerShell 5.1 synthetic branch execution but was not exercised by real CI because the intermittent fault did not recur. R371 historical Windows 2022 Settings-menu/taskbar-hide failures remain NON-PASS with root cause UNPROVEN. R374 reviewer handoff is posted. PR #98 OPEN/mergeable/unmerged, REVIEW_REQUIRED, zero independent human reviews; no merge/release. Issue #6 reporter SHA/origin, owner upgrade transaction, physical GUI/audio witness and Notion restore consent are separate OPEN/DEFERRED gates. New independent R375 owner-host thermal proof: 98/98 Glass renderer theme/background cases passed on BOTH exact private Candidate and official owner-installed 1.7.10 Main, red hot 95C >=2790 pixels and zero cold 60C red; owner currently config GlassMode=false and Opacity=0.01 (normal mode), CPU threshold 90C; synthetic matching-mode 1-percent opacity at 95C had zero strong red versus true Glass 3000. Owner config/exe/PID untouched, physical onscreen/audio witness still NOT PASS. R375 latest read-only owner normal-mode taskbar crop shows readable UI and live CPU temperature approximately 86C below configured 90C warning threshold; true GlassMode is still disabled, so no live hot Glass alarm was witnessed. Windows has an alternate active Realtek USB Audio Speakers endpoint while current default is NVIDIA Mi monitor; choosing output is owner preference, no system audio change was made. New R375 supplemental stress on PR HEAD 2c41cfc: GitHub run 42717624532 succeeded 3/3 jobs, fresh 6/6 Windows guest cycles and 24/24 strict native hide samples (2-528 ms). With prior raw receipts this exact private Candidate has 26 cycles / 104/104 strict hide samples at 2-528 ms median 247.5, limit unchanged at 1100ms. Independent review still absent; intermittent historical negative remains unproven. Owner live full-screen observation: Chrome fullscreen means monitor purposefully hidden and Windows SHQueryUserNotificationState=QUNS_BUSY=2 (notification eligibility restricted). The 90C hot CPU warning sound request while fullscreen does not prove physical audio. CoreAudio SystemSounds sessions are unmuted at volume 1.0 on default roles; Mi monitor default route and owner physical speaker connection remain unresolved. No owner configuration change, Glass acceptance or historical UI root cause closure. R376: 850ms link preseed was too short on one Windows 2025 guest (R369 baseline A failed to reproduce); bounded 8000ms preseed and timestamped actual writer introduced test-only. Local 350 links, 10 aligned compiled Candidate calls, 6 tests PASS; historical negative control remains strict and hosted matrix PENDING. R376 exact-source hosted 36/36 CI SUCCESS. Two complete R369 runs independently 8/8 raw strict negative and candidate controls PASS; R360 six host cycles/24 samples 49-492ms PASS. Product source and owner installation unchanged. Independent human review remains the merge gate. R377 new source preservation fix after independent code audit: previously CleanOwnedStage silently removed unexpected empty upgrade-stage directory; strict baseline local negative control reproduced, candidate retained it and legitimate nested stage cleanup PASS. Full local Build+3 selftests PASS. Hosted exact-head CI and human last-push review required, no public or owner installation changes. R377 hosted exact source HEAD 8ff5632: 67/67 GitHub checks SUCCESS incl. 4/4 R370 raw baseline/candidate Windows A/B receipts and 6/6 R360 native guest cycles, 24/24 strict hide samples (113–506 ms); built candidate Setup SHA B1E8121E... identical local/guests, Main BAB436AC... identical. Reviewer approval still absent. Documentation-only upsert needs fresh CI status. R379 source 5dd6bd9 fixes externally traversed Stage junction via TopDirectoryOnly reparse preflight; exact-head hosted 63/63, R370 push+PR 8/8 baseline/candidate raw receipts, R360 six Windows guest cycles/24 strict hide samples PASS; local source-level red/green plus full build and /verify PASS. Human approval still zero; no owner/public release change.",
+  "MainBlocker": "PR #98 genuine independent human last-push security approval is required (zero reviews); R379 production source 5dd6bd9 passed all 63 exact-source checks; documentation-only latest head CI must be rechecked after commit.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Verify latest documentation-only PR HEAD CI without redoing successful R377 product/source tests; obtain genuine independent human reviewer approval of last push and resolve findings before security merge/release. Secondary: R371 historical native negative remains unproven; actual user Glass/audio, Notion restore consent and Issue #6 reporter provenance remain separate.",
+  "ExactNextAction": "Check exact latest documentation follow-up HEAD CI; seek actual independent security Review on PR #98 and resolve findings before merge/release. Historical R371 UI negative, owner physical Glass/audio, Issue #6 reporter SHA and Notion restore owner consent remain separate OPEN.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -158,8 +159,8 @@
   "SecurityCandidate": {
     "PullRequest": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/pull/98",
     "Branch": "security/r347-r349-helper-hardening-v1710",
-    "LatestReviewedByHostedCI": "8ff56325a55335d130a27770b54809dc913ca233",
-    "LatestProductTestSource": "8ff56325a55335d130a27770b54809dc913ca233",
+    "LatestReviewedByHostedCI": "5dd6bd9919656b63b0db45b74d34ff8221ee018e",
+    "LatestProductTestSource": "5dd6bd9919656b63b0db45b74d34ff8221ee018e",
     "R352Windows2022And2025": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455344",
     "R352ChecksPerHost": 14,
     "IndependentHumanReviewSubmitted": false,
@@ -206,7 +207,7 @@
       "R360Run": 42724136388,
       "Scope": "R376 test-only harness fix, real baseline negative controls and candidate positive controls; R370 production unchanged"
     },
-    "LatestExactCITestedHead": "8ff56325a55335d130a27770b54809dc913ca233",
+    "LatestExactCITestedHead": "5dd6bd9919656b63b0db45b74d34ff8221ee018e",
     "R355FailureDiagnosticHarness": {
       "Result": "PASS",
       "Environment": "Windows PowerShell 5.1.26100.9818",
@@ -336,15 +337,15 @@
       }
     },
     "LatestPRHeadCI": {
-      "Commit": "8ff56325a55335d130a27770b54809dc913ca233",
-      "TotalChecks": 67,
-      "Passed": 67,
+      "Commit": "5dd6bd9919656b63b0db45b74d34ff8221ee018e",
+      "TotalChecks": 63,
+      "Passed": 63,
       "Failed": 0,
       "Pending": 0,
       "Result": "SUCCESS",
-      "ProductSourceCommit": "8ff56325a55335d130a27770b54809dc913ca233",
+      "ProductSourceCommit": "5dd6bd9919656b63b0db45b74d34ff8221ee018e",
       "ReviewState": "OPEN_ZERO_INDEPENDENT_HUMAN_REVIEWS",
-      "Scope": "R377 product source and exact Windows GitHub tests, prior to evidence-only followup commit"
+      "Scope": "R379 exact product engineering/test commit prior to documentation follow-up"
     },
     "R359IdentityBoundary": {
       "Commit": "dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0",
@@ -554,7 +555,7 @@
       "CandidateStrictTrustChecks": 20
     }
   },
-  "CurrentVerificationRevision": "R377",
+  "CurrentVerificationRevision": "R379",
   "Deferred": [
     "OWNER_WINDOWS11_PERSONAL_START_SETTINGS_DYNAMIC_GUI_WITNESS_DEFERRED_NOT_PASS_OWNER_ACCEPTED_CURRENT_BEHAVIOR_NO_CURRENT_TAKEOVER_AUTHORITY",
     "OWNER_APP_OS_NOTIFICATION_BANNER_AND_AUDIBLE_SPEAKER_NOT_INDEPENDENTLY_WITNESSED_DEFERRED_NOT_PASS"
@@ -563,7 +564,7 @@
     "Status": "PENDING_USER_CONFIRMATION_TO_RESTORE_LAST_INTACT_R359_VERSION_THEN_SYNC_R372",
     "Page": "https://app.notion.com/p/412d5b4a86f681c29173c01fc4c75842",
     "LastVerifiedUtc": "2026-11-09T04:54:27.207Z",
-    "Scope": "R360 repeated Explorer Settings stress, R361-R363 SHA-pinned/API-backed download hardening, R364 exact-baseline R338 build tooling and exact-head CI, R365 owner-local R335/R338/R298 regressions, R366 PR #96 supersession and Issue #7 tracker update plus scoped Issue #6 owner-host audit, R367 Supervisor/Broker temp hard-link hardening and 30/30 exact-head CI. Independent human review, reporter/owner evidence gaps and restoration confirmation remain. R368 native R291 click event stabilization; R369 App config/history AtomicTextFile hard-link hardening, hosted 8/8, exact test-head 28/28 after one controlled R291 job rerun. Restoration approval still required. R370 Installer fixed upgrade phase.tmp hardlink fix, 8/8 hosted plus exact-head 63/63; Notion still awaits restoration approval. R371 exact test head 28/28 and prior hosted UI failure evidence; Notion sync pending specific confirmation. R372 test-only strict real UI native-hit CI 28/28, prior failures preserved, root cause unproven; portfolio sync waits specific restoration consent. R373 test-only hide-latency telemetry: last tested docs-only PR head 38e773a CI 29/29, R291 6/6 host executions across three runs, R360 6/6 cycles and 48/48 hide samples 29-502ms (median 224ms); historical UI root cause remains unproven. Notion restore/sync still requires specific owner confirmation. R374 security-review handoff posted and verified. R375 Win32 Settings-menu diagnostic test-only commit dc625f5 passed 28/28 PR checks, R291 2/2 hosts, R360 6/6 cycles; cumulative R373/R375 80/80 native hide samples 29-513 ms median 239.5. Historical UI fault NON-PASS/unproven; Notion restore still explicitly pending owner approval. R375 owner-host exact official and candidate thermal Glass bitmap proof 98/98 each, current GlassMode=false at 1% ordinary opacity; local receipt r375-ownerhost-thermal-rootcause-20261110.json. Real GUI/audio witness remains open; restore approval remains pending. R375 supplemental current-head R360 workflow dispatch 42717624532: 6/6 new guest cycles; 104/104 aggregated native hide samples across 26 cycles, 2-528ms median 247.5ms, unchanged strict gate; historical negatives still OPEN; no Notion restore approval. R375 live owner fullscreen observation and Windows QUNS_BUSY=2; no real audio, toast or true-Glass acceptance and no Notion restore consent. R376 local 350 alias/10 real aligned candidate-write proof PASS; hosted R369 baseline/candidate revalidation pending; previous failing baseline A kept NON-PASS. No Notion restore. R376 completed hosted R369 eight raw controls PASS (runs 42724136143/42724144960), exact-head PR 36/36 SUCCESS and R360 six further real Windows guest cycles; Notion restore still specifically not authorized. R377 owner-approved local security code repair of upgrade stage unknown empty-directory preservation. Local negative-control baseline/candidate 2/2 and 5/5 PASS; full build PASS. Hosted acceptance and independent reviewer approval pending; Notion restore still requires explicit consent. R377 hosted exact source R370 4/4, R360 6/6, source-head CI 67/67 verified; local receipt r377-hosted-acceptance-exact-head-20261110.json. Notion restore remains UNAUTHORIZED until owner consents.",
+    "Scope": "R360 repeated Explorer Settings stress, R361-R363 SHA-pinned/API-backed download hardening, R364 exact-baseline R338 build tooling and exact-head CI, R365 owner-local R335/R338/R298 regressions, R366 PR #96 supersession and Issue #7 tracker update plus scoped Issue #6 owner-host audit, R367 Supervisor/Broker temp hard-link hardening and 30/30 exact-head CI. Independent human review, reporter/owner evidence gaps and restoration confirmation remain. R368 native R291 click event stabilization; R369 App config/history AtomicTextFile hard-link hardening, hosted 8/8, exact test-head 28/28 after one controlled R291 job rerun. Restoration approval still required. R370 Installer fixed upgrade phase.tmp hardlink fix, 8/8 hosted plus exact-head 63/63; Notion still awaits restoration approval. R371 exact test head 28/28 and prior hosted UI failure evidence; Notion sync pending specific confirmation. R372 test-only strict real UI native-hit CI 28/28, prior failures preserved, root cause unproven; portfolio sync waits specific restoration consent. R373 test-only hide-latency telemetry: last tested docs-only PR head 38e773a CI 29/29, R291 6/6 host executions across three runs, R360 6/6 cycles and 48/48 hide samples 29-502ms (median 224ms); historical UI root cause remains unproven. Notion restore/sync still requires specific owner confirmation. R374 security-review handoff posted and verified. R375 Win32 Settings-menu diagnostic test-only commit dc625f5 passed 28/28 PR checks, R291 2/2 hosts, R360 6/6 cycles; cumulative R373/R375 80/80 native hide samples 29-513 ms median 239.5. Historical UI fault NON-PASS/unproven; Notion restore still explicitly pending owner approval. R375 owner-host exact official and candidate thermal Glass bitmap proof 98/98 each, current GlassMode=false at 1% ordinary opacity; local receipt r375-ownerhost-thermal-rootcause-20261110.json. Real GUI/audio witness remains open; restore approval remains pending. R375 supplemental current-head R360 workflow dispatch 42717624532: 6/6 new guest cycles; 104/104 aggregated native hide samples across 26 cycles, 2-528ms median 247.5ms, unchanged strict gate; historical negatives still OPEN; no Notion restore approval. R375 live owner fullscreen observation and Windows QUNS_BUSY=2; no real audio, toast or true-Glass acceptance and no Notion restore consent. R376 local 350 alias/10 real aligned candidate-write proof PASS; hosted R369 baseline/candidate revalidation pending; previous failing baseline A kept NON-PASS. No Notion restore. R376 completed hosted R369 eight raw controls PASS (runs 42724136143/42724144960), exact-head PR 36/36 SUCCESS and R360 six further real Windows guest cycles; Notion restore still specifically not authorized. R377 owner-approved local security code repair of upgrade stage unknown empty-directory preservation. Local negative-control baseline/candidate 2/2 and 5/5 PASS; full build PASS. Hosted acceptance and independent reviewer approval pending; Notion restore still requires explicit consent. R377 hosted exact source R370 4/4, R360 6/6, source-head CI 67/67 verified; local receipt r377-hosted-acceptance-exact-head-20261110.json. Notion restore remains UNAUTHORIZED until owner consents. R379 production source 5dd6bd9 reparse preflight hosted CI 63/63, R370 8/8, R360 24/24 verified. Notion restore still awaiting explicit owner consent; sync pending.",
     "Authority": "Coordination mirror only; PROJECT_BRAIN.md and native test receipts remain technical authority.",
     "RecoveryTargetUtc": "2026-11-09T04:54:27.398Z",
     "RecoveryReason": "The 2026-11-09T06:05:33.663Z ChatGPT/MCP update_content operation removed 55 page blocks; version history attributes all 55 affected blocks to this operation only. Restore of the last intact R359 version requires explicit user confirmation before R369 synchronization."
@@ -1207,5 +1208,50 @@
     "ExactHeadCI": "PASS_67_OF_67_SOURCE_HEAD_8ff5632",
     "CandidateSetupSHA256": "B1E8121ED9C1F121E45C6A2F6D736AEA352B5BF636489C643139CBDA89F4F9D1",
     "CandidateMainSHA256": "BAB436ACD0C531DE04DD6BF21B8A4D015F29529798997BEA1931B6FECD8803B6"
+  },
+  "R379ReparseTraversal": {
+    "Revision": "R379",
+    "EngineeringCommit": "5dd6bd9919656b63b0db45b74d34ff8221ee018e",
+    "PreviousVulnerableSourceCommit": "8ff56325a55335d130a27770b54809dc913ca233",
+    "Issue": "Recursive Directory.GetFiles AllDirectories follows stage junction before reparse preflight",
+    "NewSourceSHA256": "7A6A20545A7D1CEA48A110192FA3EB8BE8791019EE3170EBCFB250A8C72A66CB",
+    "TestSourceSHA256": "0F1890EAADD75F8055CDA537A42FC81E05E8564EF285D17E1ED88CEF41B733FE",
+    "ExactSourceHeadCI": {
+      "Passed": 63,
+      "Total": 63,
+      "Failed": 0,
+      "Pending": 0,
+      "Commit": "5dd6bd9919656b63b0db45b74d34ff8221ee018e"
+    },
+    "HostedR370": {
+      "PushRun": 42748759572,
+      "PullRequestRun": 42748768788,
+      "Jobs": 8,
+      "Passed": 8,
+      "Baseline": 4,
+      "Candidate": 4
+    },
+    "HostedR360": {
+      "Run": 42748759516,
+      "Cycles": 6,
+      "NativeSamples": 24,
+      "Passed": 24,
+      "MinMs": 59,
+      "MedianMs": 280,
+      "MaxMs": 507,
+      "OriginalThresholdMs": 1100
+    },
+    "CandidateSetupSHA256": "4D50FFFB0AF0751D2542AD0FA9255C6F8169AD80273B129D03FD46DE4A65F9CD",
+    "CandidateMainSHA256": "BAB436ACD0C531DE04DD6BF21B8A4D015F29529798997BEA1931B6FECD8803B6",
+    "LocalFullBuild": "PASS_0_WARN_0_ERRORS_3_SELFTESTS",
+    "SetupVerify": "PASS_25_EMBEDDED_RESOURCES",
+    "EvidencePath": ".local/audit/r379-hosted-source-acceptance-20261110.json",
+    "EvidenceSHA256": "6B8E96F4D0DA17E0563141738E14EBD0F93412BE9B1D9F731CC7DA27BAE5F9CC",
+    "HistoricalUiR371RootCause": "UNPROVEN",
+    "ApprovalState": "REVIEW_REQUIRED_ZERO_INDEPENDENT_HUMAN_REVIEWS",
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "NotionRestored": false,
+    "ClaimLimit": "Fail-closed static reparse preflight, not universal race immunity"
   }
 }
