@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R419",
-  "Status": "R419_BROKER_NATIVE_ARGV_LOCAL_AND_HOSTED_CI_PASS_SECURITY_CODEQL_SIX_CRITICAL_PENDING",
-  "UpdatedUtc": "2026-11-11T21:10:52.4732227Z",
+  "CurrentEngineeringRevision": "R420",
+  "Status": "R420_EXACT_CODEQL_SARIF_KNOWN_FOLDER_ROOT_CAUSE_DOCUMENTED_SECURITY_REVIEW_PENDING",
+  "UpdatedUtc": "2026-11-11T22:15:17.4003941Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -124,10 +124,10 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "R408 closes unrestricted directly-invoked Broker output argv and validates native directory identities before each atomic write; a narrow rename-after-revalidation window is not proven closed. Hosted regression, six open critical CodeQL alerts and independent last-push reviewer block PR merge; installed public v1.7.10 remains immutable.",
-  "MainBlocker": "R419 security PR98 added test-only native compiled Broker argv hostile-metachar regression PASS locally and in exact-head Hosted 4-job CI. CodeQL check 130785986168 still FAIL six critical command-line annotations on same six sinks, independent reviewer pending. PR106 dependent Draft; Windows11 exact hosted ZIP upgrade R418 accepted. Full Windows10 and absent-.NET UAC/reboot as well as native Linux/macOS still pending; no owner install or release mutation.",
+  "CriticalPath": "R418 byte-exact hosted ZIP Windows11 v1.7.9-to-1.7.10 upgrade accepted; R419 merged native Broker argv regression and exact-head CI all PASS. R420 official CodeQL SARIF shows six critical PR98 command-line dataflows rooted at Windows Known Folder APIs, still unresolved by independent reviewer; dependent PR106 Draft. Separate full Windows10 disposable real install and absent Framework UAC/reboot and genuine native Linux/macOS ports remain unaccepted; public 1.7.10 and owner installed app immutable.",
+  "MainBlocker": "R420: CodeQL original GitHub C# SARIF analysis 2147131660 proves all 6 critical PR98 command-line flows originate at Environment.GetFolderPath known folders (exact six dataflows preserved); not an exploitation dismissal. Requested independent reviewer must evaluate ACL/profile/reparse and privileged sink assumptions and provide per-alert dispositions or tested fixes. PR98 BLOCKED, PR106 Draft. R418 exact hosted Windows11 ZIP installation/upgrade PASS, Windows10 full guest and truly absent-.NET UAC/reboot and native Linux/macOS ports still pending.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Qualified independent reviewer to trace and disposition six PR98 CodeQL taint flows, or supply specific exploit/root cause to fix and retest, while keeping both PRs unmerged. In parallel obtain a safe disposable Windows10 x64 VM with actual absent Framework to test full Offline install/upgrade/UAC/reboot; do not substitute real owner host or relabel Windows binaries as native Linux/macOS.",
+  "ExactNextAction": "Have qualified independent reviewer evaluate all six verified CodeQL SARIF Known Folder source-to-sink paths; only then close/dismiss findings or implement targeted proven fix with regression. Separately secure disposable Windows10 x64 VM with real missing Framework 4.8 for full Offline install, upgrade and UAC/reboot; preserve owner installed app and public Release.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2839,5 +2839,36 @@
   "DependentPR106InheritedSecurityHead": "cfc3d81244e402eaf71dbad6f5807b7ed5aa914e",
   "MergedExactHeadCI": "43105436879_ALL_FOUR_JOBS_PASS",
   "SecurityCodeQL": "STILL_SIX_CRITICAL_PENDING_INDEPENDENT_REVIEW"
+},
+  "R420": {
+  "Status": "SIX_ORIGINAL_CODEQL_SARIF_SOURCES_IDENTIFIED_DISPOSITION_PENDING",
+  "ParentFeatureHead": "71dbefdef4616fb0d5e0b6715dae7fe4d5000d91",
+  "SecurityHead": "cfc3d81244e402eaf71dbad6f5807b7ed5aa914e",
+  "GitHubSARIFAnalysis": 2147131660,
+  "PR": 98,
+  "SixAlertIds": [
+    221,
+    234,
+    235,
+    236,
+    237,
+    238
+  ],
+  "EveryFlowStartsAt": "Environment.GetFolderPath",
+  "SixFullDataflowSourceToSinkVerified": true,
+  "ExactSARIFReceiptSHA256": "34B31DEF7F22A76BB29F74B589DDB7A87D62CBE3771196E4F872A0781EB03BA7",
+  "QualifiedReviewerComment": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/pull/98#issuecomment-6808311156",
+  "CodeQLStatus": "FAIL_SIX_CRITICAL_OPEN",
+  "IndependentSecurityApproval": "PENDING",
+  "PR106": "DRAFT",
+  "LastExactHeadBuild": 43106468840,
+  "LastExactHeadBuildResult": "PASS_ALL_FOUR",
+  "Win11ExactHostedZip": "R418_PASS",
+  "Win10FullInstall": "UNTESTED",
+  "MissingFrameworkUACReboot": "UNTESTED",
+  "NativeLinuxMacOS": "NOT_IMPLEMENTED",
+  "ProductionSourceChanged": false,
+  "OwnerInstalledAppChanged": false,
+  "PublicReleaseChanged": false
 }
 }
