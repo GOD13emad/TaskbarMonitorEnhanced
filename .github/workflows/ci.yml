@@ -112,6 +112,23 @@ jobs:
             if($proof -cnotcontains $mark){throw ('R400_MISSING_COMPILED_NATIVE_STAGING_PROOF_'+$mark)}
           }
           $proof
+      - name: R405 compiled pinned verified Setup and Win32 file identity launch
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R405-PinnedInstallerLaunch.ps1 -AppPath ./build/_out/App/TaskbarMonitorEnhanced.exe -SourceRoot . -HostedGuest)
+          foreach($required in @(
+            'R405_PASS_BAD_SHA_REJECTED_WITHOUT_STALE_PINS',
+            'R405_PASS_REAL_NET48_HANDLE_IDENTITY_AND_SHA',
+            'R405_PASS_SEVEN_FILE_AND_ALL_OWNER_ANCESTOR_MUTATIONS_REJECTED',
+            'R405_PASS_REAL_HOSTED_SHELLEXECUTE_WHILE_SAME_EXE_AND_ANCESTORS_PINNED',
+            'R405_PASS_PINNED_SETUP_AND_OUTSIDE_CANARY_SHA256_UNCHANGED',
+            'R405_PASS_PIN_RELEASE_ALLOWS_NORMAL_FILE_MANAGEMENT',
+            'R405_RESULT=PASS_COMPILED_PINNED_FILE_AND_ANCESTOR_LAUNCH_BOUNDARY'
+          )){
+            if($proof -cnotcontains $required){throw ('R405_NATIVE_PIN_AND_SHELL_EXECUTION_PROOF_MISSING_'+$required)}
+          }
+          $proof
       - name: R404 compiled owner-only verified Setup execution scope
         shell: powershell
         run: |

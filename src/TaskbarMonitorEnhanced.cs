@@ -27,6 +27,7 @@ using System.Windows.Automation;
 using System.Windows.Forms;
 using System.Web.Script.Serialization;
 using Microsoft.Win32;
+using Microsoft.Win32.SafeHandles;
 
 
 [assembly: AssemblyTitle("Taskbar Monitor Enhanced")]
@@ -1173,17 +1174,146 @@ namespace TaskbarMonitorEnhanced
             string actual=Sha256File(path);if(!String.Equals(expected,actual,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Installer changed after verification.");
             return actual;
         }
+        // R405: pin every writable owner-path ancestor and the verified Setup
+        // FILE HANDLE until ShellExecute returns. No parent rename, leaf
+        // replacement or leaf write is share-compatible during this window.
+        // Fail closed on any reparse or handle-identity mismatch; the helper
+        // holds no admin privileges and leaves the installed app untouched.
+        internal sealed class VerifiedInstallerLaunchLease : IDisposable
+        {
+            private const uint FileReadAttributes=0x80,ShareReadWrite=3,OpenExisting=3;
+            private const uint BackupSemantics=0x02000000,OpenReparse=0x00200000;
+            private const uint DirectoryAttribute=0x10,ReparseAttribute=0x400;
+            [StructLayout(LayoutKind.Sequential)]
+            private struct FileAttributeTagInfo
+            {
+                public uint FileAttributes;
+                public uint ReparseTag;
+            }
+            [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true,EntryPoint="CreateFileW")]
+            private static extern SafeFileHandle OpenNative(
+                string path,uint access,uint share,IntPtr security,uint disposition,uint flags,IntPtr template);
+            [DllImport("kernel32.dll",SetLastError=true)]
+            private static extern bool GetFileInformationByHandleEx(
+                SafeFileHandle handle,int informationClass,out FileAttributeTagInfo value,uint size);
+            [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true,EntryPoint="GetFinalPathNameByHandleW")]
+            private static extern uint FinalPath(
+                SafeFileHandle handle,StringBuilder buffer,uint length,uint flags);
+
+            private readonly List<SafeFileHandle> pinnedDirectories=new List<SafeFileHandle>();
+            private FileStream pinnedInstaller;
+            internal string CanonicalPath {get;private set;}
+            internal string VerifiedSHA256 {get;private set;}
+
+            private static string HandlePath(SafeFileHandle handle)
+            {
+                StringBuilder buffer=new StringBuilder(4096);
+                uint length=FinalPath(handle,buffer,(uint)buffer.Capacity,0);
+                if(length==0||length>=buffer.Capacity)
+                    throw new IOException("Updater pinned file final-path query failed: "+Marshal.GetLastWin32Error());
+                string resolved=buffer.ToString();
+                if(resolved.StartsWith(@"\\?\UNC\",StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("Updater pinned path is an unexpected network mount.");
+                if(resolved.StartsWith(@"\\?\",StringComparison.Ordinal))
+                    resolved=resolved.Substring(4);
+                return Path.GetFullPath(resolved);
+            }
+
+            private static FileAttributeTagInfo Attributes(SafeFileHandle handle)
+            {
+                FileAttributeTagInfo tag;
+                if(!GetFileInformationByHandleEx(handle,9,out tag,
+                    (uint)Marshal.SizeOf(typeof(FileAttributeTagInfo))))
+                    throw new IOException("Updater pinned file attribute query failed: "+Marshal.GetLastWin32Error());
+                return tag;
+            }
+
+            private void PinDirectory(string path)
+            {
+                string expected=Path.GetFullPath(path);
+                SafeFileHandle handle=OpenNative(expected,FileReadAttributes,ShareReadWrite,
+                    IntPtr.Zero,OpenExisting,BackupSemantics|OpenReparse,IntPtr.Zero);
+                if(handle==null||handle.IsInvalid)
+                {
+                    int error=Marshal.GetLastWin32Error();
+                    if(handle!=null)handle.Dispose();
+                    throw new IOException("Updater cannot pin trusted directory: "+error);
+                }
+                try
+                {
+                    FileAttributeTagInfo tag=Attributes(handle);
+                    if((tag.FileAttributes&DirectoryAttribute)==0||
+                       (tag.FileAttributes&ReparseAttribute)!=0||
+                       !String.Equals(HandlePath(handle),expected,StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException("Updater owner directory identity or reparse check failed.");
+                    pinnedDirectories.Add(handle);
+                }
+                catch{handle.Dispose();throw;}
+            }
+
+            internal static VerifiedInstallerLaunchLease Acquire(
+                string path,string expectedDigest,string knownLocal,string knownProfile)
+            {
+                string trusted=CanonicalInstallerLaunchPath(path,knownLocal,knownProfile);
+                if(!IsStrictSha256Digest(expectedDigest))
+                    throw new InvalidDataException("Updater expected Setup digest is invalid.");
+                VerifiedInstallerLaunchLease lease=new VerifiedInstallerLaunchLease();
+                try
+                {
+                    string profile=Path.GetFullPath(knownProfile);
+                    string appData=Path.Combine(profile,"AppData");
+                    string local=Path.GetFullPath(knownLocal);
+                    string app=Path.Combine(local,"TaskbarMonitorEnhanced");
+                    string updates=Path.Combine(app,"Updates");
+                    foreach(string dir in new string[]{profile,appData,local,app,updates})
+                        lease.PinDirectory(dir);
+                    lease.pinnedInstaller=new FileStream(trusted,FileMode.Open,FileAccess.Read,
+                        FileShare.Read,65536,FileOptions.SequentialScan);
+                    FileAttributeTagInfo fileTag=Attributes(lease.pinnedInstaller.SafeFileHandle);
+                    if((fileTag.FileAttributes&DirectoryAttribute)!=0||
+                       (fileTag.FileAttributes&ReparseAttribute)!=0||
+                       !String.Equals(HandlePath(lease.pinnedInstaller.SafeFileHandle),trusted,
+                                      StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException("Updater pinned Setup file identity or reparse check failed.");
+                    byte[] digest;
+                    using(SHA256 sha=SHA256.Create())digest=sha.ComputeHash(lease.pinnedInstaller);
+                    StringBuilder hex=new StringBuilder(64);
+                    foreach(byte b in digest)hex.Append(b.ToString("X2",CultureInfo.InvariantCulture));
+                    string actual=hex.ToString();
+                    string expected=expectedDigest.Substring(expectedDigest.IndexOf(':')+1).Trim();
+                    if(!String.Equals(actual,expected,StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException("Pinned updater Setup failed SHA-256 verification.");
+                    lease.VerifiedSHA256=actual;
+                    lease.CanonicalPath=trusted;
+                    return lease;
+                }
+                catch{lease.Dispose();throw;}
+            }
+
+            public void Dispose()
+            {
+                if(pinnedInstaller!=null){pinnedInstaller.Dispose();pinnedInstaller=null;}
+                for(int i=pinnedDirectories.Count-1;i>=0;i--)pinnedDirectories[i].Dispose();
+                pinnedDirectories.Clear();
+            }
+        }
         public static void StartInstaller(string path,string expectedDigest)
         {
-            string trusted=CanonicalInstallerLaunchPath(path,
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+            string local=Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string profile=Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string trusted=CanonicalInstallerLaunchPath(path,local,profile);
             string actual=VerifyInstallerBeforeLaunch(trusted,expectedDigest);
-            ProcessStartInfo psi=new ProcessStartInfo();
-            psi.FileName=trusted;psi.UseShellExecute=true;
-            Process p=Process.Start(psi);
-            if(p==null)throw new InvalidOperationException("Windows did not start the update installer.");
-            Log.Write("INFO","UPDATE_INSTALLER_STARTED reverifiedSha256="+actual+" path="+trusted);
+            using(VerifiedInstallerLaunchLease pinned=
+                VerifiedInstallerLaunchLease.Acquire(trusted,expectedDigest,local,profile))
+            {
+                if(!String.Equals(actual,pinned.VerifiedSHA256,StringComparison.Ordinal))
+                    throw new InvalidDataException("Updater Setup changed before file identity was pinned.");
+                ProcessStartInfo psi=new ProcessStartInfo();
+                psi.FileName=trusted;psi.UseShellExecute=true;
+                Process p=Process.Start(psi);
+                if(p==null)throw new InvalidOperationException("Windows did not start the update installer.");
+                Log.Write("INFO","UPDATE_INSTALLER_STARTED pinnedSha256="+pinned.VerifiedSHA256+" path="+trusted);
+            }
         }
     }
 
