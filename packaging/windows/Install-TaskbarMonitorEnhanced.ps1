@@ -124,6 +124,9 @@ try {
   }
   if($release -lt $MinimumRelease){Install-Runtime}
   if((Get-FrameworkRelease) -lt $MinimumRelease){throw 'R409_FRAMEWORK_PREREQUISITE_MISSING'}
+  # Runtime installation can take minutes; rehash the exact Setup and its
+  # companion manifest immediately before launch, not only during preflight.
+  if((Assert-Package) -cne $setupSHA){throw 'R409_SETUP_CHANGED_AFTER_PREREQUISITE_PHASE'}
   # Never elevate the whole product installer: it must retain R385 medium-token
   # per-user update ownership; its protected sensor helper requests UAC itself.
   $p=Start-Process -FilePath $Setup -ArgumentList @('/install','/quiet') -PassThru -Wait

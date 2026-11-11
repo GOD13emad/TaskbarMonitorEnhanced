@@ -50,8 +50,14 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference='Stop'
-          & ./build/Build-WindowsInstallerPack-R409.ps1 -SetupPath ./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe
-          if($LASTEXITCODE -ne 0){throw 'R409_CANDIDATE_PACK_BUILD_FAILED'}
+          $receipt=(& ./build/Build-WindowsInstallerPack-R409.ps1 -SetupPath ./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe) | ConvertFrom-Json
+          if(!$receipt -or $receipt.Status -cne 'PASS_PACKAGE_CREATED' -or
+             !(Test-Path -LiteralPath $receipt.Pack -PathType Leaf) -or
+             (Get-FileHash -LiteralPath $receipt.Pack -Algorithm SHA256).Hash -cne $receipt.PackSHA256){
+            throw 'R409_CANDIDATE_PACK_RECEIPT_INVALID'
+          }
+          'R409_PACK_BUILDER_RECEIPT=PASS'
+          $receipt|ConvertTo-Json -Compress
       - name: Test ZIP identity and server OS refusal without installing
         shell: powershell
         run: |
