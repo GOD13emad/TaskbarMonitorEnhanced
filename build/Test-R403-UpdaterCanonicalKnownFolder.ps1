@@ -71,7 +71,7 @@ try{
  $positive=Call $canonical ([object[]]@([string]$local,[string]$profile))
  if($positive.Error -or ![string]::Equals([string]$positive.Value,
    (Join-Path $local 'TaskbarMonitorEnhanced\Updates'),[StringComparison]::OrdinalIgnoreCase)){
-  throw ('R403_LOCAL_CANONICAL_PROFILE_REJECTED_'+$positive.Error)
+  throw ('R403_LOCAL_CANONICAL_PROFILE_REJECTED_'+$positive.Error+' actual='+[string]$positive.Value+' expected='+[string](Join-Path $local 'TaskbarMonitorEnhanced\Updates'))
  }
  'R403_PASS_CANONICAL_OWNER_LOCAL_APPDATA_ACCEPTED'
  $tests=@(
