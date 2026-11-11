@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R411",
-  "Status": "R411_WINDOWS11_SANDBOX_FRESH_INPLACE_AND_LAUNCH_PASS_WIN10_FRAMEWORK_UAC_AND_SECURITY_PENDING",
-  "UpdatedUtc": "2026-11-11T15:20:53.3871873Z",
+  "CurrentEngineeringRevision": "R412",
+  "Status": "R412_REAL_PUBLISHED179_TO_OFFLINE1710_WIN11_UPGRADE_PASS_WIN10_UAC_AND_SECURITY_PENDING",
+  "UpdatedUtc": "2026-11-11T15:59:24.4785709Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -125,9 +125,9 @@
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
   "CriticalPath": "R408 closes unrestricted directly-invoked Broker output argv and validates native directory identities before each atomic write; a narrow rename-after-revalidation window is not proven closed. Hosted regression, six open critical CodeQL alerts and independent last-push reviewer block PR merge; installed public v1.7.10 remains immutable.",
-  "MainBlocker": "R411 verified real Windows 11 Enterprise disposable Sandbox complete offline fresh install and guarded same-version update/start (both exit 0, process running, Main and config hashes preserved); remaining Windows 10 client, older-version upgrade, missing .NET/UAC/reboot integration, Linux/macOS native ports and security PR #98 CodeQL six critical alerts plus independent review. Dependent PR #106 remains draft.",
+  "MainBlocker": "R412 published v1.7.9 to verified v1.7.10 Offline real Windows 11 Sandbox upgrade PASS with Main running and config+backup+state/external canaries preserved. R411 fresh/same-version Windows 11 PASS remains accepted. Remaining Windows 10 guest, missing-framework/UAC/reboot, Linux/macOS ports and security PR #98 six CodeQL critical alerts plus independent review block final release. Dependent PR #106 remains DRAFT.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "With a disposable Windows 10 client and missing-.NET guest, execute offline bootstrap/UAC/restart and older-version in-place update+launch; separately diagnose CodeQL PR #98 and seek genuine independent security review. Do not modify installed owner app or publish public release until accepted.",
+  "ExactNextAction": "Run genuine missing-Framework/UAC/reboot and Windows 10 full offline installation tests only on disposable compatible desktops. Independently trace CodeQL PR #98 six taint annotations and request human reviewer disposition without dismissing alerts. Do not merge/publish before security acceptance.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2633,5 +2633,29 @@
   "HumanSecurityReview": "PENDING",
   "OwnerInstallationMutated": false,
   "PublicReleasePublished": false
+},
+  "R412": {
+  "Status": "DISPOSABLE_WIN11_PUBLIC_179_TO_FULL_OFFLINE_1710_UPGRADE_PASS",
+  "AcceptedOS": "Windows11_Enterprise_build26100",
+  "ParentHead": "8bedc955445aafc23e334a3aa81ecfd325714af7",
+  "PredecessorSetupSHA256": "3AE5E2AC7428C3443FF7768C543117AF864E7C73F68D32EFAD4AB40B30FB5B0E",
+  "TargetOfflineZIP_SHA256": "668F879EC3DFBA30766DFF3DF35ACB38091A68D5BDF1816D5A6B2C78666CFB42",
+  "GuestSHA256": "D76DAD8FD9B0C2127F73E188332FC1339B7CEEE9CD14AB623A53BFFBD570E664",
+  "HostAcceptanceSHA256": "291D1BF934ED05BB25833FAE1D924273820022DFA8CFE970DEFE9D7B0ECE5C85",
+  "FrameworkRelease": 533320,
+  "PredecessorInstalledExit": 0,
+  "UpdatedOfflineBootstrapExit": 0,
+  "UpdatedMainRunning": true,
+  "PreservedConfigAndBackupSHA256": true,
+  "PreservedInstallStateExtraCanary": true,
+  "PreservedExternalCanary": true,
+  "NoSecondProgramFilesInstallation": true,
+  "Windows10": "UNTESTED",
+  "FrameworkAbsentNativeUACReboot": "UNTESTED",
+  "IndependentCodeQLSecurityReview": "PENDING_SIX_CRITICAL_ALERTS",
+  "DependentPR": 106,
+  "SecurityPR": 98,
+  "OwnerInstallationChanged": false,
+  "PublicReleaseChanged": false
 }
 }
