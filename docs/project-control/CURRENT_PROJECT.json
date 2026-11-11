@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R397",
-  "Status": "R397_INPROCESS_SHA_AND_90S_DISPOSABLE_CRASH_WAIT_LOCAL_PASS_HOSTED_PENDING_REVIEW_REQUIRED",
-  "UpdatedUtc": "2026-11-10T17:00:23.4797494Z",
+  "CurrentEngineeringRevision": "R407",
+  "Status": "R407_BROKER_EXECUTABLE_AND_DIRECTORY_PINNING_LOCAL_PASS_HOSTED_PENDING_CODEQL_AND_HUMAN_REVIEW_BLOCKED",
+  "UpdatedUtc": "2026-11-11T08:43:17.5980464Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -115,6 +115,8 @@
     "R384: corrected R383 partial-stage cleanup flaw by repeating complete per-level allowlist/reparse inventory immediately before any known deletion. Exact R379 baseline negative 2/2 and exact R384 Candidate 10/10 including late root file, late empty directory, nested late file; all five journal metadata markers and stage structure preserved on refusal. Full Main/Broker/Supervisor/Setup build 0 warnings/errors, 3 selftests, Setup /verify 25/25. Exact PR head f59e1dc CI 63/63, hosted R370 push+PR 8/8, R360 6 real Windows 2022/2025 UI cycles and 24/24 hide samples 28-498ms median 233.5ms; R299 actual public v1.7.9 in-place upgrade and R300 actual fresh install PASS, exact Setup SHA 01A208F1FF0929AD6E03D895803AD08A65BB39F1B0014EB0B2A4DF4FC31D8CB9. Aggregate receipt SHA256 66EA0AC59B24D5B0C67B2961E084CAAB8F3CE2778774D418818DB070C6A05266. Human review still required; R371 historical failures remain unproven; Notion restoration still requires explicit user confirmation."
   ],
   "Open": [
+    "PR98_CODEQL_SIX_CRITICAL_BLOCKING",
+    "R407_DISPOSABLE_HOSTED_CREATEPROCESS_ACCEPTANCE_PENDING",
     "OWNER_V179_TO_V1710_UPGRADE_TRANSACTION_PROVENANCE_NOT_INDEPENDENTLY_REVALIDATED",
     "ISSUE6_REPORTER_DRIVER_SHA_AND_INSTALL_ORIGIN_MISSING",
     "PR98_INDEPENDENT_HUMAN_SECURITY_REVIEW_PENDING",
@@ -122,10 +124,10 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "R397 must prove R299 repeatability under CI by avoiding the GUI crash fixture's Get-FileHash auto-import and using a bounded 90-second staging wait. Preserve R396 PR acceptance as historical proof; require independent latest-head CI, real v1.7.9-to-v1.7.10 COMMITTING recovery/canaries/idempotence and human security review before merge.",
-  "MainBlocker": "R396 exact-head PR Build/Verification PASS 4/4, including genuine R299 Setup recovery receipt. The same branch HEAD manual run failed R299 at checkpoint BEFORE_BINARY_PINS after 30s; intermittent test-only SHA preflight/timeout remains. R397 targeted test-only fix locally PASS; independent human PR review still missing.",
+  "CriticalPath": "R407 must pass exact-head hosted Windows native CreateProcess while both Broker executable and directory ancestry are pinned, plus full regression and CodeQL disposition. Six critical CodeQL alerts and independent eligible last-push security review still block PR #98 merge. Stable immutable public v1.7.10 and owner installation are not changed.",
+  "MainBlocker": "R406 exact-head CI is green except the separate CodeQL code-scanning check with six critical command-line alerts. R407 bounded Broker launch lease passed local Windows 10/11 compiled tests; disposable hosted native CreateProcess test is pending. Independent human security review requested but not submitted; PR #98 remains BLOCKED.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Commit/push R397; run exact-head PR and independent workflow_dispatch R299; check both genuine recovery receipts with correct PR merge-ref or branch SHA. If all stable, preserve green code head and await the already-requested independent human review without evidence-only commits that invalidate checks.",
+  "ExactNextAction": "Commit and push R407 source/native test/CI and current continuity upsert, then inspect exact-head hosted real CreateProcess and R406/R405/R404 regressions and CodeQL alerts; record pass/fail without waiving critical warnings. Obtain independent last-push human review and only merge after all mandatory checks pass.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2489,5 +2491,34 @@
     "PublicReleaseChanged": false,
     "MergePerformed": false,
     "Limit": "PR R396 acceptance is real but same-head manual repeatability failed. R397 is test-only and must be revalidated on its exact head; human independent review of PR #98 still absent."
+  },
+  "R407": {
+    "Status": "LOCAL_COMPILED_REGRESSION_PASS_HOSTED_PENDING",
+    "Parent": "27160f83b9770019e900ec2511d4e4fa5e860094",
+    "TimestampUtc": "2026-11-11T08:43:17.5980464Z",
+    "Objective": "Eliminate preflight-to-CreateProcess Broker executable and ancestor rename/write gap without elevation, by native handle-identity checking, GEN_READ file sharing and no-delete directory pins across launch.",
+    "Files": [
+      "src/sensors/TaskbarMonitorSensorSupervisor.cs",
+      "build/Test-R407-BrokerLaunchPinnedIdentity.ps1",
+      ".github/workflows/ci.yml"
+    ],
+    "Evidence": {
+      "FullFourComponentBuild": "PASS_0_WARNINGS_0_ERRORS",
+      "R404": "PASS_COMPILED_LOCAL",
+      "R405": "PASS_COMPILED_LOCAL",
+      "R406": "PASS_COMPILED_LOCAL",
+      "R407": "PASS_COMPILED_LOCAL_TEN_NEGATIVE_ATTEMPTS",
+      "YAML": "PARSE_PASS",
+      "PowerShell51": "PARSE_PASS",
+      "GitDiff": "CHECK_PASS",
+      "FirstNegativeFinding": "READ_ATTRIBUTES_ONLY_ALLOWED_BROKER_FILE_REWRITE",
+      "Fix": "GENERIC_READ_FOR_BROKER_FILE_ONLY_DIRECTORY_READ_ATTRIBUTES_PRESERVED",
+      "HostedRealCreateProcess": "PENDING"
+    },
+    "SecurityScope": "Protect executable and existing owner/protected ancestor handles only through Process.Start. Native loaded-child completion, all NTFS attack classes, and owner real GUI are outside local fixture proof.",
+    "OwnerInstallationChanged": false,
+    "PublicReleaseChanged": false,
+    "PR98CodeQLCriticalAlerts": "SIX_UNRESOLVED",
+    "IndependentHumanReview": "REQUESTED_PENDING"
   }
 }

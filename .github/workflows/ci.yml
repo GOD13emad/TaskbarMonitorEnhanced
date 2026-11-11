@@ -112,6 +112,23 @@ jobs:
             if($proof -cnotcontains $mark){throw ('R400_MISSING_COMPILED_NATIVE_STAGING_PROOF_'+$mark)}
           }
           $proof
+      - name: R407 compiled Broker file and ancestor launch lease
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R407-BrokerLaunchPinnedIdentity.ps1 -SupervisorPath ./build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe -SourceRoot . -HostedGuest)
+          foreach($required in @(
+            'R407_PASS_COMPILED_NATIVE_FILE_AND_ANCESTOR_HANDLES_ACQUIRED',
+            'R407_PASS_TEN_NATIVE_BROKER_OUTPUT_AND_ANCESTOR_MUTATIONS_REFUSED',
+            'R407_PASS_REAL_HOSTED_CREATEPROCESS_WHILE_BROKER_AND_ANCESTORS_PINNED',
+            'R407_PASS_STORAGE_MISSING_LEAF_AND_CANONICAL_RECOVERY',
+            'R407_PASS_INVALID_MODE_REJECTED_BEFORE_LAUNCH',
+            'R407_PASS_HANDLE_DISPOSAL_RELEASES_FILES_AND_OUTSIDE_SHA_UNCHANGED',
+            'R407_RESULT=PASS_COMPILED_ATOMIC_BROKER_LAUNCH_LEASE_SCOPE'
+          )){
+            if($proof -cnotcontains $required){throw ('R407_HOSTED_BROKER_LEASE_PROOF_MISSING_'+$required)}
+          }
+          $proof
       - name: R406 compiled Supervisor per-launch Broker mode and owner path validation
         shell: powershell
         run: |

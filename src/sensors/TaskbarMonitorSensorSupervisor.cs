@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 using System.Threading;
 
 [assembly: AssemblyTitle("Taskbar Monitor Enhanced Sensor Supervisor")]
@@ -594,6 +596,140 @@ internal static class TaskbarMonitorSensorSupervisor
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
     }
+
+    // R407: retain no-delete native handles across the Broker creation boundary.
+    // Revalidating a path alone (R406) cannot exclude a concurrent rename or
+    // replacement between validation and CreateProcess. These handles protect
+    // the executable and each existing owner/protected ancestor until Start returns.
+    sealed class BrokerLaunchLease : IDisposable
+    {
+        const uint ReadAttributes=0x80,GenericRead=0x80000000,ShareRead=1,ShareReadWrite=3,OpenExisting=3;
+        const uint BackupSemantics=0x02000000,OpenReparse=0x00200000;
+        const uint IsDirectory=0x10,IsReparse=0x400;
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct FileAttributeTagInfo
+        {
+            public uint Attributes;
+            public uint ReparseTag;
+        }
+        [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true,EntryPoint="CreateFileW")]
+        static extern SafeFileHandle CreateFile(string path,uint access,uint share,
+            IntPtr security,uint disposition,uint flags,IntPtr template);
+        [DllImport("kernel32.dll",SetLastError=true)]
+        static extern bool GetFileInformationByHandleEx(SafeFileHandle handle,int infoClass,
+            out FileAttributeTagInfo info,uint size);
+        [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true,EntryPoint="GetFinalPathNameByHandleW")]
+        static extern uint GetFinalPathNameByHandle(SafeFileHandle handle,
+            System.Text.StringBuilder buffer,uint size,uint flags);
+        [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true,EntryPoint="GetLongPathNameW")]
+        static extern uint GetLongPathName(string path,System.Text.StringBuilder buffer,uint size);
+
+        readonly List<SafeFileHandle> handles=new List<SafeFileHandle>();
+        readonly HashSet<string> directories=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        static string CanonicalExistingPath(string path)
+        {
+            string full=Path.GetFullPath(path);
+            if(full.StartsWith(@"\\",StringComparison.Ordinal))
+                throw new InvalidDataException("Broker launch lease refuses a network path.");
+            System.Text.StringBuilder b=new System.Text.StringBuilder(4096);
+            uint n=GetLongPathName(full,b,(uint)b.Capacity);
+            if(n==0||n>=b.Capacity)
+                throw new IOException("Broker launch cannot normalize existing Windows path: "+Marshal.GetLastWin32Error());
+            return Path.GetFullPath(b.ToString());
+        }
+
+        void Pin(string path,bool isDirectory)
+        {
+            string expected=CanonicalExistingPath(path);
+            if(isDirectory && directories.Contains(expected))return;
+            SafeFileHandle h=CreateFile(expected,isDirectory?ReadAttributes:GenericRead,
+                isDirectory?ShareReadWrite:ShareRead,IntPtr.Zero,OpenExisting,
+                OpenReparse|(isDirectory?BackupSemantics:0),IntPtr.Zero);
+            if(h==null||h.IsInvalid)
+            {
+                int error=Marshal.GetLastWin32Error();
+                if(h!=null)h.Dispose();
+                throw new IOException("Broker launch cannot pin file or directory: "+error);
+            }
+            try
+            {
+                FileAttributeTagInfo tag;
+                if(!GetFileInformationByHandleEx(h,9,out tag,
+                      (uint)Marshal.SizeOf(typeof(FileAttributeTagInfo))) ||
+                   (tag.Attributes&IsReparse)!=0 ||
+                   ((tag.Attributes&IsDirectory)!=0)!=isDirectory)
+                    throw new InvalidDataException("Broker launch pinned object changed type or is a reparse point.");
+                System.Text.StringBuilder b=new System.Text.StringBuilder(4096);
+                uint n=GetFinalPathNameByHandle(h,b,(uint)b.Capacity,0);
+                if(n==0||n>=b.Capacity)
+                    throw new IOException("Broker launch cannot read pinned native file identity.");
+                string actual=b.ToString();
+                if(actual.StartsWith(@"\\?\UNC\",StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("Broker launch pinned an unexpected network path.");
+                if(actual.StartsWith(@"\\?\",StringComparison.Ordinal))actual=actual.Substring(4);
+                if(!String.Equals(CanonicalExistingPath(actual),expected,StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("Broker launch pinned handle identity differs from trusted path.");
+                handles.Add(h);
+                if(isDirectory)directories.Add(expected);
+            }
+            catch{h.Dispose();throw;}
+        }
+
+        void PinAncestors(string leafDirectory)
+        {
+            Stack<string> ascending=new Stack<string>();
+            string cursor=Path.GetFullPath(leafDirectory);
+            for(int i=0;i<64;i++)
+            {
+                string parent=Path.GetDirectoryName(cursor);
+                if(String.IsNullOrWhiteSpace(parent)||String.Equals(parent,cursor,StringComparison.OrdinalIgnoreCase))break;
+                ascending.Push(cursor);
+                cursor=parent;
+                if(i==63)throw new InvalidDataException("Broker launch ancestor depth exceeds bound.");
+            }
+            while(ascending.Count>0)Pin(ascending.Pop(),true);
+        }
+
+        internal static BrokerLaunchLease Acquire(string broker,string mode,string output,
+            string programFiles,string profile,string localAppData)
+        {
+            string trusted=TrustedBrokerLaunchArguments(broker,mode,output,programFiles,profile,localAppData);
+            BrokerLaunchLease lease=new BrokerLaunchLease();
+            try
+            {
+                lease.PinAncestors(Path.GetDirectoryName(broker));
+                lease.PinAncestors(profile);
+                lease.PinAncestors(localAppData);
+                lease.PinAncestors(Path.GetDirectoryName(output));
+                lease.Pin(broker,false);
+                if(File.Exists(output))lease.Pin(output,false);
+                if(!String.Equals(trusted,
+                    TrustedBrokerLaunchArguments(broker,mode,output,programFiles,profile,localAppData),
+                    StringComparison.Ordinal))
+                    throw new InvalidDataException("Broker launch binding changed while handles were acquired.");
+                return lease;
+            }
+            catch{lease.Dispose();throw;}
+        }
+
+        public void Dispose()
+        {
+            for(int i=handles.Count-1;i>=0;i--)handles[i].Dispose();
+            handles.Clear();
+            directories.Clear();
+        }
+    }
+
+    static BrokerLaunchLease PinCurrentBrokerLaunch(string mode,string output)
+    {
+        return BrokerLaunchLease.Acquire(BrokerPath,mode,output,
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+    }
+
     static bool ParseArgs(string[] args)
     {
         if(args==null||args.Length!=4)return false;
@@ -733,8 +869,9 @@ internal static class TaskbarMonitorSensorSupervisor
 
     static void StartWorker(Worker w,string reason)
     {
-        // Rebind the broker and exact output/mode at every restart, not only
-        // when original Supervisor argv was accepted.
+        // Recheck and pin both the original executable and the owner ancestry.
+        using(BrokerLaunchLease pinned=PinCurrentBrokerLaunch(w.Mode,w.Output))
+        {
         string checkedArguments=CurrentTrustedBrokerLaunchArguments(w.Mode,w.Output);
         ProcessStartInfo psi=new ProcessStartInfo();
         psi.FileName=BrokerPath;
@@ -742,6 +879,9 @@ internal static class TaskbarMonitorSensorSupervisor
         psi.UseShellExecute=false;
         psi.CreateNoWindow=true;
         Process p=Process.Start(psi);
+        // Release file sharing immediately after native process creation;
+        // the surrounding using also releases on a failed CreateProcess.
+        pinned.Dispose();
         if(p==null)throw new InvalidOperationException(w.Name+"_BROKER_START_RETURNED_NULL");
         w.Process=p;
         w.JobContained=ChildJobContainment.Attach(p);
@@ -754,6 +894,7 @@ internal static class TaskbarMonitorSensorSupervisor
         w.LastReason=reason;
         Log("WORKER_START name="+w.Name+" reason="+reason+" pid="+p.Id+
             " restartCount="+w.RestartCount+" startupGraceSec="+w.StartupGraceSeconds+" hardStallSec="+w.HardStallSeconds);
+        }
     }
 
     static DateTime OutputWriteUtc(string path)
@@ -1087,6 +1228,8 @@ internal static class TaskbarMonitorSensorSupervisor
 
     static void StartStorage()
     {
+        using(BrokerLaunchLease pinned=PinCurrentBrokerLaunch("--once-storage",StorageOutput))
+        {
         string checkedArguments=CurrentTrustedBrokerLaunchArguments("--once-storage",StorageOutput);
         ProcessStartInfo psi=new ProcessStartInfo();
         psi.FileName=BrokerPath;
@@ -1094,6 +1237,9 @@ internal static class TaskbarMonitorSensorSupervisor
         psi.UseShellExecute=false;
         psi.CreateNoWindow=true;
         Process p=Process.Start(psi);
+        // Release file sharing immediately after native process creation;
+        // the surrounding using also releases on a failed CreateProcess.
+        pinned.Dispose();
         if(p==null)throw new InvalidOperationException("STORAGE_BROKER_START_RETURNED_NULL");
         StorageProcess=p;
         StorageOutputAtStartUtc=OutputWriteUtc(StorageOutput);
@@ -1103,6 +1249,7 @@ internal static class TaskbarMonitorSensorSupervisor
         StorageAttemptCount++;
         StorageLastReason="RUNNING";
         Log("STORAGE_START pid="+p.Id+" attempt="+StorageAttemptCount+" timeoutSec="+StorageTimeoutSeconds);
+        }
     }
 
     static void CheckStorage()
