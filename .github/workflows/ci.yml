@@ -92,6 +92,26 @@ jobs:
           }
           $proof
 
+      - name: R400 real compiled updater staging protects existing hardlink and rejects junction
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R400-UpdateStaging-CreateNew.ps1 -AppPath ./build/_out/App/TaskbarMonitorEnhanced.exe -SourceRoot . -HostedGuest)
+          foreach($mark in @(
+            'R400_PASS_COMPILED_CREATE_NEW_VERIFIED_STREAM_AND_DIGEST',
+            'R400_PASS_EXISTING_STAGING_NEVER_TRUNCATED',
+            'R400_PASS_PREPLANTED_HARDLINK_CANARY_UNCHANGED',
+            'R400_PASS_BAD_DIGEST_FAILS_CLOSED_AND_CLEANS_OWN_STAGING',
+            'R400_PASS_TINY_TRANSFER_REJECTED',
+            'R400_PASS_DISALLOWED_STAGING_PATH_REJECTED',
+            'R400_PASS_PARENT_JUNCTION_REJECTED_BEFORE_WRITE',
+            'R400_PASS_OUTSIDE_CANARY_BYTE_IDENTICAL',
+            'R400_PASS_NO_NETWORK_REQUEST_OR_INSTALLER_LAUNCH',
+            'R400_RESULT=PASS_SCOPED_UNPREDICTABLE_CREATE_NEW_STAGING'
+          )){
+            if($proof -cnotcontains $mark){throw ('R400_MISSING_COMPILED_NATIVE_STAGING_PROOF_'+$mark)}
+          }
+          $proof
       - name: R399 real compiled Explorer folder arguments remain one quoted path
         shell: powershell
         run: |

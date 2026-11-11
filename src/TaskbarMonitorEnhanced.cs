@@ -1000,6 +1000,53 @@ namespace TaskbarMonitorEnhanced
             using(SHA256 sha=SHA256.Create())using(FileStream fs=File.OpenRead(path)){byte[] b=sha.ComputeHash(fs);StringBuilder sb=new StringBuilder();foreach(byte x in b)sb.Append(x.ToString("X2",CultureInfo.InvariantCulture));return sb.ToString();}
         }
 
+        // R400: do not open/truncate a predictable .download leaf. CreateNew
+        // fails on a pre-planted hardlink/symlink; streaming SHA caps input
+        // before any candidate is promoted to the expected installer name.
+        // Parent-path reparse checks remain preflights, not atomic protection
+        // against a concurrent actor controlling this same-user directory.
+        internal static string WriteVerifiedUpdateStaging(Stream download,string partial,string expectedDigest)
+        {
+            if(download==null||!download.CanRead||!IsStrictSha256Digest(expectedDigest)||
+               String.IsNullOrWhiteSpace(partial)||!Path.IsPathRooted(partial)||
+               !partial.EndsWith(".download",StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Update staging input is not canonical.");
+            RejectUpdateReparseAncestors(partial);
+            bool created=false;
+            try
+            {
+                using(FileStream output=new FileStream(partial,FileMode.CreateNew,FileAccess.Write,
+                    FileShare.None,65536,FileOptions.SequentialScan))
+                using(SHA256 sha=SHA256.Create())
+                {
+                    created=true;
+                    byte[] buffer=new byte[65536];long total=0;int count;
+                    while((count=download.Read(buffer,0,buffer.Length))>0)
+                    {
+                        total+=count;
+                        if(total>134217728)throw new InvalidDataException("Update exceeds the 128 MiB safety bound.");
+                        output.Write(buffer,0,count);
+                        sha.TransformBlock(buffer,0,count,buffer,0);
+                    }
+                    if(total<4096)throw new InvalidDataException("Update is not a complete installer.");
+                    sha.TransformFinalBlock(new byte[0],0,0);
+                    string actual=BitConverter.ToString(sha.Hash).Replace("-","");
+                    string expected=expectedDigest.Substring(7).ToUpperInvariant();
+                    if(!String.Equals(actual,expected,StringComparison.Ordinal))
+                        throw new InvalidDataException("Update SHA-256 mismatch.");
+                    output.Flush(true);
+                    return actual;
+                }
+            }
+            catch
+            {
+                // Only clean the leaf successfully created by this attempt.
+                // Failed CreateNew must never delete a pre-existing link.
+                if(created)try{RejectUpdateReparseAncestors(partial);File.Delete(partial);}catch{}
+                throw;
+            }
+        }
+
         public static string DownloadAndVerify(ReleaseUpdateInfo info)
         {
             if(info==null||!info.HasUpdate)throw new InvalidOperationException("No newer public release is selected.");
@@ -1014,16 +1061,30 @@ namespace TaskbarMonitorEnhanced
             Uri u=new Uri(info.SetupUrl);if(!IsOfficialSetupUrl(info.SetupUrl,info.Version,expectedName))throw new InvalidDataException("Unexpected update URL: "+u.Host+u.AbsolutePath);
             RejectUpdateReparseAncestors(AppPaths.Updates);
             Directory.CreateDirectory(AppPaths.Updates);string safe=Path.GetFileName(info.SetupName);if(!String.Equals(safe,expectedName,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Unexpected update asset name.");string path=Path.Combine(AppPaths.Updates,safe);
-            string partial=path+".download";
+            string partial=path+"."+Guid.NewGuid().ToString("N")+".download";
             RejectUpdateReparseAncestors(path);
             RejectUpdateReparseAncestors(partial);
-            try{if(File.Exists(partial))File.Delete(partial);}catch{}
-            using(WebClient wc=Client())wc.DownloadFile(info.SetupUrl,partial);
-            RejectUpdateReparseAncestors(partial);
-            string expected=info.SetupDigest.Substring(info.SetupDigest.IndexOf(':')+1).Trim().ToUpperInvariant();string actual=Sha256File(partial);if(!String.Equals(expected,actual,StringComparison.OrdinalIgnoreCase)){try{File.Delete(partial);}catch{}throw new InvalidDataException("Update SHA-256 mismatch. Expected="+expected+" Actual="+actual);}
-            RejectUpdateReparseAncestors(path);
-            RejectUpdateReparseAncestors(partial);
-            if(File.Exists(path))File.Delete(path);File.Move(partial,path);Log.Write("INFO","UPDATE_DOWNLOAD_VERIFIED version="+info.Version+" sha256="+actual+" path="+path);return path;
+            bool staged=false;
+            try
+            {
+                string actual;
+                using(WebClient wc=Client())
+                using(Stream stream=wc.OpenRead(info.SetupUrl))
+                    actual=WriteVerifiedUpdateStaging(stream,partial,info.SetupDigest);
+                staged=true;
+                RejectUpdateReparseAncestors(path);
+                RejectUpdateReparseAncestors(partial);
+                if(File.Exists(path))File.Delete(path);
+                File.Move(partial,path);
+                staged=false;
+                Log.Write("INFO","UPDATE_DOWNLOAD_VERIFIED version="+info.Version+" sha256="+actual+" path="+path);
+                return path;
+            }
+            finally
+            {
+                // No attempt to delete another invocation's predictable temp.
+                if(staged)try{RejectUpdateReparseAncestors(partial);File.Delete(partial);}catch{}
+            }
         }
 
         internal static string VerifyInstallerBeforeLaunch(string path,string expectedDigest)
