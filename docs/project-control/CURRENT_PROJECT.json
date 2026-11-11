@@ -2834,6 +2834,10 @@
   "MissingFrameworkUACReboot": "UNTESTED",
   "LinuxMacOS": "NATIVE_PORTS_MISSING",
   "OwnerInstalledAppChanged": false,
-  "PublicReleaseChanged": false
+  "PublicReleaseChanged": false,
+  "DependentPR106MergeCommit": "534ca0629dcda91a13dab275c272f642b7a4f4dd",
+  "DependentPR106InheritedSecurityHead": "cfc3d81244e402eaf71dbad6f5807b7ed5aa914e",
+  "MergedExactHeadCI": "43105436879_ALL_FOUR_JOBS_PASS",
+  "SecurityCodeQL": "STILL_SIX_CRITICAL_PENDING_INDEPENDENT_REVIEW"
 }
 }
