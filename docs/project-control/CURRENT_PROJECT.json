@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R418",
-  "Status": "R418_EXACT_GITHUB_HOSTED_OFFLINE_ZIP_WIN11_REAL_UPGRADE_PASS_WIN10_SECURITY_PENDING",
-  "UpdatedUtc": "2026-11-11T19:30:06.7400431Z",
+  "CurrentEngineeringRevision": "R419",
+  "Status": "R419_BROKER_NATIVE_ARGV_LOCAL_AND_HOSTED_CI_PASS_SECURITY_CODEQL_SIX_CRITICAL_PENDING",
+  "UpdatedUtc": "2026-11-11T21:10:52.4732227Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -125,9 +125,9 @@
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
   "CriticalPath": "R408 closes unrestricted directly-invoked Broker output argv and validates native directory identities before each atomic write; a narrow rename-after-revalidation window is not proven closed. Hosted regression, six open critical CodeQL alerts and independent last-push reviewer block PR merge; installed public v1.7.10 remains immutable.",
-  "MainBlocker": "R418 actual unmodified exact GitHub-hosted R414 offline ZIP real Windows11 public v1.7.9 to v1.7.10 CMD in-place upgrade PASS with Main running and user config/backup/state/external canaries preserved. Windows10 full offline install and absent Framework UAC/reboot, security PR98 six critical annotations plus independent review and native Linux/macOS still pending; PR106 Draft.",
+  "MainBlocker": "R419 security PR98 added test-only native compiled Broker argv hostile-metachar regression PASS locally and in exact-head Hosted 4-job CI. CodeQL check 130785986168 still FAIL six critical command-line annotations on same six sinks, independent reviewer pending. PR106 dependent Draft; Windows11 exact hosted ZIP upgrade R418 accepted. Full Windows10 and absent-.NET UAC/reboot as well as native Linux/macOS still pending; no owner install or release mutation.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Address security PR98 critical command-line taint cases with independent reviewer. Obtain a truly disposable Windows10 guest to run actual signed Offline installation, predecessor upgrade and absent-framework UAC/reboot, then assess gated release; keep owner app and public Release untouched.",
+  "ExactNextAction": "Qualified independent reviewer to trace and disposition six PR98 CodeQL taint flows, or supply specific exploit/root cause to fix and retest, while keeping both PRs unmerged. In parallel obtain a safe disposable Windows10 x64 VM with actual absent Framework to test full Offline install/upgrade/UAC/reboot; do not substitute real owner host or relabel Windows binaries as native Linux/macOS.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2812,5 +2812,28 @@
   "PR106": "DRAFT",
   "OwnerInstalledAppChanged": false,
   "ReleasePublished": false
+},
+  "R419": {
+  "Status": "TEST_ONLY_SECURITY_REGRESSION_LOCAL_AND_HOSTED_PASS_CODEQL_STILL_SIX_CRITICAL",
+  "ParentFeatureHead": "cfba6a5d6a996bb9ae1bef7154f6fecc0ee4b4db",
+  "SecurityPR98Head": "cfc3d81244e402eaf71dbad6f5807b7ed5aa914e",
+  "ProductionCodeChanged": false,
+  "NativeSuite": "R298_R405_R406_R407_R408_PASS",
+  "NewMetacharArgv": "THREE_REAL_PROCESS_LAUNCHES_EXACT_TWO_ARGV_AND_FOUR_BAD_INPUTS_REJECTED",
+  "HostedRun": 43099226573,
+  "HostedFourJobs": "PASS",
+  "HostedR419Step": "PASS",
+  "CodeQLCheck": 130785986168,
+  "CodeQLSixCritical": "FAIL_SAME_SIX_SINKS",
+  "IndependentReviewer": "REQUESTED_PENDING",
+  "SecurityEvidenceComment": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/pull/98#issuecomment-6807030802",
+  "ScopeReceiptSHA256": "6C1C725C9FCD2E36BBBCF6532C24B5B8DD8D6217B98C0599F575DF075B3156D5",
+  "PR106": "DRAFT",
+  "Win11ExactHostedZIP": "R418_PASS",
+  "Win10FullInstall": "UNTESTED",
+  "MissingFrameworkUACReboot": "UNTESTED",
+  "LinuxMacOS": "NATIVE_PORTS_MISSING",
+  "OwnerInstalledAppChanged": false,
+  "PublicReleaseChanged": false
 }
 }
