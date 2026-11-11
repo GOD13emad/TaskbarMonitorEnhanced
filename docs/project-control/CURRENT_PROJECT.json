@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R414",
-  "Status": "R414_WINPS51_INSTALL_CMD_LOCAL_AND_EXACTHEAD_HOSTED_PASS_WIN10_FULLINSTALL_SECURITY_PENDING",
-  "UpdatedUtc": "2026-11-11T17:34:17.2758311Z",
+  "CurrentEngineeringRevision": "R415",
+  "Status": "R415_MOCKED_FRAMEWORK_BRANCH_CODEQL_SCOPE_PASS_REAL_INSTALL_SECURITY_PENDING",
+  "UpdatedUtc": "2026-11-11T18:33:15.7833954Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -125,9 +125,9 @@
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
   "CriticalPath": "R408 closes unrestricted directly-invoked Broker output argv and validates native directory identities before each atomic write; a narrow rename-after-revalidation window is not proven closed. Hosted regression, six open critical CodeQL alerts and independent last-push reviewer block PR merge; installed public v1.7.10 remains immutable.",
-  "MainBlocker": "R414 local root-cause fix for Windows10 CMD to WinPS51 PS7 module shadowing PASS: real Win10 public Setup CheckOnly and Win11 bundled candidate signed offline tamper suite. Exact-head hosted Offline packaging and all four Build jobs PASS. Still blocked: full disposable Windows10 install, missing-.NET UAC/reboot, Linux/macOS native ports, and security PR98 six critical CodeQL findings plus independent human review. Draft PR106 not merged.",
+  "MainBlocker": "R415 Win10 native missing-Framework decision only synthetically PASS (real Registry Release 533325 unchanged); no actual Framework installation, UAC/reboot or full Windows10 install. Default main has 223 open CodeQL alerts, distinct from 6 critical annotations in blocked security PR98. Independent disposition and Windows10 disposable runtime acceptance still pending; PR106 Draft.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "R414 code and exact-head hosted regressed CMD PASS; retain the signed Candidate in draft PR106 and pursue genuine disposable Windows10 and missing-framework/UAC/reboot acceptance. Seek disposable Windows10 absent-framework guest for full UAC/reboot and upgrades, and independent disposition for CodeQL PR98 before release.",
+  "ExactNextAction": "Independently trace security PR98 six critical CodeQL data flows without dismissing or self-approving. Verify complete Offline install/upgrade with truly disposable Windows10 and absent-Framework UAC/reboot when host available; preserve owner product and release.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2715,5 +2715,26 @@
   "LinuxMacOS": "NATIVE_PORT_REQUIRED",
   "ReleasePublished": false,
   "ProofSHA256": "9DF6971D6DD51543EB2D0027CC085E5CC9ECFC87AA35DF179BCEE81FCAD9F928"
+},
+  "R415": {
+  "Status": "WIN10_MOCKED_ABSENT_FRAMEWORK_CHECKONLY_AND_SECURITY_INVENTORY_PASS",
+  "ParentHead": "233959c043c5492fdf672187e6adf415404721be",
+  "MockedFrameworkRelease": 0,
+  "ActualFrameworkRelease": 533325,
+  "NativeWin10CheckOnly": "PASS",
+  "ActualRuntimeInstall": "UNTESTED",
+  "RealUACReboot": "UNTESTED",
+  "Win10FullInstall": "UNTESTED",
+  "HostProofSHA256": "142D77937D60AA22B16AD7B1109636B38DBA1E1875C72E35C1AF8AB52F8CF7C7",
+  "MainSHA": "02c38f6176464400564099f7847a5429a2ce5233",
+  "MainOpenCritical": 16,
+  "MainOpenHigh": 207,
+  "MainOpenTotal": 223,
+  "PR98Annotations": 6,
+  "SecurityInventorySHA256": "3552B5B5D18F674344950BD09593AE964CA88D82174C8FF6E7F675689035F906",
+  "SecurityHumanReview": "PENDING",
+  "PR106": "DRAFT",
+  "OwnerInstalledAppChanged": false,
+  "PublicReleaseChanged": false
 }
 }
