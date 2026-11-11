@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R412",
-  "Status": "R412_REAL_PUBLISHED179_TO_OFFLINE1710_WIN11_UPGRADE_PASS_WIN10_UAC_AND_SECURITY_PENDING",
-  "UpdatedUtc": "2026-11-11T15:59:24.4785709Z",
+  "CurrentEngineeringRevision": "R413",
+  "Status": "R413_WIN10_19045_NATIVE_CHECKONLY_AND_TAMPER_PASS_FULL_INSTALL_UAC_SECURITY_PENDING",
+  "UpdatedUtc": "2026-11-11T17:01:08.0427274Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -125,9 +125,9 @@
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
   "CriticalPath": "R408 closes unrestricted directly-invoked Broker output argv and validates native directory identities before each atomic write; a narrow rename-after-revalidation window is not proven closed. Hosted regression, six open critical CodeQL alerts and independent last-push reviewer block PR merge; installed public v1.7.10 remains immutable.",
-  "MainBlocker": "R412 published v1.7.9 to verified v1.7.10 Offline real Windows 11 Sandbox upgrade PASS with Main running and config+backup+state/external canaries preserved. R411 fresh/same-version Windows 11 PASS remains accepted. Remaining Windows 10 guest, missing-framework/UAC/reboot, Linux/macOS ports and security PR #98 six CodeQL critical alerts plus independent review block final release. Dependent PR #106 remains DRAFT.",
+  "MainBlocker": "R413 native Windows 10 Enterprise 19045 -CheckOnly and package tamper refusal PASS with a synthetic non-executable Setup; full Windows10 real offline install, absent-.NET prerequisite UAC/reboot, Linux/macOS ports and PR98 six critical CodeQL alerts plus independent review remain unresolved. R411/R412 real Windows11 disposable fresh and published predecessor upgrade remain accepted; PR106 is draft.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Run genuine missing-Framework/UAC/reboot and Windows 10 full offline installation tests only on disposable compatible desktops. Independently trace CodeQL PR #98 six taint annotations and request human reviewer disposition without dismissing alerts. Do not merge/publish before security acceptance.",
+  "ExactNextAction": "Use a genuinely disposable Windows 10 x64 guest to validate actual signed offline ZIP fresh and v1.7.9 upgrade/start and absent Framework/UAC/reboot without touching live Emad_Server. Progress independent review and disposition of all six critical CodeQL annotations on security PR #98, then finalize dependent PR #106 only when all relevant gates PASS.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2657,5 +2657,29 @@
   "SecurityPR": 98,
   "OwnerInstallationChanged": false,
   "PublicReleaseChanged": false
+},
+  "R413": {
+  "Status": "WIN10_CLIENT_NATIVE_CHECKONLY_AND_TWO_TAMPERS_PASS",
+  "Host": "Emad_Server",
+  "HostOS": "Windows10_Enterprise_19045",
+  "SourceHead": "ac95eff83db56e8e696944fde41a7e4f71273c47",
+  "ExactBootstrapSHA256": "C8DFB750F4835F513CC3A6D443F1B43B3299284C1ED93426F8A492122A61973F",
+  "SyntheticNonPEFixture": true,
+  "SyntheticSetupSHA256": "C560946C4A0DC8D9695E63C91DA384B3ED872AE44D7745ACEE2E80DD3EEFF367",
+  "FrameworkRelease": 533325,
+  "FrameworkAlreadySufficient": true,
+  "OriginalProductInstallationAbsent": true,
+  "GenuineWindows10InstallerExecuted": false,
+  "ActualWindows10FullInstall": "UNTESTED",
+  "ActualFrameworkInstall": "UNTESTED",
+  "NativePowerShell51CheckOnly": "PASS",
+  "ManifestMismatchRefused": "PASS",
+  "ModifiedSetupRefused": "PASS",
+  "OwnerRootUnchanged": true,
+  "HostReceiptSHA256": "FB636593BCF84DC9A95E1E1605C876D06C4221EA1B28F5A9F1F26FF946EFF0EC",
+  "Windows11Published179Upgrade": "R412_ACCEPTED",
+  "SixCriticalCodeQL": "PENDING",
+  "IndependentReviewer": "ALREADY_REQUESTED_NO_APPROVAL",
+  "ReleasePublished": false
 }
 }
