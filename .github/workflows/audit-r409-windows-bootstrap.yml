@@ -1,0 +1,72 @@
+name: R409 Windows prerequisite bootstrap and installer pack (candidate)
+
+on:
+  push:
+    branches:
+      - feature/r409-platform-bootstrap
+    paths:
+      - packaging/windows/**
+      - build/Build-WindowsInstallerPack-R409.ps1
+      - build/Test-WindowsInstallerPack-R409.ps1
+      - .github/workflows/audit-r409-windows-bootstrap.yml
+      - build/Build.ps1
+      - build/TaskbarMonitorEnhanced_Setup.csproj
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-pack:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - name: Checkout pinned source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Confirm trusted disposable Windows hosted runner
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID'){
+            throw 'R409_REQUIRES_GITHUB_HOSTED_DISPOSABLE_WINDOWS'
+          }
+          'R409_HOSTED_DISPOSABLE_SOURCE='+((git rev-parse HEAD).Trim())
+      - name: Install pinned .NET build SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: 10.0.400
+      - name: Build existing four-component candidate (not installed)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Build.ps1
+          if($LASTEXITCODE -ne 0){throw 'R409_PRODUCT_BUILD_FAILED'}
+      - name: Create integrity-checked Windows installer candidate ZIP
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          & ./build/Build-WindowsInstallerPack-R409.ps1 -SetupPath ./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe
+          if($LASTEXITCODE -ne 0){throw 'R409_CANDIDATE_PACK_BUILD_FAILED'}
+      - name: Test ZIP identity and server OS refusal without installing
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-WindowsInstallerPack-R409.ps1 -PackageZip ./build/_out/InstallerPacks/TaskbarMonitorEnhanced-Windows10-11-x64-v1.7.10.zip -ExpectUnsupportedServer)
+          foreach($required in @(
+             'R409_PASS_HOSTED_SERVER_OS_UNSUPPORTED_FAIL_CLOSED',
+             'R409_RESULT=PASS_HOSTED_ARCHIVE_MANIFEST_AND_UNSUPPORTED_OS_BOUNDARY')){
+            if($proof -cnotcontains $required){throw ('R409_HOSTED_PACK_PROOF_MISSING_'+$required)}
+          }
+          $proof
+      - name: Retain experimental installer pack (not a GitHub Release)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: TaskbarMonitorEnhanced-Windows10-11-x64-v1.7.10-R409-CANDIDATE
+          path: build/_out/InstallerPacks/TaskbarMonitorEnhanced-Windows10-11-x64-v1.7.10.zip
+          retention-days: 7
+          if-no-files-found: error
