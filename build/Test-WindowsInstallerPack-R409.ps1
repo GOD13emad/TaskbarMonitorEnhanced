@@ -58,6 +58,12 @@ try{
      $check.ExecutedSetup -or $check.ModifiedOwnerSettings){
     throw 'R409_CHECK_ONLY_SEMANTIC_MISMATCH'
   }
+  $launcher=Join-Path $stage 'Install.cmd'
+  $cmdProof=(& $launcher -CheckOnly | Out-String)
+  if($LASTEXITCODE -ne 0 -or $cmdProof -notmatch '"Status"\s*:\s*"CHECK_ONLY"'){
+    throw ('R409_CMD_ENTRYPOINT_READONLY_FAILED_'+$cmdProof)
+  }
+  'R409_PASS_REAL_WINDOWS_CMD_ENTRYPOINT_READONLY_CHECK_ONLY'
   'R409_PASS_REAL_WINDOWS_CHECK_ONLY_NO_INSTALL_NO_ELEVATION'
   $savedSetup=(Join-Path $stage $manifest.SetupFile)
   $touched=[IO.File]::ReadAllBytes($savedSetup)
