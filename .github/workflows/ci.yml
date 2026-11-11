@@ -112,6 +112,25 @@ jobs:
             if($proof -cnotcontains $mark){throw ('R400_MISSING_COMPILED_NATIVE_STAGING_PROOF_'+$mark)}
           }
           $proof
+      - name: R401 compiled post-fullscreen topmost loss policy (visible-only)
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R401-TopmostRecoveryPolicy.ps1 -AppPath ./build/_out/App/TaskbarMonitorEnhanced.exe -SourceRoot . -HostedGuest)
+          foreach($mark in @(
+            'R401_PASS_MISSING_TOPMOST_REQUIRES_REPAIR_AFTER_VISIBLE',
+            'R401_PASS_HEALTHY_TOPMOST_NO_PERPETUAL_RESTACK',
+            'R401_PASS_FULLSCREEN_AND_HIDDEN_DO_NOT_RESTACK',
+            'R401_PASS_START_SHELL_NOT_RESTACKED',
+            'R401_PASS_SETTINGS_AND_MENU_NOT_RESTACKED',
+            'R401_PASS_CHILD_MODE_NOT_RESTACKED',
+            'R401_PASS_BOUNDARY_MATRIX_NO_UNCONDITIONAL_TOPMOST_TIMER',
+            'R401_PASS_NO_REAL_TASKBAR_OR_OWNER_PROCESS_TOUCHED',
+            'R401_RESULT=PASS_COMPILED_VISIBLE_TOPMOST_DRIFT_POLICY_ONLY'
+          )){
+            if($proof -cnotcontains $mark){throw ('R401_NATIVE_TOPMOST_DRIFT_PROOF_MISSING_'+$mark)}
+          }
+          $proof
       - name: R399 real compiled Explorer folder arguments remain one quoted path
         shell: powershell
         run: |
