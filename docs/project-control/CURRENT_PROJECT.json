@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R407",
-  "Status": "R407_BROKER_EXECUTABLE_AND_DIRECTORY_PINNING_LOCAL_PASS_HOSTED_PENDING_CODEQL_AND_HUMAN_REVIEW_BLOCKED",
-  "UpdatedUtc": "2026-11-11T08:43:17.5980464Z",
+  "CurrentEngineeringRevision": "R408",
+  "Status": "R408_BROKER_OUTPUT_AUTHORITY_LOCAL_PASS_HOSTED_PENDING_CODEQL_AND_HUMAN_REVIEW_BLOCKED",
+  "UpdatedUtc": "2026-11-11T10:27:16.2508402Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -124,10 +124,10 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "R407 must pass exact-head hosted Windows native CreateProcess while both Broker executable and directory ancestry are pinned, plus full regression and CodeQL disposition. Six critical CodeQL alerts and independent eligible last-push security review still block PR #98 merge. Stable immutable public v1.7.10 and owner installation are not changed.",
-  "MainBlocker": "R406 exact-head CI is green except the separate CodeQL code-scanning check with six critical command-line alerts. R407 bounded Broker launch lease passed local Windows 10/11 compiled tests; disposable hosted native CreateProcess test is pending. Independent human security review requested but not submitted; PR #98 remains BLOCKED.",
+  "CriticalPath": "R408 closes unrestricted directly-invoked Broker output argv and validates native directory identities before each atomic write; a narrow rename-after-revalidation window is not proven closed. Hosted regression, six open critical CodeQL alerts and independent last-push reviewer block PR merge; installed public v1.7.10 remains immutable.",
+  "MainBlocker": "R408 Broker mode/output independent boundary local compiled PASS, exact-head hosted write test pending. Six critical CodeQL command-line alerts remain OPEN; genuine last-push independent human security review has not been submitted. PR #98 BLOCKED.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Commit and push R407 source/native test/CI and current continuity upsert, then inspect exact-head hosted real CreateProcess and R406/R405/R404 regressions and CodeQL alerts; record pass/fail without waiving critical warnings. Obtain independent last-push human review and only merge after all mandatory checks pass.",
+  "ExactNextAction": "Commit/push R408 and inspect exact-head hosted Broker AtomicWrite, R298/R299/R300 upgrade/recovery and R404-R408 regressions plus CodeQL. Correct any real failure; obtain six proper security dispositions and independent human last-push review before merge.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2520,5 +2520,35 @@
     "PublicReleaseChanged": false,
     "PR98CodeQLCriticalAlerts": "SIX_UNRESOLVED",
     "IndependentHumanReview": "REQUESTED_PENDING"
-  }
+  },
+  "R408": {
+  "Status": "LOCAL_COMPILED_PASS_HOSTED_PENDING",
+  "Parent": "2068c2499efee649fcf65d3ef1421c6b21a2e834",
+  "TimestampUtc": "2026-11-11T10:27:16.2508402Z",
+  "Objective": "Eliminate standalone Broker arbitrary output write from untrusted caller argv, independently of Supervisor.",
+  "Files": [
+    "src/sensors/BrokerOutputBoundary.cs",
+    "src/sensors/TaskbarMonitorSensorBroker.cs",
+    "build/TaskbarMonitorSensorBroker.csproj",
+    "build/Test-R408-BrokerOutputBoundary.ps1",
+    ".github/workflows/ci.yml"
+  ],
+  "Evidence": {
+    "BrokerBuild": "PASS_0_WARNINGS_0_ERRORS",
+    "AllFourComponents": "PASS_DETERMINISTIC_SELFTESTS",
+    "AllowedModeCount": 3,
+    "RejectedInvalidCount": 14,
+    "DirectBrokerExternalCanaryExitCode": 2,
+    "DirectoryRename": "NATIVE_HANDLE_RENAMED_CHECK_DETECTED",
+    "ExternalCanary": "SHA_UNCHANGED",
+    "R407": "PASS",
+    "OwnerLocalAppDataPaths": "READ_ONLY_PASS",
+    "HostedRealAtomicWrite": "PENDING"
+  },
+  "ResidualRisk": "A concurrent rename between live directory-handle revalidation and final filesystem operation is not excluded by R408.",
+  "PR98CodeQLCriticalAlerts": "SIX_OPEN",
+  "IndependentHumanSecurityReview": "PENDING",
+  "OwnerInstallationChanged": false,
+  "PublicReleaseChanged": false
+}
 }
