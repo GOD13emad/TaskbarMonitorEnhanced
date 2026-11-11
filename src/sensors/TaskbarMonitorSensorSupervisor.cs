@@ -496,8 +496,10 @@ internal static class TaskbarMonitorSensorSupervisor
     }
 
     // OS known-folder paths are supplied by Main, never accepted from argv.
-    // LocalAppData may be redirected to another local volume; require the exact
-    // OS-provided value, reject UNC/reparse paths, and derive the output beneath it.
+    // R421: this release's installed Broker and per-user installer require
+    // profile\AppData\Local. Arbitrary caller-defined local-volume paths are
+    // rejected; genuine Windows Known Folder redirection remains a separate
+    // compatibility acceptance gate, not a silent relaxation of the boundary.
     static bool TrustedWorkerPaths(string broker,string output,string executableDirectory,
                                    string programFiles,string profile,string localAppData)
     {
