@@ -32,7 +32,7 @@ function Invoke-Bind([string]$exe,[string]$mode,[string]$output,[string]$program
   return [pscustomobject]@{Value='';Rejected=$true;Exception=$e.GetType().Name}
  }
 }
-$fixture=Join-Path $env:TEMP ('tbme-r406-rebind-'+[guid]::NewGuid().ToString('N'))
+$fixture=[IO.Path]::GetFullPath((Join-Path $env:TEMP ('tbme-r406-rebind-'+[guid]::NewGuid().ToString('N'))))
 if(Test-Path -LiteralPath $fixture){throw 'R406_COLLISION'}
 $program=Join-Path $fixture 'Program Files'
 $brokerDir=Join-Path $program 'TaskbarMonitorEnhanced\SensorBroker'
@@ -60,7 +60,7 @@ try{
  foreach($g in $good){
   $v=Invoke-Bind $broker $g.Mode $g.Output $program $profile $local
   if($v.Rejected -or $v.Value -cne ($g.Mode+' "'+$g.Output+'"')){
-   throw ('R406_VALID_CANONICAL_MODE_REJECTED_'+$g.Mode)
+   throw ('R406_VALID_CANONICAL_MODE_REJECTED_'+$g.Mode+' error='+$v.Exception+' actual='+$v.Value+' expected='+($g.Mode+' "'+$g.Output+'"'))
   }
  }
  'R406_PASS_THREE_CANONICAL_MODES_AND_SPACES_REAL_COMPILED'
