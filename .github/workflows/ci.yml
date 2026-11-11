@@ -112,6 +112,23 @@ jobs:
             if($proof -cnotcontains $mark){throw ('R400_MISSING_COMPILED_NATIVE_STAGING_PROOF_'+$mark)}
           }
           $proof
+      - name: R404 compiled owner-only verified Setup execution scope
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R404-UpdaterLaunchCanonicalScope.ps1 -AppPath ./build/_out/App/TaskbarMonitorEnhanced.exe -SourceRoot . -HostedGuest)
+          foreach($required in @(
+            'R404_PASS_REAL_OWNER_INSTALL_ROOT_POLICY_READONLY',
+            'R404_PASS_COMPILED_CANONICAL_UPDATE_SETUP_AND_SHA256',
+            'R404_PASS_TWELVE_MALICIOUS_OR_MISMATCHED_LAUNCH_PATHS_REJECTED',
+            'R404_PASS_REAL_UPDATES_JUNCTION_REJECTED',
+            'R404_PASS_SHA256_FIXTURES_UNCHANGED',
+            'R404_PASS_NO_REAL_SETUP_PROCESS_LAUNCHED_OR_OWNER_CONFIGURATION_MODIFIED',
+            'R404_RESULT=PASS_COMPILED_OWNER_ONLY_CANONICAL_SETUP_LAUNCH_GUARD'
+          )){
+            if($proof -cnotcontains $required){throw ('R404_REQUIRED_NATIVE_PROOF_MISSING_'+$required)}
+          }
+          $proof
       - name: R403 compiled canonical owner updater directory and version defenses
         shell: powershell
         run: |

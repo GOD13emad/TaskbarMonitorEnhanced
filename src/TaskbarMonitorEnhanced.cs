@@ -1140,6 +1140,29 @@ namespace TaskbarMonitorEnhanced
             }
         }
 
+        // R404: executable-launch boundary is stricter than the general SHA
+        // verifier (R398 also verifies harmless files outside an install root).
+        // Bind the shell-executed file to the already trusted per-user Updates
+        // directory AND the exact canonical numeric-release Setup leaf.
+        // This is a fail-closed preflight, not a handle-level TOCTOU guarantee.
+        internal static string CanonicalInstallerLaunchPath(string path,string knownLocal,string knownProfile)
+        {
+            if(String.IsNullOrWhiteSpace(path)||path.Length>1200||!Path.IsPathRooted(path))
+                throw new InvalidDataException("Updater executable launch path must be absolute and bounded.");
+            string trustedRoot=CanonicalPerUserUpdatesDirectory(knownLocal,knownProfile);
+            string full=Path.GetFullPath(path);
+            if(!String.Equals(Path.GetDirectoryName(full),trustedRoot,StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Updater can execute only within the owner Updates directory.");
+            string leaf=Path.GetFileName(full);
+            Match match=Regex.Match(leaf,
+                @"\ATaskbarMonitorEnhanced_Setup_([0-9]+\.[0-9]+\.[0-9]+)\.exe\z",
+                RegexOptions.CultureInvariant|RegexOptions.IgnoreCase);
+            if(!match.Success||!String.Equals(leaf,ExpectedSetupAssetName(match.Groups[1].Value),
+                                                StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Updater launch filename is not an exact canonical release Setup.");
+            RejectUpdateReparseAncestors(full);
+            return full;
+        }
         internal static string VerifyInstallerBeforeLaunch(string path,string expectedDigest)
         {
             if(String.IsNullOrWhiteSpace(path)||!File.Exists(path))throw new FileNotFoundException("Verified update installer not found.",path);
@@ -1152,8 +1175,15 @@ namespace TaskbarMonitorEnhanced
         }
         public static void StartInstaller(string path,string expectedDigest)
         {
-            string actual=VerifyInstallerBeforeLaunch(path,expectedDigest);
-            ProcessStartInfo psi=new ProcessStartInfo();psi.FileName=path;psi.UseShellExecute=true;Process p=Process.Start(psi);if(p==null)throw new InvalidOperationException("Windows did not start the update installer.");Log.Write("INFO","UPDATE_INSTALLER_STARTED reverifiedSha256="+actual+" path="+path);
+            string trusted=CanonicalInstallerLaunchPath(path,
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+            string actual=VerifyInstallerBeforeLaunch(trusted,expectedDigest);
+            ProcessStartInfo psi=new ProcessStartInfo();
+            psi.FileName=trusted;psi.UseShellExecute=true;
+            Process p=Process.Start(psi);
+            if(p==null)throw new InvalidOperationException("Windows did not start the update installer.");
+            Log.Write("INFO","UPDATE_INSTALLER_STARTED reverifiedSha256="+actual+" path="+trusted);
         }
     }
 
