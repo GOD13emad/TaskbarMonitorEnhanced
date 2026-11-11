@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R410",
-  "Status": "R410_OFFLINE_FRAMEWORK_LOCAL_AND_HOSTED_PASS_DESKTOP_INSTALL_AND_PORTS_PENDING",
-  "UpdatedUtc": "2026-11-11T12:29:55.7777653Z",
+  "CurrentEngineeringRevision": "R411",
+  "Status": "R411_WINDOWS11_SANDBOX_FRESH_INPLACE_AND_LAUNCH_PASS_WIN10_FRAMEWORK_UAC_AND_SECURITY_PENDING",
+  "UpdatedUtc": "2026-11-11T15:20:53.3871873Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -125,9 +125,9 @@
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
   "CriticalPath": "R408 closes unrestricted directly-invoked Broker output argv and validates native directory identities before each atomic write; a narrow rename-after-revalidation window is not proven closed. Hosted regression, six open critical CodeQL alerts and independent last-push reviewer block PR merge; installed public v1.7.10 remains immutable.",
-  "MainBlocker": "R410 full offline Windows framework pack PASS on local and exact-head hosted CI; downloaded GitHub artifact passed independent Windows 11 read-only and tamper tests. Critical remaining acceptance: disposable Windows 10/11 full fresh/update/install/start, missing-Framework UAC/reboot, macOS/Linux native ports, six CodeQL critical alerts and genuine independent review on security PR #98. Dependent installer PR #106 stays DRAFT.",
+  "MainBlocker": "R411 verified real Windows 11 Enterprise disposable Sandbox complete offline fresh install and guarded same-version update/start (both exit 0, process running, Main and config hashes preserved); remaining Windows 10 client, older-version upgrade, missing .NET/UAC/reboot integration, Linux/macOS native ports and security PR #98 CodeQL six critical alerts plus independent review. Dependent PR #106 remains draft.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Run complete fresh/install/update and missing .NET/UAC/reboot on disposable Windows desktop when available, then resolve critical CodeQL alerts and independent last-push review on PR #98; only then merge dependent draft PR #106, publish one official Windows offline installer and plan real native macOS/Linux ports.",
+  "ExactNextAction": "With a disposable Windows 10 client and missing-.NET guest, execute offline bootstrap/UAC/restart and older-version in-place update+launch; separately diagnose CodeQL PR #98 and seek genuine independent security review. Do not modify installed owner app or publish public release until accepted.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2606,5 +2606,32 @@
   "IndependentHumanSecurityReview": "PENDING",
   "OwnerInstallationChanged": false,
   "PublicReleaseChanged": false
+},
+  "R411": {
+  "Status": "WIN11_DISPOSABLE_CLIENT_FULL_OFFLINE_FRESH_INPLACE_AND_LAUNCH_PASS",
+  "AcceptedScope": "Windows11_Enterprise_26100_Sandbox_PresentFramework533320",
+  "HostOS": "Windows11_Pro",
+  "ProjectHeadBeforeEvidence": "e722584560ea81154dcf9a687cfee2fc520f6cc9",
+  "SourceArtifactId": 13854536662,
+  "SourceArtifactZipSHA256": "668F879EC3DFBA30766DFF3DF35ACB38091A68D5BDF1816D5A6B2C78666CFB42",
+  "GuestSHA256": "0B570375F193BE54FF9276217AD40CCB902F1FF9D70226944E9852AC69C34DA0",
+  "HostAcceptanceSHA256": "6F714BFEECBA17970DE0CDBD44C9DAEBBA09EFE0CAF3BBBA3348DB5418C67A18",
+  "GuestNoPreexistingInstall": true,
+  "WindowsSandboxInputReadOnlyNetworkDisabled": true,
+  "SignedOfflineFrameworkVerified": true,
+  "FullFreshInstallExit": 0,
+  "InstalledMainRunning": true,
+  "SameVersionUpgradeExit": 0,
+  "UpdatedMainRunning": true,
+  "MainAndConfigHashesPreserved": true,
+  "FirstHarnessErrorPreserved": true,
+  "Windows10Client": "PENDING",
+  "OlderVersionUpgrade": "PENDING",
+  "FrameworkMissingUACAndReboot": "PENDING",
+  "CrossPlatformPorts": "BLOCKED",
+  "SecurityCodeQLCriticalAlerts": "SIX_UNRESOLVED",
+  "HumanSecurityReview": "PENDING",
+  "OwnerInstallationMutated": false,
+  "PublicReleasePublished": false
 }
 }

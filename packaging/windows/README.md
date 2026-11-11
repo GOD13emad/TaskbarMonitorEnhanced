@@ -29,6 +29,8 @@ To verify the offline runtime **without installing or starting it**, use:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-TaskbarMonitorEnhanced.ps1 -VerifyOfflineRuntime
 ```
 
-Even a signed runtime bundle is not evidence that a full product installation succeeded: Windows 10/11 clean-install/upgrade, UAC and reboot recovery still require disposable desktop integration tests. This package is a staged candidate until security scanning, those acceptance tests and authorized publication are complete.
+R411 disposable-client validation (November 11, 2026): the GitHub-built Offline package was actually installed from a clean **Windows 11 Enterprise build 26100 Windows Sandbox guest** with networking disabled and a read-only source mapping. Fresh `/install /quiet` and a subsequent same-version guarded in-place upgrade both returned `0`; the installed Main was running after each operation, and Main/config file hashes matched across the upgrade. This verifies that one Windows 11 guest + present-.NET-Framework scenario, **not** Windows 10, upgrading from an older product release, or installing a missing .NET Framework/UAC/reboot flow. The guest receipt is retained in the project-local R411 audit folder and the result in `docs/project-control/PROJECT_BRAIN.md`.
+
+A signed runtime bundle and this successful disposable Windows 11 test do not authorize publication. Windows 10, older-version updates, missing-framework UAC/reboot and security approval remain separate acceptance requirements. This is still a staged candidate.
 
 Microsoft references: https://learn.microsoft.com/en-us/dotnet/framework/migration-guide/how-to-determine-which-versions-are-installed and https://learn.microsoft.com/en-us/dotnet/framework/get-started/system-requirements
