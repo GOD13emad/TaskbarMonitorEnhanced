@@ -1,6 +1,6 @@
 # R291: ONLY on a fresh disposable GitHub-hosted Windows guest. Performs REAL shell mouse/keyboard interaction; NEVER run on owner.
 [CmdletBinding()]
-param([Parameter(Mandatory=$true)][string]$CandidateDir,[Parameter(Mandatory=$true)][ValidateSet('A','B')][string]$HostLabel,[switch]$UseInstalledCandidate)
+param([Parameter(Mandatory=$true)][string]$CandidateDir,[Parameter(Mandatory=$true)][ValidateSet('A','B')][string]$HostLabel,[switch]$UseInstalledCandidate,[switch]$InjectLostTopmostAfterFullscreen)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 if($PSVersionTable.PSEdition -eq 'Core' -or $env:GITHUB_ACTIONS -cne 'true' -or
@@ -34,6 +34,7 @@ public static class R146Native {
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr h,StringBuilder s,int n);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string c,string t);
  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int s);
+ [DllImport("user32.dll",SetLastError=true)] public static extern bool SetWindowPos(IntPtr h,IntPtr insertAfter,int x,int y,int width,int height,uint flags);
  [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h,uint m,IntPtr w,IntPtr l);
  [DllImport("user32.dll")] public static extern void keybd_event(byte k,byte s,uint f,UIntPtr extra);
  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
@@ -457,6 +458,53 @@ try{
   if([R146Native]::IsWindowVisible($monitor)){throw 'R146_MONITOR_VISIBLE_WITHOUT_TASKBAR_IN_FULLSCREEN'}
   $evidence+=@{State=$mode+'_FULLSCREEN';Hidden=$true;Foreground=$full.Handle.ToInt64()}
   $full.Close();$full.Dispose();$full=$null;Pump 1500
+  # R402: only the disposable hosted R402 workflow enables this opt-in fault.
+  # Never modify taskbar/Explorer HWND, only the private candidate's overlay.
+  if($InjectLostTopmostAfterFullscreen -and ($mode -ceq 'plain10' -or $mode -ceq 'glass0')){
+   $phase=$mode+'_R402_FORCED_NOTOPMOST'
+   if($monitor -eq [IntPtr]::Zero -or $taskbar -eq [IntPtr]::Zero -or
+      [R146Native]::GetWindowLongPtr($monitor,-8) -ne $taskbar -or
+      ![R146Native]::IsWindowVisible($monitor) -or
+      ![R146Native]::IsWindowVisible($taskbar)){
+    throw ('R402_INVALID_OWNER_OR_VISIBILITY_BEFORE_INJECTION '+$mode)
+   }
+   $initialEx=[R146Native]::GetWindowLongPtr($monitor,-20).ToInt64()
+   if(($initialEx -band 8) -eq 0){throw ('R402_NOT_TOPMOST_AT_PRECONDITION '+$mode)}
+   $logPath=Join-Path $env:LOCALAPPDATA ('TaskbarMonitorEnhanced\Logs\tbme_csharp_'+(Get-Date -Format yyyyMMdd)+'.log')
+   if(!(Test-Path -LiteralPath $logPath)){throw ('R402_LOG_NOT_FOUND '+$mode)}
+   $beforeLog=[IO.File]::ReadAllText($logPath)
+   # HWND_NOTOPMOST=-2; flags NOSIZE|NOMOVE|NOACTIVATE|NOOWNERZORDER=0x213.
+   # Do not set SWP_NOZORDER or alter taskbar shell owner.
+   if(![R146Native]::SetWindowPos($monitor,[IntPtr](-2),0,0,0,0,[uint32]0x213)){
+    throw ('R402_WIN32_NOTOPMOST_INJECTION_FAILED '+$mode+' WIN32='+[Runtime.InteropServices.Marshal]::GetLastWin32Error())
+   }
+   $faultEx=[R146Native]::GetWindowLongPtr($monitor,-20).ToInt64()
+   if(($faultEx -band 8) -ne 0){throw ('R402_TOPMOST_BIT_NOT_REMOVED '+$mode)}
+   $timer=[Diagnostics.Stopwatch]::StartNew();$restoredEx=$faultEx;$markerFound=$false
+   do{
+    Pump 125
+    $restoredEx=[R146Native]::GetWindowLongPtr($monitor,-20).ToInt64()
+    $nowLog=[IO.File]::ReadAllText($logPath)
+    if($nowLog.Length -ge $beforeLog.Length){
+     $markerFound=$nowLog.Substring($beforeLog.Length).Contains('TASKBAR_VISIBLE_TOPMOST_DRIFT_REPAIRED')
+    }
+    if(($restoredEx -band 8) -ne 0 -and $markerFound){break}
+   }while($timer.ElapsedMilliseconds -lt 6500)
+   $timer.Stop()
+   $proof=[ordered]@{State=$mode+'_R402_FORCED_NOTOPMOST_REPAIR';BeforeEx=$initialEx;
+    InjectedEx=$faultEx;AfterEx=$restoredEx;ElapsedMs=$timer.ElapsedMilliseconds;
+    LoggedActualRepair=$markerFound;Monitor=$monitor.ToInt64();Taskbar=$taskbar.ToInt64();
+    TaskbarOwnerUnchanged=([R146Native]::GetWindowLongPtr($monitor,-8) -eq $taskbar);
+    TaskbarRemainsVisible=[R146Native]::IsWindowVisible($taskbar);
+    TaskbarAboveMonitor=[R146Native]::Above($taskbar,$monitor);OwnerPCUntouched=$true}
+   $evidence+=$proof
+   if(($restoredEx -band 8) -eq 0 -or !$markerFound -or
+      !$proof.TaskbarOwnerUnchanged -or !$proof.TaskbarRemainsVisible -or $proof.TaskbarAboveMonitor){
+    throw ('R402_NATIVE_REPAIR_NOT_PROVEN '+$mode+' '+($proof|ConvertTo-Json -Compress))
+   }
+   Write-Output ('R402_REAL_FAULT_AND_APP_REPAIR_PASS MODE='+$mode+' MS='+$timer.ElapsedMilliseconds+
+    ' BEFORE='+$initialEx+' INJECTED='+$faultEx+' AFTER='+$restoredEx)
+  }
   Assert-Visible $monitor $original ($mode+'_RETURN_FULLSCREEN') $top
   $evidence+=Capture $monitor ($mode+'_RETURN_FULLSCREEN')
   # Simulate taskbar visibility notification, only on disposable runner; always restore.
