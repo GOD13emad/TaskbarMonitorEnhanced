@@ -47,7 +47,7 @@ function New-R367HardLink([string]$link,[string]$target){
         throw "R367_CREATE_HARDLINK_FAILED_$code"
     }
 }
-$testRoot=Join-Path $env:TEMP ('tbme-r367-atomic-alias-'+[Guid]::NewGuid().ToString('N'))
+$testRoot=[IO.Path]::GetFullPath((Join-Path $env:TEMP ('tbme-r367-atomic-alias-'+[Guid]::NewGuid().ToString('N'))))
 $syntheticProfile=Join-Path $testRoot 'Profile With Spaces'
 $syntheticLocal=Join-Path $syntheticProfile 'AppData\Local'
 $appRoot=if($Variant -eq 'candidate'){Join-Path $syntheticLocal 'TaskbarMonitorEnhanced'}else{Join-Path $testRoot 'app'}
@@ -113,6 +113,14 @@ try{
       $boundary=$brokerAsm.GetType('TaskbarMonitorSensorBroker.BrokerOutputBoundary',$true)
       $acquire=$boundary.GetMethod('Acquire',$flags)
       if(!$acquire){throw 'R367_CANDIDATE_BROKER_OWNER_OUTPUT_LEASE_API_MISSING'}
+      $expectedBrokerOutput=[IO.Path]::Combine([IO.Path]::GetFullPath($syntheticLocal),'TaskbarMonitorEnhanced','cpu_temp_broker.json')
+      $actualOutput=[IO.Path]::GetFullPath($brokerOutput)
+      if(![string]::Equals($brokerOutput,$expectedBrokerOutput,[StringComparison]::OrdinalIgnoreCase) -or
+         ![string]::Equals($actualOutput,$expectedBrokerOutput,[StringComparison]::OrdinalIgnoreCase)){
+        throw ('R367_CANDIDATE_SYNTHETIC_OUTPUT_MISMATCH expected='+$expectedBrokerOutput+' actual='+$brokerOutput+' canonical='+$actualOutput+
+               ' profile='+$syntheticProfile+' local='+$syntheticLocal+' appRoot='+$appRoot)
+      }
+      'R367_CANDIDATE_SYNTHETIC_MODE_OUTPUT_MATCH=PASS'
       $brokerLease=$acquire.Invoke($null,[object[]]@([string]'--run-cpu',[string]$brokerOutput,[string]$syntheticProfile,[string]$syntheticLocal))
       if(!$brokerLease){throw 'R367_CANDIDATE_TEST_ONLY_SYNTHETIC_OWNER_LEASE_REFUSED'}
     }

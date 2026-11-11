@@ -4,7 +4,7 @@
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
   "CurrentEngineeringRevision": "R408",
-  "Status": "R408_BROKER_OUTPUT_AUTHORITY_LOCAL_PASS_HOSTED_PENDING_CODEQL_AND_HUMAN_REVIEW_BLOCKED",
+  "Status": "R408_HOSTED_BUILD_AND_INSTALL_4_OF_4_PASS_R367_FIX_PENDING_CODEQL_AND_REVIEW_BLOCKED",
   "UpdatedUtc": "2026-11-11T10:27:16.2508402Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
@@ -2548,7 +2548,9 @@
     "FirstHostedRun": "43003898271_FAIL_R408_EXISTING_RUNNER_ROOT",
     "FirstR367Run": "43003889358_CANDIDATE_REFLECTION_OLD_ENTRYPOINT_FAIL",
     "LocalFixtureRecovery": "R408_AND_R367_CANDIDATE_PASS_AFTER_SYNTHETIC_LEASE",
-    "HostedSyntheticCore": "PENDING"
+    "HostedSyntheticCore": "PASS_BUILD_43005151387",
+    "SecondHostedR367Run": "43005151388_CANDIDATE_A_B_FAIL_PATH_MISMATCH_8DOT3_HYPOTHESIS",
+    "R367FixtureNormalization": "LOCAL_PASS_HOSTED_PENDING"
   },
   "ResidualRisk": "A concurrent rename between live directory-handle revalidation and final filesystem operation is not excluded by R408.",
   "PR98CodeQLCriticalAlerts": "SIX_OPEN",
