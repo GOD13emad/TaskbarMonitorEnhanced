@@ -120,6 +120,17 @@ namespace TaskbarMonitorSensorBroker
             // No writes until all output ancestry is rechecked and pinned.
             using(BrokerOutputBoundary lease=BrokerOutputBoundary.PinCurrent(BoundOutputMode,path))
             {
+                AtomicWriteUnderLease(path,json,lease);
+            }
+        }
+
+        // The caller-facing method above enforces the fixed-mode owner boundary.
+        // A separate private core lets native security regression fixtures exercise
+        // atomic replacement on disposable synthetic profiles without touching a
+        // real user's LocalAppData or weakening the executable's argv validation.
+        private static void AtomicWriteUnderLease(string path,string json,BrokerOutputBoundary lease)
+        {
+            if(lease==null)throw new ArgumentNullException("lease");
             string tmp=path+"."+Guid.NewGuid().ToString("N")+".tmp";
             bool tempCreated=false;
             Exception last=null;
@@ -153,7 +164,6 @@ namespace TaskbarMonitorSensorBroker
             finally
             {
                 if(tempCreated)try{File.Delete(tmp);}catch{}
-            }
             }
         }
 

@@ -48,7 +48,9 @@ function New-R367HardLink([string]$link,[string]$target){
     }
 }
 $testRoot=Join-Path $env:TEMP ('tbme-r367-atomic-alias-'+[Guid]::NewGuid().ToString('N'))
-$appRoot=Join-Path $testRoot 'app'
+$syntheticProfile=Join-Path $testRoot 'Profile With Spaces'
+$syntheticLocal=Join-Path $syntheticProfile 'AppData\Local'
+$appRoot=if($Variant -eq 'candidate'){Join-Path $syntheticLocal 'TaskbarMonitorEnhanced'}else{Join-Path $testRoot 'app'}
 $canaryRoot=Join-Path $testRoot 'canaries'
 [void][IO.Directory]::CreateDirectory($appRoot)
 [void][IO.Directory]::CreateDirectory($canaryRoot)
@@ -58,6 +60,7 @@ $supCanary=Join-Path $canaryRoot 'supervisor-canary.txt'
 $brokerOutput=Join-Path $appRoot 'cpu_temp_broker.json'
 $brokerCanary=Join-Path $canaryRoot 'broker-canary.txt'
 $brokerLinks=New-Object 'System.Collections.Generic.List[string]'
+$brokerLease=$null
 try{
     [IO.File]::WriteAllText($supCanary,'R367_SUPERVISOR_CANARY_ORIGINAL')
     $supBefore=Sha $supCanary
@@ -102,11 +105,22 @@ try{
     $brokerBefore=Sha $brokerCanary
     $brokerAsm=[Reflection.Assembly]::LoadFrom($broker)
     $brokerType=$brokerAsm.GetType('TaskbarMonitorSensorBroker.Program',$true)
-    $atomicWrite=$brokerType.GetMethod('AtomicWrite',$flags)
+    $atomicWrite=if($Variant -eq 'candidate'){
+      $brokerType.GetMethod('AtomicWriteUnderLease',$flags)
+    }else{$brokerType.GetMethod('AtomicWrite',$flags)}
     if(!$atomicWrite){throw 'R367_BROKER_ATOMIC_WRITE_REFLECTION_MISSING'}
+    if($Variant -eq 'candidate'){
+      $boundary=$brokerAsm.GetType('TaskbarMonitorSensorBroker.BrokerOutputBoundary',$true)
+      $acquire=$boundary.GetMethod('Acquire',$flags)
+      if(!$acquire){throw 'R367_CANDIDATE_BROKER_OWNER_OUTPUT_LEASE_API_MISSING'}
+      $brokerLease=$acquire.Invoke($null,[object[]]@([string]'--run-cpu',[string]$brokerOutput,[string]$syntheticProfile,[string]$syntheticLocal))
+      if(!$brokerLease){throw 'R367_CANDIDATE_TEST_ONLY_SYNTHETIC_OWNER_LEASE_REFUSED'}
+    }
     $processId=[Diagnostics.Process]::GetCurrentProcess().Id
     $tickStart=[Environment]::TickCount
-    $brokerArgs=[object[]]@([string]$brokerOutput,[string]'{"R367":"ATOMIC_TEMP_ALIAS_TEST"}')
+    $brokerArgs=if($Variant -eq 'candidate'){
+      [object[]]@([string]$brokerOutput,[string]'{"R367":"ATOMIC_TEMP_ALIAS_TEST"}',$brokerLease)
+    }else{[object[]]@([string]$brokerOutput,[string]'{"R367":"ATOMIC_TEMP_ALIAS_TEST"}')}
     $brokerAliasAttempts=0
     $brokerAliasHit=$false
     for($i=0;$i -lt 100;$i++){
@@ -136,7 +150,9 @@ try{
     [IO.File]::WriteAllText($brokerHardlinkCanary,'R367_BROKER_DESTINATION_CANARY_ORIGINAL')
     $brokerHardlinkBefore=Sha $brokerHardlinkCanary
     New-R367HardLink $brokerHardlinkOutput $brokerHardlinkCanary
-    $brokerHardlinkArgs=[object[]]@([string]$brokerHardlinkOutput,[string]'{"R367":"DESTINATION_HARDLINK_TEST"}')
+    $brokerHardlinkArgs=if($Variant -eq 'candidate'){
+      [object[]]@([string]$brokerHardlinkOutput,[string]'{"R367":"DESTINATION_HARDLINK_TEST"}',$brokerLease)
+    }else{[object[]]@([string]$brokerHardlinkOutput,[string]'{"R367":"DESTINATION_HARDLINK_TEST"}')}
     $atomicWrite.Invoke($null,$brokerHardlinkArgs)|Out-Null
     $brokerHardlinkAfter=Sha $brokerHardlinkCanary
     if($brokerHardlinkAfter -ne $brokerHardlinkBefore){throw 'R367_BROKER_DESTINATION_HARDLINK_WRITE_THROUGH'}
@@ -180,6 +196,7 @@ try{
     }
     Write-Output "R367_STATUS=$result CHECKS=$($checks.Count)"
 }finally{
+    if($brokerLease){$brokerLease.Dispose()}
     foreach($alias in $brokerLinks){if(![String]::IsNullOrWhiteSpace([string]$alias)){Remove-Item -LiteralPath $alias -Force -ErrorAction SilentlyContinue}}
     foreach($path in @($stateTmp,$statePath,$stateHardlinkPath,$stateHardlinkCanary,$supCanary,$brokerOutput,$brokerCanary,$brokerHardlinkOutput,$brokerHardlinkCanary)){
         if(![String]::IsNullOrWhiteSpace([string]$path)){Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue}

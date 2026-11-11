@@ -153,28 +153,24 @@ try{
  }
  'R408_PASS_REAL_BROKER_EXE_REJECTS_OUTSIDE_OUTPUT_BEFORE_SENSORS'
  if($HostedGuest){
-  # Fresh GitHub ephemeral user root only, never an owner installation.
-  $realOwner=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
-  if(Test-Path -LiteralPath $realOwner){throw 'R408_REFUSE_EXISTING_RUNNER_APP_ROOT'}
-  [void][IO.Directory]::CreateDirectory($realOwner)
-  try{
-   $realOutput=Join-Path $realOwner 'storage_temp_broker.json'
-   $modeField=$assembly.GetType('TaskbarMonitorSensorBroker.Program',$true).GetField('BoundOutputMode',[Reflection.BindingFlags]'Static,NonPublic')
-   $outputField=$assembly.GetType('TaskbarMonitorSensorBroker.Program',$true).GetField('BoundOutputPath',[Reflection.BindingFlags]'Static,NonPublic')
-   $writeMethod=$assembly.GetType('TaskbarMonitorSensorBroker.Program',$true).GetMethod('AtomicWrite',[Reflection.BindingFlags]'Static,NonPublic')
-   if(!$modeField -or !$outputField -or !$writeMethod){throw 'R408_COMPILED_ATOMIC_WRITE_API_MISSING'}
-   $modeField.SetValue($null,'--once-storage')
-   $outputField.SetValue($null,$realOutput)
-   foreach($record in @('{"seq":1}', '{"seq":2}')){
-    $writeMethod.Invoke($null,[object[]]@([string]$realOutput,[string]$record))|Out-Null
-   }
-   if([IO.File]::ReadAllText($realOutput) -cne '{"seq":2}') {
-    throw 'R408_HOSTED_ATOMIC_WRITE_NOT_REPLACED'
-   }
-   'R408_PASS_DISPOSABLE_REAL_OWNER_ROOT_ATOMIC_WRITE_CREATE_AND_REPLACE'
-  }finally{
-   Remove-Item -LiteralPath $realOwner -Recurse -Force -ErrorAction Stop
+  # Use a freshly created disposable profile fixture, not runner LocalAppData:
+  # other CI steps may own that directory. The private compiled write core is
+  # invoked with a genuine already-validated native lease for that fixture.
+  $storageGuard=Invoke-Guard '--once-storage' $storage $profile $local $true
+  if(!$storageGuard.Accepted -or !$storageGuard.Lease){
+    throw ('R408_HOSTED_CORE_CANNOT_PIN_DISPOSABLE_ROOT_'+$storageGuard.Error)
   }
+  try{
+   $writeCore=$assembly.GetType('TaskbarMonitorSensorBroker.Program',$true).GetMethod('AtomicWriteUnderLease',[Reflection.BindingFlags]'Static,NonPublic')
+   if(!$writeCore -or $writeCore.GetParameters().Count -ne 3){throw 'R408_COMPILED_ATOMIC_WRITE_CORE_MISSING'}
+   foreach($record in @('{"seq":1}', '{"seq":2}')){
+    $writeCore.Invoke($null,[object[]]@([string]$storage,[string]$record,$storageGuard.Lease))|Out-Null
+   }
+   if([IO.File]::ReadAllText($storage) -cne '{"seq":2}'){
+    throw 'R408_HOSTED_ATOMIC_WRITE_CORE_NOT_REPLACED'
+   }
+   'R408_PASS_DISPOSABLE_SYNTHETIC_OWNER_ROOT_ATOMIC_WRITE_CREATE_AND_REPLACE'
+  }finally{$storageGuard.Lease.Dispose()}
  }else{
   'R408_PASS_OWNER_LOCAL_NO_OWNER_APP_OR_CONFIG_WRITES'
  }

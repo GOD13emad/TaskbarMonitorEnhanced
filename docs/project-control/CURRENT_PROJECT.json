@@ -2531,6 +2531,7 @@
     "src/sensors/TaskbarMonitorSensorBroker.cs",
     "build/TaskbarMonitorSensorBroker.csproj",
     "build/Test-R408-BrokerOutputBoundary.ps1",
+    "build/Test-R367-ElevatedAtomicTempAlias-Native.ps1",
     ".github/workflows/ci.yml"
   ],
   "Evidence": {
@@ -2543,7 +2544,11 @@
     "ExternalCanary": "SHA_UNCHANGED",
     "R407": "PASS",
     "OwnerLocalAppDataPaths": "READ_ONLY_PASS",
-    "HostedRealAtomicWrite": "PENDING"
+    "HostedRealAtomicWrite": "PENDING",
+    "FirstHostedRun": "43003898271_FAIL_R408_EXISTING_RUNNER_ROOT",
+    "FirstR367Run": "43003889358_CANDIDATE_REFLECTION_OLD_ENTRYPOINT_FAIL",
+    "LocalFixtureRecovery": "R408_AND_R367_CANDIDATE_PASS_AFTER_SYNTHETIC_LEASE",
+    "HostedSyntheticCore": "PENDING"
   },
   "ResidualRisk": "A concurrent rename between live directory-handle revalidation and final filesystem operation is not excluded by R408.",
   "PR98CodeQLCriticalAlerts": "SIX_OPEN",
