@@ -544,6 +544,56 @@ internal static class TaskbarMonitorSensorSupervisor
         catch{return false;}
     }
     // TBME:R338_SUPERVISOR_TRUSTED_ARGV:END
+    // R406: the startup-only R338 check is not enough when sensor workers
+    // restart hours later (including after power resume). Revalidate each
+    // executable/owner output/mode immediately before every process launch.
+    // This is a source/path policy, not an atomic directory-handle lease.
+    static string TrustedBrokerLaunchArguments(string broker,string mode,string output,
+        string programFiles,string profile,string localAppData)
+    {
+        if(String.IsNullOrWhiteSpace(broker)||String.IsNullOrWhiteSpace(mode)||
+           String.IsNullOrWhiteSpace(output)||String.IsNullOrWhiteSpace(programFiles)||
+           String.IsNullOrWhiteSpace(profile)||String.IsNullOrWhiteSpace(localAppData))
+            throw new InvalidDataException("Broker launch binding is empty.");
+        if(broker.Length>2048||output.Length>2048||
+           broker.IndexOf('"')>=0||output.IndexOf('"')>=0||
+           broker.IndexOf('\r')>=0||output.IndexOf('\r')>=0||
+           broker.IndexOf('\n')>=0||output.IndexOf('\n')>=0)
+            throw new InvalidDataException("Broker launch path is not safe for Windows argv.");
+
+        string fullProgramFiles=Path.GetFullPath(programFiles);
+        string fullLocal=Path.GetFullPath(localAppData);
+        string trustedBroker=Path.Combine(fullProgramFiles,
+            "TaskbarMonitorEnhanced","SensorBroker","TaskbarMonitorSensorBroker.exe");
+        string trustedDir=Path.GetDirectoryName(trustedBroker);
+        string trustedAppData=Path.Combine(fullLocal,"TaskbarMonitorEnhanced");
+        string expectedCpu=Path.Combine(trustedAppData,"cpu_temp_broker.json");
+        if(!TrustedWorkerPaths(trustedBroker,expectedCpu,trustedDir,
+                               programFiles,profile,localAppData)||
+           !String.Equals(broker,trustedBroker,StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Broker launch executable identity changed.");
+
+        string expectedOutput;
+        switch(mode)
+        {
+            case "--run-cpu":expectedOutput=expectedCpu;break;
+            case "--run-gpu":expectedOutput=Path.Combine(trustedAppData,"gpu_temp_broker.json");break;
+            case "--once-storage":expectedOutput=Path.Combine(trustedAppData,"storage_temp_broker.json");break;
+            default:throw new InvalidDataException("Broker launch mode is not allowlisted.");
+        }
+        if(!String.Equals(output,expectedOutput,StringComparison.OrdinalIgnoreCase)||
+           !NoReparseComponents(expectedOutput))
+            throw new InvalidDataException("Broker output identity or reparse binding changed.");
+        return mode+" \""+expectedOutput+"\"";
+    }
+
+    static string CurrentTrustedBrokerLaunchArguments(string mode,string output)
+    {
+        return TrustedBrokerLaunchArguments(BrokerPath,mode,output,
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+    }
     static bool ParseArgs(string[] args)
     {
         if(args==null||args.Length!=4)return false;
@@ -683,9 +733,12 @@ internal static class TaskbarMonitorSensorSupervisor
 
     static void StartWorker(Worker w,string reason)
     {
+        // Rebind the broker and exact output/mode at every restart, not only
+        // when original Supervisor argv was accepted.
+        string checkedArguments=CurrentTrustedBrokerLaunchArguments(w.Mode,w.Output);
         ProcessStartInfo psi=new ProcessStartInfo();
         psi.FileName=BrokerPath;
-        psi.Arguments=w.Mode+" \""+w.Output+"\"";
+        psi.Arguments=checkedArguments;
         psi.UseShellExecute=false;
         psi.CreateNoWindow=true;
         Process p=Process.Start(psi);
@@ -1034,9 +1087,10 @@ internal static class TaskbarMonitorSensorSupervisor
 
     static void StartStorage()
     {
+        string checkedArguments=CurrentTrustedBrokerLaunchArguments("--once-storage",StorageOutput);
         ProcessStartInfo psi=new ProcessStartInfo();
         psi.FileName=BrokerPath;
-        psi.Arguments="--once-storage \""+StorageOutput+"\"";
+        psi.Arguments=checkedArguments;
         psi.UseShellExecute=false;
         psi.CreateNoWindow=true;
         Process p=Process.Start(psi);

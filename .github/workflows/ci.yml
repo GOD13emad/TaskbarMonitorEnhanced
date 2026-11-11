@@ -112,6 +112,23 @@ jobs:
             if($proof -cnotcontains $mark){throw ('R400_MISSING_COMPILED_NATIVE_STAGING_PROOF_'+$mark)}
           }
           $proof
+      - name: R406 compiled Supervisor per-launch Broker mode and owner path validation
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R406-SupervisorLaunchRebind.ps1 -SupervisorPath ./build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe -SourceRoot . -HostedGuest)
+          foreach($required in @(
+            'R406_PASS_THREE_CANONICAL_MODES_AND_SPACES_REAL_COMPILED',
+            'R406_PASS_THIRTEEN_UNTRUSTED_EXECUTABLE_MODE_OUTPUT_AND_PROFILE_CASES',
+            'R406_PASS_RESTART_REJECTS_NEW_OWNER_OUTPUT_JUNCTION',
+            'R406_PASS_RESTART_REJECTS_NEW_PROTECTED_BROKER_JUNCTION',
+            'R406_PASS_CANONICAL_RECOVERS_AFTER_BOTH_JUNCTION_REMOVALS',
+            'R406_PASS_OUTSIDE_CANARY_UNCHANGED_NO_REAL_BROKER_EXECUTED',
+            'R406_RESULT=PASS_COMPILED_SUPERVISOR_LAUNCH_TIME_REBIND'
+          )){
+            if($proof -cnotcontains $required){throw ('R406_NATIVE_PER_LAUNCH_REBIND_PROOF_MISSING_'+$required)}
+          }
+          $proof
       - name: R405 compiled pinned verified Setup and Win32 file identity launch
         shell: powershell
         run: |
