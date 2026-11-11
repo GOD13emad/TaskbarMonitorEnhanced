@@ -887,9 +887,24 @@ namespace TaskbarMonitorEnhanced
             return !String.IsNullOrWhiteSpace(digest)&&Regex.IsMatch(digest.Trim(),@"^sha256:[0-9A-Fa-f]{64}$",RegexOptions.CultureInvariant);
         }
 
+        // R403: a release version is one canonical three-component numeric
+        // token, never an arbitrary filename component from GitHub metadata.
         internal static string ExpectedSetupAssetName(string version)
         {
-            return "TaskbarMonitorEnhanced_Setup_"+(version??"")+".exe";
+            if(String.IsNullOrWhiteSpace(version)||version.Length>32||
+               !Regex.IsMatch(version,@"\A[0-9]+\.[0-9]+\.[0-9]+\z",RegexOptions.CultureInvariant))
+                throw new InvalidDataException("Release version is not a canonical numeric token.");
+            string[] parts=version.Split('.');int major,minor,patch;
+            if(parts.Length!=3||!Int32.TryParse(parts[0],NumberStyles.None,CultureInfo.InvariantCulture,out major)||
+               !Int32.TryParse(parts[1],NumberStyles.None,CultureInfo.InvariantCulture,out minor)||
+               !Int32.TryParse(parts[2],NumberStyles.None,CultureInfo.InvariantCulture,out patch))
+                throw new InvalidDataException("Release version contains an invalid numeric component.");
+            string canonical=major.ToString(CultureInfo.InvariantCulture)+"."+
+                             minor.ToString(CultureInfo.InvariantCulture)+"."+
+                             patch.ToString(CultureInfo.InvariantCulture);
+            if(!String.Equals(version,canonical,StringComparison.Ordinal))
+                throw new InvalidDataException("Release version contains noncanonical numeric formatting.");
+            return "TaskbarMonitorEnhanced_Setup_"+canonical+".exe";
         }
         private static bool Bool(Dictionary<string,object> d,string key)
         {
@@ -995,6 +1010,37 @@ namespace TaskbarMonitorEnhanced
             }
         }
 
+        // R403: align auto-updater's *writable* destination with the owner-local
+        // profile path already required by the per-user Setup. OS known folders
+        // can be redirected. Refuse UNC, arbitrary volume and junction roots
+        // instead of deleting installer bytes under a redirected user path.
+        // This is a preflight: it does NOT defeat concurrent same-user renames.
+        internal static string CanonicalPerUserUpdatesDirectory(string knownLocal,string knownProfile)
+        {
+            if(String.IsNullOrWhiteSpace(knownLocal)||String.IsNullOrWhiteSpace(knownProfile)||
+               !Path.IsPathRooted(knownLocal)||!Path.IsPathRooted(knownProfile)||
+               knownLocal.Length>1024||knownProfile.Length>1024)
+                throw new InvalidDataException("Canonical profile and LocalAppData are required.");
+            string profile=Path.GetFullPath(knownProfile).TrimEnd(Path.DirectorySeparatorChar);
+            string local=Path.GetFullPath(knownLocal).TrimEnd(Path.DirectorySeparatorChar);
+            if(profile.StartsWith(@"\\",StringComparison.Ordinal)||
+               local.StartsWith(@"\\",StringComparison.Ordinal)||
+               !Regex.IsMatch(profile,@"\A[A-Za-z]:\\",RegexOptions.CultureInvariant)||
+               !Regex.IsMatch(local,@"\A[A-Za-z]:\\",RegexOptions.CultureInvariant)||
+               String.Equals(Path.GetPathRoot(profile),profile,StringComparison.OrdinalIgnoreCase)||
+               String.Equals(Path.GetPathRoot(local),local,StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Automatic update rejects UNC or root-only paths.");
+            string expected=Path.GetFullPath(Path.Combine(profile,"AppData","Local")).TrimEnd(Path.DirectorySeparatorChar);
+            if(!String.Equals(local,expected,StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Automatic update requires the installed user's canonical LocalAppData.");
+            string updates=Path.GetFullPath(Path.Combine(local,"TaskbarMonitorEnhanced","Updates"));
+            if(updates.Length>1024||
+               !updates.StartsWith(local+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)||
+               !String.Equals(Path.GetFileName(updates),"Updates",StringComparison.Ordinal))
+                throw new InvalidDataException("Automatic update staging escaped the owner LocalAppData.");
+            RejectUpdateReparseAncestors(updates);
+            return updates;
+        }
         private static string Sha256File(string path)
         {
             using(SHA256 sha=SHA256.Create())using(FileStream fs=File.OpenRead(path)){byte[] b=sha.ComputeHash(fs);StringBuilder sb=new StringBuilder();foreach(byte x in b)sb.Append(x.ToString("X2",CultureInfo.InvariantCulture));return sb.ToString();}
@@ -1059,8 +1105,15 @@ namespace TaskbarMonitorEnhanced
                 throw new InvalidOperationException("Automatic installation is blocked because release identity metadata is not canonical.");
             if(!info.Immutable)throw new InvalidOperationException("Automatic installation is blocked because the GitHub Release is mutable. Open the release page and review it manually.");
             Uri u=new Uri(info.SetupUrl);if(!IsOfficialSetupUrl(info.SetupUrl,info.Version,expectedName))throw new InvalidDataException("Unexpected update URL: "+u.Host+u.AbsolutePath);
-            RejectUpdateReparseAncestors(AppPaths.Updates);
-            Directory.CreateDirectory(AppPaths.Updates);string safe=Path.GetFileName(info.SetupName);if(!String.Equals(safe,expectedName,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Unexpected update asset name.");string path=Path.Combine(AppPaths.Updates,safe);
+            string trustedUpdates=CanonicalPerUserUpdatesDirectory(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+            if(!String.Equals(Path.GetFullPath(AppPaths.Updates),trustedUpdates,StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Updater root does not match the installed per-user application.");
+            Directory.CreateDirectory(trustedUpdates);
+            // The downloaded asset name was equality-checked above; it never
+            // becomes a path. Use only the newly validated numeric release name.
+            string path=Path.Combine(trustedUpdates,expectedName);
             string partial=path+"."+Guid.NewGuid().ToString("N")+".download";
             RejectUpdateReparseAncestors(path);
             RejectUpdateReparseAncestors(partial);

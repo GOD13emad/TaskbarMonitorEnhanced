@@ -112,6 +112,25 @@ jobs:
             if($proof -cnotcontains $mark){throw ('R400_MISSING_COMPILED_NATIVE_STAGING_PROOF_'+$mark)}
           }
           $proof
+      - name: R403 compiled canonical owner updater directory and version defenses
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R403-UpdaterCanonicalKnownFolder.ps1 -AppPath ./build/_out/App/TaskbarMonitorEnhanced.exe -SourceRoot . -HostedGuest)
+          foreach($mark in @(
+            'R403_PASS_COMPILED_OFFICIAL_NUMERIC_SETUP_ASSET',
+            'R403_PASS_MALFORMED_VERSIONS_AND_TRAVERSAL_REJECTED',
+            'R403_PASS_OWNER_KNOWN_FOLDER_MATCHES_EXISTING_APP_READONLY',
+            'R403_PASS_CANONICAL_OWNER_LOCAL_APPDATA_ACCEPTED',
+            'R403_PASS_REDIRECT_UNC_RELATIVE_ROOT_ONLY_PATHS_REJECTED',
+            'R403_PASS_COMPILED_UPDATES_PARENT_JUNCTION_REJECTED',
+            'R403_PASS_OUTSIDE_CANARY_BYTE_IDENTICAL',
+            'R403_PASS_NO_NETWORK_INSTALLER_OR_OWNER_MUTATION',
+            'R403_RESULT=PASS_COMPILED_CANONICAL_OWNER_UPDATES_AND_NUMERIC_ASSET'
+          )){
+            if($proof -cnotcontains $mark){throw ('R403_COMPILED_UPDATER_NEGATIVE_PROOF_MISSING_'+$mark)}
+          }
+          $proof
       - name: R401 compiled post-fullscreen topmost loss policy (visible-only)
         shell: powershell
         run: |
