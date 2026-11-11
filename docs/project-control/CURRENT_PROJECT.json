@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R417",
-  "Status": "R417_REAL_WIN11_HOSTED_SETUP_PLUS_FIXED_CMD_UPGRADE_PASS_WIN10_SECURITY_PENDING",
-  "UpdatedUtc": "2026-11-11T19:19:44.5075794Z",
+  "CurrentEngineeringRevision": "R418",
+  "Status": "R418_EXACT_GITHUB_HOSTED_OFFLINE_ZIP_WIN11_REAL_UPGRADE_PASS_WIN10_SECURITY_PENDING",
+  "UpdatedUtc": "2026-11-11T19:30:06.7400431Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -125,9 +125,9 @@
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
   "CriticalPath": "R408 closes unrestricted directly-invoked Broker output argv and validates native directory identities before each atomic write; a narrow rename-after-revalidation window is not proven closed. Hosted regression, six open critical CodeQL alerts and independent last-push reviewer block PR merge; installed public v1.7.10 remains immutable.",
-  "MainBlocker": "R417 real Windows11 disposable published v1.7.9 to actual hosted v1.7.10 Setup binary with R414 fixed CMD overlay PASS (Main running, user config and backup, install-state extra property, external canary preserved). This is NOT a byte-identical execution of latest hosted R414 ZIP. Win10 full client install, missing-.NET UAC/reboot and six critical CodeQL PR98 security annotations with independent review remain blocking; native Linux/macOS ports not yet implemented. Draft PR106 remains unmerged.",
+  "MainBlocker": "R418 actual unmodified exact GitHub-hosted R414 offline ZIP real Windows11 public v1.7.9 to v1.7.10 CMD in-place upgrade PASS with Main running and user config/backup/state/external canaries preserved. Windows10 full offline install and absent Framework UAC/reboot, security PR98 six critical annotations plus independent review and native Linux/macOS still pending; PR106 Draft.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Complete independent security PR98 six command-line-sink dispositions and test an actual full Offline Windows10 install/upgrade with absent-Framework UAC/reboot on a genuinely disposable Windows10 client. Retain existing Windows11 acceptance, do not publish or mutate owner app before security/OS acceptance.",
+  "ExactNextAction": "Address security PR98 critical command-line taint cases with independent reviewer. Obtain a truly disposable Windows10 guest to run actual signed Offline installation, predecessor upgrade and absent-framework UAC/reboot, then assess gated release; keep owner app and public Release untouched.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2788,5 +2788,29 @@
   "PR106": "DRAFT",
   "OwnerInstallationChanged": false,
   "PublicReleaseChanged": false
+},
+  "R418": {
+  "Status": "PASS_REAL_WIN11_OFFICIAL179_TO_EXACT_HOSTED_R414_OFFLINE1710_ZIP_UPGRADE",
+  "ParentHead": "9cd6ff755d59dffc5cf21fc279886430411ff37a",
+  "OS": "Windows11_Enterprise_26100",
+  "ArtifactId": 13875469519,
+  "ExactHostedOfflineZipSHA256": "D15A37705ED106DDB4F50347CF1A8CAC03C058B7BBD9E765E11D93059F831B8F",
+  "ExactHostedZIPBytes": 128522081,
+  "SetupSHA256": "D5E4D927863A6F3D434586DDD9595EBFCB2782B675A2F77249406A13400C8FE2",
+  "FixedCmdSHA256": "3E1A9DC7D5D3C2028AB4250BF23C2C091DD77EA136B45D22BAEAEFBF3E428DC6",
+  "ByteExactHostedZipRealClientTest": true,
+  "PreviousPublic179Install": "PASS_EXIT0",
+  "RealOffline1710CMDUpgrade": "PASS_EXIT0",
+  "MainRunning": true,
+  "FourUserCanariesPreserved": true,
+  "NoMachineWideDuplicate": true,
+  "GuestSHA256": "E8BC965CD89686543990628925B8F92561E8B714703F60E1168F3ED769D67962",
+  "HostSHA256": "C408A28AB69B720DEE431C0E00362C6F23F26A57B70EDE4A54D7018CF820E62E",
+  "Windows10FullInstall": "UNTESTED",
+  "MissingDotNetUACReboot": "UNTESTED",
+  "SecurityPR98": "BLOCKED_SIX_CODEQL",
+  "PR106": "DRAFT",
+  "OwnerInstalledAppChanged": false,
+  "ReleasePublished": false
 }
 }
