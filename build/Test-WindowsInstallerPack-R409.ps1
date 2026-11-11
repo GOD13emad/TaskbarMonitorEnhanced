@@ -31,6 +31,27 @@ function Invoke-Preflight([string]$folder,[string]$mode='-CheckOnly') {
     Stderr=(Get-Content -LiteralPath $stderr -Raw -ErrorAction SilentlyContinue)
   }
 }
+# R414: simulate PowerShell 7 -> cmd.exe -> Windows PowerShell 5.1.
+# Microsoft documents that the intermediate CMD inherits PS7's module paths,
+# which makes WinPS 5.1 autoload an incompatible Microsoft.PowerShell.Utility.
+# A correct launcher clears only the child CMD's inherited PSModulePath.
+function Invoke-CmdFromPollutedPs7Environment([string]$folder,[string]$mode) {
+  $pwsh=Get-Command pwsh.exe -ErrorAction Stop
+  $ps7Modules=Join-Path (Split-Path -Parent $pwsh.Source) 'Modules'
+  if(!(Test-Path -LiteralPath $ps7Modules -PathType Container)){
+    throw 'R414_TEST_POWERSHELL7_MODULE_ROOT_MISSING'
+  }
+  $prior=$env:PSModulePath
+  try {
+    $env:PSModulePath=$ps7Modules+';'+$prior
+    $output=(& (Join-Path $folder 'Install.cmd') $mode |Out-String)
+    $exit=$LASTEXITCODE
+  }finally{$env:PSModulePath=$prior}
+  if($exit -ne 0){
+    throw ('R414_CMD_POLLUTED_PS7_ENV_FAILED_'+$exit+'_'+$output)
+  }
+  return $output
+}
 try{
   $stage=Join-Path $testRoot 'extracted'
   [void][IO.Directory]::CreateDirectory($stage)
@@ -71,6 +92,15 @@ try{
     if($server.Exit -eq 0 -or $server.Stdout -notmatch 'R409_WINDOWS_SERVER_NOT_SUPPORTED'){
       throw ('R409_WINDOWS_SERVER_WAS_NOT_REFUSED_'+$server.Stdout)
     }
+    if($ExpectOfflineRuntime){
+      $cmdResult=Invoke-CmdFromPollutedPs7Environment $stage '-VerifyOfflineRuntime'
+      $checked=$cmdResult|ConvertFrom-Json
+      if($checked.Status -cne 'OFFLINE_RUNTIME_VERIFIED_NO_EXECUTION' -or
+         $checked.SHA256 -cne $runtimeExpectedSHA -or $checked.RuntimeExecuted -or $checked.ProductInstalled){
+        throw 'R414_HOSTED_POLLUTED_CMD_VERIFICATION_SEMANTICS_CHANGED'
+      }
+      'R414_PASS_HOSTED_WINPS51_CMD_CLEARS_INHERITED_PS7_MODULE_PATH'
+    }
     'R409_PASS_HOSTED_SERVER_OS_UNSUPPORTED_FAIL_CLOSED'
     if($ExpectOfflineRuntime){'R410_PASS_HOSTED_OFFLINE_FRAMEWORK_VERIFIED_BUT_SERVER_NOT_INSTALLED'}
     'R409_RESULT=PASS_HOSTED_ARCHIVE_MANIFEST_AND_UNSUPPORTED_OS_BOUNDARY'
@@ -89,6 +119,14 @@ try{
   if($LASTEXITCODE -ne 0 -or $cmdProof -notmatch '"Status"\s*:\s*"CHECK_ONLY"'){
     throw ('R409_CMD_ENTRYPOINT_READONLY_FAILED_'+$cmdProof)
   }
+  $cmdResult=Invoke-CmdFromPollutedPs7Environment $stage '-CheckOnly'
+  $cmdChecked=$cmdResult|ConvertFrom-Json
+  if($cmdChecked.Status -cne 'CHECK_ONLY' -or
+     $cmdChecked.ExecutedSetup -or $cmdChecked.ModifiedOwnerSettings -or
+     $cmdChecked.SetupSHA256 -cne $manifest.SetupSHA256){
+    throw 'R414_LOCAL_POLLUTED_CMD_CHECKONLY_SEMANTICS_CHANGED'
+  }
+  'R414_PASS_CLIENT_WINPS51_CMD_CLEARS_INHERITED_PS7_MODULE_PATH'
   'R409_PASS_REAL_WINDOWS_CMD_ENTRYPOINT_READONLY_CHECK_ONLY'
   'R409_PASS_REAL_WINDOWS_CHECK_ONLY_NO_INSTALL_NO_ELEVATION'
   $savedSetup=(Join-Path $stage $manifest.SetupFile)
