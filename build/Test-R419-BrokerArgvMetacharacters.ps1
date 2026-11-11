@@ -119,6 +119,36 @@ try{
  }
  if($rejected -ne 4){throw 'R419_NEGATIVE_CASE_COUNT_WRONG'}
  'R419_PASS_FOUR_ADVERSARIAL_MODE_AND_OUTPUT_CASES_REJECTED'
+ $rogueTargets=@(
+  [pscustomobject]@{Name='OUTSIDE_USER_PROFILE';Local=(Join-Path $outside 'InjectedLocalAppData')},
+  [pscustomobject]@{Name='WRONG_SIBLING_INSIDE_USER_PROFILE';Local=(Join-Path $profile 'OtherLocalData')},
+  [pscustomobject]@{Name='NESTED_INSIDE_LOCALAPPDATA';Local=(Join-Path $local 'NestedLocal')}
+ )
+ $rogueRejected=0
+ foreach($candidate in $rogueTargets){
+  $rogueOwner=Join-Path $candidate.Local 'TaskbarMonitorEnhanced'
+  [void][IO.Directory]::CreateDirectory($rogueOwner)
+  $rogueOutput=Join-Path $rogueOwner 'cpu_temp_broker.json'
+  $rogueAllowed=$false
+  try{
+    $candidateArgv=[string]$validate.Invoke($null,[object[]]@(
+     [string]$broker,[string]'--run-cpu',[string]$rogueOutput,
+     [string]$program,[string]$profile,[string]$candidate.Local))
+    if(![string]::IsNullOrWhiteSpace($candidateArgv)){$rogueAllowed=$true}
+  }catch{
+    # Windows PowerShell wraps reflected .NET exceptions in a
+    # MethodInvocationException; unwrap until the actual security failure.
+    $inner=$_.Exception
+    while($null -ne $inner -and !($inner -is [IO.InvalidDataException])){
+      $inner=$inner.InnerException
+    }
+    if($null -eq $inner){throw}
+  }
+  if($rogueAllowed){throw ('R421_NONCANONICAL_LOCALAPPDATA_REDIRECTION_ACCEPTED_'+$candidate.Name)}
+  $rogueRejected++
+ }
+ if($rogueRejected -ne 3){throw 'R421_NONCANONICAL_CASES_NOT_ALL_REJECTED'}
+ 'R421_PASS_THREE_NONCANONICAL_LOCALAPPDATA_BRANCHES_REJECTED'
  if((Get-FileHash $canary -Algorithm SHA256).Hash -cne $canaryHash -or
     (Get-FileHash $broker -Algorithm SHA256).Hash -cne $probeHash){
    throw 'R419_OUTSIDE_CANARY_OR_HARMLESS_PROBE_CHANGED'
