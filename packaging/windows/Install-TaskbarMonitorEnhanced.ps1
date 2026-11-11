@@ -1,6 +1,6 @@
 # R409 Windows 10/11 x64 dependency-first launcher; never updates unrelated software.
 [CmdletBinding()]
-param([switch]$CheckOnly)
+param([switch]$CheckOnly,[switch]$VerifyOfflineRuntime)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $MinimumRelease=528040
@@ -52,7 +52,9 @@ function Assert-Package {
      $m.RequiredFrameworkRelease -ne $MinimumRelease -or
      $m.OfficialRuntimeSHA256 -cne $RuntimeSHA -or
      $m.OfficialRuntimeUrl -cne $RuntimeUrl -or
-     $m.SetupSHA256 -notmatch '^[A-Fa-f0-9]{64}$'){
+     $m.SetupSHA256 -notmatch '^[A-Fa-f0-9]{64}$' -or
+     !($m.OfficialRuntimeBundled -is [bool]) -or
+     $m.OfficialRuntimeBundled -ne (Test-Path -LiteralPath (Join-Path $Root $RuntimeName) -PathType Leaf)){
     throw 'R409_PACKAGE_MANIFEST_INVALID'
   }
   $actual=(Get-FileHash -LiteralPath $Setup -Algorithm SHA256).Hash
@@ -92,10 +94,18 @@ function Acquire-Runtime {
 
 function Install-Runtime {
   $installer=Acquire-Runtime
-  Write-Host 'The signed, SHA256-pinned Microsoft .NET Framework 4.8 installer requires Windows administrator approval.'
-  $p=Start-Process -FilePath $installer -ArgumentList @('/q','/norestart','/ChainingPackage','TaskbarMonitorEnhanced') -Verb RunAs -Wait -PassThru
-  if(!$p){throw 'R409_RUNTIME_INSTALL_START_FAILED'}
-  $code=[int]$p.ExitCode
+  # Pin the read-only signed runtime denying write/delete sharing during UAC.
+  $pin=[IO.FileStream]::new($installer,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+  try {
+    $digest=[Security.Cryptography.SHA256]::Create()
+    try{$hash=([BitConverter]::ToString($digest.ComputeHash($pin))).Replace('-','')}finally{$digest.Dispose()}
+    if($hash -cne $RuntimeSHA){throw 'R410_PINNED_FRAMEWORK_SHA256_CHANGED'}
+    Assert-OfficialRuntime $installer
+    Write-Host 'The verified Microsoft .NET Framework 4.8 installer requests native UAC approval.'
+    $p=Start-Process -FilePath $installer -ArgumentList @('/q','/norestart','/ChainingPackage','TaskbarMonitorEnhanced') -Verb RunAs -Wait -PassThru
+    if(!$p){throw 'R409_RUNTIME_INSTALL_START_FAILED'}
+    $code=[int]$p.ExitCode
+  }finally{$pin.Dispose()}
   if($code -in @(1641,3010)){
     throw 'R409_RESTART_REQUIRED_REBOOT_WINDOWS_AND_RETRY'
   }
@@ -106,8 +116,18 @@ function Install-Runtime {
 }
 
 try {
+  if($VerifyOfflineRuntime){
+    $setupSHA=Assert-Package
+    $runtime=Join-Path $Root $RuntimeName
+    if(!(Test-Path -LiteralPath $runtime -PathType Leaf)){throw 'R410_OFFLINE_RUNTIME_REQUIRED_FOR_VERIFICATION'}
+    Assert-OfficialRuntime $runtime
+    [pscustomobject][ordered]@{Status='OFFLINE_RUNTIME_VERIFIED_NO_EXECUTION';SHA256=$RuntimeSHA;SetupSHA256=$setupSHA;ProductInstalled=$false;RuntimeExecuted=$false} |ConvertTo-Json -Compress
+    exit 0
+  }
   $platform=Assert-WindowsDesktop
   $setupSHA=Assert-Package
+  $bundled=Test-Path -LiteralPath (Join-Path $Root $RuntimeName) -PathType Leaf
+  if($bundled){Assert-OfficialRuntime (Join-Path $Root $RuntimeName)}
   $release=Get-FrameworkRelease
   if($CheckOnly){
     [pscustomobject][ordered]@{
@@ -116,6 +136,8 @@ try {
       FrameworkRelease=$release
       Framework48OrNewer=($release -ge $MinimumRelease)
       WillInstallFramework=($release -lt $MinimumRelease)
+      OfficialRuntimeBundled=$bundled
+      OfficialRuntimeIntegrityChecked=$bundled
       SetupSHA256=$setupSHA
       ExecutedSetup=$false
       ModifiedOwnerSettings=$false

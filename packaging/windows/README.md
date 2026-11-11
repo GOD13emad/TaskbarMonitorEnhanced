@@ -15,6 +15,20 @@ To perform read-only preflight without installing or starting anything, use Wind
 powershell.exe -NoProfile -File .\Install-TaskbarMonitorEnhanced.ps1 -CheckOnly
 ```
 
-The ZIP may optionally include Microsoft's original `NDP48-x86-x64-AllOS-ENU.exe` for an offline install. If included, its SHA-256 and Microsoft Authenticode signature are checked exactly like a downloaded copy. The package itself is a staged candidate until PR security scanning, hosted install/upgrade/launch acceptance and authorized publication are complete.
+## Full offline installer pack
+
+The recommended R410 candidate is `TaskbarMonitorEnhanced-Windows10-11-x64-v1.7.10-Offline.zip`. It embeds the **actual Microsoft-signed .NET Framework 4.8 offline installer** (121,307,088 bytes, SHA-256 `68C9986A8DCC0214D909AA1F31BEE9FB5461BB839EDCA996A75B08DDFFC1483F`). The exact Microsoft CDN source returned HTTP 200 and the downloaded file's Microsoft Authenticode signature was `Valid` on Windows. No Internet access is needed to install this particular prerequisite when the offline executable is present. The app's optional sensor helper/driver is managed by the original Setup, with its own licensing/UAC requirements; this pack does not guarantee that all hardware-specific sensor prerequisites can be activated offline.
+
+The smaller `TaskbarMonitorEnhanced-Windows10-11-x64-v1.7.10.zip` is the online variant: it contains only Setup, scripts and the manifest; it downloads that same verified Microsoft runtime **only if** the current Windows Framework version is too old. Neither variant automatically upgrades Windows or Windows drivers.
+
+The launcher refuses mismatches between its manifest and the bundled runtime, and validates the bundled runtime's **SHA-256 and Microsoft signature** before installation. During native UAC approval, the verified runtime executable remains open under a read-only file handle that denies write/delete sharing. If the signed prerequisite requires reboot, restart Windows and run `Install.cmd` again.
+
+To verify the offline runtime **without installing or starting it**, use:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-TaskbarMonitorEnhanced.ps1 -VerifyOfflineRuntime
+```
+
+Even a signed runtime bundle is not evidence that a full product installation succeeded: Windows 10/11 clean-install/upgrade, UAC and reboot recovery still require disposable desktop integration tests. This package is a staged candidate until security scanning, those acceptance tests and authorized publication are complete.
 
 Microsoft references: https://learn.microsoft.com/en-us/dotnet/framework/migration-guide/how-to-determine-which-versions-are-installed and https://learn.microsoft.com/en-us/dotnet/framework/get-started/system-requirements
