@@ -24,6 +24,15 @@ struct Cpu {
 #endif
 };
 struct Mem { std::uint64_t total=0, available=0; };
+struct CpuThermal {
+    double celsius=0.;
+    const char* source=nullptr; // static allowlisted driver/channel identifier
+};
+#ifdef __linux__
+#include "linux_temperature.hpp"
+#else
+inline bool cpu_temperature(CpuThermal&) { return false; }
+#endif
 inline double percent(Cpu a,Cpu b) {
 #ifdef __APPLE__
     if(a.machTicks && b.machTicks) {

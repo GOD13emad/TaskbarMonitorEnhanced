@@ -32,8 +32,15 @@ static gboolean refresh_panel(gpointer data) {
         gtk_label_set_text(GTK_LABEL(state->label), "Measuring CPU / RAM...");
         return G_SOURCE_CONTINUE;
     }
-    char message[96];
-    std::snprintf(message,sizeof(message),"CPU %.1f%%    RAM %.1f%%",load,ram);
+    char message[160];
+    CpuThermal thermal{};
+    if(cpu_temperature(thermal)) {
+        std::snprintf(message,sizeof(message),
+                      "CPU %.1f%%  RAM %.1f%%  %s %.1f C",
+                      load,ram,thermal.source,thermal.celsius);
+    } else {
+        std::snprintf(message,sizeof(message),"CPU %.1f%%  RAM %.1f%%",load,ram);
+    }
     gtk_label_set_text(GTK_LABEL(state->label),message);
     return G_SOURCE_CONTINUE;
 }
@@ -54,7 +61,7 @@ static void activate(GtkApplication* app,gpointer data) {
     }
     GtkWidget* window=gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window),"TaskbarMonitorEnhanced Native Linux");
-    gtk_window_set_default_size(GTK_WINDOW(window),360,92);
+    gtk_window_set_default_size(GTK_WINDOW(window),475,92);
     GtkWidget* label=gtk_label_new("Measuring CPU / RAM...");
     gtk_label_set_xalign(GTK_LABEL(label),0.5f);
     gtk_container_add(GTK_CONTAINER(window),label);

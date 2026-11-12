@@ -41,11 +41,22 @@ static int emit_sample() {
         std::fputs("native CPU counters did not advance or memory is invalid\n",stderr);
         return 3;
     }
+    CpuThermal thermal{};
+    const bool temperatureAvailable=cpu_temperature(thermal);
     if(std::printf("{\"schema\":1,\"platform\":\"%s\",\"cpuPercent\":%.3f,"
-       "\"memoryTotalBytes\":%llu,\"memoryAvailableBytes\":%llu,"
-       "\"cpuTemperatureC\":null,\"temperatureAvailable\":false}\n",
+       "\"memoryTotalBytes\":%llu,\"memoryAvailableBytes\":%llu,",
        platform,load,static_cast<unsigned long long>(m.total),
-       static_cast<unsigned long long>(m.available))<0||std::fflush(stdout)!=0){
+       static_cast<unsigned long long>(m.available))<0){
+        std::fputs("telemetry output failed\n",stderr);return 4;
+    }
+    // The source is a compile-time whitelist string, never a raw sysfs label.
+    const int written=temperatureAvailable
+        ?std::printf("\"cpuTemperatureC\":%.3f,\"temperatureAvailable\":true,"
+                     "\"cpuTemperatureSensor\":\"%s\"}\n",
+                     thermal.celsius,thermal.source)
+        :std::printf("\"cpuTemperatureC\":null,\"temperatureAvailable\":false,"
+                     "\"cpuTemperatureSensor\":null}\n");
+    if(written<0||std::fflush(stdout)!=0){
         std::fputs("telemetry output failed\n",stderr);return 4;
     }
     return 0;
