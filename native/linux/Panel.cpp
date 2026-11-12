@@ -74,6 +74,17 @@ static void activate(GtkApplication* app,gpointer data) {
 }
 
 int main(int argc,char** argv) {
+    // Read-only, noninteractive hardware witness. No GUI/session is created.
+    if(argc==2 && !std::strcmp(argv[1],"--probe-temperature")) {
+        CpuThermal thermal{};
+        if(!cpu_temperature(thermal)) {
+            std::fputs("CPU thermal sensor unavailable\n",stderr);
+            return 3;
+        }
+        if(std::printf("%.3f %s\n",thermal.celsius,thermal.source)<0 ||
+           std::fflush(stdout)!=0)return 4;
+        return 0;
+    }
     if(argc==2 && !std::strcmp(argv[1],"--self-test")) {
         Cpu counter{};Mem memory{};
         if(!cpu(counter)||!mem(memory)||!memory.total||
@@ -82,7 +93,7 @@ int main(int argc,char** argv) {
         return 0;
     }
     if(argc!=1) {
-        std::fputs("usage: tbme-linux-panel [--self-test]\n",stderr);
+        std::fputs("usage: tbme-linux-panel [--self-test|--probe-temperature]\n",stderr);
         return 2;
     }
     GtkApplication* app=gtk_application_new(

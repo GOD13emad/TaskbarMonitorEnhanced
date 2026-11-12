@@ -54,6 +54,23 @@ jobs:
           c++ -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
             native/linux/Panel.cpp -o tbme-linux-panel $(pkg-config --cflags --libs gtk+-3.0)
           ./tbme-linux-panel --self-test | grep -Fx 'TBME_LINUX_GTK3_NATIVE_SENSOR_SELFTEST=PASS'
+          # No display required: real sysfs reading or explicit unavailable code 3.
+          if ./tbme-linux-panel --probe-temperature > cpu-temperature-witness.txt; then
+            python3 - <<'PY'
+          from pathlib import Path
+          import re
+          data = Path("cpu-temperature-witness.txt").read_text(encoding="utf-8").strip()
+          pattern = r"^([0-9]{1,3}\.[0-9]{3}) (coretemp:Package|k10temp:Tdie|k10temp:Tctl|zenpower:Tdie|zenpower:Tctl|peci_cputemp:Die|cpu_thermal:temp1|x86_pkg_temp:temp1)$"
+          match = re.fullmatch(pattern, data)
+          assert match and 0 <= float(match.group(1)) <= 150, data
+          print("TBME_LINUX_REAL_TEMPERATURE_WITNESS=PASS_AVAILABLE")
+          PY
+          else
+            code=$?
+            test "$code" -eq 3
+            test ! -s cpu-temperature-witness.txt
+            echo 'TBME_LINUX_REAL_TEMPERATURE_WITNESS=PASS_UNAVAILABLE'
+          fi
           if ./tbme-linux-panel --unsupported >/dev/null 2>&1; then exit 1; fi
           dbus-run-session -- xvfb-run -a bash -eu -c '
             ./tbme-linux-panel >/dev/null 2>&1 &
