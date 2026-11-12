@@ -77,8 +77,13 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference='Stop'
-          $proof=@(& ./build/Test-R439-LegacyBrokerProcessScope.ps1 -SupervisorPath ./build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe)
-          if($LASTEXITCODE -ne 0 -or
+          # Launch a child WinPS5.1 process and use its real exit status rather
+          # than a stale LASTEXITCODE inherited from prior CI native commands.
+          $native=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+          $proof=@(& $native -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./build/Test-R439-LegacyBrokerProcessScope.ps1 -SupervisorPath ./build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe)
+          $exit=$LASTEXITCODE
+          $proof
+          if($exit -ne 0 -or
              $proof -cnotcontains 'R439_PASS_COMPILED_EXACT_IMAGE_AND_SESSION_SCOPE_11_CASES' -or
              $proof -cnotcontains 'R439_PASS_FOREIGN_SAME_NAME_DENIED_NO_PROCESS_TERMINATION'){
              throw 'R439_COMPILED_LEGACY_PROCESS_SCOPE_REGRESSION'
