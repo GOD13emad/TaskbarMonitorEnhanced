@@ -65,6 +65,41 @@ try{
   if($manifest.SetupSHA256 -cne (Get-FileHash (Join-Path $stage $manifest.SetupFile) -Algorithm SHA256).Hash){
     throw 'R409_TEST_MANIFEST_SETUP_HASH_INVALID'
   }
+  # R424: a missing-package failure from the real CMD launcher must finish
+  # noninteractively with the original error code, not wait for "pause".
+  # Keep stdin open deliberately; a bare CMD pause hangs this regression.
+  $badRoot=Join-Path $testRoot 'missing-package'
+  [void][IO.Directory]::CreateDirectory($badRoot)
+  Copy-Item -LiteralPath (Join-Path $stage 'Install.cmd') -Destination (Join-Path $badRoot 'Install.cmd')
+  Copy-Item -LiteralPath (Join-Path $stage 'Install-TaskbarMonitorEnhanced.ps1') -Destination (Join-Path $badRoot 'Install-TaskbarMonitorEnhanced.ps1')
+  $badInfo=New-Object System.Diagnostics.ProcessStartInfo
+  $badInfo.FileName=$env:ComSpec
+  $badInfo.Arguments='/d /s /c ""'+(Join-Path $badRoot 'Install.cmd')+'" -CheckOnly"'
+  $badInfo.UseShellExecute=$false
+  $badInfo.CreateNoWindow=$true
+  $badInfo.RedirectStandardInput=$true
+  $badInfo.RedirectStandardOutput=$true
+  $badInfo.RedirectStandardError=$true
+  $badInfo.EnvironmentVariables['TBME_PAUSE_ON_ERROR']='0'
+  $badProcess=[Diagnostics.Process]::Start($badInfo)
+  if(!$badProcess){throw 'R424_MISSING_PACKAGE_CMD_FAILED_TO_START'}
+  try {
+    if(!$badProcess.WaitForExit(5000)){
+      try{$badProcess.Kill();$badProcess.WaitForExit(3000)|Out-Null}catch{}
+      throw 'R424_MISSING_PACKAGE_CMD_BLOCKED_FOR_INTERACTIVE_INPUT'
+    }
+    $badStdout=$badProcess.StandardOutput.ReadToEnd()
+    $badStderr=$badProcess.StandardError.ReadToEnd()
+    if($badProcess.ExitCode -eq 0 -or
+       $badStdout -notmatch 'R409_PACKAGE_FILES_MISSING' -or
+       $badStdout -notmatch 'installation did not complete'){
+      throw ('R424_MISSING_PACKAGE_WRONG_FAILURE_SEMANTICS_exit_'+$badProcess.ExitCode+'_'+$badStdout+'_'+$badStderr)
+    }
+    'R424_PASS_MISSING_PACKAGE_CMD_FAILS_WITHOUT_INTERACTIVE_PAUSE'
+  }finally {
+    $badProcess.StandardInput.Close()
+    $badProcess.Dispose()
+  }
   # A native PE can be executed from a read-only file handle which denies
   # write/delete sharing; use Setup /verify (no install) as the harmless proof.
   $setupFixture=Join-Path $stage $manifest.SetupFile

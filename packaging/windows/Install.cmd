@@ -9,6 +9,6 @@ if exist "%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe" set "PWS
 set "RESULT=%ERRORLEVEL%"
 if not "%RESULT%"=="0" (
   echo Taskbar Monitor Enhanced installation did not complete. See the reason above.
-  pause
+  if /I "%TBME_PAUSE_ON_ERROR%"=="1" pause
 )
 exit /b %RESULT%
