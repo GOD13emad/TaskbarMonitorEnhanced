@@ -777,6 +777,32 @@ internal static class TaskbarMonitorSensorSupervisor
         return true;
     }
 
+    // R439: a process basename alone is not a trusted termination boundary.
+    // Only drain our protected executable in the current interactive session.
+    static bool IsManagedLegacyBrokerIdentity(string observedPath,int observedSession,
+        string expectedPath,int ownerSession)
+    {
+        if(observedSession!=ownerSession||String.IsNullOrWhiteSpace(observedPath)||
+           String.IsNullOrWhiteSpace(expectedPath))return false;
+        try
+        {
+            return String.Equals(Path.GetFullPath(observedPath),
+                Path.GetFullPath(expectedPath),StringComparison.OrdinalIgnoreCase);
+        }
+        catch{return false;}
+    }
+
+    static bool IsManagedLegacyBroker(Process p)
+    {
+        try
+        {
+            if(p==null||p.HasExited)return false;
+            using(Process owner=Process.GetCurrentProcess())
+                return IsManagedLegacyBrokerIdentity(
+                    p.MainModule.FileName,p.SessionId,BrokerPath,owner.SessionId);
+        }
+        catch{return false;}
+    }
     static bool StopExistingBrokers()
     {
         bool clear=true;
@@ -784,6 +810,11 @@ internal static class TaskbarMonitorSensorSupervisor
         {
             foreach(Process p in Process.GetProcessesByName("TaskbarMonitorSensorBroker"))
             {
+                if(!IsManagedLegacyBroker(p))
+                {
+                    try{p.Dispose();}catch{}
+                    continue;
+                }
                 bool exited=false;
                 try
                 {
@@ -813,8 +844,12 @@ internal static class TaskbarMonitorSensorSupervisor
         try
         {
             Process[] ps=Process.GetProcessesByName("TaskbarMonitorSensorBroker");
-            bool any=ps.Length>0;
-            foreach(Process p in ps)try{p.Dispose();}catch{}
+            bool any=false;
+            foreach(Process p in ps)
+            {
+                if(IsManagedLegacyBroker(p))any=true;
+                try{p.Dispose();}catch{}
+            }
             return any;
         }
         catch{return true;}
