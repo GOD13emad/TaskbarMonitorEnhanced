@@ -98,6 +98,22 @@ jobs:
           ./tbme-linux-panel --set-alert false >/dev/null
           test "$(stat -c %a "$settings_root/taskbarmonitorenhanced-native-preview/settings.ini")" = "600"
           echo 'TBME_NATIVE_XDG_SETTINGS_CLI_PERSISTENCE_AND_INPUT_REFUSAL=PASS'
+          # New isolated corrupted preference: explicit recovery preserves exact bytes.
+          badroot="$settings_root/recovery-fixture"
+          mkdir -p "$badroot/taskbarmonitorenhanced-native-preview"
+          export XDG_CONFIG_HOME="$badroot"
+          badfile="$badroot/taskbarmonitorenhanced-native-preview/settings.ini"
+          printf '[NativeTemperatureAlert]\nenabled=maybe\nbell=true\nthresholdC=96\n' > "$badfile"
+          before="$(sha256sum "$badfile" | cut -d' ' -f1)"
+          if ./tbme-linux-panel --settings >/dev/null 2>&1; then exit 1; fi
+          ./tbme-linux-panel --recover-settings | grep -Fx 'alert=false bell=false thresholdC=85'
+          test -f "$badfile.rejected"
+          test "$(sha256sum "$badfile.rejected" | cut -d' ' -f1)" = "$before"
+          test "$(stat -c %a "$badfile")" = "600"
+          if ./tbme-linux-panel --recover-settings >/dev/null 2>&1; then exit 1; fi
+          test "$(sha256sum "$badfile.rejected" | cut -d' ' -f1)" = "$before"
+          export XDG_CONFIG_HOME="$settings_root"
+          echo 'TBME_R450_LINUX_EXPLICIT_CORRUPT_PREFERENCE_RECOVERY_PRESERVES_BYTES=PASS'
           if ./tbme-linux-panel --unsupported >/dev/null 2>&1; then exit 1; fi
           # DISPLAY must exist before session portal initialization.
           timeout 30s xvfb-run -a dbus-run-session -- bash -eu -c '

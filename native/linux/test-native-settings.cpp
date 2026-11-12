@@ -1,4 +1,5 @@
 #include "ThermalAlert.hpp"
+#include "SettingsRecovery.hpp"
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <cstdio>
@@ -59,13 +60,40 @@ int main(int argc,char** argv) {
     error.clear();
     if(load_native_settings(settings,error) || error.empty())return 1;
     if(save_native_settings(wanted,error))return 1;
+    // An explicit recovery must preserve the malformed original bytes.
+    const std::string malformed=
+        "[NativeTemperatureAlert]\nenabled=maybe\nbell=true\nthresholdC=91\n";
+    const std::string archive=native_settings_path()+".rejected";
+    error.clear();
+    if(!recover_invalid_native_settings(error))return 1;
+    if(!load_native_settings(settings,error) ||
+       settings.alertEnabled || settings.bellEnabled ||
+       settings.thresholdC!=85)return 1;
+    std::ifstream previous(archive);
+    const std::string backup((std::istreambuf_iterator<char>(previous)),
+                             std::istreambuf_iterator<char>());
+    if(backup!=malformed)return 1;
+    error.clear();
+    if(recover_invalid_native_settings(error) || error.empty())return 1;
+    {
+        std::ofstream secondCorruption(native_settings_path(),std::ios::trunc);
+        secondCorruption<<"[NativeTemperatureAlert]\nenabled=nope\n";
+    }
+    error.clear();
+    if(recover_invalid_native_settings(error) || error.empty())return 1;
+    std::ifstream retained(archive);
+    const std::string preserved((std::istreambuf_iterator<char>(retained)),
+                                std::istreambuf_iterator<char>());
+    if(preserved!=malformed)return 1;
     const auto bogus=native_settings_path();
     if(g_remove(bogus.c_str())!=0)return 1;
     if(symlink("/tmp/tbme-native-do-not-follow-target",bogus.c_str())!=0)return 1;
     error.clear();
     if(load_native_settings(settings,error) || error.empty())return 1;
     if(save_native_settings(wanted,error))return 1;
+    error.clear();
+    if(recover_invalid_native_settings(error) || error.empty())return 1;
     if(g_remove(bogus.c_str())!=0)return 1;
-    std::puts("TBME_NATIVE_SETTINGS_ATOMIC_PERSISTENCE_FAIL_CLOSED_AND_ALERT_COOLDOWN=PASS");
+    std::puts("TBME_NATIVE_SETTINGS_PERSISTENCE_RECOVERY_NO_OVERWRITE_AND_ALERT_COOLDOWN=PASS");
     return 0;
 }

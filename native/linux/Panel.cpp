@@ -2,6 +2,7 @@
 #include <gtk/gtk.h>
 #include "../telemetry/sample.hpp"
 #include "NativeSettings.hpp"
+#include "SettingsRecovery.hpp"
 #include "ThermalAlert.hpp"
 #include <cerrno>
 #include <cmath>
@@ -12,7 +13,7 @@
 
 struct PanelState {
     GtkWidget *label=nullptr, *feedback=nullptr, *enable=nullptr,
-              *bell=nullptr, *threshold=nullptr;
+              *bell=nullptr, *threshold=nullptr, *recovery=nullptr;
     Cpu previous{};
     bool havePrevious=false, settingsValid=true, synchronizing=false;
     guint timer=0;
@@ -53,6 +54,32 @@ static void on_threshold(GtkSpinButton*,gpointer data) {
     persist_controls(static_cast<PanelState*>(data));
 }
 
+static void on_recover_settings(GtkButton*,gpointer data) {
+    auto* state=static_cast<PanelState*>(data);
+    if(state->settingsValid)return;
+    std::string error;
+    if(!recover_invalid_native_settings(error)) {
+        const std::string text="Recovery refused: "+error;
+        gtk_label_set_text(GTK_LABEL(state->feedback),text.c_str());
+        return;
+    }
+    NativeSettings defaults{};
+    if(!load_native_settings(defaults,error)) {
+        const std::string text="Recovery file retained; read failed: "+error;
+        gtk_label_set_text(GTK_LABEL(state->feedback),text.c_str());
+        return;
+    }
+    state->settings=defaults;
+    state->settingsValid=true;
+    state->warning={};
+    restore_controls(state);
+    gtk_widget_set_sensitive(state->enable,TRUE);
+    gtk_widget_set_sensitive(state->bell,TRUE);
+    gtk_widget_set_sensitive(state->threshold,TRUE);
+    gtk_widget_hide(state->recovery);
+    gtk_label_set_text(GTK_LABEL(state->feedback),
+        "Defaults restored (alerts OFF); original saved as settings.ini.rejected.");
+}
 static gboolean refresh_panel(gpointer data) {
     auto* state=static_cast<PanelState*>(data);
     Cpu current{};
@@ -139,6 +166,9 @@ static void activate(GtkApplication* app,gpointer) {
     state->feedback=gtk_label_new("No thermal shutdown; physical audio unverified.");
     gtk_label_set_xalign(GTK_LABEL(state->feedback),0.f);
     gtk_box_pack_start(GTK_BOX(box),state->feedback,FALSE,FALSE,0);
+    state->recovery=gtk_button_new_with_label(
+        "Recover invalid settings (preserve original .rejected)");
+    gtk_box_pack_start(GTK_BOX(box),state->recovery,FALSE,FALSE,0);
     restore_controls(state);
     if(!state->settingsValid) {
         std::string message="Invalid settings; controls disabled: "+settingsError;
@@ -150,10 +180,12 @@ static void activate(GtkApplication* app,gpointer) {
     g_signal_connect(state->enable,"toggled",G_CALLBACK(on_toggle),state);
     g_signal_connect(state->bell,"toggled",G_CALLBACK(on_toggle),state);
     g_signal_connect(state->threshold,"value-changed",G_CALLBACK(on_threshold),state);
+    g_signal_connect(state->recovery,"clicked",G_CALLBACK(on_recover_settings),state);
     g_signal_connect(window,"destroy",G_CALLBACK(on_destroy),state);
     refresh_panel(state);
     state->timer=g_timeout_add_seconds(2,refresh_panel,state);
     gtk_widget_show_all(window);
+    if(state->settingsValid)gtk_widget_hide(state->recovery);
 }
 
 static int show_settings() {
@@ -200,6 +232,14 @@ static int update_settings(const char* command,const char* value) {
 int main(int argc,char** argv) {
     // Noninteractive modes never create a GTK session or modify global settings.
     if(argc==2 && !std::strcmp(argv[1],"--settings"))return show_settings();
+    if(argc==2 && !std::strcmp(argv[1],"--recover-settings")) {
+        std::string error;
+        if(!recover_invalid_native_settings(error)) {
+            std::fprintf(stderr,"Recovery refused: %s\n",error.c_str());
+            return 3;
+        }
+        return show_settings();
+    }
     if(argc==3)return update_settings(argv[1],argv[2]);
     if(argc==2 && !std::strcmp(argv[1],"--probe-temperature")) {
         CpuThermal thermal{};
@@ -218,7 +258,7 @@ int main(int argc,char** argv) {
         return 0;
     }
     if(argc!=1) {
-        std::fputs("usage: tbme-linux-panel [--self-test|--probe-temperature|--settings|--set-alert true/false|--set-bell true/false|--set-threshold 50..110]\n",stderr);
+        std::fputs("usage: tbme-linux-panel [--self-test|--probe-temperature|--settings|--recover-settings|--set-alert true/false|--set-bell true/false|--set-threshold 50..110]\n",stderr);
         return 2;
     }
     GtkApplication* app=gtk_application_new(
