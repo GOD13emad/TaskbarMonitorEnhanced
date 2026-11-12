@@ -20,14 +20,14 @@ using Microsoft.Win32;
 [assembly: AssemblyProduct("Taskbar Monitor Enhanced")]
 [assembly: AssemblyCompany("Dr. Ali-Akbar Emadeddin")]
 [assembly: AssemblyCopyright("Copyright © 2026 Dr. Ali-Akbar Emadeddin")]
-[assembly: AssemblyVersion("1.7.8.0")]
-[assembly: AssemblyFileVersion("1.7.8.0")]
-[assembly: AssemblyInformationalVersion("1.7.8+r286")]
+[assembly: AssemblyVersion("1.7.10.0")]
+[assembly: AssemblyFileVersion("1.7.10.0")]
+[assembly: AssemblyInformationalVersion("1.7.10+r299")]
 
 internal static partial class SetupProgram
 {
     const string Product="Taskbar Monitor Enhanced";
-    const string Version="1.7.8";
+    const string Version="1.7.10";
     const string SensorProtocolVersion="1.1.2+r21";
     const string SensorSupervisorVersion="1.3.0+r33";
     const string Publisher="Dr. Ali-Akbar Emadeddin";
@@ -61,7 +61,7 @@ internal static partial class SetupProgram
       "Payload.COPYRIGHT_AND_ATTRIBUTION.md",
       "Payload.AI_ASSISTED_DEVELOPMENT.md",
       "Payload.THIRD_PARTY_NOTICES.md",
-      "Payload.RELEASE_NOTES_v1.7.8.md",
+      "Payload.RELEASE_NOTES_v1.7.10.md",
       "Payload.UPSTREAM_REFERENCE_GPL_NOTICE.md",
       "Payload.TaskbarMonitorEnhanced_Setup.cs"
     };
@@ -760,8 +760,8 @@ internal static partial class SetupProgram
         string sensorMode=sensorOutcome==null?"":(sensorOutcome.LayerMode??"");
         string json="{\r\n"+
           "  \"App\": \"Taskbar Monitor Enhanced\",\r\n"+
-          "  \"Version\": \"1.7.8\",\r\n"+
-          "  \"PublicVersion\": \"1.7.8\",\r\n"+
+          "  \"Version\": \"1.7.10\",\r\n"+
+          "  \"PublicVersion\": \"1.7.10\",\r\n"+
           "  \"InternalRuntimeBaseline\": \"V1_1_2_R21_PRODUCTION_HARDENING\",\r\n"+
           "  \"SensorSupervisor\": \"V1_3_0_R33_STORAGE_COMPLETION_HARDENING\",\r\n"+
           "  \"SensorLayerStatus\": \""+sensorStatus.Replace("\\","\\\\").Replace("\"","\\\"")+"\",\r\n"+
@@ -1004,7 +1004,7 @@ internal static partial class SetupProgram
     static SensorOutcome Install(bool desktop,bool startup)
     {
         if(!Environment.Is64BitOperatingSystem)
-            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.7.8 requires 64-bit Windows.");
+            throw new InvalidOperationException("Taskbar Monitor Enhanced 1.7.10 requires 64-bit Windows.");
 
         // R114: prevent fresh-install code from ever overwriting an installed
         // product or user-owned files. Existing roots must use /update.
@@ -1036,7 +1036,7 @@ internal static partial class SetupProgram
         string[] docs=new string[]{
           "LICENSE","README.md","AUTHORS.md","COPYRIGHT_AND_ATTRIBUTION.md",
           "AI_ASSISTED_DEVELOPMENT.md","THIRD_PARTY_NOTICES.md",
-          "RELEASE_NOTES_v1.7.8.md","UPSTREAM_REFERENCE_GPL_NOTICE.md"
+          "RELEASE_NOTES_v1.7.10.md","UPSTREAM_REFERENCE_GPL_NOTICE.md"
         };
         foreach(string doc in docs)
             Extract("Payload."+doc,Path.Combine(AppRoot,"Docs",doc));
@@ -1115,6 +1115,7 @@ internal static partial class SetupProgram
         return sensorOutcome;
     }
 
+    // R298: port the previously reviewed R356 handle-bound deferred cleanup.
     // R317: defer deletion until this unelevated Setup process exits.
     // Do not write executable scripts into mutable Temp and never run cmd.exe.
     // The entire PowerShell source is an immutable Setup PE string; all paths
@@ -1386,7 +1387,7 @@ foreach($dir in ($dirs|Sort-Object Length -Descending)){
             }
             if(!String.IsNullOrEmpty(path)){
                 string json="{\"Status\":\"PASS\",\"Resources\":"+(RequiredResources.Length+(pawnBundled?1:0))+
-                    ",\"Version\":\"1.7.8\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\""+
+                    ",\"Version\":\"1.7.10\",\"Publisher\":\"Dr. Ali-Akbar Emadeddin\""+
                     ",\"SensorArchitecture\":\"R21_PROCESS_ISOLATED\",\"SensorUpgradePolicy\":\"EXACT_R33_SUPERVISOR_R21_PROTOCOL\""+
                     ",\"PawnIOBundled\":"+(pawnBundled?"true":"false")+",\"EmbeddedMainSHA256\":\""+embeddedMainSHA256+"\",\"EmbeddedMainBytes\":"+embeddedMainBytes+"}";
                 File.WriteAllText(path,json,Encoding.UTF8);
@@ -1425,7 +1426,7 @@ foreach($dir in ($dirs|Sort-Object Length -Descending)){
             Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
             Label title=new Label();
-            title.Text=Product+"  1.7.8";
+            title.Text=Product+"  1.7.10";
             title.Font=new Font(Font.FontFamily,18,FontStyle.Bold);
             title.Left=28;title.Top=22;title.AutoSize=true;Controls.Add(title);
 
@@ -1460,12 +1461,12 @@ foreach($dir in ($dirs|Sort-Object Length -Descending)){
                     progress.Visible=false;
                     status.Text="Installation completed.";
                     if(outcome.IsHealthy){
-                        MessageBox.Show(Product+" 1.7.8 was installed successfully.\r\n\r\nProtected hardware sensor monitoring is active.",
+                        MessageBox.Show(Product+" 1.7.10 was installed successfully.\r\n\r\nProtected hardware sensor monitoring is active.",
                           "Setup complete",MessageBoxButtons.OK,MessageBoxIcon.Information);
                     }else{
                         string extra=outcome.RebootRequired ? "\r\n\r\nRestart Windows, then use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors if needed." :
                           "\r\n\r\nThe application is installed and usable. The sensor supervisor continues in the background. If protected CPU/GPU/storage telemetry is still unavailable after a short wait or restart, use Start Menu > Taskbar Monitor Enhanced - Repair Hardware Sensors.";
-                        MessageBox.Show(Product+" 1.7.8 was installed successfully.\r\n\r\n"+outcome.Message+extra,
+                        MessageBox.Show(Product+" 1.7.10 was installed successfully.\r\n\r\n"+outcome.Message+extra,
                           "Setup complete - sensor warning",MessageBoxButtons.OK,MessageBoxIcon.Warning);
                     }
                     Close();
@@ -1890,7 +1891,7 @@ internal static partial class SetupProgram
         new UpgradeTarget("Docs/COPYRIGHT_AND_ATTRIBUTION.md","Payload.COPYRIGHT_AND_ATTRIBUTION.md"),
         new UpgradeTarget("Docs/AI_ASSISTED_DEVELOPMENT.md","Payload.AI_ASSISTED_DEVELOPMENT.md"),
         new UpgradeTarget("Docs/THIRD_PARTY_NOTICES.md","Payload.THIRD_PARTY_NOTICES.md"),
-        new UpgradeTarget("Docs/RELEASE_NOTES_v1.7.8.md","Payload.RELEASE_NOTES_v1.7.8.md"),
+        new UpgradeTarget("Docs/RELEASE_NOTES_v1.7.10.md","Payload.RELEASE_NOTES_v1.7.10.md"),
         new UpgradeTarget("Docs/UPSTREAM_REFERENCE_GPL_NOTICE.md","Payload.UPSTREAM_REFERENCE_GPL_NOTICE.md"),
         new UpgradeTarget("Uninstall.exe","@SELF"),
         new UpgradeTarget("install_state.json","@INSTALLSTATE"),

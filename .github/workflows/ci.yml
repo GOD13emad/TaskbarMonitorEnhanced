@@ -328,11 +328,11 @@ jobs:
              (git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA) {throw 'R324_GUEST_SOURCE_NOT_PINNED'}
           $files=@(Get-ChildItem r324_built_private -Recurse -File)
           $mf=@($files|Where-Object Name -eq 'BUILD_MANIFEST.json')
-          $sx=@($files|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $sx=@($files|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.10.exe')
           $mx=@($files|Where-Object Name -eq 'TaskbarMonitorEnhanced.exe')
           if($mf.Count -ne 1 -or $sx.Count -ne 1 -or $mx.Count -ne 1){throw 'R324_UNEXPECTED_CANDIDATE_FILES'}
           $manifest=Get-Content -LiteralPath $mf[0].FullName -Raw|ConvertFrom-Json
-          $sm=@($manifest.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $sm=@($manifest.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.10.exe')
           $mm=@($manifest.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced.exe')
           if($sm.Count -ne 1 -or $mm.Count -ne 1 -or
              (Get-FileHash $sx[0].FullName -Algorithm SHA256).Hash -cne [string]$sm[0].SHA256 -or
@@ -357,11 +357,11 @@ jobs:
              $env:RUNNER_OS -cne 'Windows' -or (git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){
             throw 'R331_REFUSE_NON_DISPOSABLE_HOST_OR_SOURCE'
           }
-          $setups=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $setups=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'TaskbarMonitorEnhanced_Setup_1.7.10.exe')
           $manifests=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'BUILD_MANIFEST.json')
           if($setups.Count -ne 1 -or $manifests.Count -ne 1){throw 'R331_EXACT_PRIVATE_BIN_NOT_UNIQUE'}
           $buildManifest=Get-Content $manifests[0].FullName -Raw|ConvertFrom-Json
-          $setupEntry=@($buildManifest.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $setupEntry=@($buildManifest.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.10.exe')
           if($setupEntry.Count -ne 1 -or
              (Get-FileHash $setups[0].FullName -Algorithm SHA256).Hash -cne $setupEntry[0].SHA256){
             throw 'R331_HOSTED_SETUP_BINARY_NOT_MANIFEST_PINNED'
@@ -397,11 +397,11 @@ jobs:
              $env:RUNNER_OS -cne 'Windows' -or (git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){
             throw 'R332_NOT_THE_DISPOSABLE_EXACT_GUEST'
           }
-          $setup=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $setup=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'TaskbarMonitorEnhanced_Setup_1.7.10.exe')
           $mf=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'BUILD_MANIFEST.json')
           if($setup.Count -ne 1 -or $mf.Count -ne 1){throw 'R332_CANDIDATE_AND_MANIFEST_NOT_UNIQUE'}
           $manifest=Get-Content $mf[0].FullName -Raw|ConvertFrom-Json
-          $m=@($manifest.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $m=@($manifest.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.10.exe')
           if($m.Count -ne 1 -or (Get-FileHash $setup[0].FullName -Algorithm SHA256).Hash -cne [string]$m[0].SHA256){
             throw 'R332_SETUP_PRIVATE_BINARY_NOT_MANIFEST_PINNED'
           }
@@ -435,11 +435,11 @@ jobs:
              $env:RUNNER_OS -cne 'Windows' -or (git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){
              throw 'R333_NOT_EXACT_DISPOSABLE_GUEST'
           }
-          $setups=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $setups=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'TaskbarMonitorEnhanced_Setup_1.7.10.exe')
           $manifests=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'BUILD_MANIFEST.json')
           if($setups.Count -ne 1 -or $manifests.Count -ne 1){throw 'R333_PRIVATE_SETUP_OR_MANIFEST_AMBIGUOUS'}
           $manifest=Get-Content $manifests[0].FullName -Raw|ConvertFrom-Json
-          $identity=@($manifest.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $identity=@($manifest.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.10.exe')
           if($identity.Count -ne 1 -or (Get-FileHash $setups[0].FullName -Algorithm SHA256).Hash -cne [string]$identity[0].SHA256){
              throw 'R333_PRIVATE_SETUP_EXACT_SHA_NOT_PINNED'
           }
@@ -473,11 +473,11 @@ jobs:
              $env:RUNNER_OS -cne 'Windows' -or (git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){
              throw 'R334_REFUSE_NON_DISPOSABLE_OR_UNPINNED_WINDOWS'
           }
-          $setups=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $setups=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'TaskbarMonitorEnhanced_Setup_1.7.10.exe')
           $manifests=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'BUILD_MANIFEST.json')
           if($setups.Count -ne 1 -or $manifests.Count -ne 1){throw 'R334_PRIVATE_SETUP_OR_BUILD_MANIFEST_AMBIGUOUS'}
           $manifest=Get-Content $manifests[0].FullName -Raw|ConvertFrom-Json
-          $identity=@($manifest.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $identity=@($manifest.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.10.exe')
           if($identity.Count -ne 1 -or
              (Get-FileHash $setups[0].FullName -Algorithm SHA256).Hash -cne [string]$identity[0].SHA256){
              throw 'R334_PRIVATE_COMPILED_SETUP_NOT_PINNED'
@@ -512,11 +512,11 @@ jobs:
              $env:RUNNER_OS -cne 'Windows' -or (git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){
              throw 'R335_NATIVE_REFUSE_NON_HOSTED_OR_CHANGED_SOURCE'
           }
-          $setup=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $setup=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'TaskbarMonitorEnhanced_Setup_1.7.10.exe')
           $manifest=@(Get-ChildItem r324_built_private -Recurse -File -Filter 'BUILD_MANIFEST.json')
           if($setup.Count -ne 1 -or $manifest.Count -ne 1){throw 'R335_BUILD_PROOF_AMBIGUOUS'}
           $m=Get-Content $manifest[0].FullName -Raw|ConvertFrom-Json
-          $target=@($m.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.8.exe')
+          $target=@($m.Outputs|Where-Object Name -eq 'TaskbarMonitorEnhanced_Setup_1.7.10.exe')
           if($target.Count -ne 1 -or
              (Get-FileHash $setup[0].FullName -Algorithm SHA256).Hash -cne [string]$target[0].SHA256){
              throw 'R335_PRIVATE_SETUP_NOT_BUILD_MANIFEST_PINNED'

@@ -4,7 +4,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 if($PSVersionTable.PSEdition -cne 'Desktop'){throw 'R335_REQUIRES_NATIVE_WINDOWS_NETFRAMEWORK'}
 if([string]::IsNullOrWhiteSpace($SetupPath)) {
- $SetupPath=Join-Path $PSScriptRoot '_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.8.exe'
+ $SetupPath=Join-Path $PSScriptRoot '_out\Setup\TaskbarMonitorEnhanced_Setup_1.7.10.exe'
 }
 if(!(Test-Path -LiteralPath $SetupPath -PathType Leaf)){throw 'R335_EXACT_COMPILED_SETUP_NOT_PRESENT'}
 $setup=(Resolve-Path -LiteralPath $SetupPath).Path
