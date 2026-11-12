@@ -74,6 +74,25 @@ jobs:
         shell: pwsh
         run: ./build/Build.ps1
 
+      - name: R434 compiled Setup PowerShell argument transport rejects injection without launching
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R434-EncodedPowerShellArgTransport.ps1 -SetupPath ./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe -SourceRoot .)
+          foreach($mark in @(
+            'R434_PASS_COMPILED_INSTALL_THREE_UNTRUSTED_STRINGS_BASE64_ONLY',
+            'R434_PASS_COMPILED_UNINSTALL_THREE_UNTRUSTED_STRINGS_BASE64_ONLY',
+            'R434_PASS_FOUR_NON_ALLOWLISTED_MODE_ATTEMPTS_REJECTED_BEFORE_PIPE_CREATION',
+            'R434_PASS_COMPILED_DEFERRED_UNINSTALL_ROOT_ONLY_AS_BASE64_DATA',
+            'R434_PASS_THREE_UNTRUSTED_DEFERRED_UNINSTALL_ROOTS_REJECTED',
+            'R434_PASS_COMPILED_SETUP_SHA256_UNCHANGED',
+            'R434_PASS_NO_PROCESS_START_NO_UAC_NO_HELPER_EXECUTION',
+            'R434_RESULT=PASS_COMPILED_ELEVATED_HELPER_ARG_TRANSPORT_SCOPED'
+          )){
+            if($proof -cnotcontains $mark){throw ('R434_NATIVE_SETUP_ARG_TRANSPORT_PROOF_MISSING_'+$mark)}
+          }
+          $proof
+
       - name: R398 compiled Updater rejects parent junction and redirects before writes
         shell: powershell
         run: |
