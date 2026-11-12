@@ -142,3 +142,16 @@ jobs:
             fi
           done
           echo 'TBME_NATIVE_STREAM_COUNT_REFUSAL=PASS'
+          # A longer native sequence can reveal macOS 32-bit Mach counter wraps.
+          ./tbme-native-probe --samples 20 > telemetry-stress.ndjson
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          lines = Path("telemetry-stress.ndjson").read_text(encoding="utf-8").splitlines()
+          assert len(lines) == 20, f"expected 20 records, got {len(lines)}"
+          for line in lines:
+              data = json.loads(line)
+              assert 0 <= data["cpuPercent"] <= 100
+              assert 0 <= data["memoryAvailableBytes"] <= data["memoryTotalBytes"]
+          print("TBME_NATIVE_TWENTY_CONSECUTIVE_SAMPLES=PASS")
+          PY

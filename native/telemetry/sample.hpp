@@ -15,10 +15,30 @@
 #else
 #error Unsupported native telemetry platform
 #endif
-struct Cpu { std::uint64_t busy=0, idle=0; };
+struct Cpu {
+    std::uint64_t busy=0, idle=0;
+#ifdef __APPLE__
+    // Mach host_cpu_load_info uses independent 32-bit cumulative tick lanes.
+    std::uint32_t userTicks=0, systemTicks=0, niceTicks=0, idleTicks=0;
+    bool machTicks=false;
+#endif
+};
 struct Mem { std::uint64_t total=0, available=0; };
 inline double percent(Cpu a,Cpu b) {
-    if (b.busy<a.busy||b.idle<a.idle) return -1.;
+#ifdef __APPLE__
+    if(a.machTicks && b.machTicks) {
+        // Unsigned per-lane deltas handle the independent 32-bit counter wraps.
+        // A 200ms interval cannot span 2^32 ticks of one Mach lane.
+        auto tickDelta=[](std::uint32_t earlier,std::uint32_t later)->std::uint64_t {
+            return static_cast<std::uint32_t>(later-earlier);
+        };
+        const std::uint64_t used=tickDelta(a.userTicks,b.userTicks)+
+            tickDelta(a.systemTicks,b.systemTicks)+tickDelta(a.niceTicks,b.niceTicks);
+        const std::uint64_t idle=tickDelta(a.idleTicks,b.idleTicks);
+        if(used+idle==0)return -1.;
+        return 100.*static_cast<double>(used)/static_cast<double>(used+idle);
+    }
+#endif
     auto used=b.busy-a.busy, idle=b.idle-a.idle;
     if (!used&&!idle) return -1.;
     return 100.*static_cast<double>(used)/static_cast<double>(used+idle);
@@ -56,9 +76,14 @@ inline bool cpu(Cpu& c) {
     mach_msg_type_number_t count=HOST_CPU_LOAD_INFO_COUNT;
     if(host_statistics(mach_host_self(),HOST_CPU_LOAD_INFO,
        reinterpret_cast<host_info_t>(&info),&count)!=KERN_SUCCESS) return false;
-    c.busy=static_cast<std::uint64_t>(info.cpu_ticks[CPU_STATE_USER])+
-           info.cpu_ticks[CPU_STATE_SYSTEM]+info.cpu_ticks[CPU_STATE_NICE];
-    c.idle=info.cpu_ticks[CPU_STATE_IDLE];return true;
+    c.userTicks=static_cast<std::uint32_t>(info.cpu_ticks[CPU_STATE_USER]);
+    c.systemTicks=static_cast<std::uint32_t>(info.cpu_ticks[CPU_STATE_SYSTEM]);
+    c.niceTicks=static_cast<std::uint32_t>(info.cpu_ticks[CPU_STATE_NICE]);
+    c.idleTicks=static_cast<std::uint32_t>(info.cpu_ticks[CPU_STATE_IDLE]);
+    c.busy=static_cast<std::uint64_t>(c.userTicks)+c.systemTicks+c.niceTicks;
+    c.idle=c.idleTicks;
+    c.machTicks=true;
+    return true;
 }
 inline bool mem(Mem& m) {
     std::uint64_t total=0;size_t size=sizeof(total);

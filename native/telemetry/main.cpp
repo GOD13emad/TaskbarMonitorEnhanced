@@ -10,7 +10,15 @@ static int self_test() {
        percent({20,20},{10,30})!=-1.||
        percent({1,2},{1,2})!=-1.||
        percent({0,0},{10,0})!=100.) return 1;
-    std::puts("TBME_NATIVE_SENSOR_SELFTEST=PASS");
+#ifdef __APPLE__
+    Cpu machBefore{},machAfter{};
+    machBefore.machTicks=machAfter.machTicks=true;
+    machBefore.userTicks=0xfffffffau; machAfter.userTicks=10u;
+    machBefore.idleTicks=0xfffffffau; machAfter.idleTicks=10u;
+    if(std::abs(percent(machBefore,machAfter)-50.)>0.00001)return 1;
+    machAfter.idleTicks=machBefore.idleTicks;
+    if(std::abs(percent(machBefore,machAfter)-100.)>0.00001)return 1;
+#endif
     return 0;
 }
 static int emit_sample() {
