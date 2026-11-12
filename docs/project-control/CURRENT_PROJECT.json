@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R429",
-  "Status": "R429_LOCALAPPDATA_KNOWNFOLDER_OS_REDIRECTION_UNSUPPORTED_DEFER_GATE_PR98_HUMAN_REVIEW_REQUIRED",
-  "UpdatedUtc": "2026-11-12T05:55:29.1162786Z",
+  "CurrentEngineeringRevision": "R430",
+  "Status": "R430_SCOPED_HOSTED_R407_R408_SECURITY_GATES_VERIFIED_PR98_HUMAN_REVIEW_REQUIRED",
+  "UpdatedUtc": "2026-11-12T06:27:52.3798272Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -115,7 +115,6 @@
     "R384: corrected R383 partial-stage cleanup flaw by repeating complete per-level allowlist/reparse inventory immediately before any known deletion. Exact R379 baseline negative 2/2 and exact R384 Candidate 10/10 including late root file, late empty directory, nested late file; all five journal metadata markers and stage structure preserved on refusal. Full Main/Broker/Supervisor/Setup build 0 warnings/errors, 3 selftests, Setup /verify 25/25. Exact PR head f59e1dc CI 63/63, hosted R370 push+PR 8/8, R360 6 real Windows 2022/2025 UI cycles and 24/24 hide samples 28-498ms median 233.5ms; R299 actual public v1.7.9 in-place upgrade and R300 actual fresh install PASS, exact Setup SHA 01A208F1FF0929AD6E03D895803AD08A65BB39F1B0014EB0B2A4DF4FC31D8CB9. Aggregate receipt SHA256 66EA0AC59B24D5B0C67B2961E084CAAB8F3CE2778774D418818DB070C6A05266. Human review still required; R371 historical failures remain unproven; Notion restoration still requires explicit user confirmation."
   ],
   "Open": [
-    "R407_DISPOSABLE_HOSTED_CREATEPROCESS_ACCEPTANCE_PENDING",
     "OWNER_V179_TO_V1710_UPGRADE_TRANSACTION_PROVENANCE_NOT_INDEPENDENTLY_REVALIDATED",
     "ISSUE6_REPORTER_DRIVER_SHA_AND_INSTALL_ORIGIN_MISSING",
     "PR98_INDEPENDENT_HUMAN_SECURITY_REVIEW_PENDING",
@@ -124,7 +123,7 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "R429 fresh Windows11 Enterprise26100 Sandbox: SHSetKnownFolderPath(FOLDERID_LocalAppData) rejects off-default destination HRESULT0x80070057, original SHGet and DotNet paths match, guest safely closed. Microsoft explains Windows10 1803+ deliberately prevents LocalAppData move to avoid profile corruption; supported R409 Windows10 floor17763 >=1809. Therefore reclassify genuine OS redirect acceptance as NOT_APPLICABLE on supported systems, while retaining R421 fail-closed forged-path guard. PR98 human last-head security review BLOCKED; PR106 Draft. Win11 unsigned App Control full install, Win10 missing Framework UAC/reboot and native Linux/macOS still unaccepted.",
+  "CriticalPath": "R430 existing exact-head hosted CI 43164643589 true Windows runtime markers reconcile R407 7/7 and R408 8/8 scoped PASS: native harmless CreateProcess with file and ancestor leases, ten mutation refusals, Broker 3 allowed/14 refused bindings and real executable external-output rejection, disposable atomic write. PR98 independent HUMAN review BLOCKED; PR106 Draft. Enforced unsigned Windows11 App Control installation, genuine absent-Framework Windows10 UAC/reboot, owner upgrade transition witness, historical R291 and native Linux/macOS remain unaccepted.",
   "MainBlocker": "PR98 exact last-head independent human security approval still BLOCKED/REVIEW_REQUIRED, dependent PR106 Draft. Windows11 enforced App Control refuses unsigned Setup; R428 reports refusal accurately without bypass. Windows10 missing-Framework UAC/reboot remains untested without an isolated licensed older build. R429 supports de-scoping unsupported LocalAppData OS redirection rather than weakening R421 security boundary.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
   "ExactNextAction": "Obtain real independent PR98 human last-head review and address findings, then ruleset-compliant merge and revalidate PR106 exact-head CI. Do not bypass Windows App Control. For genuinely missing Framework Windows10 UAC/reboot, obtain a licensed isolated compatible host before validation, never uninstall .NET on owner/production hosts. Linux/macOS native applications remain separate unimplemented scope.",
@@ -2493,7 +2492,7 @@
     "Limit": "PR R396 acceptance is real but same-head manual repeatability failed. R397 is test-only and must be revalidated on its exact head; human independent review of PR #98 still absent."
   },
   "R407": {
-    "Status": "LOCAL_COMPILED_REGRESSION_PASS_HOSTED_PENDING",
+    "Status": "LOCAL_AND_HOSTED_COMPILED_BROKER_LAUNCH_LEASE_PASS_SCOPED",
     "Parent": "27160f83b9770019e900ec2511d4e4fa5e860094",
     "TimestampUtc": "2026-11-11T08:43:17.5980464Z",
     "Objective": "Eliminate preflight-to-CreateProcess Broker executable and ancestor rename/write gap without elevation, by native handle-identity checking, GEN_READ file sharing and no-delete directory pins across launch.",
@@ -2513,7 +2512,9 @@
       "GitDiff": "CHECK_PASS",
       "FirstNegativeFinding": "READ_ATTRIBUTES_ONLY_ALLOWED_BROKER_FILE_REWRITE",
       "Fix": "GENERIC_READ_FOR_BROKER_FILE_ONLY_DIRECTORY_READ_ATTRIBUTES_PRESERVED",
-      "HostedRealCreateProcess": "PENDING"
+      "HostedRealCreateProcess": "PASS_EXACT_HEAD_RUN_43164643589",
+      "HostedR430ReceiptSHA256": "EE67A5E59D07298E2551CFD0D11F6F74AAD64A2E3C543B5DC1672EEC15AF9AEB",
+      "HostedR430RuntimeMarkers": 7
     },
     "SecurityScope": "Protect executable and existing owner/protected ancestor handles only through Process.Start. Native loaded-child completion, all NTFS attack classes, and owner real GUI are outside local fixture proof.",
     "OwnerInstallationChanged": false,
@@ -2522,7 +2523,7 @@
     "IndependentHumanReview": "REQUESTED_PENDING"
   },
   "R408": {
-  "Status": "LOCAL_COMPILED_PASS_HOSTED_PENDING",
+  "Status": "LOCAL_AND_HOSTED_COMPILED_BROKER_OUTPUT_GUARD_PASS_SCOPED",
   "Parent": "2068c2499efee649fcf65d3ef1421c6b21a2e834",
   "TimestampUtc": "2026-11-11T10:27:16.2508402Z",
   "Objective": "Eliminate standalone Broker arbitrary output write from untrusted caller argv, independently of Supervisor.",
@@ -2544,7 +2545,9 @@
     "ExternalCanary": "SHA_UNCHANGED",
     "R407": "PASS",
     "OwnerLocalAppDataPaths": "READ_ONLY_PASS",
-    "HostedRealAtomicWrite": "PENDING",
+    "HostedRealAtomicWrite": "PASS_EXACT_HEAD_RUN_43164643589_DISPOSABLE_SYNTHETIC_OWNER_ROOT",
+    "HostedR430ReceiptSHA256": "DFCDA2C9780FD35F0D3C0A79B78E9B6E529AECF950AC18E9F8060A105745CF5F",
+    "HostedR430RuntimeMarkers": 8,
     "FirstHostedRun": "43003898271_FAIL_R408_EXISTING_RUNNER_ROOT",
     "FirstR367Run": "43003889358_CANDIDATE_REFLECTION_OLD_ENTRYPOINT_FAIL",
     "LocalFixtureRecovery": "R408_AND_R367_CANDIDATE_PASS_AFTER_SYNTHETIC_LEASE",
@@ -2907,5 +2910,6 @@
   "R426": {"Status":"WIN11_WIN10_NATIVE_AND_EXACT_GITHUB_OFFLINE_AND_UPGRADE_PASS_INDEPENDENT_REVIEW_PENDING","FeatureHead":"74330303d8cc72cd858c2c98e9bef51e62c1d3ff","ChangeScope":"PINNED_SETUP_SHA256_FILE_LEAF_ACROSS_START_PROCESS_NOT_ANCESTOR_IDENTITY","Diagnostic":"VERIFY_PINNED_SETUP_READ_ONLY_MODE","Win11NativeOperation":"72660bbb-72e2-40a6-aa67-8d3e85507a01","Win11Native":"PASS_ONLINE_PACK_R426_REAL_VERIFY_AND_TAMPER_REJECTION_R409_R424","Win10NativeOperation":"b89c54de-3a7f-456f-9dc1-f893bfebfb81","Win10Native":"PASS_EXACT_SCRIPT_AND_REAL_PUBLIC_V1710_SETUP_SHA_PINNED_VERIFY_AND_TAMPER_REJECTION","Win10ScriptSHA256":"463454172E2B3B36D903625A425F024DECC59DF3063AEA761FB688BD966A6EE9","Win10PublicSetupSHA256":"1D0326CF11CEE069AD295112A9CA49D9FCBDB58ECDAB46FFE9C0F7172CE26D7E","HostedBuildRun":43144125613,"HostedBuildResult":"PASS_4_OF_4","HostedOfflineRun":43144118935,"HostedOfflineResult":"PASS_REAL_OFFLINE_R426_NATIVE_VERIFY","ArtifactId":13910419336,"ArtifactBytes":128561722,"ArtifactDigest":"17D6E11407674546A70835D6AA81812068B557BF404B7B14420B1CC82DB5EF54","PR98":"BLOCKED_REVIEW_REQUIRED","PR106":"DRAFT_UNMERGED","Windows10MissingFrameworkUacReboot":"NOT_TESTED","RegisteredKnownFolderRedirection":"NOT_TESTED","NativeLinuxMacOS":"NOT_IMPLEMENTED","OwnerAppChanged":false,"PublicReleaseChanged":false},
   "R427": {"Status":"BLOCKED_BY_ENFORCED_WIN11_CODEINTEGRITY_UNSIGNED_SETUP_PREINSTALL","SourceHead":"7ee836d69c9d4dd1e36a7e56072c988bfae1e028","CandidateZipSHA256":"B035C4D349BE8BF98BA5F221E299179E0296C546B5A26EA072606508ECD95488","SetupSHA256":"DDBB60DDE512B4DF684B3547E5FBAB84CA1F2585A99F82840E71261542601308","LegacyV179SHA256":"3AE5E2AC7428C3443FF7768C543117AF864E7C73F68D32EFAD4AB40B30FB5B0E","WindowsSandbox":"WIN11_ENTERPRISE_26100_WDAGUTILITYACCOUNT_NETWORK_DISABLED","CheckOnly":"PASS","Attempt1":"HARNESS_ARGS_COLLISION_NOT_PRODUCT","Attempt2":"PINNED_VERIFY_OS_POLICY_BLOCK","DirectWithoutPin":"ALSO_BLOCKED","Authenticode":"NotSigned","CodeIntegrityEvent3077":1,"AppControlPolicyState":"1","FullGuestInstallAndUpgrade":"NOT_ACCEPTED","PolicyDisabled":false,"GuestClosed":true,"OwnerMainAndConfigUnchanged":true,"HostReceiptSHA256":"F45FC7B51D36723BDD790FE19E0415B95DFA60F83BEB7A67F94BE4C9E3578E5D","PR98":"BLOCKED_REVIEW_REQUIRED","PR106":"DRAFT","SignedDistribution":"OUT_OF_SCOPE_UNDER_PREVIOUS_UNSIGNED_WAIVER","RealWin10MissingFrameworkUacReboot":"UNTESTED","GenuineKnownFolderRedirect":"UNTESTED","NativeLinuxMacOS":"NOT_IMPLEMENTED","ReleaseChanged":false},
   "R428": {"Status":"APP_CONTROL_DIAGNOSIS_AND_REAL_FAILURE_EXIT1_PASS_FULL_UNSIGNED_INSTALL_BLOCK_REMAINS","CodeHead":"a8589b4e7042735a9d4bba07d8609a962484cf13","Scope":"ONLY_ACTIONABLE_OS_DENIAL_REPORTING_AND_NATIVE_TEST_EXIT_RECEIPT_FIX","Win32AppControlError":4551,"EnglishFallback":"AN_APPLICATION_CONTROL_POLICY_HAS_BLOCKED_THIS_FILE","OtherErrorsRetainOriginalClassification":true,"Windows11NativeOperation":"dd2e9874-1a1b-4c41-8806-48a14bc07b01","Windows11Native":"R409_R410_R414_R424_R426_R428_ALL_READONLY_AND_TAMPER_TESTS_PASS","Windows11RealSandbox":"PASS_NATIVE_EXIT1_AND_R428_MESSAGE_IN_ENFORCED_APP_CONTROL_NO_INSTALL","Windows11SandboxHostReceiptSHA256":"1CFDC331F952ED99BA0F80CB9B0AE89782022C61B6F06545AFFB9942A8C148E0","SandboxProcessStartReportedExit0":true,"SandboxNativeProcessExit":1,"SandboxExit17And23IncorrectlyReported0":true,"ProductInstalledInSandbox":false,"PolicyDisabled":false,"SandboxNetworkDisabled":true,"SandboxSessionClosed":true,"Win10NativeOperation":"524c464d-5084-43f3-b96f-ec8992b23bef","Win10SourceGitBlobSHA256":"138136E1E2A52BCA7E19443B5F5EB60466D342021FE0CEE36AEB21A74DA7F228","Win10Native":"PASS_4551_WRAPPED_TEXT_NOT_ACCESS_DENIED_OR_FILE_MISSING","HostedBuild":43160738123,"HostedBuildResult":"PASS_4_OF_4","HostedOffline":43160732012,"HostedOfflineResult":"PASS","PR98":"BLOCKED_REVIEW_REQUIRED_HUMAN","PR106":"DRAFT","Windows11AppControlUnsignedFullInstall":"BLOCKED","RealWin10MissingFrameworkUacReboot":"NOT_TESTED","GenuineLocalAppDataRedirection":"NOT_TESTED","NativeLinuxMacOS":"NOT_IMPLEMENTED","OwnerMainAndConfigChanged":false,"PublicReleaseChanged":false},
-  "R429": {"Status":"ACCEPTED_OS_REJECTS_UNSUPPORTED_LOCALAPPDATA_RELOCATION","HeadBeforeDocs":"c3f1216ce2733cde76aa741a6494f9c12cbd4adf","Guest":"Windows11_Enterprise26100_WDAGUtilityAccount_NetworkDisabled","API":"SHSetKnownFolderPath_FolderID_LocalAppData","BaselineShellEqualsDotNet":true,"HRESULT":"0x80070057","RegisteredRedirectSucceeded":false,"FullRedirectedProductOperationAccepted":false,"SupportedWindowsBuildFloor":17763,"MicrosoftRootCause":"Windows10_1803_plus_moving_LocalAppData_blocked_to_prevent_profile_corruption","MicrosoftSource":"https://devblogs.microsoft.com/oldnewthing/20200115-00/?p=103329","Decision":"RETIRE_UNSUPPORTED_REGISTERED_LOCALAPPDATA_REDIRECTION_AS_A_RELEASE_GATE","R421TrustedBrokerBoundary":"UNCHANGED_FAIL_CLOSED","HostReceiptSHA256":"4E1DC2225D2FBC5A869982EB23469072348C0672B1A32393B1508F051432C853","GuestClosed":true,"HostOrOwnerChanged":false,"SecurityPoliciesChanged":false,"PR98":"BLOCKED_HUMAN_REVIEW_REQUIRED","PR106":"DRAFT","Win11UnsignedAppControlInstall":"BLOCKED","MissingFrameworkWindows10UacReboot":"NOT_TESTED","NativeLinuxMacOS":"NOT_IMPLEMENTED","ReleaseChanged":false}
+  "R429": {"Status":"ACCEPTED_OS_REJECTS_UNSUPPORTED_LOCALAPPDATA_RELOCATION","HeadBeforeDocs":"c3f1216ce2733cde76aa741a6494f9c12cbd4adf","Guest":"Windows11_Enterprise26100_WDAGUtilityAccount_NetworkDisabled","API":"SHSetKnownFolderPath_FolderID_LocalAppData","BaselineShellEqualsDotNet":true,"HRESULT":"0x80070057","RegisteredRedirectSucceeded":false,"FullRedirectedProductOperationAccepted":false,"SupportedWindowsBuildFloor":17763,"MicrosoftRootCause":"Windows10_1803_plus_moving_LocalAppData_blocked_to_prevent_profile_corruption","MicrosoftSource":"https://devblogs.microsoft.com/oldnewthing/20200115-00/?p=103329","Decision":"RETIRE_UNSUPPORTED_REGISTERED_LOCALAPPDATA_REDIRECTION_AS_A_RELEASE_GATE","R421TrustedBrokerBoundary":"UNCHANGED_FAIL_CLOSED","HostReceiptSHA256":"4E1DC2225D2FBC5A869982EB23469072348C0672B1A32393B1508F051432C853","GuestClosed":true,"HostOrOwnerChanged":false,"SecurityPoliciesChanged":false,"PR98":"BLOCKED_HUMAN_REVIEW_REQUIRED","PR106":"DRAFT","Win11UnsignedAppControlInstall":"BLOCKED","MissingFrameworkWindows10UacReboot":"NOT_TESTED","NativeLinuxMacOS":"NOT_IMPLEMENTED","ReleaseChanged":false},
+  "R430": {"Status":"PASS_SCOPED_HOSTED_R407_R408_NATIVE_RUNTIME","SourceHead":"7af907a228614f036ecb2b71cb798b24a7dd33b7","RunId":43164643589,"BuildJobId":131003537854,"R407RuntimeMarkers":7,"R407ReceiptSHA256":"EE67A5E59D07298E2551CFD0D11F6F74AAD64A2E3C543B5DC1672EEC15AF9AEB","R408RuntimeMarkers":8,"R408ReceiptSHA256":"DFCDA2C9780FD35F0D3C0A79B78E9B6E529AECF950AC18E9F8060A105745CF5F","OwnerBrokerNotTested":true,"PR98HumanReview":"BLOCKED","PR106":"DRAFT","OwnerAppChanged":false,"ReleaseChanged":false}
 }
