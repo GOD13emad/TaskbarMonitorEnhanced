@@ -232,6 +232,12 @@ jobs:
           after="$(shasum -a 256 "$app/Contents/MacOS/tbme-macos-status" | cut -d' ' -f1)"
           test "$before" = "$after"
           echo 'TBME_MACOS_PACKAGE_NO_OVERWRITE=PASS'
+      - name: Native unsigned macOS preview synthetic upgrade reinstall rollback and remove
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          bash native/macos/test-preview-lifecycle.sh \
+            "$RUNNER_TEMP/TaskbarMonitorEnhancedNativePreview.app"
       - name: Preserve unsigned Linux preview as temporary internal CI artifact
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
