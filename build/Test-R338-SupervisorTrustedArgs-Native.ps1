@@ -106,8 +106,12 @@ try {
     $redirectedApp=Join-Path $redirectedLocal 'TaskbarMonitorEnhanced'
     [void][IO.Directory]::CreateDirectory($redirectedApp)
     $redirectedOutput=Join-Path $redirectedApp 'cpu_temp_broker.json'
-    if(!(Invoke-Trusted ([string[]]@($broker,$redirectedOutput,$brokerDir,$program,$profile,$redirectedLocal)))){throw 'R338_VALID_LOCALAPPDATA_REDIRECTION_REFUSED'}
-    Pass 'TRUST_CHECK_ACCEPTS_REDIRECTED_LOCALAPPDATA_ON_LOCAL_VOLUME'
+    # R421: an arbitrary caller-supplied local-volume path is not an OS-attested
+    # Known Folder redirection. The Broker itself rejects this foreign profile
+    # output, so Supervisor must fail closed before attempting process launch.
+    # Genuine OS-registered redirection remains a separate compatibility gate.
+    if(Invoke-Trusted ([string[]]@($broker,$redirectedOutput,$brokerDir,$program,$profile,$redirectedLocal))){throw 'R421_NONCANONICAL_LOCALAPPDATA_OUTSIDE_PROFILE_ACCEPTED'}
+    Pass 'R421_TRUST_CHECK_REJECTS_UNVERIFIED_FOREIGN_LOCALAPPDATA'
     # Each OS-known trusted root is tested through a genuine Windows junction.
     # The foreign targets are existing sandbox directories, so rejection is
     # attributable to the reparse component rather than a missing path.

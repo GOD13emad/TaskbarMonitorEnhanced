@@ -496,8 +496,10 @@ internal static class TaskbarMonitorSensorSupervisor
     }
 
     // OS known-folder paths are supplied by Main, never accepted from argv.
-    // LocalAppData may be redirected to another local volume; require the exact
-    // OS-provided value, reject UNC/reparse paths, and derive the output beneath it.
+    // R421: this release's installed Broker and per-user installer require
+    // profile\AppData\Local. Arbitrary caller-defined local-volume paths are
+    // rejected; genuine Windows Known Folder redirection remains a separate
+    // compatibility acceptance gate, not a silent relaxation of the boundary.
     static bool TrustedWorkerPaths(string broker,string output,string executableDirectory,
                                    string programFiles,string profile,string localAppData)
     {
@@ -529,6 +531,13 @@ internal static class TaskbarMonitorSensorSupervisor
                 return false;
             string pf=pfFull.TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
             string local=localFull.TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
+            // R421: Windows KnownFolder LocalAppData may follow a poisoned process
+            // environment. It must still equal the current OS profile's AppData\Local,
+            // not merely a writable directory under an arbitrary absolute path.
+            string expectedLocal=Path.GetFullPath(Path.Combine(userFull,"AppData","Local"))
+                .TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
+            if(!String.Equals(local,expectedLocal,StringComparison.OrdinalIgnoreCase))
+                return false;
             string dir=dirFull.TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
             string protectedDir=Path.Combine(pf,"TaskbarMonitorEnhanced","SensorBroker");
             string expectedBroker=Path.Combine(protectedDir,"TaskbarMonitorSensorBroker.exe");
