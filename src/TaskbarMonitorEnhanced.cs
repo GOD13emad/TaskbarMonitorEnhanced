@@ -1363,10 +1363,10 @@ namespace TaskbarMonitorEnhanced
 
     internal static class TemperatureWarningSoundPolicy
     {
-        // Do not play for a silent notification preference or unavailable UI.
-        // The caller already enforces snooze/quiet hours and hysteresis.
+        // Sound opt-in is independent of popup notification opt-in.
+        // The caller already enforces quiet hours, threshold hysteresis and cooldown.
         public static bool ShouldPlay(AppConfig config)
-        {return config!=null&&config.EnableTemperatureNotifications&&config.EnableTemperatureWarningSound;}
+        {return config!=null&&config.EnableTemperatureWarningSound;}
     }
 
     internal sealed class TemperatureNotificationState
@@ -4993,7 +4993,7 @@ namespace TaskbarMonitorEnhanced
         private void EvaluateTemperatureNotifications()
         {
             if(proofMode||trayIcon==null)return;
-            if(!config.EnableTemperatureNotifications||NotificationsMuted()){temperatureNotificationState.Reset();return;}
+            if((!config.EnableTemperatureNotifications&&!config.EnableTemperatureWarningSound)||NotificationsMuted()){temperatureNotificationState.Reset();return;}
             DateTime now=DateTime.UtcNow;
 
             List<CpuDeviceSnapshot> cpus=SelectedCpuDevices();
@@ -5021,8 +5021,11 @@ namespace TaskbarMonitorEnhanced
             string body=lane+" temperature reached "+value.ToString("0.0",CultureInfo.InvariantCulture)+" C (warning "+threshold.ToString("0",CultureInfo.InvariantCulture)+" C).";
             lastBalloonWasUsage=false;
             RecordAlert(lane+" temperature",body);
-            try{trayIcon.ShowBalloonTip(10000,"Taskbar Monitor Enhanced - temperature warning",body,ToolTipIcon.Warning);Log.Write("WARN","TEMPERATURE_NOTIFICATION lane="+lane+" valueC="+value.ToString("0.0",CultureInfo.InvariantCulture)+" thresholdC="+threshold.ToString("0",CultureInfo.InvariantCulture));}
-            catch(Exception ex){Log.Write("WARN","TEMPERATURE_NOTIFICATION_FAIL lane="+lane+" "+ex.Message);}
+            if(config.EnableTemperatureNotifications)
+            {
+                try{trayIcon.ShowBalloonTip(10000,"Taskbar Monitor Enhanced - temperature warning",body,ToolTipIcon.Warning);Log.Write("WARN","TEMPERATURE_NOTIFICATION lane="+lane+" valueC="+value.ToString("0.0",CultureInfo.InvariantCulture)+" thresholdC="+threshold.ToString("0",CultureInfo.InvariantCulture));}
+                catch(Exception ex){Log.Write("WARN","TEMPERATURE_NOTIFICATION_FAIL lane="+lane+" "+ex.Message);}
+            }
             if(TemperatureWarningSoundPolicy.ShouldPlay(config))
             {
                 try
@@ -7471,7 +7474,7 @@ namespace TaskbarMonitorEnhanced
                 c.EnableTemperatureNotifications=true;c.EnableTemperatureWarningSound=true;
                 if(!TemperatureWarningSoundPolicy.ShouldPlay(c))throw new InvalidOperationException("audio explicit opt-in");
                 c.EnableTemperatureNotifications=false;
-                if(TemperatureWarningSoundPolicy.ShouldPlay(c))throw new InvalidOperationException("audio muted when toast disabled");
+                if(!TemperatureWarningSoundPolicy.ShouldPlay(c))throw new InvalidOperationException("sound-only threshold must remain armed without toast");
                 c.EnableTemperatureWarningSound=false;
                 TemperatureNotificationState notificationState=new TemperatureNotificationState();
                 DateTime nt=new DateTime(2026,10,2,12,0,0,DateTimeKind.Utc);
@@ -7706,7 +7709,7 @@ namespace TaskbarMonitorEnhanced
             cpuWarn=Number(alerts,"CPU warning °C",c.CpuTempWarningC,50,110,135);
             gpuWarn=Number(alerts,"GPU warning °C",c.GpuTempWarningC,50,110,185);
             diskWarn=Number(alerts,"Disk warning °C",c.DiskTempWarningC,40,90,235);
-            Label alertNote=new Label();alertNote.Location=new Point(24,284);alertNote.Size=new Size(690,120);alertNote.Text="Selected CPU, GPU or disk temperatures can switch the metric card to a high-visibility warning accent. Optional Windows notifications fire only on a new hot transition, use a 3 C recovery hysteresis and a 10-minute per-lane cooldown. Unsupported or stale temperature data never creates a false hot state. Sound is opt-in and follows your Windows sound scheme.";alerts.Controls.Add(alertNote);
+            Label alertNote=new Label();alertNote.Location=new Point(24,284);alertNote.Size=new Size(690,120);alertNote.Text="Selected CPU, GPU or disk temperatures can switch the metric card to a high-visibility warning accent. Optional Windows notifications fire only on a new hot transition, use a 3 C recovery hysteresis and a 10-minute per-lane cooldown. Unsupported or stale temperature data never creates a false hot state. Sound is independently opt-in, works without popup notifications, and follows your Windows sound scheme.";alerts.Controls.Add(alertNote);
             Button testWarningSound=new Button{Text="Test warning sound",Location=new Point(24,420),
                 Size=new Size(200,36),AutoSize=false};
             SetA11y(testWarningSound,"Test temperature warning sound",
