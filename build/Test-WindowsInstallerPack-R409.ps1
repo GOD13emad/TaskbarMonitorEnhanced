@@ -67,6 +67,7 @@ try{
   }
   # R424: a missing-package failure from the real CMD launcher must finish
   # noninteractively with the original error code, not wait for "pause".
+  # Use the package-first verification path on both Windows Server and Client.
   # Keep stdin open deliberately; a bare CMD pause hangs this regression.
   $badRoot=Join-Path $testRoot 'missing-package'
   [void][IO.Directory]::CreateDirectory($badRoot)
@@ -74,7 +75,7 @@ try{
   Copy-Item -LiteralPath (Join-Path $stage 'Install-TaskbarMonitorEnhanced.ps1') -Destination (Join-Path $badRoot 'Install-TaskbarMonitorEnhanced.ps1')
   $badInfo=New-Object System.Diagnostics.ProcessStartInfo
   $badInfo.FileName=$env:ComSpec
-  $badInfo.Arguments='/d /s /c ""'+(Join-Path $badRoot 'Install.cmd')+'" -CheckOnly"'
+  $badInfo.Arguments='/d /s /c ""'+(Join-Path $badRoot 'Install.cmd')+'" -VerifyOfflineRuntime"'
   $badInfo.UseShellExecute=$false
   $badInfo.CreateNoWindow=$true
   $badInfo.RedirectStandardInput=$true
