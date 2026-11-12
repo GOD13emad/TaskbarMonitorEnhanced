@@ -19,7 +19,7 @@ inline bool recover_invalid_native_settings(std::string& error) {
     const std::string archive=file+".rejected";
     GStatBuf original{};
     if(g_lstat(file.c_str(),&original)!=0 || !S_ISREG(original.st_mode) ||
-       original.st_size<0 || original.st_size>4096) {
+       original.st_size<0 || original.st_size>4096 || original.st_nlink!=1) {
         error="Recovery requires a small regular malformed settings file";
         return false;
     }
@@ -57,8 +57,11 @@ inline bool recover_invalid_native_settings(std::string& error) {
     if(save_native_settings(NativeSettings{},saveError))return true;
     // An unsuccessful write must retain the exact original bytes in archive.
     // Attempt to restore only if destination was not created by a failed save.
-    if(g_lstat(file.c_str(),&verifyOriginal)!=0 && errno==ENOENT)
-        ::link(archive.c_str(),file.c_str());
-    error="Recovery archive preserved but defaults could not be saved: "+saveError;
+    bool restored=false;
+    if(g_lstat(file.c_str(),&verifyOriginal)!=0 && errno==ENOENT) {
+        restored=(::link(archive.c_str(),file.c_str())==0);
+    }
+    error=std::string(restored?"Original settings restored from archive; ":
+                               "Recovery archive preserved; ")+saveError;
     return false;
 }

@@ -64,6 +64,14 @@ int main(int argc,char** argv) {
     const std::string malformed=
         "[NativeTemperatureAlert]\nenabled=maybe\nbell=true\nthresholdC=91\n";
     const std::string archive=native_settings_path()+".rejected";
+    // Do not preserve a shared inode: a second hard link could mutate the
+    // supposed archival bytes even after the first name was detached.
+    const std::string alias=native_settings_path()+".other-hardlink";
+    if(::link(native_settings_path().c_str(),alias.c_str())!=0)return 1;
+    error.clear();
+    if(recover_invalid_native_settings(error) || error.empty())return 1;
+    if(g_file_test(archive.c_str(),G_FILE_TEST_EXISTS))return 1;
+    if(::unlink(alias.c_str())!=0)return 1;
     error.clear();
     if(!recover_invalid_native_settings(error))return 1;
     if(!load_native_settings(settings,error) ||
