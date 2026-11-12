@@ -57,7 +57,8 @@ jobs:
             native/linux/test-native-settings.cpp -o "$stage/settings-test" \
             $(pkg-config --cflags --libs glib-2.0)
           mkdir "$stage/config"
-          "$stage/settings-test" "$stage/config"
+          "$stage/settings-test" "$stage/config" | tee "$stage/settings-test.log"
+          grep -Fx 'TBME_R451_NATIVE_GLOBAL_BELL_COOLDOWN_AFTER_SENSOR_DROPOUT_AND_RECONFIG=PASS' "$stage/settings-test.log"
       - name: Compile native GTK3 Linux desktop window and sensor smoke test
         if: runner.os == 'Linux'
         run: |

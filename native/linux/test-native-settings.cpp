@@ -102,6 +102,46 @@ int main(int argc,char** argv) {
     error.clear();
     if(recover_invalid_native_settings(error) || error.empty())return 1;
     if(g_remove(bogus.c_str())!=0)return 1;
-    std::puts("TBME_NATIVE_SETTINGS_PERSISTENCE_RECOVERY_NO_OVERWRITE_AND_ALERT_COOLDOWN=PASS");
+    // Global monotonic bell cooldown MUST survive cool/hot cycles, an
+    // unavailable sensor, alert toggles and threshold changes.
+    NativeSettings hot{true,true,91};
+    NativeSettings disabled{false,true,91};
+    NativeSettings higher{true,true,110};
+    NativeAlertState throttled{};
+    auto check=native_alert_step(throttled,hot,true,92.,100);
+    if(!check.warning || !check.bell || throttled.lastBellSecond!=100)return 1;
+    check=native_alert_step(throttled,hot,true,87.,101);
+    if(check.warning || check.bell || throttled.lastBellSecond!=100)return 1;
+    check=native_alert_step(throttled,hot,true,92.,102);
+    if(!check.warning || check.bell)return 1;
+    check=native_alert_step(throttled,hot,false,0.,103);
+    if(check.warning || check.bell || throttled.lastBellSecond!=100)return 1;
+    check=native_alert_step(throttled,hot,true,92.,104);
+    if(!check.warning || check.bell)return 1;
+    native_alert_reconfigure(throttled,hot,disabled);
+    check=native_alert_step(throttled,disabled,true,92.,105);
+    if(check.warning || check.bell || throttled.lastBellSecond!=100)return 1;
+    native_alert_reconfigure(throttled,disabled,hot);
+    check=native_alert_step(throttled,hot,true,92.,106);
+    if(!check.warning || check.bell)return 1;
+    native_alert_reconfigure(throttled,hot,higher);
+    if(throttled.active || throttled.lastBellSecond!=100)return 1;
+    check=native_alert_step(throttled,higher,true,108.,107);
+    if(check.warning || check.bell)return 1;
+    check=native_alert_step(throttled,higher,true,111.,108);
+    if(!check.warning || check.bell)return 1;
+    check=native_alert_step(throttled,higher,true,111.,159);
+    if(!check.warning || check.bell)return 1;
+    check=native_alert_step(throttled,higher,true,111.,160);
+    if(!check.warning || !check.bell || throttled.lastBellSecond!=160)return 1;
+    check=native_alert_step(throttled,higher,true,107.,161);
+    if(check.warning || check.bell || throttled.lastBellSecond!=160)return 1;
+    check=native_alert_step(throttled,higher,true,112.,162);
+    if(!check.warning || check.bell)return 1;
+    check=native_alert_step(throttled,higher,false,0.,163);
+    if(check.warning || check.bell || throttled.lastBellSecond!=160)return 1;
+    check=native_alert_step(throttled,higher,true,112.,220);
+    if(!check.warning || !check.bell || throttled.lastBellSecond!=220)return 1;
+    std::puts("TBME_R451_NATIVE_GLOBAL_BELL_COOLDOWN_AFTER_SENSOR_DROPOUT_AND_RECONFIG=PASS");    std::puts("TBME_NATIVE_SETTINGS_PERSISTENCE_RECOVERY_NO_OVERWRITE_AND_ALERT_COOLDOWN=PASS");
     return 0;
 }

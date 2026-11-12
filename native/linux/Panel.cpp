@@ -42,8 +42,8 @@ static void persist_controls(PanelState* state) {
         gtk_label_set_text(GTK_LABEL(state->feedback),message.c_str());
         return;
     }
+    native_alert_reconfigure(state->warning,state->settings,next);
     state->settings=next;
-    if(!next.alertEnabled)state->warning={};
     gtk_label_set_text(GTK_LABEL(state->feedback),
                        "Settings saved; warning is advisory, not a safety shutdown.");
 }
@@ -71,7 +71,7 @@ static void on_recover_settings(GtkButton*,gpointer data) {
     }
     state->settings=defaults;
     state->settingsValid=true;
-    state->warning={};
+    state->warning.active=false; // retain last audio request across recovery
     restore_controls(state);
     gtk_widget_set_sensitive(state->enable,TRUE);
     gtk_widget_set_sensitive(state->bell,TRUE);

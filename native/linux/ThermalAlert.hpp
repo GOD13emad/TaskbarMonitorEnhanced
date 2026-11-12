@@ -12,6 +12,14 @@ struct NativeAlertAction {
     bool warning=false;
     bool bell=false;
 };
+// Reset the visual latch after threshold or enable-mode edits, while keeping
+// the last audio request timestamp across config changes.
+inline void native_alert_reconfigure(NativeAlertState& state,
+                                      const NativeSettings& before,
+                                      const NativeSettings& after) {
+    if(!after.alertEnabled || !before.alertEnabled ||
+       before.thresholdC!=after.thresholdC)state.active=false;
+}
 inline NativeAlertAction native_alert_step(NativeAlertState& state,
                                             const NativeSettings& config,
                                             bool available,double celsius,
@@ -19,15 +27,13 @@ inline NativeAlertAction native_alert_step(NativeAlertState& state,
     if(!config.alertEnabled || !valid_native_settings(config) ||
        !available || !std::isfinite(celsius) ||
        celsius<0 || celsius>150) {
+        // Sensor dropouts and disabled alerts must NOT re-arm the audio
+        // cooldown: intermittent readings must not flood system bells.
         state.active=false;
-        state.lastBellSecond=-1;
         return {};
     }
     if(celsius>=config.thresholdC)state.active=true;
-    else if(celsius<=config.thresholdC-3) {
-        state.active=false;
-        state.lastBellSecond=-1;
-    }
+    else if(celsius<=config.thresholdC-3)state.active=false;
     bool beep=false;
     if(state.active && config.bellEnabled && monotonicSecond>=0 &&
        (state.lastBellSecond<0 ||
