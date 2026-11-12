@@ -99,12 +99,23 @@ jobs:
           test "$(stat -c %a "$settings_root/taskbarmonitorenhanced-native-preview/settings.ini")" = "600"
           echo 'TBME_NATIVE_XDG_SETTINGS_CLI_PERSISTENCE_AND_INPUT_REFUSAL=PASS'
           if ./tbme-linux-panel --unsupported >/dev/null 2>&1; then exit 1; fi
-          dbus-run-session -- xvfb-run -a bash -eu -c '
-            ./tbme-linux-panel >/dev/null 2>&1 &
+          # DISPLAY must exist before session portal initialization.
+          timeout 30s xvfb-run -a dbus-run-session -- bash -eu -c '
+            export GDK_BACKEND=x11 GTK_USE_PORTAL=0
+            log="$RUNNER_TEMP/tbme-native-gtk-r449-smoke.log"
+            ./tbme-linux-panel >"$log" 2>&1 &
             pid=$!
             trap "kill $pid 2>/dev/null || true" EXIT
-            sleep 3
-            xdotool search --name "TaskbarMonitorEnhanced Native Linux" >/dev/null
+            found=0
+            for n in $(seq 1 20); do
+              if ! kill -0 "$pid" 2>/dev/null; then cat "$log"; exit 3; fi
+              if xdotool search --name "TaskbarMonitorEnhanced Native Linux" >/dev/null 2>&1; then
+                found=1
+                break
+              fi
+              sleep 0.5
+            done
+            if test "$found" -ne 1; then cat "$log"; exit 4; fi
           '
           echo 'TBME_LINUX_GTK3_XVFB_WINDOW_SMOKE=PASS'
 
