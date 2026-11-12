@@ -96,7 +96,15 @@ namespace TaskbarMonitorEnhanced
                 throw new FileNotFoundException("Windows Explorer is unavailable.",explorer);
             ProcessStartInfo psi=new ProcessStartInfo();
             psi.FileName=explorer;
-            psi.Arguments="\""+full+"\"";
+            // R431: Windows argv parsing consumes a backslash immediately
+            // before a closing quote. Double only the terminal separators;
+            // internal separators and non-terminal folder paths stay unchanged.
+            int trailingSeparators=0;
+            for(int index=full.Length-1;index>=0 && full[index]=='\\';index--)
+                trailingSeparators++;
+            string escapedFull=trailingSeparators==0 ? full :
+                full+new string('\\',trailingSeparators);
+            psi.Arguments="\""+escapedFull+"\"";
             psi.UseShellExecute=false;
             return psi;
         }
