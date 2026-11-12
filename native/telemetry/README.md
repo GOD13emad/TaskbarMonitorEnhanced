@@ -67,3 +67,19 @@ The NDJSON schema 1 retains the existing cpuTemperatureC numeric-or-null and tem
 ### Read-only thermal witness from a native executable
 
 For independent hardware acceptance on Linux, run tbme-linux-panel --probe-temperature from the unsigned preview package in a local extracted directory. This reads the same allowlisted hwmon sensor used by the GTK3 label, returns one line in the form 56.375 k10temp:Tctl when an actual supported sensor is present, and returns exit code 3 with no stdout if unavailable. The command never launches GTK, calls a shell or requires administrator privileges. A successful real-hardware witness does not establish calibration or an audible alarm. The measured Tctl control temperature must remain identified as Tctl and must not be labeled as a physical die temperature.
+## R448 Native Linux opt-in thermal-warning settings
+
+The experimental Linux GTK3 panel offers an advisory visual high-CPU-temperature warning and an independently opt-in system bell request. Both are disabled by default; no sound is requested on normal launch. Users can enable the warning, set the CPU temperature threshold between 50 and 110 degrees C (default 85), and independently enable the system bell. The warning uses an explicit HIGH CPU TEMPERATURE label and GTK3 CSS red/bold class (not color alone), 3 degrees C reset hysteresis, and a monotonic 60-second minimum between repeated bell requests. gdk_display_beep() asks the desktop display to sound the system bell; an audible sound is not guaranteed and no physical owner audio acceptance is claimed. Do not treat this as an automatic safety shutdown, calibrated junction-temperature alarm or replacement for firmware thermal protection. k10temp:Tctl is a thermal control indicator and must retain that source label.
+
+Settings are stored only after explicit user interaction or a command-line mutation in the per-user XDG_CONFIG_HOME/taskbarmonitorenhanced-native-preview/settings.ini (normally under ~/.config). The program never modifies Windows owner settings or the public v1.7.10 release. Writes use GLib atomic durable replacement, owner-only creation mode 0600, preserve unrelated valid INI keys, reject oversized/non-regular/symlinked files and directories, and fail closed on malformed preferences rather than overwriting them. The GUI disables settings controls when an existing configuration is invalid. This is a Linux developer preview feature, not yet a stable settings schema or full cross-platform migration contract. Relevant upstream references: https://docs.gtk.org/glib/func.file_set_contents_full.html , https://docs.gtk.org/glib/func.get_user_config_dir.html , https://docs.gtk.org/gtk3/class.CssProvider.html .
+
+Headless Linux smoke commands for a new, disposable XDG_CONFIG_HOME:
+
+    export XDG_CONFIG_HOME="$(mktemp -d)"
+    ./tbme-linux-panel --settings
+    ./tbme-linux-panel --set-alert true
+    ./tbme-linux-panel --set-threshold 90
+    ./tbme-linux-panel --set-bell false
+    ./tbme-linux-panel --settings
+
+The tests in native/linux/test-native-settings.cpp validate safe defaults, persistence, restrictive file modes, corrupt-file refusal, invalid bounds, symlink refusal, hysteresis, no sound when disabled or temperature unavailable, and 60-second bell throttling. CI also creates a synthetic pre-existing user preference file in an isolated runner temp folder and checks it survives the developer preview .deb upgrade, same-version reinstall, remove and purge. None of these proves an upgrade from a public Linux release or a physical system bell. Host display testing and owner user-session acceptance remain separate.

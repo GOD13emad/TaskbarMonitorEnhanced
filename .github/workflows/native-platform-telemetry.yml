@@ -47,6 +47,17 @@ jobs:
             native/telemetry/test-linux-temperature.cpp -o "$fixture/test-cpu-temp"
           mkdir -- "$fixture/hwmon"
           "$fixture/test-cpu-temp" "$fixture/hwmon"
+      - name: Native Linux per-user settings and alert state regression
+        if: runner.os == 'Linux'
+        run: |
+          set -eu
+          stage="$(mktemp -d "$RUNNER_TEMP/tbme-native-settings.XXXXXXXX")"
+          trap 'rm -rf -- "$stage"' EXIT
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            native/linux/test-native-settings.cpp -o "$stage/settings-test" \
+            $(pkg-config --cflags --libs glib-2.0)
+          mkdir "$stage/config"
+          "$stage/settings-test" "$stage/config"
       - name: Compile native GTK3 Linux desktop window and sensor smoke test
         if: runner.os == 'Linux'
         run: |
@@ -71,6 +82,22 @@ jobs:
             test ! -s cpu-temperature-witness.txt
             echo 'TBME_LINUX_REAL_TEMPERATURE_WITNESS=PASS_UNAVAILABLE'
           fi
+          # Isolated XDG settings. No owner's settings are read or written in CI.
+          settings_root="$(mktemp -d "$RUNNER_TEMP/tbme-gtk-settings.XXXXXXXX")"
+          trap 'rm -rf -- "$settings_root"' EXIT
+          export XDG_CONFIG_HOME="$settings_root"
+          ./tbme-linux-panel --settings | grep -Fx 'alert=false bell=false thresholdC=85'
+          ./tbme-linux-panel --set-alert true | grep -Fx 'alert=true bell=false thresholdC=85'
+          ./tbme-linux-panel --set-threshold 92 | grep -Fx 'alert=true bell=false thresholdC=92'
+          ./tbme-linux-panel --set-bell true | grep -Fx 'alert=true bell=true thresholdC=92'
+          ./tbme-linux-panel --settings | grep -Fx 'alert=true bell=true thresholdC=92'
+          if ./tbme-linux-panel --set-threshold 49 >/dev/null 2>&1; then exit 1; fi
+          if ./tbme-linux-panel --set-bell maybe >/dev/null 2>&1; then exit 1; fi
+          ./tbme-linux-panel --settings | grep -Fx 'alert=true bell=true thresholdC=92'
+          ./tbme-linux-panel --set-bell false >/dev/null
+          ./tbme-linux-panel --set-alert false >/dev/null
+          test "$(stat -c %a "$settings_root/taskbarmonitorenhanced-native-preview/settings.ini")" = "600"
+          echo 'TBME_NATIVE_XDG_SETTINGS_CLI_PERSISTENCE_AND_INPUT_REFUSAL=PASS'
           if ./tbme-linux-panel --unsupported >/dev/null 2>&1; then exit 1; fi
           dbus-run-session -- xvfb-run -a bash -eu -c '
             ./tbme-linux-panel >/dev/null 2>&1 &

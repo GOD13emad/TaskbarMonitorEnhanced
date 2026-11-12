@@ -66,6 +66,18 @@ test "$(dpkg-query -W -f='${Version}' "$package")" = "$old_version"
 /usr/bin/tbme-linux-panel --self-test | grep -Fx 'TBME_NATIVE_R446_SYNTHETIC_PREDECESSOR=PASS'
 echo 'TBME_R446_SYNTHETIC_OLD_INSTALL=PASS'
 
+# Pre-existing future native user preferences, never in the runner's real home.
+export XDG_CONFIG_HOME="$stage/owned-user-config"
+prefs="$XDG_CONFIG_HOME/taskbarmonitorenhanced-native-preview/settings.ini"
+mkdir -p "$(dirname "$prefs")"
+cat > "$prefs" <<'PREFS'
+[NativeTemperatureAlert]
+enabled=true
+bell=false
+thresholdC=93
+PREFS
+chmod 0600 "$prefs"
+original_pref_hash="$(sha256sum "$prefs" | cut -d' ' -f1)"
 sudo -n dpkg -i "$current"
 test "$(dpkg-query -W -f='${Version}' "$package")" = "$version"
 test "$(sha256sum /usr/bin/tbme-linux-panel | cut -d' ' -f1)" = "$source_sha"
@@ -75,11 +87,15 @@ if /usr/bin/tbme-linux-panel --unsupported >/dev/null 2>&1; then
   echo 'R446 upgraded package accepted unsupported arguments' >&2
   exit 6
 fi
+test "$(/usr/bin/tbme-linux-panel --settings)" = 'alert=true bell=false thresholdC=93'
+test "$(sha256sum "$prefs" | cut -d' ' -f1)" = "$original_pref_hash"
 echo 'TBME_R446_SYNTHETIC_TO_CURRENT_IN_PLACE_UPGRADE=PASS'
 
 sudo -n dpkg -i "$current"
 test "$(dpkg-query -W -f='${Version}' "$package")" = "$version"
 test "$(sha256sum /usr/bin/tbme-linux-panel | cut -d' ' -f1)" = "$source_sha"
+test "$(/usr/bin/tbme-linux-panel --settings)" = 'alert=true bell=false thresholdC=93'
+test "$(sha256sum "$prefs" | cut -d' ' -f1)" = "$original_pref_hash"
 echo 'TBME_R446_SAME_VERSION_REINSTALL_FUNCTIONAL_IDENTITY=PASS'
 
 sudo -n dpkg --remove "$package"
@@ -91,4 +107,6 @@ if dpkg-query -s "$package" 2>/dev/null | grep -q '^Status: install ok installed
   exit 7
 fi
 installed_by_this_test=false
+test -f "$prefs"
+test "$(sha256sum "$prefs" | cut -d' ' -f1)" = "$original_pref_hash"
 echo 'TBME_R446_DISPOSABLE_UPGRADE_REMOVE_PURGE=PASS'
