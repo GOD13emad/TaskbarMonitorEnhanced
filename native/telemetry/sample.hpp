@@ -39,6 +39,7 @@ inline double percent(Cpu a,Cpu b) {
         return 100.*static_cast<double>(used)/static_cast<double>(used+idle);
     }
 #endif
+    if (b.busy<a.busy||b.idle<a.idle) return -1.;
     auto used=b.busy-a.busy, idle=b.idle-a.idle;
     if (!used&&!idle) return -1.;
     return 100.*static_cast<double>(used)/static_cast<double>(used+idle);

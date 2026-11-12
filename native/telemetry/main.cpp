@@ -19,6 +19,7 @@ static int self_test() {
     machAfter.idleTicks=machBefore.idleTicks;
     if(std::abs(percent(machBefore,machAfter)-100.)>0.00001)return 1;
 #endif
+    std::puts("TBME_NATIVE_SENSOR_SELFTEST=PASS");
     return 0;
 }
 static int emit_sample() {
