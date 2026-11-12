@@ -17,3 +17,22 @@ CI compiles and runs both targets on independent hosted Ubuntu/macOS, validates 
 ## Bounded NDJSON streaming
 
 Use **./tbme-native-probe --samples 3** to emit exactly three complete JSON lines, one after each 200 ms kernel counter sample. Each line is flushed to stdout for future UI integration. The sample count must be decimal digits in the inclusive range 1..60; invalid counts exit 2 without telemetry output. Sensor read failures exit 3; output write failures exit 4. The original --once and --self-test contracts stay backward compatible. This bounded CLI is not a background daemon, desktop app, installer, or UI acceptance.
+## Experimental platform-native desktop UIs
+
+Both UI components use the same read-only native/telemetry/sample.hpp adapter as the tested CLI. Linux uses GTK3 GtkApplication/GtkApplicationWindow and a 2-second GLib timer, displaying CPU and approximate used RAM percentages in a small standalone native window. macOS uses AppKit NSStatusBar/NSStatusItem and NSTimer to show the same values in a status item menu. Neither UI launches a shell, invokes an untrusted executable, installs a background process, reads user settings, or elevates privileges.
+
+Linux build in a desktop session with GTK3 headers/runtime:
+
+    c++ -std=c++17 -O2 -Wall -Wextra -Werror -pedantic native/linux/Panel.cpp -o tbme-linux-panel $(pkg-config --cflags --libs gtk+-3.0)
+    ./tbme-linux-panel --self-test
+    ./tbme-linux-panel
+
+macOS build on a Mac with Apple Command Line Tools/AppKit:
+
+    clang++ -std=c++17 -O2 -fobjc-arc -Wall -Wextra -Werror -pedantic native/macos/StatusBar.mm -framework AppKit -framework Foundation -o tbme-macos-status
+    ./tbme-macos-status --self-test
+    ./tbme-macos-status
+
+These are developer builds, not signed/distributed packages. Hosted Linux Xvfb only verifies that the GTK window can be created in an isolated X11 session; hosted macOS compiles and runs noninteractive sensor selftests without asserting a visible status item. A real owner Linux/Wayland/X11 desktop, macOS logged-in GUI, accessibility, multiscreen behavior, settings, Glass appearance, thermal alerts/audio, native packaging and launch-at-login all remain unaccepted.
+
+Reference interfaces: https://docs.gtk.org/gtk3/class.Application.html ; https://docs.gtk.org/glib/func.timeout_add_seconds.html ; https://developer.apple.com/documentation/appkit/nsstatusbar .

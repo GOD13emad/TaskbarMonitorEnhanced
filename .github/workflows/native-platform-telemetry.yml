@@ -30,6 +30,39 @@ jobs:
       - name: Build platform-native C++17 probe
         run: |
           c++ -std=c++17 -O2 -Wall -Wextra -Werror -pedantic native/telemetry/main.cpp -o tbme-native-probe
+      - name: Install GTK3 and Xvfb only on disposable Ubuntu CI host
+        if: runner.os == 'Linux'
+        run: |
+          set -eu
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libgtk-3-dev xvfb xdotool dbus-x11
+
+      - name: Compile native GTK3 Linux desktop window and sensor smoke test
+        if: runner.os == 'Linux'
+        run: |
+          set -eu
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            native/linux/Panel.cpp -o tbme-linux-panel $(pkg-config --cflags --libs gtk+-3.0)
+          ./tbme-linux-panel --self-test | grep -Fx 'TBME_LINUX_GTK3_NATIVE_SENSOR_SELFTEST=PASS'
+          if ./tbme-linux-panel --unsupported >/dev/null 2>&1; then exit 1; fi
+          dbus-run-session -- xvfb-run -a bash -eu -c '
+            ./tbme-linux-panel >/dev/null 2>&1 &
+            pid=$!
+            trap "kill $pid 2>/dev/null || true" EXIT
+            sleep 3
+            xdotool search --name "TaskbarMonitorEnhanced Native Linux" >/dev/null
+          '
+          echo 'TBME_LINUX_GTK3_XVFB_WINDOW_SMOKE=PASS'
+
+      - name: Compile native AppKit macOS status menu and sensor smoke test
+        if: runner.os == 'macOS'
+        run: |
+          set -eu
+          clang++ -std=c++17 -O2 -fobjc-arc -Wall -Wextra -Werror -pedantic \
+            native/macos/StatusBar.mm -framework AppKit -framework Foundation -o tbme-macos-status
+          ./tbme-macos-status --self-test | grep -Fx 'TBME_MACOS_APPKIT_NATIVE_SENSOR_SELFTEST=PASS'
+          if ./tbme-macos-status --unsupported >/dev/null 2>&1; then exit 1; fi
+          echo 'TBME_MACOS_APPKIT_BINARY_BUILD=PASS_NO_INTERACTIVE_GUI_ASSERTION'
       - name: Native self-test and JSON contract
         run: |
           set -eu
