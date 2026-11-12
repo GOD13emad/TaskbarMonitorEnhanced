@@ -23,13 +23,23 @@ static int self_test() {
     return 0;
 }
 static int emit_sample() {
-    Cpu before,after;Mem m;
+    Cpu before{},after{};Mem m{};
     if(!cpu(before)){std::fputs("CPU unavailable\n",stderr);return 3;}
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    if(!cpu(after)||!mem(m)){std::fputs("CPU/memory unavailable\n",stderr);return 3;}
-    double load=percent(before,after);
+    double load=-1.;
+    // A native host (notably virtualized macOS Mach) can return unchanged
+    // 32-bit tick lanes across a single 200ms interval. Do not report fake 0%.
+    // Accumulate against the initial snapshot for at most 2 seconds and fail
+    // closed if no genuine counter progress is observed.
+    for(int attempt=0;attempt<10;++attempt) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        if(!cpu(after)){std::fputs("CPU unavailable during sample\n",stderr);return 3;}
+        load=percent(before,after);
+        if(std::isfinite(load)&&load>=0.&&load<=100.)break;
+    }
+    if(!mem(m)){std::fputs("memory unavailable\n",stderr);return 3;}
     if(!std::isfinite(load)||load<0||load>100||!m.total||m.available>m.total) {
-        std::fputs("invalid native sample\n",stderr);return 3;
+        std::fputs("native CPU counters did not advance or memory is invalid\n",stderr);
+        return 3;
     }
     if(std::printf("{\"schema\":1,\"platform\":\"%s\",\"cpuPercent\":%.3f,"
        "\"memoryTotalBytes\":%llu,\"memoryAvailableBytes\":%llu,"
