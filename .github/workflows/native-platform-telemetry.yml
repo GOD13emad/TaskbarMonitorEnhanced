@@ -78,6 +78,32 @@ jobs:
           test "$before" = "$after"
           echo 'TBME_LINUX_PACKAGE_NO_OVERWRITE=PASS'
 
+      - name: Install and purge owned preview package on disposable Ubuntu CI only
+        if: runner.os == 'Linux'
+        run: |
+          set -eu
+          package='taskbarmonitorenhanced-native-preview'
+          deb="$RUNNER_TEMP/taskbarmonitorenhanced-native-preview.deb"
+          if dpkg-query -s "$package" 2>/dev/null | grep -q '^Status: install ok installed$'; then
+            echo 'R445 refused a pre-existing native package on the runner'; exit 1
+          fi
+          # Ephemeral GitHub-hosted runner has explicit noninteractive sudo.
+          # The owner Ubuntu/Windows machines are never modified by this test.
+          trap 'sudo -n dpkg --purge taskbarmonitorenhanced-native-preview >/dev/null 2>&1 || true' EXIT
+          sudo -n dpkg -i "$deb"
+          test -x /usr/bin/tbme-linux-panel
+          test -f /usr/share/applications/tbme-native-preview.desktop
+          /usr/bin/tbme-linux-panel --self-test |
+            grep -Fx 'TBME_LINUX_GTK3_NATIVE_SENSOR_SELFTEST=PASS'
+          dpkg-query -s "$package" | grep -Fx 'Status: install ok installed'
+          sudo -n dpkg --purge "$package"
+          test ! -e /usr/bin/tbme-linux-panel
+          test ! -e /usr/share/applications/tbme-native-preview.desktop
+          if dpkg-query -s "$package" 2>/dev/null | grep -q '^Status: install ok installed$'; then
+            echo 'R445 native package remained installed after purge'; exit 1
+          fi
+          trap - EXIT
+          echo 'TBME_R445_DISPOSABLE_REAL_DPKG_INSTALL_AND_PURGE=PASS'
       - name: Build and inspect unsigned macOS agent app bundle, without installing
         if: runner.os == 'macOS'
         run: |
