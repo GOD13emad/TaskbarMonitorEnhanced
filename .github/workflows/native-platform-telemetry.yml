@@ -104,6 +104,11 @@ jobs:
           fi
           trap - EXIT
           echo 'TBME_R445_DISPOSABLE_REAL_DPKG_INSTALL_AND_PURGE=PASS'
+      - name: Verify synthetic predecessor upgrade and same-version reinstall on disposable Linux CI
+        if: runner.os == 'Linux' && runner.environment == 'github-hosted'
+        run: |
+          set -eu
+          bash native/linux/test-preview-lifecycle.sh "$RUNNER_TEMP/taskbarmonitorenhanced-native-preview.deb"
       - name: Build and inspect unsigned macOS agent app bundle, without installing
         if: runner.os == 'macOS'
         run: |
@@ -135,6 +140,22 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/TaskbarMonitorEnhancedNativePreview.app" "$RUNNER_TEMP/TBME-R444-macOS-preview.zip"
           test -s "$RUNNER_TEMP/TBME-R444-macOS-preview.zip"
 
+      - name: Verify macOS zipped AppKit preview extracts with executable identity (no GUI)
+        if: runner.os == 'macOS'
+        run: |
+          set -eu
+          work="$(mktemp -d "$RUNNER_TEMP/tbme-macos-preview-roundtrip.XXXXXXXX")"
+          trap 'rm -rf -- "$work"' EXIT
+          ditto -x -k "$RUNNER_TEMP/TBME-R444-macOS-preview.zip" "$work"
+          extracted="$work/TaskbarMonitorEnhancedNativePreview.app"
+          test -x "$extracted/Contents/MacOS/tbme-macos-status"
+          plutil -lint "$extracted/Contents/Info.plist"
+          original="$(shasum -a 256 "$RUNNER_TEMP/TaskbarMonitorEnhancedNativePreview.app/Contents/MacOS/tbme-macos-status" | cut -d' ' -f1)"
+          recovered="$(shasum -a 256 "$extracted/Contents/MacOS/tbme-macos-status" | cut -d' ' -f1)"
+          test "$original" = "$recovered"
+          "$extracted/Contents/MacOS/tbme-macos-status" --self-test |
+            grep -Fx 'TBME_MACOS_APPKIT_NATIVE_SENSOR_SELFTEST=PASS'
+          echo 'TBME_R446_MACOS_ZIP_EXECUTABLE_ROUNDTRIP=PASS_NO_INTERACTIVE_GUI_ASSERTION'
       - name: Preserve unsigned macOS app as temporary internal CI artifact
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
