@@ -73,6 +73,17 @@ jobs:
       - name: Reproducible build
         shell: pwsh
         run: ./build/Build.ps1
+      - name: R439 compiled legacy Broker refuses foreign same-name sessions and paths
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R439-LegacyBrokerProcessScope.ps1 -SupervisorPath ./build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe)
+          if($LASTEXITCODE -ne 0 -or
+             $proof -cnotcontains 'R439_PASS_COMPILED_EXACT_IMAGE_AND_SESSION_SCOPE_11_CASES' -or
+             $proof -cnotcontains 'R439_PASS_FOREIGN_SAME_NAME_DENIED_NO_PROCESS_TERMINATION'){
+             throw 'R439_COMPILED_LEGACY_PROCESS_SCOPE_REGRESSION'
+          }
+          $proof
 
       - name: R434 compiled Setup PowerShell argument transport rejects injection without launching
         shell: powershell
