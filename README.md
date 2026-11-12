@@ -1,5 +1,10 @@
 # Taskbar Monitor Enhanced
 
+<p align="center">
+  <a href="docs/screenshots/v1.6.0/studio-1.png"><img src="docs/screenshots/v1.6.0/studio-1.png" alt="Taskbar Monitor Enhanced 1.6.0 — actual production renderer preview of the first five Studio themes" width="1080"></a>
+</p>
+<p align="center"><sub>Genuine v1.6.0 renderer screenshot from this repository · Illustrates theme appearance, not your current hardware utilization.</sub></p>
+
 **Live Windows taskbar monitoring, an eight-page Performance Workspace, and 49 built-in themes.**
 
 **Stable / Latest:** [official immutable GitHub release](https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/latest). Use the **one versioned Windows x64 installer** for a fresh install or supported in-place update; see [Download and verification](DOWNLOAD.md). Historical releases are preserved unchanged.

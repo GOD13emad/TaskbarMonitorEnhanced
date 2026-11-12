@@ -2,7 +2,7 @@ name: R286 private v1.7.8 candidate and exact interrupted Setup recovery
 
 on:
   push:
-    branches: [feature/v1.7.8-optional-audio-r286, main]
+    branches: [feature/v1.7.8-optional-audio-r286]
   workflow_dispatch:
 
 permissions:
