@@ -115,6 +115,23 @@ function Install-Runtime {
   }
 }
 
+# R428: classify only the OS reported App Control launch denial, not every
+# access-denied/antivirus/SmartScreen condition. Keep the original failure
+# path for unrelated launch errors; do not modify endpoint protection.
+function Test-AppControlLaunchDenial([Exception]$Failure) {
+  $current=$Failure
+  for($depth=0;$depth -lt 8 -and $null -ne $current;$depth++) {
+    if($current -is [ComponentModel.Win32Exception] -and
+       $current.NativeErrorCode -eq 4551){return $true}
+    # Some Windows PowerShell 5.1 Start-Process failures preserve only an
+    # English outer exception message rather than the inner Win32 error code.
+    if($current.Message -match '(?i)An Application Control policy has blocked this file'){
+      return $true
+    }
+    $current=$current.InnerException
+  }
+  return $false
+}
 # R426: keep the verified Setup file open, denying write/delete sharing,
 # through Start-Process and its completion. This is file-leaf scoped.
 function Invoke-PinnedProductSetup([string]$ExpectedSha,[switch]$VerifyOnly) {
@@ -141,7 +158,14 @@ function Invoke-PinnedProductSetup([string]$ExpectedSha,[switch]$VerifyOnly) {
       if(!$denied){throw 'R426_PINNED_SETUP_WRITE_NOT_DENIED'}
     }
     $launchArgs=if($VerifyOnly){@('/verify')}else{@('/install','/quiet')}
-    $p=Start-Process -FilePath $Setup -ArgumentList $launchArgs -PassThru -Wait
+    try {
+      $p=Start-Process -FilePath $Setup -ArgumentList $launchArgs -PassThru -Wait
+    }catch {
+      if(Test-AppControlLaunchDenial -Failure $_.Exception){
+        throw 'R428_SETUP_BLOCKED_BY_WINDOWS_APP_CONTROL: Windows policy prevented Setup from starting. The current unsigned build may not be trusted by this device. Do not disable security protection; obtain a publisher-trusted build or consult your managed-device administrator.'
+      }
+      throw
+    }
     if(!$p -or [int]$p.ExitCode -ne 0){
       throw ('R426_PRODUCT_SETUP_FAILED_EXIT_'+$(if(!$p){'NULL'}else{$p.ExitCode}))
     }

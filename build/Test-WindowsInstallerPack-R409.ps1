@@ -22,14 +22,33 @@ function Invoke-Preflight([string]$folder,[string]$mode='-CheckOnly') {
   $stderr=Join-Path $testRoot ([guid]::NewGuid().ToString('N')+'.err')
   $ps=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
   $file=Join-Path $folder 'Install-TaskbarMonitorEnhanced.ps1'
-  $args='-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "'+$file+'" '+$mode
-  $p=Start-Process -FilePath $ps -ArgumentList $args -PassThru -Wait -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+  # R428: native ProcessStartInfo gives the real exit code even on an enforced
+  # Windows11 Sandbox where Start-Process -PassThru reported 0 for exit 17/23.
+  # Read both pipes concurrently to prevent child stdout/stderr deadlocks.
+  $cliArgs='-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "'+$file+'" '+$mode
+  $info=New-Object System.Diagnostics.ProcessStartInfo
+  $info.FileName=$ps
+  $info.Arguments=$cliArgs
+  $info.UseShellExecute=$false
+  $info.CreateNoWindow=$true
+  $info.RedirectStandardOutput=$true
+  $info.RedirectStandardError=$true
+  $p=[Diagnostics.Process]::Start($info)
   if(!$p){throw 'R409_TEST_CANNOT_START_PREFLIGHT'}
-  return [pscustomobject]@{
-    Exit=$p.ExitCode
-    Stdout=(Get-Content -LiteralPath $stdout -Raw -ErrorAction SilentlyContinue)
-    Stderr=(Get-Content -LiteralPath $stderr -Raw -ErrorAction SilentlyContinue)
-  }
+  try {
+    $readOut=$p.StandardOutput.ReadToEndAsync()
+    $readErr=$p.StandardError.ReadToEndAsync()
+    if(!$p.WaitForExit(45000)){
+      try{$p.Kill();[void]$p.WaitForExit(3000)}catch{}
+      throw 'R428_PREFLIGHT_CHILD_TIMEOUT'
+    }
+    $result=[pscustomobject]@{
+      Exit=[int]$p.ExitCode
+      Stdout=$readOut.GetAwaiter().GetResult()
+      Stderr=$readErr.GetAwaiter().GetResult()
+    }
+    return $result
+  }finally{$p.Dispose()}
 }
 # R414: simulate PowerShell 7 -> cmd.exe -> Windows PowerShell 5.1.
 # Microsoft documents that the intermediate CMD inherits PS7's module paths,
@@ -101,6 +120,33 @@ try{
     $badProcess.StandardInput.Close()
     $badProcess.Dispose()
   }
+  # R428 - inspect only the standalone production error-classifier function.
+  # No actual Setup installation is performed. Input remains the exact
+  # staged packaged PowerShell launcher.
+  $tokens=$null;$errors=$null
+  $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $stage 'Install-TaskbarMonitorEnhanced.ps1'),[ref]$tokens,[ref]$errors)
+  if(@($errors).Count){throw 'R428_PACKAGE_BOOTSTRAP_PARSE_FAILED'}
+  $functions=@($ast.FindAll({
+    param($node)
+    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+    $node.Name -ceq 'Test-AppControlLaunchDenial'
+  },$true))
+  if($functions.Count -ne 1){throw 'R428_ERROR_CLASSIFIER_MISSING_OR_DUPLICATE'}
+  Invoke-Expression $functions[0].Extent.Text
+  $wrapped=[Exception]::new('outer', [ComponentModel.Win32Exception]::new(4551))
+  $localized=[ComponentModel.Win32Exception]::new(4551)
+  $message=[Exception]::new('This command cannot be run due to the error: An Application Control policy has blocked this file.')
+  $unrelated=[ComponentModel.Win32Exception]::new(5)
+  $generic=[Exception]::new('The system cannot find the file specified.')
+  if(!(Test-AppControlLaunchDenial -Failure $wrapped) -or
+     !(Test-AppControlLaunchDenial -Failure $localized) -or
+     !(Test-AppControlLaunchDenial -Failure $message) -or
+     (Test-AppControlLaunchDenial -Failure $unrelated) -or
+     (Test-AppControlLaunchDenial -Failure $generic)){
+    throw 'R428_APP_CONTROL_ERROR_CLASSIFICATION_FALSE_POSITIVE_OR_NEGATIVE'
+  }
+  Remove-Item -LiteralPath 'Function:\Test-AppControlLaunchDenial' -ErrorAction Stop
+  'R428_PASS_APP_CONTROL_4551_WRAPPED_TEXT_AND_OTHER_ERRORS_NOT_RECLASSIFIED'
   # A native PE can be executed from a read-only file handle which denies
   # write/delete sharing; use Setup /verify (no install) as the harmless proof.
   $setupFixture=Join-Path $stage $manifest.SetupFile
