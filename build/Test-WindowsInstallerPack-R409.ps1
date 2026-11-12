@@ -9,7 +9,10 @@ $expected=@('Install.cmd','Install-TaskbarMonitorEnhanced.ps1','README.md',
 $runtimeName='NDP48-x86-x64-AllOS-ENU.exe'
 $runtimeExpectedSHA='68C9986A8DCC0214D909AA1F31BEE9FB5461BB839EDCA996A75B08DDFFC1483F'
 if($ExpectOfflineRuntime){$expected+= $runtimeName}
-$testRoot=Join-Path $env:TEMP ('tbme-r409-test-'+[guid]::NewGuid().ToString('N'))
+# R437: exercise every native fixture case in a genuine Unicode path with
+# whitespace and CMD metacharacters, without relying on PS5 source encoding.
+$testRoot=Join-Path $env:TEMP ('tbme-r409-test Space & ! '+[char]0x06CC+'-'+[guid]::NewGuid().ToString('N'))
+if(!$testRoot.Contains([char]0x06CC)){throw 'R437_TEST_FIXTURE_UNICODE_LOST'}
 if(Test-Path $testRoot){throw 'R409_TEST_ROOT_ALREADY_EXISTS'}
 [void][IO.Directory]::CreateDirectory($testRoot)
 $owner=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
