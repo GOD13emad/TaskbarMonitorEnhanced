@@ -1,0 +1,57 @@
+name: Native Linux and macOS telemetry slice (experimental)
+
+on:
+  push:
+    branches: [feature/r409-platform-bootstrap]
+    paths:
+      - 'native/**'
+      - '.github/workflows/native-platform-telemetry.yml'
+  pull_request:
+    paths:
+      - 'native/**'
+      - '.github/workflows/native-platform-telemetry.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Build platform-native C++17 probe
+        run: |
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror -pedantic native/telemetry/main.cpp -o tbme-native-probe
+      - name: Native self-test and JSON contract
+        run: |
+          set -eu
+          ./tbme-native-probe --self-test | grep -Fx 'TBME_NATIVE_SENSOR_SELFTEST=PASS'
+          ./tbme-native-probe --once > telemetry.json
+          python3 - <<'PY'
+          import json
+          import math
+          import platform
+          with open("telemetry.json", encoding="utf-8") as f:
+              data = json.load(f)
+          expected = "macos" if platform.system() == "Darwin" else "linux"
+          assert data["schema"] == 1 and data["platform"] == expected
+          assert type(data["cpuPercent"]) is float
+          assert math.isfinite(data["cpuPercent"]) and 0 <= data["cpuPercent"] <= 100
+          assert type(data["memoryTotalBytes"]) is int and data["memoryTotalBytes"] > 0
+          assert type(data["memoryAvailableBytes"]) is int
+          assert 0 <= data["memoryAvailableBytes"] <= data["memoryTotalBytes"]
+          assert data["cpuTemperatureC"] is None and data["temperatureAvailable"] is False
+          print("TBME_NATIVE_PLATFORM_JSON=PASS", expected)
+          PY
+          if ./tbme-native-probe --wrong >/dev/null 2>&1; then
+            echo 'unsupported arguments accepted'; exit 1
+          fi
+          echo 'TBME_NATIVE_PLATFORM_ARGUMENT_REFUSAL=PASS'
