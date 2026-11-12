@@ -32,6 +32,19 @@ jobs:
 
       # Run before any other fixture can create the canonical LocalAppData AppRoot.
       # The test owns and removes that exact root on this fresh GitHub-hosted runner.
+      - name: R456 Windows Core Audio diagnostic schema compile-only regression
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $script='./build/Test-R452-WindowsAudioSessionReadOnly.ps1'
+          foreach($engine in @('powershell.exe','pwsh.exe')) {
+            $out=@(& $engine -NoLogo -NoProfile -NonInteractive -File $script -SchemaSelfTest)
+            if($LASTEXITCODE -ne 0 -or
+               $out -cnotcontains 'R456_WINDOWS_AUDIO_COM_SCHEMA_COMPILE=PASS_NO_OWNER_NO_AUDIO') {
+              throw ('R456_AUDIO_DIAGNOSTIC_COM_ABI_COMPILE_FAILED_'+$engine)
+            }
+          }
+          'R456_AUDIO_READONLY_DIAGNOSTIC_COM_SCHEMA=PASS_POWERSHELL_51_AND_7'
       - name: R85 absent PawnIO must degrade safely without driver or sensor mutation
         shell: pwsh
         run: |
