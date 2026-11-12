@@ -55,3 +55,27 @@ jobs:
             echo 'unsupported arguments accepted'; exit 1
           fi
           echo 'TBME_NATIVE_PLATFORM_ARGUMENT_REFUSAL=PASS'
+          ./tbme-native-probe --samples 3 > telemetry-stream.ndjson
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          lines = Path("telemetry-stream.ndjson").read_text(encoding="utf-8").splitlines()
+          assert len(lines) == 3, f"expected 3 streaming samples, got {len(lines)}"
+          for line in lines:
+              record = json.loads(line)
+              assert record["schema"] == 1
+              assert 0 <= record["cpuPercent"] <= 100
+              assert 0 <= record["memoryAvailableBytes"] <= record["memoryTotalBytes"]
+              assert record["temperatureAvailable"] is False
+              assert record["cpuTemperatureC"] is None
+          print("TBME_NATIVE_FINITE_STREAM=PASS samples=3")
+          PY
+          for count in 0 61 -1 3x; do
+            if ./tbme-native-probe --samples "$count" > rejected-output.txt 2>/dev/null; then
+              echo "unsupported stream count accepted: $count"; exit 1
+            fi
+            if test -s rejected-output.txt; then
+              echo "invalid stream count emitted telemetry: $count"; exit 1
+            fi
+          done
+          echo 'TBME_NATIVE_STREAM_COUNT_REFUSAL=PASS'
