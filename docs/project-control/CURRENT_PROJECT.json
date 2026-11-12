@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R423",
-  "Status": "R423_CODEQL_DISPOSITION_PASS_INDEPENDENT_HUMAN_REVIEW_REQUIRED",
-  "UpdatedUtc": "2026-11-12T01:00:58.9735281Z",
+  "CurrentEngineeringRevision": "R424",
+  "Status": "R424_CMD_ERROR_WIN10_NATIVE_AND_HOSTED_OFFLINE_PASS_REVIEW_PENDING",
+  "UpdatedUtc": "2026-11-12T01:59:22.0219319Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -123,10 +123,10 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "Security PR98 exact 5444a04 CodeQL PASS with six recorded scoped dispositions and 0 open findings; its independent human last-head security review still REVIEW_REQUIRED and merge BLOCKED. Dependent PR106 d17fb422 remains Draft with 4/4 hosted CI. Separate genuine Windows10 absent .NET Framework UAC/reboot and OS-registered Known Folder redirect remain untested; native Linux/macOS ports not implemented.",
-  "MainBlocker": "PR98 exact 5444a04 has 0 open CodeQL findings and all scoped CI checks PASS but no genuinely independent human approval; ruleset REVIEW_REQUIRED blocks merge. Dependent PR106 remains Draft. Windows10 full Offline absent-Framework/UAC/reboot, registered LocalAppData redirection and native ports remain separate unaccepted gates.",
+  "CriticalPath": "R424 source head 2ca3b2c native Win11 and Win10 CMD failure/CheckOnly tests PASS; hosted Build/Verification 43137254656 (4/4) and Offline Pack 43137248783 (1/1) PASS. Security PR98 CodeQL PASS but qualified human review pending (BLOCKED); dependent PR106 Draft. Full Win10 missing .NET/UAC/reboot and genuine registered LocalAppData redirection plus Linux/macOS ports remain unaccepted.",
+  "MainBlocker": "Security PR98 exact SHA5444a04 requires genuine independent human last-push approval and remains BLOCKED; PR106 cannot merge into main until upstream rule-compliant approval. R424 code and hosted installer pack tests are accepted only for scoped conditions.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Obtain real independent human review on PR98 exact 5444a04, address substantiated feedback and recheck exact-head security CI before merge. Keep PR106 Draft until upstream accepted; then refresh base and validate PR106 exact CI. Independently pursue disposable Windows10 absent-Framework UAC/reboot and actual registered Known Folder redirection; do not modify owner installed app or immutable v1.7.10 release.",
+  "ExactNextAction": "Obtain independent human review on PR98, repair any substantiated security issue, then comply with ruleset merge and retest PR106. For Windows10 unusual missing-Framework and registered known-folder redirect, obtain isolated real guest acceptance without changing owner install or immutable v1.7.10 release.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2900,5 +2900,6 @@
   "OwnerAppChanged": false,
   "PublicReleaseChanged": false
 },
-  "R423": {"Status":"CODEQL_SIX_DISPOSITIONS_PASS_PR98_REVIEW_REQUIRED","SecurityHead":"5444a04b9e7d6243888b5f512bd3e5c32e236c9c","FeaturePrior":"d17fb422f7b5cccb74f46f801f30167527310c76","Alerts":[221,234,235,236,237,238],"Dispositions":"AUDITABLE_AI_ASSISTED_FALSE_POSITIVE_NOT_HUMAN_REVIEW","CodeQL":"PASS_ZERO_OPEN_PR98_HEAD","LocalNative":"R298_R338_R404_R405_R406_R407_R408_R419_PASS","SecurityHostedBuild":43123337956,"FeatureHostedBuild":43126335307,"Pr98":"BLOCKED_REVIEW_REQUIRED","Pr106":"DRAFT","IndependentHumanReview":"PENDING","Windows10MissingFrameworkUacReboot":"NOT_PROVEN","RegisteredKnownFolderRedirect":"NOT_PROVEN","NativeLinuxMacOS":"NOT_IMPLEMENTED","OwnerInstalledAppChanged":false,"PublicReleaseChanged":false}
+  "R423": {"Status":"CODEQL_SIX_DISPOSITIONS_PASS_PR98_REVIEW_REQUIRED","SecurityHead":"5444a04b9e7d6243888b5f512bd3e5c32e236c9c","FeaturePrior":"d17fb422f7b5cccb74f46f801f30167527310c76","Alerts":[221,234,235,236,237,238],"Dispositions":"AUDITABLE_AI_ASSISTED_FALSE_POSITIVE_NOT_HUMAN_REVIEW","CodeQL":"PASS_ZERO_OPEN_PR98_HEAD","LocalNative":"R298_R338_R404_R405_R406_R407_R408_R419_PASS","SecurityHostedBuild":43123337956,"FeatureHostedBuild":43126335307,"Pr98":"BLOCKED_REVIEW_REQUIRED","Pr106":"DRAFT","IndependentHumanReview":"PENDING","Windows10MissingFrameworkUacReboot":"NOT_PROVEN","RegisteredKnownFolderRedirect":"NOT_PROVEN","NativeLinuxMacOS":"NOT_IMPLEMENTED","OwnerInstalledAppChanged":false,"PublicReleaseChanged":false},
+  "R424": {"Status":"WIN11_WIN10_NATIVE_AND_HOSTED_OFFLINE_PASS_HUMAN_REVIEW_PENDING","FeatureSourceHead":"2ca3b2c7f3583b1bbec6b58ab0d91df76b9d6656","Fix":"CMD_UNATTENDED_FAILURE_EXIT1_NO_PAUSE","RealWindows10":"WIN10_ENTERPRISE19045_TEMP_SYNTHETIC_READONLY_CHECKONLY_MISSING_AND_TAMPER_EXIT1_PASS","Windows10Operation":"b82d4d7c-f6a4-447d-8d45-40e0c8e0c29b","LocalWin11":"R424_R409_R410_R414_NATIVE_PASS","HostedBuild":43137254656,"HostedBuildResult":"PASS_4_OF_4","HostedOffline":43137248783,"HostedOfflineResult":"PASS_R424_MICROSOFT_SHA_AUTHENTICODE_WINDOWS_SERVER_REFUSAL","ArtifactId":13907598909,"ArtifactSizeBytes":128561123,"InitialHostedFailure":"TEST_FIXTURE_CHECKONLY_SERVER_OS_CHECK_PRECEDES_MISSING_FILE","FixedFixture":"VERIFY_OFFLINE_RUNTIME_PACKAGE_FIRST_READONLY","PR98":"BLOCKED_REVIEW_REQUIRED","PR106":"DRAFT_UNMERGED","ActualMissingFrameworkUacReboot":"UNTESTED","RealKnownFolderRedirect":"UNTESTED","NativeLinuxMacOS":"NOT_IMPLEMENTED","OwnerInstalledAppChanged":false,"PublicReleaseChanged":false}
 }
