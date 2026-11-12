@@ -90,7 +90,7 @@ try{
     }
     $badStdout=$badProcess.StandardOutput.ReadToEnd()
     $badStderr=$badProcess.StandardError.ReadToEnd()
-    if($badProcess.ExitCode -eq 0 -or
+    if($badProcess.ExitCode -ne 1 -or
        $badStdout -notmatch 'R409_PACKAGE_FILES_MISSING' -or
        $badStdout -notmatch 'installation did not complete'){
       throw ('R424_MISSING_PACKAGE_WRONG_FAILURE_SEMANTICS_exit_'+$badProcess.ExitCode+'_'+$badStdout+'_'+$badStderr)
