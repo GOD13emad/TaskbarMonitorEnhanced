@@ -46,3 +46,6 @@ For a developer-only, explicitly new output path, the project provides native ho
 These experiments use preview version 0.1.0 (Linux Debian package revision r443), distinct from immutable Windows release 1.7.10. Full distribution remains blocked until genuine per-platform GUI/installation/upgrade/uninstall tests and release authorization.
 
 Packaging references: https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/LaunchServicesKeys.html and https://www.debian.org/doc/debian-policy/ch-binary .
+## Temporary lab artifacts for independent native checks
+
+CI additionally stores the unsigned Linux Debian developer package and a permission-preserving zip of the unsigned macOS preview app as separate GitHub Actions artifacts with two-day retention. They are test fixtures produced only from committed source; not public releases, installs, or signed app deliveries. Users should not treat download/extraction or headless CI as validated install, rollback, upgrades, a real desktop session or Gatekeeper approval. An authorized Linux host may extract the .deb into an isolated owned fixture and use Xvfb without system installation or root privileges for additional native smoke tests.
