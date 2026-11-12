@@ -139,10 +139,12 @@ jobs:
       - name: Compile native AppKit macOS status menu and sensor smoke test
         if: runner.os == 'macOS'
         run: |
-          set -eu
+          set -euo pipefail
           clang++ -std=c++17 -O2 -fobjc-arc -Wall -Wextra -Werror -pedantic \
             native/macos/StatusBar.mm -framework AppKit -framework Foundation -o tbme-macos-status
           ./tbme-macos-status --self-test | grep -Fx 'TBME_MACOS_APPKIT_NATIVE_SENSOR_SELFTEST=PASS'
+          ./tbme-macos-status --test-thermal-policy | grep -Fx 'TBME_R455_MACOS_SYSTEM_THERMAL_WARNING_POLICY=PASS'
+          ./tbme-macos-status --thermal-state | grep -E '^thermal=(nominal|fair|serious|critical|unknown)$'
           # Dedicated application suite on an ephemeral macOS runner only.
           # This does NOT prove a logged-in macOS graphical menu bar.
           ./tbme-macos-status --settings | grep -Fx 'refreshSeconds=2'

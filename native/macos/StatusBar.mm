@@ -5,6 +5,35 @@
 #include <cstdio>
 #include <cstring>
 
+// Apple's NSProcessInfo thermal state reports system thermal pressure, not
+// CPU package temperature in Celsius. Do not invent a numeric reading.
+struct NativeThermalDisplay {
+    const char* name;
+    bool warning;
+    bool critical;
+};
+static NativeThermalDisplay native_thermal_display(NSProcessInfoThermalState state) {
+    switch(state) {
+        case NSProcessInfoThermalStateNominal: return {"nominal",false,false};
+        case NSProcessInfoThermalStateFair: return {"fair",false,false};
+        case NSProcessInfoThermalStateSerious: return {"serious",true,false};
+        case NSProcessInfoThermalStateCritical: return {"critical",true,true};
+        default: return {"unknown",false,false};
+    }
+}
+static bool native_thermal_mapping_self_test() {
+    const auto nominal=native_thermal_display(NSProcessInfoThermalStateNominal);
+    const auto fair=native_thermal_display(NSProcessInfoThermalStateFair);
+    const auto serious=native_thermal_display(NSProcessInfoThermalStateSerious);
+    const auto critical=native_thermal_display(NSProcessInfoThermalStateCritical);
+    const auto unknown=native_thermal_display(static_cast<NSProcessInfoThermalState>(-1));
+    return !std::strcmp(nominal.name,"nominal") && !nominal.warning &&
+           !std::strcmp(fair.name,"fair") && !fair.warning &&
+           !std::strcmp(serious.name,"serious") && serious.warning &&
+           !serious.critical && !std::strcmp(critical.name,"critical") &&
+           critical.warning && critical.critical &&
+           !std::strcmp(unknown.name,"unknown") && !unknown.warning;
+}
 static NSString* const kNativeRefreshKey=@"RefreshSeconds";
 static NSString* const kNativePreferencesSuite=
     @"com.god13emad.taskbarmonitorenhanced.nativepreview.settings";
@@ -35,6 +64,7 @@ static bool save_native_refresh_seconds(NSUserDefaults* prefs,NSInteger number) 
 @private
     NSStatusItem* statusItem;
     NSMenuItem* detailItem;
+    NSMenuItem* thermalItem;
     NSMenuItem* refreshItems[3];
     NSTimer* updateTimer;
     NSUserDefaults* preferences;
@@ -44,6 +74,7 @@ static bool save_native_refresh_seconds(NSUserDefaults* prefs,NSInteger number) 
 }
 - (void)refresh:(NSTimer*)timer;
 - (void)chooseRefreshSeconds:(NSMenuItem*)item;
+- (void)showMetricsTitle:(NSString*)title;
 @end
 
 @implementation TBMENativeStatusDelegate
@@ -67,6 +98,10 @@ static bool save_native_refresh_seconds(NSUserDefaults* prefs,NSInteger number) 
         action:nil keyEquivalent:@""];
     [detailItem setEnabled:NO];
     [menu addItem:detailItem];
+    thermalItem=[[NSMenuItem alloc] initWithTitle:@"System thermal state: measuring..."
+        action:nil keyEquivalent:@""];
+    [thermalItem setEnabled:NO];
+    [menu addItem:thermalItem];
     NSMenu* refreshMenu=[[NSMenu alloc] initWithTitle:@"Refresh interval"];
     const NSInteger values[]={2,5,10};
     for(int i=0;i<3;++i) {
@@ -114,13 +149,25 @@ static bool save_native_refresh_seconds(NSUserDefaults* prefs,NSInteger number) 
             values[i]==refreshSeconds?NSControlStateValueOn:NSControlStateValueOff];
     [self refreshSchedule];
 }
+- (void)showMetricsTitle:(NSString*)title {
+    const auto thermal=native_thermal_display([[NSProcessInfo processInfo] thermalState]);
+    NSString* detail=[NSString stringWithFormat:
+        @"System thermal state: %s (not CPU degrees)",thermal.name];
+    [thermalItem setTitle:detail];
+    if(thermal.warning) {
+        NSString* prefix=thermal.critical?@"THERMAL CRITICAL | ":@"THERMAL HIGH | ";
+        [statusItem.button setTitle:[prefix stringByAppendingString:title]];
+    } else {
+        [statusItem.button setTitle:title];
+    }
+}
 - (void)refresh:(NSTimer*)timer {
     (void)timer;
     Cpu current{};
     Mem memory{};
     if(!cpu(current)||!mem(memory)||!memory.total||
        memory.available>memory.total) {
-        [statusItem.button setTitle:@"CPU / RAM unavailable"];
+        [self showMetricsTitle:@"CPU / RAM unavailable"];
         [detailItem setTitle:@"Native sensor unavailable"];
         havePrevious=false;
         return;
@@ -132,12 +179,12 @@ static bool save_native_refresh_seconds(NSUserDefaults* prefs,NSInteger number) 
                      static_cast<double>(memory.total);
     if(!std::isfinite(load)||load<0.0||load>100.0||
        !std::isfinite(ram)||ram<0.0||ram>100.0) {
-        [statusItem.button setTitle:@"CPU / RAM ..."];
+        [self showMetricsTitle:@"CPU / RAM ..."];
         [detailItem setTitle:@"Measuring CPU / RAM..."];
         return;
     }
     NSString* title=[NSString stringWithFormat:@"CPU %.0f%%  RAM %.0f%%",load,ram];
-    [statusItem.button setTitle:title];
+    [self showMetricsTitle:title];
     [detailItem setTitle:title];
 }
 @end
@@ -148,6 +195,17 @@ int main(int argc,char** argv) {
             Cpu c{};Mem m{};
             if(!cpu(c)||!mem(m)||!m.total||m.available>m.total)return 3;
             std::puts("TBME_MACOS_APPKIT_NATIVE_SENSOR_SELFTEST=PASS");
+            return 0;
+        }
+        if(argc==2 && !std::strcmp(argv[1],"--test-thermal-policy")) {
+            if(!native_thermal_mapping_self_test())return 3;
+            std::puts("TBME_R455_MACOS_SYSTEM_THERMAL_WARNING_POLICY=PASS");
+            return 0;
+        }
+        if(argc==2 && !std::strcmp(argv[1],"--thermal-state")) {
+            const auto thermal=native_thermal_display(
+                [[NSProcessInfo processInfo] thermalState]);
+            std::printf("thermal=%s\n",thermal.name);
             return 0;
         }
         if(argc==2 && !std::strcmp(argv[1],"--settings")) {
@@ -174,7 +232,7 @@ int main(int argc,char** argv) {
             return 0;
         }
         if(argc!=1) {
-            std::fputs("usage: tbme-macos-status [--self-test|--settings|--set-interval 2/5/10]\n",stderr);
+            std::fputs("usage: tbme-macos-status [--self-test|--thermal-state|--test-thermal-policy|--settings|--set-interval 2/5/10]\n",stderr);
             return 2;
         }
         NSApplication* app=[NSApplication sharedApplication];
