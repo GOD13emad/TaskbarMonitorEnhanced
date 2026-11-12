@@ -153,6 +153,21 @@ jobs:
           if ./tbme-macos-status --set-interval xyz >/dev/null 2>&1; then exit 1; fi
           ./tbme-macos-status --settings | grep -Fx 'refreshSeconds=10'
           ./tbme-macos-status --set-interval 2 | grep -Fx 'refreshSeconds=2'
+          # Negative saved-value tests on this disposable macOS CI host.
+          # A fractional NSNumber must not silently truncate to a valid interval.
+          suite='com.god13emad.taskbarmonitorenhanced.nativepreview.settings'
+          defaults write "$suite" RefreshSeconds -float 2.5
+          if ./tbme-macos-status --settings >/dev/null 2>&1; then
+            echo 'fractional NSUserDefaults unexpectedly accepted'; exit 1
+          fi
+          defaults write "$suite" RefreshSeconds -string 2
+          if ./tbme-macos-status --settings >/dev/null 2>&1; then
+            echo 'string NSUserDefaults unexpectedly accepted'; exit 1
+          fi
+          ./tbme-macos-status --set-interval 5 | grep -Fx 'refreshSeconds=5'
+          ./tbme-macos-status --settings | grep -Fx 'refreshSeconds=5'
+          ./tbme-macos-status --set-interval 2 | grep -Fx 'refreshSeconds=2'
+          echo 'TBME_R453_MACOS_FRACTIONAL_STRING_REJECTED_AND_USER_REPAIR=PASS_HEADLESS_ONLY'
           echo 'TBME_R449_MACOS_NATIVE_REFRESH_INTERVAL_USER_DEFAULTS=PASS_HEADLESS_ONLY'
           if ./tbme-macos-status --unsupported >/dev/null 2>&1; then exit 1; fi
           echo 'TBME_MACOS_APPKIT_BINARY_BUILD=PASS_NO_INTERACTIVE_GUI_ASSERTION'

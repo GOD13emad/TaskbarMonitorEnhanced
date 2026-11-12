@@ -16,8 +16,14 @@ static NSInteger native_refresh_seconds(NSUserDefaults* prefs) {
     id value=[prefs objectForKey:kNativeRefreshKey];
     if(!value)return 2; // do not create settings on launch
     if(![value isKindOfClass:[NSNumber class]])return -1;
-    const NSInteger number=[value integerValue];
-    return number==2 || number==5 || number==10 ? number : -1;
+    // Reject fractional, NaN, infinite, and out-of-range stored numbers.
+    // integerValue would silently truncate 2.5 to the permitted value 2.
+    const double number=[value doubleValue];
+    if(!std::isfinite(number))return -1;
+    if(number==2.0)return 2;
+    if(number==5.0)return 5;
+    if(number==10.0)return 10;
+    return -1;
 }
 static bool save_native_refresh_seconds(NSUserDefaults* prefs,NSInteger number) {
     if(number!=2 && number!=5 && number!=10)return false;
