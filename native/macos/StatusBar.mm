@@ -7,7 +7,7 @@
 
 static NSString* const kNativeRefreshKey=@"RefreshSeconds";
 static NSString* const kNativePreferencesSuite=
-    @"com.god13emad.taskbarmonitorenhanced.nativepreview";
+    @"com.god13emad.taskbarmonitorenhanced.nativepreview.settings";
 
 static NSUserDefaults* native_preferences() {
     return [[NSUserDefaults alloc] initWithSuiteName:kNativePreferencesSuite];
@@ -22,7 +22,7 @@ static NSInteger native_refresh_seconds(NSUserDefaults* prefs) {
 static bool save_native_refresh_seconds(NSUserDefaults* prefs,NSInteger number) {
     if(number!=2 && number!=5 && number!=10)return false;
     [prefs setInteger:number forKey:kNativeRefreshKey];
-    return [prefs synchronize]; // explicit durability for immediate CLI smoke tests
+    return native_refresh_seconds(prefs)==number; // system manages backing-store flush
 }
 
 @interface TBMENativeStatusDelegate : NSObject <NSApplicationDelegate> {
