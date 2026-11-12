@@ -70,9 +70,31 @@ jobs:
           python -B ./build/test_public_release_g16.py
           if ($LASTEXITCODE -ne 0) { throw 'G16 release manifest, SHA256SUMS and CI negative regressions failed.' }
 
+      - name: R440 preserve exact private offline pack directory across builds
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $root='build/_out/InstallerPacks'
+          if(Test-Path -LiteralPath $root){throw 'R440_NONCLEAN_HOSTED_PACK_ROOT'}
+          [void][IO.Directory]::CreateDirectory($root)
+          $sentinel=Join-Path $root 'R440_BUILD_RETAIN_SENTINEL.txt'
+          [IO.File]::WriteAllText($sentinel,'TBME_R440_PRIVATE_OFFLINE_PACK_PRESERVATION',[Text.Encoding]::ASCII)
+
       - name: Reproducible build
         shell: pwsh
         run: ./build/Build.ps1
+
+      - name: R440 verify offline pack preservation and clean scoped CI fixture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $file='build/_out/InstallerPacks/R440_BUILD_RETAIN_SENTINEL.txt'
+          if(!(Test-Path -LiteralPath $file) -or
+             [IO.File]::ReadAllText($file) -cne 'TBME_R440_PRIVATE_OFFLINE_PACK_PRESERVATION'){
+             throw 'R440_BUILD_REMOVED_OR_CHANGED_PRIVATE_INSTALLER_PACK'
+          }
+          Remove-Item -LiteralPath $file -Force -ErrorAction Stop
+          'R440_PASS_INSTALLER_PACK_BYTES_PRESERVED_ACROSS_BUILD'
       - name: R439 compiled legacy Broker refuses foreign same-name sessions and paths
         shell: powershell
         run: |
