@@ -114,6 +114,21 @@ try{
     if(!$verifiedProcess -or $verifiedProcess.ExitCode -ne 0){throw 'R410_PINNED_SETUP_VERIFY_PROCESS_FAILED'}
   }finally{$pin.Dispose()}
   'R410_PASS_NATIVE_PINNED_EXE_READONLY_VERIFY_AND_DENIED_WRITER'
+  # R426: execute the production Setup lease with harmless /verify,
+  # enforcing real native Windows sharing denial and no installation.
+  $leaseProof=Invoke-Preflight $stage '-VerifyPinnedSetup'
+  if($leaseProof.Exit -ne 0){
+    throw ('R426_PINNED_SETUP_NATIVE_VERIFY_FAILED_'+$leaseProof.Stdout+'_'+$leaseProof.Stderr)
+  }
+  $leaseResult=$leaseProof.Stdout|ConvertFrom-Json
+  if($leaseResult.Status -cne 'SETUP_VERIFIED_PINNED_NO_INSTALL' -or
+     $leaseResult.SetupSHA256 -cne $manifest.SetupSHA256 -or
+     !$leaseResult.DeniedWriteWhilePinned -or
+     !$leaseResult.SetupExecutedForVerification -or
+     $leaseResult.ProductInstalled){
+    throw 'R426_PINNED_SETUP_NATIVE_VERIFY_SEMANTICS_CHANGED'
+  }
+  'R426_PASS_BOOTSTRAP_PINNED_SETUP_VERIFY_NO_INSTALL'
   if($ExpectOfflineRuntime){
     $proof=Invoke-Preflight $stage '-VerifyOfflineRuntime'
     if($proof.Exit -ne 0){throw ('R410_REAL_MICROSOFT_OFFLINE_SIGNATURE_VERIFICATION_FAILED_'+$proof.Stdout+'_'+$proof.Stderr)}
@@ -176,6 +191,11 @@ try{
       throw ('R409_TAMPERED_SETUP_ACCEPTED_'+$bad.Stdout)
     }
     'R409_PASS_MODIFIED_SETUP_SHA256_REFUSED'
+    $badLease=Invoke-Preflight $stage '-VerifyPinnedSetup'
+    if($badLease.Exit -eq 0 -or $badLease.Stdout -notmatch 'R409_SETUP_HASH_MISMATCH'){
+      throw ('R426_PINNED_SETUP_ACCEPTED_MODIFIED_BINARY_'+$badLease.Stdout)
+    }
+    'R426_PASS_MODIFIED_SETUP_REJECTED_BEFORE_PINNED_LAUNCH'
   }finally{
     # Restore from the unmodified archive, never attempt repair of user installation.
     Remove-Item -LiteralPath $savedSetup -Force

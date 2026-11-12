@@ -1,6 +1,6 @@
 # R409 Windows 10/11 x64 dependency-first launcher; never updates unrelated software.
 [CmdletBinding()]
-param([switch]$CheckOnly,[switch]$VerifyOfflineRuntime)
+param([switch]$CheckOnly,[switch]$VerifyOfflineRuntime,[switch]$VerifyPinnedSetup)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $MinimumRelease=528040
@@ -115,7 +115,54 @@ function Install-Runtime {
   }
 }
 
+# R426: keep the verified Setup file open, denying write/delete sharing,
+# through Start-Process and its completion. This is file-leaf scoped.
+function Invoke-PinnedProductSetup([string]$ExpectedSha,[switch]$VerifyOnly) {
+  if($ExpectedSha -cnotmatch '^[0-9A-F]{64}$'){
+    throw 'R426_EXPECTED_SETUP_HASH_INVALID'
+  }
+  if((Assert-Package) -cne $ExpectedSha){
+    throw 'R426_SETUP_CHANGED_BEFORE_PIN'
+  }
+  $pin=[IO.FileStream]::new($Setup,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+  try {
+    $digest=[Security.Cryptography.SHA256]::Create()
+    try {
+      $actual=([BitConverter]::ToString($digest.ComputeHash($pin))).Replace('-','')
+    }finally{$digest.Dispose()}
+    if($actual -cne $ExpectedSha){throw 'R426_PINNED_SETUP_SHA256_MISMATCH'}
+    if((Assert-Package) -cne $ExpectedSha){throw 'R426_SETUP_CHANGED_DURING_PIN'}
+    if($VerifyOnly) {
+      $denied=$false
+      try {
+        $writer=[IO.FileStream]::new($Setup,[IO.FileMode]::Open,[IO.FileAccess]::Write,[IO.FileShare]::ReadWrite)
+        $writer.Dispose()
+      }catch [IO.IOException]{$denied=$true}
+      if(!$denied){throw 'R426_PINNED_SETUP_WRITE_NOT_DENIED'}
+    }
+    $launchArgs=if($VerifyOnly){@('/verify')}else{@('/install','/quiet')}
+    $p=Start-Process -FilePath $Setup -ArgumentList $launchArgs -PassThru -Wait
+    if(!$p -or [int]$p.ExitCode -ne 0){
+      throw ('R426_PRODUCT_SETUP_FAILED_EXIT_'+$(if(!$p){'NULL'}else{$p.ExitCode}))
+    }
+  }finally{$pin.Dispose()}
+  if($VerifyOnly){
+    [pscustomobject][ordered]@{
+      Status='SETUP_VERIFIED_PINNED_NO_INSTALL'
+      SetupSHA256=$ExpectedSha
+      DeniedWriteWhilePinned=$true
+      SetupExecutedForVerification=$true
+      ProductInstalled=$false
+    }|ConvertTo-Json -Compress
+  }
+}
 try {
+  if($VerifyPinnedSetup){
+    # Read-only diagnostics on a compiled candidate; no install or UAC.
+    $expected=Assert-Package
+    Invoke-PinnedProductSetup -ExpectedSha $expected -VerifyOnly
+    exit 0
+  }
   if($VerifyOfflineRuntime){
     $setupSHA=Assert-Package
     $runtime=Join-Path $Root $RuntimeName
@@ -151,10 +198,7 @@ try {
   if((Assert-Package) -cne $setupSHA){throw 'R409_SETUP_CHANGED_AFTER_PREREQUISITE_PHASE'}
   # Never elevate the whole product installer: it must retain R385 medium-token
   # per-user update ownership; its protected sensor helper requests UAC itself.
-  $p=Start-Process -FilePath $Setup -ArgumentList @('/install','/quiet') -PassThru -Wait
-  if(!$p -or $p.ExitCode -ne 0){
-    throw ('R409_PRODUCT_SETUP_FAILED_EXIT_'+$(if(!$p){'NULL'}else{$p.ExitCode}))
-  }
+  Invoke-PinnedProductSetup -ExpectedSha $setupSHA
   $installed=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced\TaskbarMonitorEnhanced.exe'
   if(!(Test-Path -LiteralPath $installed -PathType Leaf)){
     throw 'R409_PRODUCT_SETUP_SUCCEEDED_BUT_MAIN_MISSING'

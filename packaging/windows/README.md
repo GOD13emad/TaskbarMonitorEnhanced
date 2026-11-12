@@ -23,6 +23,8 @@ The recommended R410 candidate is `TaskbarMonitorEnhanced-Windows10-11-x64-v1.7.
 
 The smaller `TaskbarMonitorEnhanced-Windows10-11-x64-v1.7.10.zip` is the online variant: it contains only Setup, scripts and the manifest; it downloads that same verified Microsoft runtime **only if** the current Windows Framework version is too old. Neither variant automatically upgrades Windows or Windows drivers.
 
+The launcher also pins the verified Setup executable with a read-only file handle denying file write/delete sharing across the actual /install /quiet process, and hashes the pinned file before launch. The read-only diagnostic -VerifyPinnedSetup invokes only Setup /verify without installing. This is a file-leaf integrity boundary, not proof against package-directory rebinding or malicious full-package replacement.
+
 The launcher refuses mismatches between its manifest and the bundled runtime, and validates the bundled runtime's **SHA-256 and Microsoft signature** before installation. During native UAC approval, the verified runtime executable remains open under a read-only file handle that denies write/delete sharing. If the signed prerequisite requires reboot, restart Windows and run `Install.cmd` again.
 
 To verify the offline runtime **without installing or starting it**, use:
