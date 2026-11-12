@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R421",
-  "Status": "R421_OWNER_LOCALAPPDATA_GUARD_NATIVE_WIN10_AND_HOSTED_MERGE_PASS_SECURITY_REVIEW_PENDING",
-  "UpdatedUtc": "2026-11-12T00:17:16.8523945Z",
+  "CurrentEngineeringRevision": "R423",
+  "Status": "R423_CODEQL_DISPOSITION_PASS_INDEPENDENT_HUMAN_REVIEW_REQUIRED",
+  "UpdatedUtc": "2026-11-12T01:00:58.9735281Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -115,7 +115,6 @@
     "R384: corrected R383 partial-stage cleanup flaw by repeating complete per-level allowlist/reparse inventory immediately before any known deletion. Exact R379 baseline negative 2/2 and exact R384 Candidate 10/10 including late root file, late empty directory, nested late file; all five journal metadata markers and stage structure preserved on refusal. Full Main/Broker/Supervisor/Setup build 0 warnings/errors, 3 selftests, Setup /verify 25/25. Exact PR head f59e1dc CI 63/63, hosted R370 push+PR 8/8, R360 6 real Windows 2022/2025 UI cycles and 24/24 hide samples 28-498ms median 233.5ms; R299 actual public v1.7.9 in-place upgrade and R300 actual fresh install PASS, exact Setup SHA 01A208F1FF0929AD6E03D895803AD08A65BB39F1B0014EB0B2A4DF4FC31D8CB9. Aggregate receipt SHA256 66EA0AC59B24D5B0C67B2961E084CAAB8F3CE2778774D418818DB070C6A05266. Human review still required; R371 historical failures remain unproven; Notion restoration still requires explicit user confirmation."
   ],
   "Open": [
-    "PR98_CODEQL_SIX_CRITICAL_BLOCKING",
     "R407_DISPOSABLE_HOSTED_CREATEPROCESS_ACCEPTANCE_PENDING",
     "OWNER_V179_TO_V1710_UPGRADE_TRANSACTION_PROVENANCE_NOT_INDEPENDENTLY_REVALIDATED",
     "ISSUE6_REPORTER_DRIVER_SHA_AND_INSTALL_ORIGIN_MISSING",
@@ -124,10 +123,10 @@
     "NOTION_RESTORE_CONFIRMATION_PENDING",
     "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "R421 canonical Supervisor LocalAppData guard and R338/R419/R421 native tests pass on Windows11 and real Windows10 with exact hosted 4/4 CI. Security PR98 still has 6 CodeQL Critical alerts and no independent reviewer approval; PR106 merged R421 code and 4/4 Hosted CI but remains Draft. Full Windows10 disposable actual offline installer/missing Framework UAC/reboot, OS-registered redirected Known Folder and native Linux/macOS ports are not accepted. Owner public installed v1.7.10 unchanged.",
-  "MainBlocker": "PR98 head 5444a04 has 44 SUCCESS checks and 1 FAILURE CodeQL (six Critical uncontrolled command-line alerts) with qualified human review still pending. R421 narrow real path-policy gap fixed and tested, PR106 aligned and exact 4-job CI successful. Separate full Windows10 offline install and prerequisites/reboot and registered Known Folder redirection compatibility remain untested; Linux/macOS ports missing.",
+  "CriticalPath": "Security PR98 exact 5444a04 CodeQL PASS with six recorded scoped dispositions and 0 open findings; its independent human last-head security review still REVIEW_REQUIRED and merge BLOCKED. Dependent PR106 d17fb422 remains Draft with 4/4 hosted CI. Separate genuine Windows10 absent .NET Framework UAC/reboot and OS-registered Known Folder redirect remain untested; native Linux/macOS ports not implemented.",
+  "MainBlocker": "PR98 exact 5444a04 has 0 open CodeQL findings and all scoped CI checks PASS but no genuinely independent human approval; ruleset REVIEW_REQUIRED blocks merge. Dependent PR106 remains Draft. Windows10 full Offline absent-Framework/UAC/reboot, registered LocalAppData redirection and native ports remain separate unaccepted gates.",
   "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Obtain qualified independent security review of the six exact PR98 CodeQL SARIF findings and R421 root-path mitigation; implement specific proven repairs or record justified finding-by-finding disposition without waivers or self-approval. Independently test full Offline install and missing Framework UAC/reboot on a disposable Windows10 guest and legitimate registered redirected LocalAppData before claiming compatibility. Do not change owner installed app or immutable public release.",
+  "ExactNextAction": "Obtain real independent human review on PR98 exact 5444a04, address substantiated feedback and recheck exact-head security CI before merge. Keep PR106 Draft until upstream accepted; then refresh base and validate PR106 exact CI. Independently pursue disposable Windows10 absent-Framework UAC/reboot and actual registered Known Folder redirection; do not modify owner installed app or immutable v1.7.10 release.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -2900,5 +2899,6 @@
   "LinuxMacOS": "NATIVE_PORTS_NOT_IMPLEMENTED",
   "OwnerAppChanged": false,
   "PublicReleaseChanged": false
-}
+},
+  "R423": {"Status":"CODEQL_SIX_DISPOSITIONS_PASS_PR98_REVIEW_REQUIRED","SecurityHead":"5444a04b9e7d6243888b5f512bd3e5c32e236c9c","FeaturePrior":"d17fb422f7b5cccb74f46f801f30167527310c76","Alerts":[221,234,235,236,237,238],"Dispositions":"AUDITABLE_AI_ASSISTED_FALSE_POSITIVE_NOT_HUMAN_REVIEW","CodeQL":"PASS_ZERO_OPEN_PR98_HEAD","LocalNative":"R298_R338_R404_R405_R406_R407_R408_R419_PASS","SecurityHostedBuild":43123337956,"FeatureHostedBuild":43126335307,"Pr98":"BLOCKED_REVIEW_REQUIRED","Pr106":"DRAFT","IndependentHumanReview":"PENDING","Windows10MissingFrameworkUacReboot":"NOT_PROVEN","RegisteredKnownFolderRedirect":"NOT_PROVEN","NativeLinuxMacOS":"NOT_IMPLEMENTED","OwnerInstalledAppChanged":false,"PublicReleaseChanged":false}
 }
