@@ -63,6 +63,36 @@ jobs:
           ./tbme-macos-status --self-test | grep -Fx 'TBME_MACOS_APPKIT_NATIVE_SENSOR_SELFTEST=PASS'
           if ./tbme-macos-status --unsupported >/dev/null 2>&1; then exit 1; fi
           echo 'TBME_MACOS_APPKIT_BINARY_BUILD=PASS_NO_INTERACTIVE_GUI_ASSERTION'
+      - name: Build and inspect unsigned Linux Debian preview, without installing
+        if: runner.os == 'Linux'
+        run: |
+          set -eu
+          deb="$RUNNER_TEMP/taskbarmonitorenhanced-native-preview.deb"
+          bash native/linux/build-preview-deb.sh "$deb"
+          test "$(dpkg-deb --field "$deb" Package)" = 'taskbarmonitorenhanced-native-preview'
+          before="$(sha256sum "$deb" | cut -d' ' -f1)"
+          if bash native/linux/build-preview-deb.sh "$deb" >/dev/null 2>&1; then
+            echo 'overwrite of existing preview incorrectly permitted'; exit 1
+          fi
+          after="$(sha256sum "$deb" | cut -d' ' -f1)"
+          test "$before" = "$after"
+          echo 'TBME_LINUX_PACKAGE_NO_OVERWRITE=PASS'
+
+      - name: Build and inspect unsigned macOS agent app bundle, without installing
+        if: runner.os == 'macOS'
+        run: |
+          set -eu
+          app="$RUNNER_TEMP/TaskbarMonitorEnhancedNativePreview.app"
+          bash native/macos/build-preview-app.sh "$app"
+          plutil -lint "$app/Contents/Info.plist"
+          test -x "$app/Contents/MacOS/tbme-macos-status"
+          before="$(shasum -a 256 "$app/Contents/MacOS/tbme-macos-status" | cut -d' ' -f1)"
+          if bash native/macos/build-preview-app.sh "$app" >/dev/null 2>&1; then
+            echo 'overwrite of existing app incorrectly permitted'; exit 1
+          fi
+          after="$(shasum -a 256 "$app/Contents/MacOS/tbme-macos-status" | cut -d' ' -f1)"
+          test "$before" = "$after"
+          echo 'TBME_MACOS_PACKAGE_NO_OVERWRITE=PASS'
       - name: Native self-test and JSON contract
         run: |
           set -eu

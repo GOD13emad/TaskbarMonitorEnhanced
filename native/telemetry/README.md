@@ -36,3 +36,13 @@ macOS build on a Mac with Apple Command Line Tools/AppKit:
 These are developer builds, not signed/distributed packages. Hosted Linux Xvfb only verifies that the GTK window can be created in an isolated X11 session; hosted macOS compiles and runs noninteractive sensor selftests without asserting a visible status item. A real owner Linux/Wayland/X11 desktop, macOS logged-in GUI, accessibility, multiscreen behavior, settings, Glass appearance, thermal alerts/audio, native packaging and launch-at-login all remain unaccepted.
 
 Reference interfaces: https://docs.gtk.org/gtk3/class.Application.html ; https://docs.gtk.org/glib/func.timeout_add_seconds.html ; https://developer.apple.com/documentation/appkit/nsstatusbar .
+## Disposable unsigned packaging candidates
+
+For a developer-only, explicitly new output path, the project provides native host builders. Neither builder installs, registers, autostarts, signs, notarizes, or publicly releases anything. They refuse to overwrite an existing target:
+
+- On Linux with the GTK3 development environment and dpkg-deb, run **bash native/linux/build-preview-deb.sh /absolute/new/path/preview.deb**. It emits an unsigned Debian package containing a GTK3 binary and a desktop-entry file with a documented, provisional system GTK dependency. It is inspected in hosted CI without installation; its dependency/ABI compatibility and real owner install/uninstall behavior are not accepted.
+- On macOS with AppKit/clang, run **bash native/macos/build-preview-app.sh /absolute/new/path/TaskbarMonitorEnhancedNativePreview.app**. It emits an unsigned standalone LSUIElement agent .app with a valid Info.plist and a native sensor-testable executable. No signing, Gatekeeper/notarization or user-session LaunchServices acceptance is asserted.
+
+These experiments use preview version 0.1.0 (Linux Debian package revision r443), distinct from immutable Windows release 1.7.10. Full distribution remains blocked until genuine per-platform GUI/installation/upgrade/uninstall tests and release authorization.
+
+Packaging references: https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/LaunchServicesKeys.html and https://www.debian.org/doc/debian-policy/ch-binary .
