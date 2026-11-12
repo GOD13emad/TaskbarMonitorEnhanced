@@ -115,6 +115,17 @@ jobs:
           clang++ -std=c++17 -O2 -fobjc-arc -Wall -Wextra -Werror -pedantic \
             native/macos/StatusBar.mm -framework AppKit -framework Foundation -o tbme-macos-status
           ./tbme-macos-status --self-test | grep -Fx 'TBME_MACOS_APPKIT_NATIVE_SENSOR_SELFTEST=PASS'
+          # Dedicated application suite on an ephemeral macOS runner only.
+          # This does NOT prove a logged-in macOS graphical menu bar.
+          ./tbme-macos-status --settings | grep -Fx 'refreshSeconds=2'
+          ./tbme-macos-status --set-interval 5 | grep -Fx 'refreshSeconds=5'
+          ./tbme-macos-status --settings | grep -Fx 'refreshSeconds=5'
+          ./tbme-macos-status --set-interval 10 | grep -Fx 'refreshSeconds=10'
+          if ./tbme-macos-status --set-interval 0 >/dev/null 2>&1; then exit 1; fi
+          if ./tbme-macos-status --set-interval xyz >/dev/null 2>&1; then exit 1; fi
+          ./tbme-macos-status --settings | grep -Fx 'refreshSeconds=10'
+          ./tbme-macos-status --set-interval 2 | grep -Fx 'refreshSeconds=2'
+          echo 'TBME_R449_MACOS_NATIVE_REFRESH_INTERVAL_USER_DEFAULTS=PASS_HEADLESS_ONLY'
           if ./tbme-macos-status --unsupported >/dev/null 2>&1; then exit 1; fi
           echo 'TBME_MACOS_APPKIT_BINARY_BUILD=PASS_NO_INTERACTIVE_GUI_ASSERTION'
       - name: Build and inspect unsigned Linux Debian preview, without installing

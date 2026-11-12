@@ -1,31 +1,90 @@
-// Experimental AppKit status-bar UI; native read-only counters, no helper process.
+// Experimental macOS AppKit menu bar: read-only CPU/RAM and per-user refresh choice.
 #import <AppKit/AppKit.h>
 #include "../telemetry/sample.hpp"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 
+static NSString* const kNativeRefreshKey=@"RefreshSeconds";
+static NSString* const kNativePreferencesSuite=
+    @"com.god13emad.taskbarmonitorenhanced.nativepreview";
+
+static NSUserDefaults* native_preferences() {
+    return [[NSUserDefaults alloc] initWithSuiteName:kNativePreferencesSuite];
+}
+static NSInteger native_refresh_seconds(NSUserDefaults* prefs) {
+    id value=[prefs objectForKey:kNativeRefreshKey];
+    if(!value)return 2; // do not create settings on launch
+    if(![value isKindOfClass:[NSNumber class]])return -1;
+    const NSInteger number=[value integerValue];
+    return number==2 || number==5 || number==10 ? number : -1;
+}
+static bool save_native_refresh_seconds(NSUserDefaults* prefs,NSInteger number) {
+    if(number!=2 && number!=5 && number!=10)return false;
+    [prefs setInteger:number forKey:kNativeRefreshKey];
+    return [prefs synchronize]; // explicit durability for immediate CLI smoke tests
+}
+
 @interface TBMENativeStatusDelegate : NSObject <NSApplicationDelegate> {
 @private
     NSStatusItem* statusItem;
     NSMenuItem* detailItem;
+    NSMenuItem* refreshItems[3];
     NSTimer* updateTimer;
+    NSUserDefaults* preferences;
+    NSInteger refreshSeconds;
     Cpu previous;
     bool havePrevious;
 }
 - (void)refresh:(NSTimer*)timer;
+- (void)chooseRefreshSeconds:(NSMenuItem*)item;
 @end
 
 @implementation TBMENativeStatusDelegate
+- (void)refreshSchedule {
+    if(updateTimer)[updateTimer invalidate];
+    updateTimer=[NSTimer scheduledTimerWithTimeInterval:
+        static_cast<NSTimeInterval>(refreshSeconds)
+        target:self selector:@selector(refresh:) userInfo:nil repeats:YES];
+}
 - (void)applicationDidFinishLaunching:(NSNotification*)notification {
     (void)notification;
-    statusItem=[[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
+    preferences=native_preferences();
+    refreshSeconds=native_refresh_seconds(preferences);
+    const bool invalidPreferences=refreshSeconds<0;
+    if(invalidPreferences)refreshSeconds=2; // safe runtime fallback, no overwrite
+    statusItem=[[NSStatusBar systemStatusBar]
+                statusItemWithLength:NSVariableStatusItemLength];
     [statusItem.button setTitle:@"CPU / RAM ..."];
     NSMenu* menu=[[NSMenu alloc] initWithTitle:@"TaskbarMonitorEnhanced"];
     detailItem=[[NSMenuItem alloc] initWithTitle:@"Measuring CPU / RAM..."
         action:nil keyEquivalent:@""];
     [detailItem setEnabled:NO];
     [menu addItem:detailItem];
+    NSMenu* refreshMenu=[[NSMenu alloc] initWithTitle:@"Refresh interval"];
+    const NSInteger values[]={2,5,10};
+    for(int i=0;i<3;++i) {
+        NSString* title=[NSString stringWithFormat:@"%ld seconds",
+                         static_cast<long>(values[i])];
+        refreshItems[i]=[[NSMenuItem alloc] initWithTitle:title
+            action:@selector(chooseRefreshSeconds:) keyEquivalent:@""];
+        [refreshItems[i] setTag:values[i]];
+        [refreshItems[i] setTarget:self];
+        [refreshItems[i] setState:
+            refreshSeconds==values[i]?NSControlStateValueOn:NSControlStateValueOff];
+        [refreshMenu addItem:refreshItems[i]];
+    }
+    NSMenuItem* refreshRoot=[[NSMenuItem alloc] initWithTitle:@"Refresh interval"
+        action:nil keyEquivalent:@""];
+    [refreshRoot setSubmenu:refreshMenu];
+    [menu addItem:refreshRoot];
+    if(invalidPreferences) {
+        NSMenuItem* invalid=[[NSMenuItem alloc]
+            initWithTitle:@"Invalid saved interval; using 2 seconds"
+            action:nil keyEquivalent:@""];
+        [invalid setEnabled:NO];
+        [menu addItem:invalid];
+    }
     [menu addItem:[NSMenuItem separatorItem]];
     NSMenuItem* quit=[[NSMenuItem alloc] initWithTitle:@"Quit"
         action:@selector(terminate:) keyEquivalent:@"q"];
@@ -34,8 +93,20 @@
     [statusItem setMenu:menu];
     havePrevious=false;
     [self refresh:nil];
-    updateTimer=[NSTimer scheduledTimerWithTimeInterval:2.0
-        target:self selector:@selector(refresh:) userInfo:nil repeats:YES];
+    [self refreshSchedule];
+}
+- (void)chooseRefreshSeconds:(NSMenuItem*)item {
+    const NSInteger wanted=[item tag];
+    if(!save_native_refresh_seconds(preferences,wanted)) {
+        [detailItem setTitle:@"Refresh preference NOT saved"];
+        return;
+    }
+    refreshSeconds=wanted;
+    const NSInteger values[]={2,5,10};
+    for(int i=0;i<3;++i)
+        [refreshItems[i] setState:
+            values[i]==refreshSeconds?NSControlStateValueOn:NSControlStateValueOff];
+    [self refreshSchedule];
 }
 - (void)refresh:(NSTimer*)timer {
     (void)timer;
@@ -66,17 +137,40 @@
 @end
 
 int main(int argc,char** argv) {
-    if(argc==2&&!std::strcmp(argv[1],"--self-test")) {
-        Cpu c{};Mem m{};
-        if(!cpu(c)||!mem(m)||!m.total||m.available>m.total)return 3;
-        std::puts("TBME_MACOS_APPKIT_NATIVE_SENSOR_SELFTEST=PASS");
-        return 0;
-    }
-    if(argc!=1) {
-        std::fputs("usage: tbme-macos-status [--self-test]\n",stderr);
-        return 2;
-    }
     @autoreleasepool {
+        if(argc==2 && !std::strcmp(argv[1],"--self-test")) {
+            Cpu c{};Mem m{};
+            if(!cpu(c)||!mem(m)||!m.total||m.available>m.total)return 3;
+            std::puts("TBME_MACOS_APPKIT_NATIVE_SENSOR_SELFTEST=PASS");
+            return 0;
+        }
+        if(argc==2 && !std::strcmp(argv[1],"--settings")) {
+            const NSInteger interval=native_refresh_seconds(native_preferences());
+            if(interval<0) {
+                std::fputs("Invalid stored refresh interval\n",stderr);return 3;
+            }
+            std::printf("refreshSeconds=%ld\n",static_cast<long>(interval));
+            return 0;
+        }
+        if(argc==3 && !std::strcmp(argv[1],"--set-interval")) {
+            NSInteger desired=-1;
+            if(!std::strcmp(argv[2],"2"))desired=2;
+            else if(!std::strcmp(argv[2],"5"))desired=5;
+            else if(!std::strcmp(argv[2],"10"))desired=10;
+            else return 2;
+            NSUserDefaults* prefs=native_preferences();
+            if(!save_native_refresh_seconds(prefs,desired)) {
+                std::fputs("Cannot save macOS refresh preference\n",stderr);
+                return 3;
+            }
+            if(native_refresh_seconds(prefs)!=desired)return 3;
+            std::printf("refreshSeconds=%ld\n",static_cast<long>(desired));
+            return 0;
+        }
+        if(argc!=1) {
+            std::fputs("usage: tbme-macos-status [--self-test|--settings|--set-interval 2/5/10]\n",stderr);
+            return 2;
+        }
         NSApplication* app=[NSApplication sharedApplication];
         [app setActivationPolicy:NSApplicationActivationPolicyAccessory];
         TBMENativeStatusDelegate* delegate=[[TBMENativeStatusDelegate alloc]init];
