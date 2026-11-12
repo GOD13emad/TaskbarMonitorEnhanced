@@ -272,12 +272,36 @@ jobs:
           "$extracted/Contents/MacOS/tbme-macos-status" --self-test |
             grep -Fx 'TBME_MACOS_APPKIT_NATIVE_SENSOR_SELFTEST=PASS'
           echo 'TBME_R446_MACOS_ZIP_EXECUTABLE_ROUNDTRIP=PASS_NO_INTERACTIVE_GUI_ASSERTION'
+      - name: R457 create and mount read-only unsigned macOS DMG on disposable runner
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/TaskbarMonitorEnhancedNativePreview.app"
+          image="$RUNNER_TEMP/TBME-R457-macOS-unsigned-preview.dmg"
+          ln -s "$RUNNER_TEMP/R457-nonexistent-symlink-target" "$image"
+          if bash native/macos/build-preview-dmg.sh "$app" "$image" >/dev/null 2>&1; then
+            echo 'R457 dangling symlink overwrite incorrectly permitted'; exit 1
+          fi
+          test ! -e "$RUNNER_TEMP/R457-nonexistent-symlink-target"
+          unlink "$image"
+          bash native/macos/build-preview-dmg.sh "$app" "$image" |
+            grep -Fx 'TBME_R457_MACOS_UNSIGNED_UDZO_DMG_MOUNT_READONLY_HASH_ROUNDTRIP=PASS_LAB_ONLY'
+          before="$(shasum -a 256 "$image" | cut -d' ' -f1)"
+          if bash native/macos/build-preview-dmg.sh "$app" "$image" >/dev/null 2>&1; then
+            echo 'R457 existing image overwrite incorrectly permitted'; exit 1
+          fi
+          after="$(shasum -a 256 "$image" | cut -d' ' -f1)"
+          test "$before" = "$after"
+          hdiutil verify -quiet "$image"
+          echo 'TBME_R457_MACOS_DMG_NO_OVERWRITE_AND_INTEGRITY=PASS_LAB_ONLY'
       - name: Preserve unsigned macOS app as temporary internal CI artifact
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: TBME-R444-macOS-Native-LAB-NOT-RELEASE
-          path: ${{ runner.temp }}/TBME-R444-macOS-preview.zip
+          path: |
+            ${{ runner.temp }}/TBME-R444-macOS-preview.zip
+            ${{ runner.temp }}/TBME-R457-macOS-unsigned-preview.dmg
           if-no-files-found: error
           retention-days: 2
       - name: Native self-test and JSON contract
