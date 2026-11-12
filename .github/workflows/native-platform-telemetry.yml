@@ -50,7 +50,7 @@ jobs:
       - name: Native Linux per-user settings and alert state regression
         if: runner.os == 'Linux'
         run: |
-          set -eu
+          set -euo pipefail
           stage="$(mktemp -d "$RUNNER_TEMP/tbme-native-settings.XXXXXXXX")"
           trap 'rm -rf -- "$stage"' EXIT
           c++ -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
