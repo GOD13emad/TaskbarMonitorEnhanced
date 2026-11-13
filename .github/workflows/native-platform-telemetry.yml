@@ -137,6 +137,11 @@ jobs:
             if test "$found" -ne 1; then cat "$log"; exit 4; fi
           '
           echo 'TBME_LINUX_GTK3_XVFB_WINDOW_SMOKE=PASS'
+          # Real GTK widget input via XTEST on a dedicated ephemeral Xvfb;
+          # no owner desktop, settings path, sound, or temperature simulation.
+          timeout 90s xvfb-run -a -s '-screen 0 1280x1024x24' \
+            dbus-run-session -- env TBME_DISPOSABLE_XVFB=1 \
+            bash native/linux/test-xvfb-gtk-controls.sh "$PWD/tbme-linux-panel"
 
       - name: Compile native AppKit macOS status menu and sensor smoke test
         if: runner.os == 'macOS'
