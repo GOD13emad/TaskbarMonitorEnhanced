@@ -32,6 +32,19 @@ jobs:
 
       # Run before any other fixture can create the canonical LocalAppData AppRoot.
       # The test owns and removes that exact root on this fresh GitHub-hosted runner.
+      - name: R456 Windows Core Audio diagnostic schema compile-only regression
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $script='./build/Test-R452-WindowsAudioSessionReadOnly.ps1'
+          foreach($engine in @('powershell.exe','pwsh.exe')) {
+            $out=@(& $engine -NoLogo -NoProfile -NonInteractive -File $script -SchemaSelfTest)
+            if($LASTEXITCODE -ne 0 -or
+               $out -cnotcontains 'R456_WINDOWS_AUDIO_COM_SCHEMA_COMPILE=PASS_NO_OWNER_NO_AUDIO') {
+              throw ('R456_AUDIO_DIAGNOSTIC_COM_ABI_COMPILE_FAILED_'+$engine)
+            }
+          }
+          'R456_AUDIO_READONLY_DIAGNOSTIC_COM_SCHEMA=PASS_POWERSHELL_51_AND_7'
       - name: R85 absent PawnIO must degrade safely without driver or sensor mutation
         shell: pwsh
         run: |
@@ -70,9 +83,31 @@ jobs:
           python -B ./build/test_public_release_g16.py
           if ($LASTEXITCODE -ne 0) { throw 'G16 release manifest, SHA256SUMS and CI negative regressions failed.' }
 
+      - name: R440 preserve exact private offline pack directory across builds
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $root='build/_out/InstallerPacks'
+          if(Test-Path -LiteralPath $root){throw 'R440_NONCLEAN_HOSTED_PACK_ROOT'}
+          [void][IO.Directory]::CreateDirectory($root)
+          $sentinel=Join-Path $root 'R440_BUILD_RETAIN_SENTINEL.txt'
+          [IO.File]::WriteAllText($sentinel,'TBME_R440_PRIVATE_OFFLINE_PACK_PRESERVATION',[Text.Encoding]::ASCII)
+
       - name: Reproducible build
         shell: pwsh
         run: ./build/Build.ps1
+
+      - name: R440 verify offline pack preservation and clean scoped CI fixture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $file='build/_out/InstallerPacks/R440_BUILD_RETAIN_SENTINEL.txt'
+          if(!(Test-Path -LiteralPath $file) -or
+             [IO.File]::ReadAllText($file) -cne 'TBME_R440_PRIVATE_OFFLINE_PACK_PRESERVATION'){
+             throw 'R440_BUILD_REMOVED_OR_CHANGED_PRIVATE_INSTALLER_PACK'
+          }
+          Remove-Item -LiteralPath $file -Force -ErrorAction Stop
+          'R440_PASS_INSTALLER_PACK_BYTES_PRESERVED_ACROSS_BUILD'
       - name: R439 compiled legacy Broker refuses foreign same-name sessions and paths
         shell: powershell
         run: |
@@ -87,6 +122,25 @@ jobs:
              $proof -cnotcontains 'R439_PASS_COMPILED_EXACT_IMAGE_AND_SESSION_SCOPE_11_CASES' -or
              $proof -cnotcontains 'R439_PASS_LIVE_TRUSTED_DRAIN_FOREIGN_SAME_NAME_SURVIVES'){
              throw 'R439_COMPILED_LEGACY_PROCESS_SCOPE_REGRESSION'
+          }
+          $proof
+
+      - name: R434 compiled Setup PowerShell argument transport rejects injection without launching
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R434-EncodedPowerShellArgTransport.ps1 -SetupPath ./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe -SourceRoot .)
+          foreach($mark in @(
+            'R434_PASS_COMPILED_INSTALL_THREE_UNTRUSTED_STRINGS_BASE64_ONLY',
+            'R434_PASS_COMPILED_UNINSTALL_THREE_UNTRUSTED_STRINGS_BASE64_ONLY',
+            'R434_PASS_FOUR_NON_ALLOWLISTED_MODE_ATTEMPTS_REJECTED_BEFORE_PIPE_CREATION',
+            'R434_PASS_COMPILED_DEFERRED_UNINSTALL_ROOT_ONLY_AS_BASE64_DATA',
+            'R434_PASS_THREE_UNTRUSTED_DEFERRED_UNINSTALL_ROOTS_REJECTED',
+            'R434_PASS_COMPILED_SETUP_SHA256_UNCHANGED',
+            'R434_PASS_NO_PROCESS_START_NO_UAC_NO_HELPER_EXECUTION',
+            'R434_RESULT=PASS_COMPILED_ELEVATED_HELPER_ARG_TRANSPORT_SCOPED'
+          )){
+            if($proof -cnotcontains $mark){throw ('R434_NATIVE_SETUP_ARG_TRANSPORT_PROOF_MISSING_'+$mark)}
           }
           $proof
 
@@ -281,6 +335,8 @@ jobs:
           foreach($mark in @(
             'R399_PASS_COMPILED_EXPLORER_ABSOLUTE_AND_QUOTED',
             'R399_PASS_NATIVE_DOTNET_ARGUMENT_SINGLE_PATH',
+            'R431_PASS_REAL_NET48_TRAILING_FOLDER_SEPARATOR_PRESERVED',
+            'R431_PASS_REAL_NET48_DRIVE_ROOT_SEPARATOR_PRESERVED',
             'R399_PASS_RELATIVE_FOLDER_REJECTED',
             'R399_PASS_QUOTE_INJECTION_REJECTED',
             'R399_PASS_MISSING_FOLDER_REJECTED',

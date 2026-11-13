@@ -133,7 +133,29 @@ Remove-Item -LiteralPath $LhmDir -Recurse -Force -ErrorAction SilentlyContinue
 Expand-Archive -LiteralPath $LhmZip -DestinationPath $LhmDir -Force
 if(!(Test-Path -LiteralPath (Join-Path $LhmDir 'LibreHardwareMonitorLib.dll'))){throw 'LibreHardwareMonitorLib.dll missing from pinned archive.'}
 
-Remove-Item -LiteralPath $Out,$Package,$TextPackage -Recurse -Force -ErrorAction SilentlyContinue
+# R440: InstallerPacks holds the single SHA-pinned private offline payload,
+# which must survive ordinary repeat builds. Only derived build children are
+# disposable. Reject reparse aliases before traversing/deleting anything.
+if(Test-Path -LiteralPath $Out){
+    $outInfo=Get-Item -LiteralPath $Out -Force
+    if(!$outInfo.PSIsContainer -or ($outInfo.Attributes -band [IO.FileAttributes]::ReparsePoint)){
+        throw 'R440_BUILD_OUTPUT_ROOT_NOT_A_NORMAL_DIRECTORY'
+    }
+    foreach($entry in @(Get-ChildItem -LiteralPath $Out -Force)){
+        if($entry.Name -ceq 'InstallerPacks'){
+            if(!$entry.PSIsContainer -or
+               ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint)){
+                throw 'R440_INSTALLERPACKS_NOT_A_NORMAL_DIRECTORY'
+            }
+            continue
+        }
+        if(($entry.Attributes -band [IO.FileAttributes]::ReparsePoint)){
+            throw ('R440_BUILD_OUTPUT_CHILD_REPARSE_REFUSED '+$entry.Name)
+        }
+        Remove-Item -LiteralPath $entry.FullName -Recurse -Force -ErrorAction Stop
+    }
+}
+Remove-Item -LiteralPath $Package,$TextPackage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $Out,$Package,$TextPackage|Out-Null
 
 # Reject truncated/missing source before compiling or packaging a candidate.

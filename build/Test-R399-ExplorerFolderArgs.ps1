@@ -70,6 +70,42 @@ try{
         }
     }finally{$child.Dispose()}
     'R399_PASS_NATIVE_DOTNET_ARGUMENT_SINGLE_PATH'
+    # R431: the previous test covered spaces but not a terminal path
+    # separator. A trailing backslash escaped the closing Windows quote.
+    # Use the same harmless compiled ArgsEcho.exe, never Explorer itself.
+    foreach($case in @(
+       @{ Label='trailing'; Folder=($folder+'\') },
+       @{ Label='drive-root'; Folder=[IO.Path]::GetPathRoot($folder) }
+    )){
+        $edge=Get-BuildResult ([string]$case.Folder)
+        if($edge.Error -or !$edge.Info){throw ('R431_BUILDER_REJECTED_'+$case.Label)}
+        $edgeInfo=[Diagnostics.ProcessStartInfo]$edge.Info
+        $edgeInfo.FileName=$exe
+        $edgeInfo.RedirectStandardOutput=$true
+        $edgeInfo.CreateNoWindow=$true
+        $child=[Diagnostics.Process]::Start($edgeInfo)
+        if(!$child){throw ('R431_ECHO_NO_PROCESS_'+$case.Label)}
+        try{
+            if(!$child.WaitForExit(5000)){
+                try{$child.Kill()}catch{}
+                throw ('R431_ECHO_TIMEOUT_'+$case.Label)
+            }
+            $edgeExit=[int]$child.ExitCode
+            $echoOutput=$child.StandardOutput.ReadToEnd()
+            $resultRows=@($echoOutput -split '\r?\n'|Where-Object {$_ -ne ''})
+            $expectedEdge=[IO.Path]::GetFullPath([string]$case.Folder)
+            if($edgeExit -ne 0 -or $resultRows.Count -ne 2 -or
+               $resultRows[0] -cne '1' -or $resultRows[1] -cne $expectedEdge){
+                throw ('R431_TRAILING_SEPARATOR_ARGUMENT_CORRUPTED_'+$case.Label)
+            }
+        }finally{$child.Dispose()}
+        if($case.Label -ceq 'trailing'){
+            'R431_PASS_REAL_NET48_TRAILING_FOLDER_SEPARATOR_PRESERVED'
+        }else{
+            'R431_PASS_REAL_NET48_DRIVE_ROOT_SEPARATOR_PRESERVED'
+        }
+    }
+
 
     $relative=Get-BuildResult '.\folder with spaces'
     if($relative.Error -cne 'InvalidDataException'){throw 'R399_RELATIVE_PATH_NOT_REJECTED'}

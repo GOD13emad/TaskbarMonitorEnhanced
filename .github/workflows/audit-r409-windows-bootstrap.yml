@@ -1,0 +1,102 @@
+name: R410 Windows 10/11 full-offline prerequisite installer pack (candidate)
+
+on:
+  push:
+    branches:
+      - feature/r409-platform-bootstrap
+    paths:
+      - packaging/windows/**
+      - build/Build-WindowsInstallerPack-R409.ps1
+      - build/Test-WindowsInstallerPack-R409.ps1
+      - .github/workflows/audit-r409-windows-bootstrap.yml
+      - build/Build.ps1
+      - build/TaskbarMonitorEnhanced_Setup.csproj
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-pack:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - name: Checkout pinned source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Confirm trusted disposable Windows hosted runner
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID'){
+            throw 'R409_REQUIRES_GITHUB_HOSTED_DISPOSABLE_WINDOWS'
+          }
+          'R409_HOSTED_DISPOSABLE_SOURCE='+((git rev-parse HEAD).Trim())
+      - name: Install pinned .NET build SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: 10.0.400
+      - name: Build existing four-component candidate (not installed)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Build.ps1
+          if($LASTEXITCODE -ne 0){throw 'R409_PRODUCT_BUILD_FAILED'}
+      - name: Acquire official Microsoft offline runtime with SHA256 and Authenticode
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $url='https://download.visualstudio.microsoft.com/download/pr/2d6bb6b2-226a-4baa-bdec-798822606ff1/8494001c276a4b96804cde7829c04d7f/ndp48-x86-x64-allos-enu.exe'
+          $expected='68C9986A8DCC0214D909AA1F31BEE9FB5461BB839EDCA996A75B08DDFFC1483F'
+          $dest=Join-Path $env:RUNNER_TEMP 'NDP48-x86-x64-AllOS-ENU.exe'
+          if(Test-Path -LiteralPath $dest){throw 'R410_HOSTED_RUNTIME_ALREADY_PRESENT'}
+          [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
+          Invoke-WebRequest -Uri $url -UseBasicParsing -MaximumRedirection 0 -TimeoutSec 180 -OutFile $dest
+          if((Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash -cne $expected){
+            throw 'R410_MICROSOFT_FRAMEWORK_SHA256_MISMATCH'
+          }
+          $sig=Get-AuthenticodeSignature -LiteralPath $dest
+          if($sig.Status -cne 'Valid' -or !$sig.SignerCertificate -or
+             $sig.SignerCertificate.Subject -notmatch '(^|,\s*)CN=Microsoft Corporation(,|$)'){
+            throw 'R410_MICROSOFT_FRAMEWORK_AUTHENTICODE_INVALID'
+          }
+          'R410_OFFICIAL_FRAMEWORK_HASH_AND_MICROSOFT_SIGNATURE=PASS'
+      - name: Create integrity-checked Windows installer candidate ZIP
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $runtime=Join-Path $env:RUNNER_TEMP 'NDP48-x86-x64-AllOS-ENU.exe'
+          $receipt=(& ./build/Build-WindowsInstallerPack-R409.ps1 -SetupPath ./build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe -RuntimePath $runtime) | ConvertFrom-Json
+          if(!$receipt -or $receipt.Status -cne 'PASS_PACKAGE_CREATED' -or !$receipt.RuntimeBundled -or
+             !(Test-Path -LiteralPath $receipt.Pack -PathType Leaf) -or
+             (Get-FileHash -LiteralPath $receipt.Pack -Algorithm SHA256).Hash -cne $receipt.PackSHA256){
+            throw 'R409_CANDIDATE_PACK_RECEIPT_INVALID'
+          }
+          'R409_PACK_BUILDER_RECEIPT=PASS'
+          $receipt|ConvertTo-Json -Compress
+      - name: Test ZIP identity and server OS refusal without installing
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-WindowsInstallerPack-R409.ps1 -PackageZip ./build/_out/InstallerPacks/TaskbarMonitorEnhanced-Windows10-11-x64-v1.7.10-Offline.zip -ExpectOfflineRuntime -ExpectUnsupportedServer)
+          foreach($required in @(
+             'R410_PASS_REAL_OFFLINE_MICROSOFT_EXE_SHA256_AND_AUTHENTICODE',
+             'R410_PASS_NATIVE_PINNED_EXE_READONLY_VERIFY_AND_DENIED_WRITER',
+             'R414_PASS_HOSTED_WINPS51_CMD_CLEARS_INHERITED_PS7_MODULE_PATH',
+             'R410_PASS_HOSTED_OFFLINE_FRAMEWORK_VERIFIED_BUT_SERVER_NOT_INSTALLED',
+             'R409_PASS_HOSTED_SERVER_OS_UNSUPPORTED_FAIL_CLOSED',
+             'R409_RESULT=PASS_HOSTED_ARCHIVE_MANIFEST_AND_UNSUPPORTED_OS_BOUNDARY')){
+            if($proof -cnotcontains $required){throw ('R409_HOSTED_PACK_PROOF_MISSING_'+$required)}
+          }
+          $proof
+      - name: Retain experimental installer pack (not a GitHub Release)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: TaskbarMonitorEnhanced-Windows10-11-x64-v1.7.10-Offline-R410-CANDIDATE
+          path: build/_out/InstallerPacks/TaskbarMonitorEnhanced-Windows10-11-x64-v1.7.10-Offline.zip
+          retention-days: 7
+          if-no-files-found: error

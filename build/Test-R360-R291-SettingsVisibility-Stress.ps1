@@ -12,7 +12,7 @@ if($env:GITHUB_ACTIONS -cne 'true' -or
    $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
    $env:RUNNER_OS -cne 'Windows' -or
    $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
-   $env:GITHUB_REF -cne 'refs/heads/security/r347-r349-helper-hardening-v1710' -or
+   ($env:GITHUB_REF -cne 'refs/heads/security/r347-r349-helper-hardening-v1710' -and ($env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or $env:GITHUB_REF -cne 'refs/heads/feature/r409-platform-bootstrap')) -or
    $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID|LAPTOP' -or
    ![Environment]::UserInteractive -or
    (git -C $sourceRoot rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){

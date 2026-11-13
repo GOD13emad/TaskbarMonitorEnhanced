@@ -1,0 +1,419 @@
+name: Native Linux and macOS telemetry slice (experimental)
+
+on:
+  push:
+    branches: [feature/r409-platform-bootstrap]
+    paths:
+      - 'native/**'
+      - '.github/workflows/native-platform-telemetry.yml'
+  pull_request:
+    paths:
+      - 'native/**'
+      - '.github/workflows/native-platform-telemetry.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Build platform-native C++17 probe
+        run: |
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror -pedantic native/telemetry/main.cpp -o tbme-native-probe
+      - name: Install GTK3 and Xvfb only on disposable Ubuntu CI host
+        if: runner.os == 'Linux'
+        run: |
+          set -eu
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libgtk-3-dev xvfb xdotool dbus-x11
+
+      - name: Linux CPU hwmon whitelist and invalid-value fixture test
+        if: runner.os == 'Linux'
+        run: |
+          set -eu
+          fixture="$(mktemp -d "$RUNNER_TEMP/tbme-cpu-temperature.XXXXXXXX")"
+          trap 'rm -rf -- "$fixture"' EXIT
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            native/telemetry/test-linux-temperature.cpp -o "$fixture/test-cpu-temp"
+          mkdir -- "$fixture/hwmon"
+          "$fixture/test-cpu-temp" "$fixture/hwmon"
+      - name: Native Linux per-user settings and alert state regression
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          stage="$(mktemp -d "$RUNNER_TEMP/tbme-native-settings.XXXXXXXX")"
+          trap 'rm -rf -- "$stage"' EXIT
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            native/linux/test-native-settings.cpp -o "$stage/settings-test" \
+            $(pkg-config --cflags --libs glib-2.0)
+          mkdir "$stage/config"
+          "$stage/settings-test" "$stage/config" | tee "$stage/settings-test.log"
+          grep -Fx 'TBME_R451_NATIVE_GLOBAL_BELL_COOLDOWN_AFTER_SENSOR_DROPOUT_AND_RECONFIG=PASS' "$stage/settings-test.log"
+      - name: Compile native GTK3 Linux desktop window and sensor smoke test
+        if: runner.os == 'Linux'
+        run: |
+          set -eu
+          c++ -std=c++17 -O2 -march=x86-64 -mtune=generic -Wall -Wextra -Werror -pedantic \
+            native/linux/Panel.cpp -o tbme-linux-panel $(pkg-config --cflags --libs gtk+-3.0)
+          readelf -n ./tbme-linux-panel
+          readelf -n ./tbme-linux-panel | grep -E 'x86 ISA needed: x86-64-baseline[[:space:]]*$'
+          ./tbme-linux-panel --self-test | grep -Fx 'TBME_LINUX_GTK3_NATIVE_SENSOR_SELFTEST=PASS'
+          # No display required: real sysfs reading or explicit unavailable code 3.
+          if ./tbme-linux-panel --probe-temperature > cpu-temperature-witness.txt; then
+            python3 - <<'PY'
+          from pathlib import Path
+          import re
+          data = Path("cpu-temperature-witness.txt").read_text(encoding="utf-8").strip()
+          pattern = r"^([0-9]{1,3}\.[0-9]{3}) (coretemp:Package|k10temp:Tdie|k10temp:Tctl|zenpower:Tdie|zenpower:Tctl|peci_cputemp:Die|cpu_thermal:temp1|x86_pkg_temp:temp1)$"
+          match = re.fullmatch(pattern, data)
+          assert match and 0 <= float(match.group(1)) <= 150, data
+          print("TBME_LINUX_REAL_TEMPERATURE_WITNESS=PASS_AVAILABLE")
+          PY
+          else
+            code=$?
+            test "$code" -eq 3
+            test ! -s cpu-temperature-witness.txt
+            echo 'TBME_LINUX_REAL_TEMPERATURE_WITNESS=PASS_UNAVAILABLE'
+          fi
+          # Isolated XDG settings. No owner's settings are read or written in CI.
+          settings_root="$(mktemp -d "$RUNNER_TEMP/tbme-gtk-settings.XXXXXXXX")"
+          trap 'rm -rf -- "$settings_root"' EXIT
+          export XDG_CONFIG_HOME="$settings_root"
+          ./tbme-linux-panel --settings | grep -Fx 'alert=false bell=false thresholdC=85'
+          ./tbme-linux-panel --set-alert true | grep -Fx 'alert=true bell=false thresholdC=85'
+          ./tbme-linux-panel --set-threshold 92 | grep -Fx 'alert=true bell=false thresholdC=92'
+          ./tbme-linux-panel --set-bell true | grep -Fx 'alert=true bell=true thresholdC=92'
+          ./tbme-linux-panel --settings | grep -Fx 'alert=true bell=true thresholdC=92'
+          if ./tbme-linux-panel --set-threshold 49 >/dev/null 2>&1; then exit 1; fi
+          if ./tbme-linux-panel --set-bell maybe >/dev/null 2>&1; then exit 1; fi
+          ./tbme-linux-panel --settings | grep -Fx 'alert=true bell=true thresholdC=92'
+          ./tbme-linux-panel --set-bell false >/dev/null
+          ./tbme-linux-panel --set-alert false >/dev/null
+          test "$(stat -c %a "$settings_root/taskbarmonitorenhanced-native-preview/settings.ini")" = "600"
+          echo 'TBME_NATIVE_XDG_SETTINGS_CLI_PERSISTENCE_AND_INPUT_REFUSAL=PASS'
+          # New isolated corrupted preference: explicit recovery preserves exact bytes.
+          badroot="$settings_root/recovery-fixture"
+          mkdir -p "$badroot/taskbarmonitorenhanced-native-preview"
+          export XDG_CONFIG_HOME="$badroot"
+          badfile="$badroot/taskbarmonitorenhanced-native-preview/settings.ini"
+          printf '[NativeTemperatureAlert]\nenabled=maybe\nbell=true\nthresholdC=96\n' > "$badfile"
+          before="$(sha256sum "$badfile" | cut -d' ' -f1)"
+          if ./tbme-linux-panel --settings >/dev/null 2>&1; then exit 1; fi
+          ./tbme-linux-panel --recover-settings | grep -Fx 'alert=false bell=false thresholdC=85'
+          test -f "$badfile.rejected"
+          test "$(sha256sum "$badfile.rejected" | cut -d' ' -f1)" = "$before"
+          test "$(stat -c %a "$badfile")" = "600"
+          if ./tbme-linux-panel --recover-settings >/dev/null 2>&1; then exit 1; fi
+          test "$(sha256sum "$badfile.rejected" | cut -d' ' -f1)" = "$before"
+          export XDG_CONFIG_HOME="$settings_root"
+          echo 'TBME_R450_LINUX_EXPLICIT_CORRUPT_PREFERENCE_RECOVERY_PRESERVES_BYTES=PASS'
+          if ./tbme-linux-panel --unsupported >/dev/null 2>&1; then exit 1; fi
+          # DISPLAY must exist before session portal initialization.
+          timeout 30s xvfb-run -a dbus-run-session -- bash -eu -c '
+            export GDK_BACKEND=x11 GTK_USE_PORTAL=0
+            log="$RUNNER_TEMP/tbme-native-gtk-r449-smoke.log"
+            ./tbme-linux-panel >"$log" 2>&1 &
+            pid=$!
+            trap "kill $pid 2>/dev/null || true" EXIT
+            found=0
+            for n in $(seq 1 20); do
+              if ! kill -0 "$pid" 2>/dev/null; then cat "$log"; exit 3; fi
+              if xdotool search --name "TaskbarMonitorEnhanced Native Linux" >/dev/null 2>&1; then
+                found=1
+                break
+              fi
+              sleep 0.5
+            done
+            if test "$found" -ne 1; then cat "$log"; exit 4; fi
+          '
+          echo 'TBME_LINUX_GTK3_XVFB_WINDOW_SMOKE=PASS'
+          # Real GTK widget input via XTEST on a dedicated ephemeral Xvfb;
+          # no owner desktop, settings path, sound, or temperature simulation.
+          timeout 90s xvfb-run -a -s '-screen 0 1280x1024x24' \
+            dbus-run-session -- env TBME_DISPOSABLE_XVFB=1 \
+            bash native/linux/test-xvfb-gtk-controls.sh "$PWD/tbme-linux-panel"
+
+      - name: Compile native AppKit macOS status menu and sensor smoke test
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          clang++ -std=c++17 -O2 -fobjc-arc -Wall -Wextra -Werror -pedantic \
+            native/macos/StatusBar.mm -framework AppKit -framework Foundation -o tbme-macos-status
+          ./tbme-macos-status --self-test | grep -Fx 'TBME_MACOS_APPKIT_NATIVE_SENSOR_SELFTEST=PASS'
+          ./tbme-macos-status --test-thermal-policy | grep -Fx 'TBME_R455_MACOS_SYSTEM_THERMAL_WARNING_POLICY=PASS'
+          ./tbme-macos-status --thermal-state | grep -E '^thermal=(nominal|fair|serious|critical|unknown)$'
+          # Dedicated application suite on an ephemeral macOS runner only.
+          # This does NOT prove a logged-in macOS graphical menu bar.
+          ./tbme-macos-status --settings | grep -Fx 'refreshSeconds=2'
+          ./tbme-macos-status --set-interval 5 | grep -Fx 'refreshSeconds=5'
+          ./tbme-macos-status --settings | grep -Fx 'refreshSeconds=5'
+          ./tbme-macos-status --set-interval 10 | grep -Fx 'refreshSeconds=10'
+          if ./tbme-macos-status --set-interval 0 >/dev/null 2>&1; then exit 1; fi
+          if ./tbme-macos-status --set-interval xyz >/dev/null 2>&1; then exit 1; fi
+          ./tbme-macos-status --settings | grep -Fx 'refreshSeconds=10'
+          ./tbme-macos-status --set-interval 2 | grep -Fx 'refreshSeconds=2'
+          # Negative saved-value tests on this disposable macOS CI host.
+          # A fractional NSNumber must not silently truncate to a valid interval.
+          suite='com.god13emad.taskbarmonitorenhanced.nativepreview.settings'
+          defaults write "$suite" RefreshSeconds -float 2.5
+          if ./tbme-macos-status --settings >/dev/null 2>&1; then
+            echo 'fractional NSUserDefaults unexpectedly accepted'; exit 1
+          fi
+          defaults write "$suite" RefreshSeconds -string 2
+          if ./tbme-macos-status --settings >/dev/null 2>&1; then
+            echo 'string NSUserDefaults unexpectedly accepted'; exit 1
+          fi
+          ./tbme-macos-status --set-interval 5 | grep -Fx 'refreshSeconds=5'
+          ./tbme-macos-status --settings | grep -Fx 'refreshSeconds=5'
+          ./tbme-macos-status --set-interval 2 | grep -Fx 'refreshSeconds=2'
+          echo 'TBME_R453_MACOS_FRACTIONAL_STRING_REJECTED_AND_USER_REPAIR=PASS_HEADLESS_ONLY'
+          echo 'TBME_R449_MACOS_NATIVE_REFRESH_INTERVAL_USER_DEFAULTS=PASS_HEADLESS_ONLY'
+          if ./tbme-macos-status --unsupported >/dev/null 2>&1; then exit 1; fi
+          echo 'TBME_MACOS_APPKIT_BINARY_BUILD=PASS_NO_INTERACTIVE_GUI_ASSERTION'
+      - name: Build and inspect unsigned Linux Debian preview, without installing
+        if: runner.os == 'Linux'
+        run: |
+          set -eu
+          deb="$RUNNER_TEMP/taskbarmonitorenhanced-native-preview.deb"
+          bash native/linux/build-preview-deb.sh "$deb"
+          inspect="$(mktemp -d "$RUNNER_TEMP/tbme-r458-isa.XXXXXXXX")"
+          trap 'rm -rf -- "$inspect"' EXIT
+          dpkg-deb -x "$deb" "$inspect"
+          readelf -n "$inspect/usr/bin/tbme-linux-panel" |
+            grep -E 'x86 ISA needed: x86-64-baseline[[:space:]]*$'
+          echo 'TBME_R458_LINUX_AMD64_PACKAGE_BASELINE_ISA=PASS'
+          test "$(dpkg-deb --field "$deb" Package)" = 'taskbarmonitorenhanced-native-preview'
+          before="$(sha256sum "$deb" | cut -d' ' -f1)"
+          if bash native/linux/build-preview-deb.sh "$deb" >/dev/null 2>&1; then
+            echo 'overwrite of existing preview incorrectly permitted'; exit 1
+          fi
+          after="$(sha256sum "$deb" | cut -d' ' -f1)"
+          test "$before" = "$after"
+          echo 'TBME_LINUX_PACKAGE_NO_OVERWRITE=PASS'
+          # R460: two independent builds with distinct temporary roots and time
+          # must yield byte-identical Debian packages, not merely equal ELF.
+          second="$inspect/rebuild-native-preview.deb"
+          sleep 2
+          bash native/linux/build-preview-deb.sh "$second" >"$inspect/rebuild.log"
+          cmp -s "$deb" "$second" || {
+            sha256sum "$deb" "$second"
+            echo 'R460 Debian package rebuild is not byte-identical'; exit 1
+          }
+          echo 'TBME_R460_DEBIAN_PREVIEW_BYTE_IDENTICAL_REBUILD=PASS'
+
+      - name: Install and purge owned preview package on disposable Ubuntu CI only
+        if: runner.os == 'Linux'
+        run: |
+          set -eu
+          package='taskbarmonitorenhanced-native-preview'
+          deb="$RUNNER_TEMP/taskbarmonitorenhanced-native-preview.deb"
+          if dpkg-query -s "$package" 2>/dev/null | grep -q '^Status: install ok installed$'; then
+            echo 'R445 refused a pre-existing native package on the runner'; exit 1
+          fi
+          # Ephemeral GitHub-hosted runner has explicit noninteractive sudo.
+          # The owner Ubuntu/Windows machines are never modified by this test.
+          trap 'sudo -n dpkg --purge taskbarmonitorenhanced-native-preview >/dev/null 2>&1 || true' EXIT
+          sudo -n dpkg -i "$deb"
+          test -x /usr/bin/tbme-linux-panel
+          test -f /usr/share/applications/tbme-native-preview.desktop
+          /usr/bin/tbme-linux-panel --self-test |
+            grep -Fx 'TBME_LINUX_GTK3_NATIVE_SENSOR_SELFTEST=PASS'
+          dpkg-query -s "$package" | grep -Fx 'Status: install ok installed'
+          sudo -n dpkg --purge "$package"
+          test ! -e /usr/bin/tbme-linux-panel
+          test ! -e /usr/share/applications/tbme-native-preview.desktop
+          if dpkg-query -s "$package" 2>/dev/null | grep -q '^Status: install ok installed$'; then
+            echo 'R445 native package remained installed after purge'; exit 1
+          fi
+          trap - EXIT
+          echo 'TBME_R445_DISPOSABLE_REAL_DPKG_INSTALL_AND_PURGE=PASS'
+      - name: Verify synthetic predecessor upgrade and same-version reinstall on disposable Linux CI
+        if: runner.os == 'Linux' && runner.environment == 'github-hosted'
+        run: |
+          set -eu
+          bash native/linux/test-preview-lifecycle.sh "$RUNNER_TEMP/taskbarmonitorenhanced-native-preview.deb"
+      - name: Build and inspect unsigned macOS agent app bundle, without installing
+        if: runner.os == 'macOS'
+        run: |
+          set -eu
+          app="$RUNNER_TEMP/TaskbarMonitorEnhancedNativePreview.app"
+          bash native/macos/build-preview-app.sh "$app"
+          plutil -lint "$app/Contents/Info.plist"
+          test -x "$app/Contents/MacOS/tbme-macos-status"
+          before="$(shasum -a 256 "$app/Contents/MacOS/tbme-macos-status" | cut -d' ' -f1)"
+          if bash native/macos/build-preview-app.sh "$app" >/dev/null 2>&1; then
+            echo 'overwrite of existing app incorrectly permitted'; exit 1
+          fi
+          after="$(shasum -a 256 "$app/Contents/MacOS/tbme-macos-status" | cut -d' ' -f1)"
+          test "$before" = "$after"
+          echo 'TBME_MACOS_PACKAGE_NO_OVERWRITE=PASS'
+      - name: Native unsigned macOS preview synthetic upgrade reinstall rollback and remove
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          bash native/macos/test-preview-lifecycle.sh \
+            "$RUNNER_TEMP/TaskbarMonitorEnhancedNativePreview.app"
+      - name: Preserve unsigned Linux preview as temporary internal CI artifact
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: TBME-R444-Linux-Native-LAB-NOT-RELEASE
+          path: ${{ runner.temp }}/taskbarmonitorenhanced-native-preview.deb
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Package unsigned macOS app preserving permissions
+        if: runner.os == 'macOS'
+        run: |
+          set -eu
+          ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/TaskbarMonitorEnhancedNativePreview.app" "$RUNNER_TEMP/TBME-R444-macOS-preview.zip"
+          test -s "$RUNNER_TEMP/TBME-R444-macOS-preview.zip"
+
+      - name: Verify macOS zipped AppKit preview extracts with executable identity (no GUI)
+        if: runner.os == 'macOS'
+        run: |
+          set -eu
+          work="$(mktemp -d "$RUNNER_TEMP/tbme-macos-preview-roundtrip.XXXXXXXX")"
+          trap 'rm -rf -- "$work"' EXIT
+          ditto -x -k "$RUNNER_TEMP/TBME-R444-macOS-preview.zip" "$work"
+          extracted="$work/TaskbarMonitorEnhancedNativePreview.app"
+          test -x "$extracted/Contents/MacOS/tbme-macos-status"
+          plutil -lint "$extracted/Contents/Info.plist"
+          original="$(shasum -a 256 "$RUNNER_TEMP/TaskbarMonitorEnhancedNativePreview.app/Contents/MacOS/tbme-macos-status" | cut -d' ' -f1)"
+          recovered="$(shasum -a 256 "$extracted/Contents/MacOS/tbme-macos-status" | cut -d' ' -f1)"
+          test "$original" = "$recovered"
+          "$extracted/Contents/MacOS/tbme-macos-status" --self-test |
+            grep -Fx 'TBME_MACOS_APPKIT_NATIVE_SENSOR_SELFTEST=PASS'
+          echo 'TBME_R446_MACOS_ZIP_EXECUTABLE_ROUNDTRIP=PASS_NO_INTERACTIVE_GUI_ASSERTION'
+      - name: R457 create and mount read-only unsigned macOS DMG on disposable runner
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/TaskbarMonitorEnhancedNativePreview.app"
+          image="$RUNNER_TEMP/TBME-R457-macOS-unsigned-preview.dmg"
+          ln -s "$RUNNER_TEMP/R457-nonexistent-symlink-target" "$image"
+          if bash native/macos/build-preview-dmg.sh "$app" "$image" >/dev/null 2>&1; then
+            echo 'R457 dangling symlink overwrite incorrectly permitted'; exit 1
+          fi
+          test ! -e "$RUNNER_TEMP/R457-nonexistent-symlink-target"
+          unlink "$image"
+          bash native/macos/build-preview-dmg.sh "$app" "$image" |
+            grep -Fx 'TBME_R457_MACOS_UNSIGNED_UDZO_DMG_MOUNT_READONLY_HASH_ROUNDTRIP=PASS_LAB_ONLY'
+          before="$(shasum -a 256 "$image" | cut -d' ' -f1)"
+          if bash native/macos/build-preview-dmg.sh "$app" "$image" >/dev/null 2>&1; then
+            echo 'R457 existing image overwrite incorrectly permitted'; exit 1
+          fi
+          after="$(shasum -a 256 "$image" | cut -d' ' -f1)"
+          test "$before" = "$after"
+          hdiutil verify -quiet "$image"
+          echo 'TBME_R457_MACOS_DMG_NO_OVERWRITE_AND_INTEGRITY=PASS_LAB_ONLY'
+      - name: Preserve unsigned macOS app as temporary internal CI artifact
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: TBME-R444-macOS-Native-LAB-NOT-RELEASE
+          path: |
+            ${{ runner.temp }}/TBME-R444-macOS-preview.zip
+            ${{ runner.temp }}/TBME-R457-macOS-unsigned-preview.dmg
+          if-no-files-found: error
+          retention-days: 2
+      - name: Native self-test and JSON contract
+        run: |
+          set -eu
+          ./tbme-native-probe --self-test | grep -Fx 'TBME_NATIVE_SENSOR_SELFTEST=PASS'
+          ./tbme-native-probe --once > telemetry.json
+          python3 - <<'PY'
+          import json
+          import math
+          import platform
+          with open("telemetry.json", encoding="utf-8") as f:
+              data = json.load(f)
+          expected = "macos" if platform.system() == "Darwin" else "linux"
+          assert data["schema"] == 1 and data["platform"] == expected
+          assert type(data["cpuPercent"]) is float
+          assert math.isfinite(data["cpuPercent"]) and 0 <= data["cpuPercent"] <= 100
+          assert type(data["memoryTotalBytes"]) is int and data["memoryTotalBytes"] > 0
+          assert type(data["memoryAvailableBytes"]) is int
+          assert 0 <= data["memoryAvailableBytes"] <= data["memoryTotalBytes"]
+          assert type(data["temperatureAvailable"]) is bool
+          if data["temperatureAvailable"]:
+              assert expected == "linux"
+              assert type(data["cpuTemperatureC"]) is float
+              assert math.isfinite(data["cpuTemperatureC"])
+              assert 0 <= data["cpuTemperatureC"] <= 150
+              assert data["cpuTemperatureSensor"] in {
+                  "coretemp:Package", "k10temp:Tdie", "k10temp:Tctl",
+                  "zenpower:Tdie", "zenpower:Tctl", "peci_cputemp:Die",
+                  "cpu_thermal:temp1", "x86_pkg_temp:temp1"}
+          else:
+              assert data["cpuTemperatureC"] is None
+              assert data["cpuTemperatureSensor"] is None
+          print("TBME_NATIVE_PLATFORM_JSON=PASS", expected)
+          PY
+          if ./tbme-native-probe --wrong >/dev/null 2>&1; then
+            echo 'unsupported arguments accepted'; exit 1
+          fi
+          echo 'TBME_NATIVE_PLATFORM_ARGUMENT_REFUSAL=PASS'
+          ./tbme-native-probe --samples 3 > telemetry-stream.ndjson
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          lines = Path("telemetry-stream.ndjson").read_text(encoding="utf-8").splitlines()
+          assert len(lines) == 3, f"expected 3 streaming samples, got {len(lines)}"
+          for line in lines:
+              record = json.loads(line)
+              assert record["schema"] == 1
+              assert 0 <= record["cpuPercent"] <= 100
+              assert 0 <= record["memoryAvailableBytes"] <= record["memoryTotalBytes"]
+              assert type(record["temperatureAvailable"]) is bool
+              if record["temperatureAvailable"]:
+                  assert record["platform"] == "linux"
+                  assert type(record["cpuTemperatureC"]) is float
+                  assert 0 <= record["cpuTemperatureC"] <= 150
+                  assert type(record["cpuTemperatureSensor"]) is str
+              else:
+                  assert record["cpuTemperatureC"] is None
+                  assert record["cpuTemperatureSensor"] is None
+          print("TBME_NATIVE_FINITE_STREAM=PASS samples=3")
+          PY
+          for count in 0 61 -1 3x; do
+            if ./tbme-native-probe --samples "$count" > rejected-output.txt 2>/dev/null; then
+              echo "unsupported stream count accepted: $count"; exit 1
+            fi
+            if test -s rejected-output.txt; then
+              echo "invalid stream count emitted telemetry: $count"; exit 1
+            fi
+          done
+          echo 'TBME_NATIVE_STREAM_COUNT_REFUSAL=PASS'
+          # A longer native sequence can reveal macOS 32-bit Mach counter wraps.
+          ./tbme-native-probe --samples 20 > telemetry-stress.ndjson
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          lines = Path("telemetry-stress.ndjson").read_text(encoding="utf-8").splitlines()
+          assert len(lines) == 20, f"expected 20 records, got {len(lines)}"
+          for line in lines:
+              data = json.loads(line)
+              assert 0 <= data["cpuPercent"] <= 100
+              assert 0 <= data["memoryAvailableBytes"] <= data["memoryTotalBytes"]
+              assert type(data["temperatureAvailable"]) is bool
+              if data["temperatureAvailable"]:
+                  assert data["platform"] == "linux"
+                  assert type(data["cpuTemperatureC"]) is float
+                  assert 0 <= data["cpuTemperatureC"] <= 150
+                  assert type(data["cpuTemperatureSensor"]) is str
+              else:
+                  assert data["cpuTemperatureC"] is None
+                  assert data["cpuTemperatureSensor"] is None
+          print("TBME_NATIVE_TWENTY_CONSECUTIVE_SAMPLES=PASS")
+          PY
