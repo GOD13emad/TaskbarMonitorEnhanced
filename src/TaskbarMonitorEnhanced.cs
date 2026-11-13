@@ -27,6 +27,7 @@ using System.Windows.Automation;
 using System.Windows.Forms;
 using System.Web.Script.Serialization;
 using Microsoft.Win32;
+using Microsoft.Win32.SafeHandles;
 
 
 [assembly: AssemblyTitle("Taskbar Monitor Enhanced")]
@@ -73,6 +74,38 @@ namespace TaskbarMonitorEnhanced
         public static readonly string CrashState = Path.Combine(Root, "last_crash.json");
         public static readonly string Updates = Path.Combine(Root, "Updates");
         public static readonly string Log = Path.Combine(Logs, "tbme_csharp_" + DateTime.Now.ToString("yyyyMMdd") + ".log");
+    }
+
+    internal static class ExplorerFolderLauncher
+    {
+        // .NET Framework ProcessStartInfo.Arguments is a single command-line
+        // string. Preserve one folder argument even when a profile has spaces.
+        internal static ProcessStartInfo BuildStartInfo(string folder)
+        {
+            if(String.IsNullOrWhiteSpace(folder)||folder.IndexOf('"')>=0||
+               !Path.IsPathRooted(folder))
+                throw new InvalidDataException("Explorer folder path is invalid.");
+            string full=Path.GetFullPath(folder);
+            if(!Directory.Exists(full))
+                throw new DirectoryNotFoundException("Explorer folder is missing.");
+            string windows=Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            if(String.IsNullOrWhiteSpace(windows))
+                throw new InvalidOperationException("Windows directory is unavailable.");
+            string explorer=Path.Combine(windows,"explorer.exe");
+            if(!File.Exists(explorer))
+                throw new FileNotFoundException("Windows Explorer is unavailable.",explorer);
+            ProcessStartInfo psi=new ProcessStartInfo();
+            psi.FileName=explorer;
+            psi.Arguments="\""+full+"\"";
+            psi.UseShellExecute=false;
+            return psi;
+        }
+
+        internal static void Open(string folder)
+        {
+            Process p=Process.Start(BuildStartInfo(folder));
+            if(p!=null)p.Dispose();
+        }
     }
 
     internal static class SensorSupervisorSelfHeal
@@ -233,25 +266,34 @@ namespace TaskbarMonitorEnhanced
             if(String.IsNullOrWhiteSpace(path))throw new ArgumentException("path");
             string dir=Path.GetDirectoryName(path);
             if(!String.IsNullOrWhiteSpace(dir))Directory.CreateDirectory(dir);
-            string tmp=path+"."+Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture)+"."+Environment.TickCount.ToString(CultureInfo.InvariantCulture)+".tmp";
-            File.WriteAllText(tmp,value??"",encoding??Encoding.UTF8);
+            // R369: create a unique temp file exclusively before writing any bytes.
+            // Do not follow a pre-created hard-link alias at a predictable PID/tick path.
+            string tmp=path+"."+Guid.NewGuid().ToString("N")+".tmp";
+            bool tempCreated=false;
             try
             {
+                using(FileStream stream=new FileStream(tmp,FileMode.CreateNew,FileAccess.Write,FileShare.None))
+                {
+                    tempCreated=true;
+                    using(StreamWriter writer=new StreamWriter(stream,encoding??Encoding.UTF8))
+                        writer.Write(value??"");
+                }
                 if(File.Exists(path))
                 {
                     File.Replace(tmp,path,String.IsNullOrWhiteSpace(backupPath)?null:backupPath,true);
+                    tempCreated=false;
                 }
                 else
                 {
                     File.Move(tmp,path);
+                    tempCreated=false;
                     if(!String.IsNullOrWhiteSpace(backupPath)&&!File.Exists(backupPath))
-                        File.Copy(path,backupPath,true);
+                        File.Copy(path,backupPath,false);
                 }
             }
-            catch
+            finally
             {
-                try{if(File.Exists(tmp))File.Delete(tmp);}catch{}
-                throw;
+                if(tempCreated)try{File.Delete(tmp);}catch{}
             }
         }
     }
@@ -846,9 +888,24 @@ namespace TaskbarMonitorEnhanced
             return !String.IsNullOrWhiteSpace(digest)&&Regex.IsMatch(digest.Trim(),@"^sha256:[0-9A-Fa-f]{64}$",RegexOptions.CultureInvariant);
         }
 
+        // R403: a release version is one canonical three-component numeric
+        // token, never an arbitrary filename component from GitHub metadata.
         internal static string ExpectedSetupAssetName(string version)
         {
-            return "TaskbarMonitorEnhanced_Setup_"+(version??"")+".exe";
+            if(String.IsNullOrWhiteSpace(version)||version.Length>32||
+               !Regex.IsMatch(version,@"\A[0-9]+\.[0-9]+\.[0-9]+\z",RegexOptions.CultureInvariant))
+                throw new InvalidDataException("Release version is not a canonical numeric token.");
+            string[] parts=version.Split('.');int major,minor,patch;
+            if(parts.Length!=3||!Int32.TryParse(parts[0],NumberStyles.None,CultureInfo.InvariantCulture,out major)||
+               !Int32.TryParse(parts[1],NumberStyles.None,CultureInfo.InvariantCulture,out minor)||
+               !Int32.TryParse(parts[2],NumberStyles.None,CultureInfo.InvariantCulture,out patch))
+                throw new InvalidDataException("Release version contains an invalid numeric component.");
+            string canonical=major.ToString(CultureInfo.InvariantCulture)+"."+
+                             minor.ToString(CultureInfo.InvariantCulture)+"."+
+                             patch.ToString(CultureInfo.InvariantCulture);
+            if(!String.Equals(version,canonical,StringComparison.Ordinal))
+                throw new InvalidDataException("Release version contains noncanonical numeric formatting.");
+            return "TaskbarMonitorEnhanced_Setup_"+canonical+".exe";
         }
         private static bool Bool(Dictionary<string,object> d,string key)
         {
@@ -930,9 +987,111 @@ namespace TaskbarMonitorEnhanced
             return info;
         }
 
+        // Reject directory junctions as well as a reparse-point installer leaf.
+        // Setup already checks canonical path ancestors. This preflight does
+        // not eliminate concurrent same-user path-replacement races.
+        internal static void RejectUpdateReparseAncestors(string path)
+        {
+            if(String.IsNullOrWhiteSpace(path)||!Path.IsPathRooted(path))
+                throw new InvalidDataException("Update path must be absolute.");
+            string cursor=Path.GetFullPath(path);
+            while(!String.IsNullOrEmpty(cursor))
+            {
+                try
+                {
+                    if((File.GetAttributes(cursor)&FileAttributes.ReparsePoint)!=0)
+                        throw new InvalidDataException("Update path contains a reparse point.");
+                }
+                catch(FileNotFoundException){}
+                catch(DirectoryNotFoundException){}
+                string parent=Path.GetDirectoryName(cursor);
+                if(String.IsNullOrEmpty(parent)||String.Equals(parent,cursor,StringComparison.OrdinalIgnoreCase))
+                    break;
+                cursor=parent;
+            }
+        }
+
+        // R403: align auto-updater's *writable* destination with the owner-local
+        // profile path already required by the per-user Setup. OS known folders
+        // can be redirected. Refuse UNC, arbitrary volume and junction roots
+        // instead of deleting installer bytes under a redirected user path.
+        // This is a preflight: it does NOT defeat concurrent same-user renames.
+        internal static string CanonicalPerUserUpdatesDirectory(string knownLocal,string knownProfile)
+        {
+            if(String.IsNullOrWhiteSpace(knownLocal)||String.IsNullOrWhiteSpace(knownProfile)||
+               !Path.IsPathRooted(knownLocal)||!Path.IsPathRooted(knownProfile)||
+               knownLocal.Length>1024||knownProfile.Length>1024)
+                throw new InvalidDataException("Canonical profile and LocalAppData are required.");
+            string profile=Path.GetFullPath(knownProfile).TrimEnd(Path.DirectorySeparatorChar);
+            string local=Path.GetFullPath(knownLocal).TrimEnd(Path.DirectorySeparatorChar);
+            if(profile.StartsWith(@"\\",StringComparison.Ordinal)||
+               local.StartsWith(@"\\",StringComparison.Ordinal)||
+               !Regex.IsMatch(profile,@"\A[A-Za-z]:\\",RegexOptions.CultureInvariant)||
+               !Regex.IsMatch(local,@"\A[A-Za-z]:\\",RegexOptions.CultureInvariant)||
+               String.Equals(Path.GetPathRoot(profile),profile,StringComparison.OrdinalIgnoreCase)||
+               String.Equals(Path.GetPathRoot(local),local,StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Automatic update rejects UNC or root-only paths.");
+            string expected=Path.GetFullPath(Path.Combine(profile,"AppData","Local")).TrimEnd(Path.DirectorySeparatorChar);
+            if(!String.Equals(local,expected,StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Automatic update requires the installed user's canonical LocalAppData.");
+            string updates=Path.GetFullPath(Path.Combine(local,"TaskbarMonitorEnhanced","Updates"));
+            if(updates.Length>1024||
+               !updates.StartsWith(local+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)||
+               !String.Equals(Path.GetFileName(updates),"Updates",StringComparison.Ordinal))
+                throw new InvalidDataException("Automatic update staging escaped the owner LocalAppData.");
+            RejectUpdateReparseAncestors(updates);
+            return updates;
+        }
         private static string Sha256File(string path)
         {
             using(SHA256 sha=SHA256.Create())using(FileStream fs=File.OpenRead(path)){byte[] b=sha.ComputeHash(fs);StringBuilder sb=new StringBuilder();foreach(byte x in b)sb.Append(x.ToString("X2",CultureInfo.InvariantCulture));return sb.ToString();}
+        }
+
+        // R400: do not open/truncate a predictable .download leaf. CreateNew
+        // fails on a pre-planted hardlink/symlink; streaming SHA caps input
+        // before any candidate is promoted to the expected installer name.
+        // Parent-path reparse checks remain preflights, not atomic protection
+        // against a concurrent actor controlling this same-user directory.
+        internal static string WriteVerifiedUpdateStaging(Stream download,string partial,string expectedDigest)
+        {
+            if(download==null||!download.CanRead||!IsStrictSha256Digest(expectedDigest)||
+               String.IsNullOrWhiteSpace(partial)||!Path.IsPathRooted(partial)||
+               !partial.EndsWith(".download",StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Update staging input is not canonical.");
+            RejectUpdateReparseAncestors(partial);
+            bool created=false;
+            try
+            {
+                using(FileStream output=new FileStream(partial,FileMode.CreateNew,FileAccess.Write,
+                    FileShare.None,65536,FileOptions.SequentialScan))
+                using(SHA256 sha=SHA256.Create())
+                {
+                    created=true;
+                    byte[] buffer=new byte[65536];long total=0;int count;
+                    while((count=download.Read(buffer,0,buffer.Length))>0)
+                    {
+                        total+=count;
+                        if(total>134217728)throw new InvalidDataException("Update exceeds the 128 MiB safety bound.");
+                        output.Write(buffer,0,count);
+                        sha.TransformBlock(buffer,0,count,buffer,0);
+                    }
+                    if(total<4096)throw new InvalidDataException("Update is not a complete installer.");
+                    sha.TransformFinalBlock(new byte[0],0,0);
+                    string actual=BitConverter.ToString(sha.Hash).Replace("-","");
+                    string expected=expectedDigest.Substring(7).ToUpperInvariant();
+                    if(!String.Equals(actual,expected,StringComparison.Ordinal))
+                        throw new InvalidDataException("Update SHA-256 mismatch.");
+                    output.Flush(true);
+                    return actual;
+                }
+            }
+            catch
+            {
+                // Only clean the leaf successfully created by this attempt.
+                // Failed CreateNew must never delete a pre-existing link.
+                if(created)try{RejectUpdateReparseAncestors(partial);File.Delete(partial);}catch{}
+                throw;
+            }
         }
 
         public static string DownloadAndVerify(ReleaseUpdateInfo info)
@@ -947,26 +1106,214 @@ namespace TaskbarMonitorEnhanced
                 throw new InvalidOperationException("Automatic installation is blocked because release identity metadata is not canonical.");
             if(!info.Immutable)throw new InvalidOperationException("Automatic installation is blocked because the GitHub Release is mutable. Open the release page and review it manually.");
             Uri u=new Uri(info.SetupUrl);if(!IsOfficialSetupUrl(info.SetupUrl,info.Version,expectedName))throw new InvalidDataException("Unexpected update URL: "+u.Host+u.AbsolutePath);
-            Directory.CreateDirectory(AppPaths.Updates);string safe=Path.GetFileName(info.SetupName);if(!String.Equals(safe,expectedName,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Unexpected update asset name.");string path=Path.Combine(AppPaths.Updates,safe);
-            string partial=path+".download";try{if(File.Exists(partial))File.Delete(partial);}catch{}
-            using(WebClient wc=Client())wc.DownloadFile(info.SetupUrl,partial);
-            string expected=info.SetupDigest.Substring(info.SetupDigest.IndexOf(':')+1).Trim().ToUpperInvariant();string actual=Sha256File(partial);if(!String.Equals(expected,actual,StringComparison.OrdinalIgnoreCase)){try{File.Delete(partial);}catch{}throw new InvalidDataException("Update SHA-256 mismatch. Expected="+expected+" Actual="+actual);}
-            if(File.Exists(path))File.Delete(path);File.Move(partial,path);Log.Write("INFO","UPDATE_DOWNLOAD_VERIFIED version="+info.Version+" sha256="+actual+" path="+path);return path;
+            string trustedUpdates=CanonicalPerUserUpdatesDirectory(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+            if(!String.Equals(Path.GetFullPath(AppPaths.Updates),trustedUpdates,StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Updater root does not match the installed per-user application.");
+            Directory.CreateDirectory(trustedUpdates);
+            // The downloaded asset name was equality-checked above; it never
+            // becomes a path. Use only the newly validated numeric release name.
+            string path=Path.Combine(trustedUpdates,expectedName);
+            string partial=path+"."+Guid.NewGuid().ToString("N")+".download";
+            RejectUpdateReparseAncestors(path);
+            RejectUpdateReparseAncestors(partial);
+            bool staged=false;
+            try
+            {
+                string actual;
+                using(WebClient wc=Client())
+                using(Stream stream=wc.OpenRead(info.SetupUrl))
+                    actual=WriteVerifiedUpdateStaging(stream,partial,info.SetupDigest);
+                staged=true;
+                RejectUpdateReparseAncestors(path);
+                RejectUpdateReparseAncestors(partial);
+                if(File.Exists(path))File.Delete(path);
+                File.Move(partial,path);
+                staged=false;
+                Log.Write("INFO","UPDATE_DOWNLOAD_VERIFIED version="+info.Version+" sha256="+actual+" path="+path);
+                return path;
+            }
+            finally
+            {
+                // No attempt to delete another invocation's predictable temp.
+                if(staged)try{RejectUpdateReparseAncestors(partial);File.Delete(partial);}catch{}
+            }
         }
 
+        // R404: executable-launch boundary is stricter than the general SHA
+        // verifier (R398 also verifies harmless files outside an install root).
+        // Bind the shell-executed file to the already trusted per-user Updates
+        // directory AND the exact canonical numeric-release Setup leaf.
+        // This is a fail-closed preflight, not a handle-level TOCTOU guarantee.
+        internal static string CanonicalInstallerLaunchPath(string path,string knownLocal,string knownProfile)
+        {
+            if(String.IsNullOrWhiteSpace(path)||path.Length>1200||!Path.IsPathRooted(path))
+                throw new InvalidDataException("Updater executable launch path must be absolute and bounded.");
+            string trustedRoot=CanonicalPerUserUpdatesDirectory(knownLocal,knownProfile);
+            string full=Path.GetFullPath(path);
+            if(!String.Equals(Path.GetDirectoryName(full),trustedRoot,StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Updater can execute only within the owner Updates directory.");
+            string leaf=Path.GetFileName(full);
+            Match match=Regex.Match(leaf,
+                @"\ATaskbarMonitorEnhanced_Setup_([0-9]+\.[0-9]+\.[0-9]+)\.exe\z",
+                RegexOptions.CultureInvariant|RegexOptions.IgnoreCase);
+            if(!match.Success||!String.Equals(leaf,ExpectedSetupAssetName(match.Groups[1].Value),
+                                                StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Updater launch filename is not an exact canonical release Setup.");
+            RejectUpdateReparseAncestors(full);
+            return full;
+        }
         internal static string VerifyInstallerBeforeLaunch(string path,string expectedDigest)
         {
             if(String.IsNullOrWhiteSpace(path)||!File.Exists(path))throw new FileNotFoundException("Verified update installer not found.",path);
             if(!IsStrictSha256Digest(expectedDigest))throw new InvalidDataException("Expected installer digest is invalid.");
+            RejectUpdateReparseAncestors(path);
             FileAttributes attrs=File.GetAttributes(path);if((attrs&FileAttributes.ReparsePoint)!=0)throw new InvalidDataException("Verified update installer path is a reparse point.");
             string expected=expectedDigest.Substring(expectedDigest.IndexOf(':')+1).Trim().ToUpperInvariant();
             string actual=Sha256File(path);if(!String.Equals(expected,actual,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Installer changed after verification.");
             return actual;
         }
+        // R405: pin every writable owner-path ancestor and the verified Setup
+        // FILE HANDLE until ShellExecute returns. No parent rename, leaf
+        // replacement or leaf write is share-compatible during this window.
+        // Fail closed on any reparse or handle-identity mismatch; the helper
+        // holds no admin privileges and leaves the installed app untouched.
+        internal sealed class VerifiedInstallerLaunchLease : IDisposable
+        {
+            private const uint FileReadAttributes=0x80,ShareReadWrite=3,OpenExisting=3;
+            private const uint BackupSemantics=0x02000000,OpenReparse=0x00200000;
+            private const uint DirectoryAttribute=0x10,ReparseAttribute=0x400;
+            [StructLayout(LayoutKind.Sequential)]
+            private struct FileAttributeTagInfo
+            {
+                public uint FileAttributes;
+                public uint ReparseTag;
+            }
+            [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true,EntryPoint="CreateFileW")]
+            private static extern SafeFileHandle OpenNative(
+                string path,uint access,uint share,IntPtr security,uint disposition,uint flags,IntPtr template);
+            [DllImport("kernel32.dll",SetLastError=true)]
+            private static extern bool GetFileInformationByHandleEx(
+                SafeFileHandle handle,int informationClass,out FileAttributeTagInfo value,uint size);
+            [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true,EntryPoint="GetFinalPathNameByHandleW")]
+            private static extern uint FinalPath(
+                SafeFileHandle handle,StringBuilder buffer,uint length,uint flags);
+
+            private readonly List<SafeFileHandle> pinnedDirectories=new List<SafeFileHandle>();
+            private FileStream pinnedInstaller;
+            internal string CanonicalPath {get;private set;}
+            internal string VerifiedSHA256 {get;private set;}
+
+            private static string HandlePath(SafeFileHandle handle)
+            {
+                StringBuilder buffer=new StringBuilder(4096);
+                uint length=FinalPath(handle,buffer,(uint)buffer.Capacity,0);
+                if(length==0||length>=buffer.Capacity)
+                    throw new IOException("Updater pinned file final-path query failed: "+Marshal.GetLastWin32Error());
+                string resolved=buffer.ToString();
+                if(resolved.StartsWith(@"\\?\UNC\",StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("Updater pinned path is an unexpected network mount.");
+                if(resolved.StartsWith(@"\\?\",StringComparison.Ordinal))
+                    resolved=resolved.Substring(4);
+                return Path.GetFullPath(resolved);
+            }
+
+            private static FileAttributeTagInfo Attributes(SafeFileHandle handle)
+            {
+                FileAttributeTagInfo tag;
+                if(!GetFileInformationByHandleEx(handle,9,out tag,
+                    (uint)Marshal.SizeOf(typeof(FileAttributeTagInfo))))
+                    throw new IOException("Updater pinned file attribute query failed: "+Marshal.GetLastWin32Error());
+                return tag;
+            }
+
+            private void PinDirectory(string path)
+            {
+                string expected=Path.GetFullPath(path);
+                SafeFileHandle handle=OpenNative(expected,FileReadAttributes,ShareReadWrite,
+                    IntPtr.Zero,OpenExisting,BackupSemantics|OpenReparse,IntPtr.Zero);
+                if(handle==null||handle.IsInvalid)
+                {
+                    int error=Marshal.GetLastWin32Error();
+                    if(handle!=null)handle.Dispose();
+                    throw new IOException("Updater cannot pin trusted directory: "+error);
+                }
+                try
+                {
+                    FileAttributeTagInfo tag=Attributes(handle);
+                    if((tag.FileAttributes&DirectoryAttribute)==0||
+                       (tag.FileAttributes&ReparseAttribute)!=0||
+                       !String.Equals(HandlePath(handle),expected,StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException("Updater owner directory identity or reparse check failed.");
+                    pinnedDirectories.Add(handle);
+                }
+                catch{handle.Dispose();throw;}
+            }
+
+            internal static VerifiedInstallerLaunchLease Acquire(
+                string path,string expectedDigest,string knownLocal,string knownProfile)
+            {
+                string trusted=CanonicalInstallerLaunchPath(path,knownLocal,knownProfile);
+                if(!IsStrictSha256Digest(expectedDigest))
+                    throw new InvalidDataException("Updater expected Setup digest is invalid.");
+                VerifiedInstallerLaunchLease lease=new VerifiedInstallerLaunchLease();
+                try
+                {
+                    string profile=Path.GetFullPath(knownProfile);
+                    string appData=Path.Combine(profile,"AppData");
+                    string local=Path.GetFullPath(knownLocal);
+                    string app=Path.Combine(local,"TaskbarMonitorEnhanced");
+                    string updates=Path.Combine(app,"Updates");
+                    foreach(string dir in new string[]{profile,appData,local,app,updates})
+                        lease.PinDirectory(dir);
+                    lease.pinnedInstaller=new FileStream(trusted,FileMode.Open,FileAccess.Read,
+                        FileShare.Read,65536,FileOptions.SequentialScan);
+                    FileAttributeTagInfo fileTag=Attributes(lease.pinnedInstaller.SafeFileHandle);
+                    if((fileTag.FileAttributes&DirectoryAttribute)!=0||
+                       (fileTag.FileAttributes&ReparseAttribute)!=0||
+                       !String.Equals(HandlePath(lease.pinnedInstaller.SafeFileHandle),trusted,
+                                      StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException("Updater pinned Setup file identity or reparse check failed.");
+                    byte[] digest;
+                    using(SHA256 sha=SHA256.Create())digest=sha.ComputeHash(lease.pinnedInstaller);
+                    StringBuilder hex=new StringBuilder(64);
+                    foreach(byte b in digest)hex.Append(b.ToString("X2",CultureInfo.InvariantCulture));
+                    string actual=hex.ToString();
+                    string expected=expectedDigest.Substring(expectedDigest.IndexOf(':')+1).Trim();
+                    if(!String.Equals(actual,expected,StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException("Pinned updater Setup failed SHA-256 verification.");
+                    lease.VerifiedSHA256=actual;
+                    lease.CanonicalPath=trusted;
+                    return lease;
+                }
+                catch{lease.Dispose();throw;}
+            }
+
+            public void Dispose()
+            {
+                if(pinnedInstaller!=null){pinnedInstaller.Dispose();pinnedInstaller=null;}
+                for(int i=pinnedDirectories.Count-1;i>=0;i--)pinnedDirectories[i].Dispose();
+                pinnedDirectories.Clear();
+            }
+        }
         public static void StartInstaller(string path,string expectedDigest)
         {
-            string actual=VerifyInstallerBeforeLaunch(path,expectedDigest);
-            ProcessStartInfo psi=new ProcessStartInfo();psi.FileName=path;psi.UseShellExecute=true;Process p=Process.Start(psi);if(p==null)throw new InvalidOperationException("Windows did not start the update installer.");Log.Write("INFO","UPDATE_INSTALLER_STARTED reverifiedSha256="+actual+" path="+path);
+            string local=Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string profile=Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string trusted=CanonicalInstallerLaunchPath(path,local,profile);
+            string actual=VerifyInstallerBeforeLaunch(trusted,expectedDigest);
+            using(VerifiedInstallerLaunchLease pinned=
+                VerifiedInstallerLaunchLease.Acquire(trusted,expectedDigest,local,profile))
+            {
+                if(!String.Equals(actual,pinned.VerifiedSHA256,StringComparison.Ordinal))
+                    throw new InvalidDataException("Updater Setup changed before file identity was pinned.");
+                ProcessStartInfo psi=new ProcessStartInfo();
+                psi.FileName=trusted;psi.UseShellExecute=true;
+                Process p=Process.Start(psi);
+                if(p==null)throw new InvalidOperationException("Windows did not start the update installer.");
+                Log.Write("INFO","UPDATE_INSTALLER_STARTED pinnedSha256="+pinned.VerifiedSHA256+" path="+trusted);
+            }
         }
     }
 
@@ -4445,7 +4792,7 @@ namespace TaskbarMonitorEnhanced
             updateMenuItem=new ToolStripMenuItem("Updates...");updateMenuItem.Click+=delegate{OpenSettings("Updates");};m.Items.Add(updateMenuItem);
             pauseMenuItem=new ToolStripMenuItem("Pause monitoring");pauseMenuItem.Click+=delegate{SetUserTelemetryPaused(!userTelemetryPaused);};m.Items.Add(pauseMenuItem);
             ToolStripMenuItem taskManager=new ToolStripMenuItem("Open Task Manager");taskManager.Click+=delegate{try{Process.Start(new ProcessStartInfo("taskmgr.exe"){UseShellExecute=true});Log.Write("INFO","TASK_MANAGER_OPEN");}catch(Exception ex){Log.Write("WARN","TASK_MANAGER_OPEN_FAIL "+ex.Message);}};m.Items.Add(taskManager);
-            ToolStripMenuItem logs=new ToolStripMenuItem("Open Logs"); logs.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Logs);}catch{}}; m.Items.Add(logs);
+            ToolStripMenuItem logs=new ToolStripMenuItem("Open Logs"); logs.Click+=delegate{try{ExplorerFolderLauncher.Open(AppPaths.Logs);}catch{}}; m.Items.Add(logs);
             m.Items.Add(new ToolStripSeparator());
             ToolStripMenuItem exit=new ToolStripMenuItem("Exit"); exit.Click+=delegate{UserExitRequested=true;Close();}; m.Items.Add(exit);
             return m;
@@ -7254,13 +7601,35 @@ namespace TaskbarMonitorEnhanced
             // must not be covered by its taskbar z-band and must be Alt+Tab-able.
             ShowInTaskbar=true;
             TopMost=true;
-            Shown+=delegate{
-                Rectangle work=Screen.FromControl(this).WorkingArea;
+            Action<string> applySettingsPlacement=delegate(string phase){
+                if(IsDisposed||Disposing||!IsHandleCreated)return;
+                // Load runs after WinForms DPI autoscaling and before the first
+                // visible frame. Shown is a final first-display correction;
+                // DpiChanged keeps the form within a newly selected monitor.
+                Screen controlScreen=Screen.FromControl(this);
+                Screen handleScreen=Screen.FromHandle(Handle);
+                Rectangle work=handleScreen.WorkingArea;
                 int w=Math.Min(Width,Math.Max(200,work.Width-16));
                 int h=Math.Min(Height,Math.Max(200,work.Height-16));
                 MinimumSize=new Size(Math.Min(MinimumSize.Width,w),Math.Min(MinimumSize.Height,h));
-                Bounds=new Rectangle(work.Left+(work.Width-w)/2,work.Top+(work.Height-h)/2,w,h);
+                MaximumSize=new Size(w,h);
+                Rectangle target=new Rectangle(work.Left+(work.Width-w)/2,work.Top+(work.Height-h)/2,w,h);
+                if(Bounds!=target)Bounds=target;
+                Log.Write("INFO","SETTINGS_PLACEMENT_METRICS phase="+phase+" dpi="+DeviceDpi+
+                    " dpiContext="+Native.DpiAwarenessMode()+
+                    " controlDevice="+controlScreen.DeviceName+
+                    " controlBounds="+controlScreen.Bounds+
+                    " controlWork="+controlScreen.WorkingArea+
+                    " handleDevice="+handleScreen.DeviceName+
+                    " handleBounds="+handleScreen.Bounds+
+                    " handleWork="+work+
+                    " outer="+Bounds+" client="+ClientSize);
+                Log.Write("INFO","SETTINGS_PLACEMENT_APPLIED phase="+phase+" max="+MaximumSize+
+                    " min="+MinimumSize+" outer="+Bounds+" client="+ClientSize);
             };
+            Load+=delegate{applySettingsPlacement("LOAD");};
+            Shown+=delegate{applySettingsPlacement("SHOWN");};
+            DpiChanged+=delegate{applySettingsPlacement("DPI_CHANGED");};
             BackColor=SettingsWindow;ForeColor=SettingsText;Font=new Font("Segoe UI",9.4f,FontStyle.Regular);DoubleBuffered=true;
 
             TableLayoutPanel root=new TableLayoutPanel();root.Dock=DockStyle.Fill;root.BackColor=SettingsWindow;root.ColumnCount=2;root.RowCount=1;root.Margin=Padding.Empty;root.Padding=Padding.Empty;root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,214f));root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100f));root.RowStyles.Add(new RowStyle(SizeType.Percent,100f));Controls.Add(root);
@@ -7378,14 +7747,14 @@ namespace TaskbarMonitorEnhanced
             diagnosticsText=new TextBox();SetA11y(diagnosticsText,"Diagnostics report","Read-only runtime health and diagnostics report.");diagnosticsText.Location=new Point(24,72);diagnosticsText.Size=new Size(800,390);diagnosticsText.Multiline=true;diagnosticsText.ReadOnly=true;diagnosticsText.ScrollBars=ScrollBars.Both;diagnosticsText.WordWrap=false;diagnosticsText.Font=new Font("Cascadia Mono",9f);diagnostics.Controls.Add(diagnosticsText);
             refreshDiagnostics=new Button();refreshDiagnostics.Text="Refresh health";refreshDiagnostics.Location=new Point(24,24);refreshDiagnostics.Size=new Size(130,34);refreshDiagnostics.Click+=delegate{RefreshDiagnostics();};diagnostics.Controls.Add(refreshDiagnostics);
             saveDiagnostics=new Button();saveDiagnostics.Text="Save report...";saveDiagnostics.Location=new Point(168,24);saveDiagnostics.Size=new Size(130,34);saveDiagnostics.Click+=delegate{SaveDiagnosticsReport();};diagnostics.Controls.Add(saveDiagnostics);
-            openDataFolder=new Button();openDataFolder.Text="Open data folder";openDataFolder.Location=new Point(312,24);openDataFolder.Size=new Size(135,34);openDataFolder.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Root);}catch{}};diagnostics.Controls.Add(openDataFolder);
+            openDataFolder=new Button();openDataFolder.Text="Open data folder";openDataFolder.Location=new Point(312,24);openDataFolder.Size=new Size(135,34);openDataFolder.Click+=delegate{try{ExplorerFolderLauncher.Open(AppPaths.Root);}catch{}};diagnostics.Controls.Add(openDataFolder);
             repairSensors=new Button();repairSensors.Text="Repair protected sensors...";repairSensors.Location=new Point(461,24);repairSensors.Size=new Size(185,34);repairSensors.Click+=delegate{RepairProtectedSensors();};diagnostics.Controls.Add(repairSensors);
             healthBadge=new Label();healthBadge.Location=new Point(24,478);healthBadge.Size=new Size(205,34);healthBadge.TextAlign=ContentAlignment.MiddleCenter;healthBadge.Font=new Font("Segoe UI Semibold",9.3f,FontStyle.Bold);healthBadge.BorderStyle=BorderStyle.FixedSingle;healthBadge.Text="Health: checking...";diagnostics.Controls.Add(healthBadge);
             copyDiagnostics=new Button();copyDiagnostics.Text="Copy diagnostics";copyDiagnostics.Location=new Point(246,478);copyDiagnostics.Size=new Size(135,34);copyDiagnostics.Click+=delegate{CopyDiagnosticsToClipboard();};diagnostics.Controls.Add(copyDiagnostics);
             exportSupportBundle=new Button();exportSupportBundle.Text="Export support ZIP...";exportSupportBundle.Location=new Point(396,478);exportSupportBundle.Size=new Size(165,34);exportSupportBundle.Click+=delegate{ExportSupportBundleZip();};diagnostics.Controls.Add(exportSupportBundle);
             exportSessionCsv=new Button();exportSessionCsv.Text="Export session CSV...";SetA11y(exportSessionCsv,"Export session CSV","Export the bounded in-memory telemetry history for this application session as CSV.");exportSessionCsv.Location=new Point(576,478);exportSessionCsv.Size=new Size(165,34);exportSessionCsv.Click+=delegate{ExportSessionCsvFile();};diagnostics.Controls.Add(exportSessionCsv);
 
-            Button openLog=new Button();openLog.Text="Open Logs";openLog.Location=new Point(24,28);openLog.Width=120;openLog.Click+=delegate{try{Process.Start("explorer.exe",AppPaths.Logs);}catch{}};advanced.Controls.Add(openLog);
+            Button openLog=new Button();openLog.Text="Open Logs";openLog.Location=new Point(24,28);openLog.Width=120;openLog.Click+=delegate{try{ExplorerFolderLauncher.Open(AppPaths.Logs);}catch{}};advanced.Controls.Add(openLog);
             resetDefaults=new Button();resetDefaults.Text="Load safe defaults...";resetDefaults.Location=new Point(24,78);resetDefaults.Size=new Size(155,34);resetDefaults.Click+=delegate{ResetControlsToSafeDefaults();};advanced.Controls.Add(resetDefaults);
             Label note=new Label();note.AutoSize=false;note.Location=new Point(24,138);note.Size=new Size(690,300);note.Text="Startup resilience uses dual per-user registration plus continuous low-pressure self-heal. Protected sensors remain process-isolated. Safe reset creates a timestamped config backup, loads defaults into this form, and does not change the running monitor until Save & Apply.";advanced.Controls.Add(note);
 

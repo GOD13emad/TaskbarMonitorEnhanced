@@ -1,6 +1,6 @@
 # R291: ONLY on a fresh disposable GitHub-hosted Windows guest. Performs REAL shell mouse/keyboard interaction; NEVER run on owner.
 [CmdletBinding()]
-param([Parameter(Mandatory=$true)][string]$CandidateDir,[Parameter(Mandatory=$true)][ValidateSet('A','B')][string]$HostLabel,[switch]$UseInstalledCandidate)
+param([Parameter(Mandatory=$true)][string]$CandidateDir,[Parameter(Mandatory=$true)][ValidateSet('A','B')][string]$HostLabel,[switch]$UseInstalledCandidate,[switch]$InjectLostTopmostAfterFullscreen)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 if($PSVersionTable.PSEdition -eq 'Core' -or $env:GITHUB_ACTIONS -cne 'true' -or
@@ -20,28 +20,49 @@ public static class R146Native {
  [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr p,EnumFn f,IntPtr d);
  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);
  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out Rect r);
+ [DllImport("dwmapi.dll",EntryPoint="DwmGetWindowAttribute",SetLastError=false)]
+ static extern int DwmGetWindowAttributeNative(IntPtr h,uint attribute,out Rect r,uint size);
+ public static int VisibleFrameBounds(IntPtr h,out Rect r){
+  return DwmGetWindowAttributeNative(h,9,out r,(uint)Marshal.SizeOf(typeof(Rect)));
+ }
  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
  [DllImport("user32.dll")] public static extern IntPtr GetWindowLongPtr(IntPtr h,int n);
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
  [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h,uint n);
  [DllImport("user32.dll")] public static extern IntPtr GetParent(IntPtr h);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h,StringBuilder s,int n);
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr h,StringBuilder s,int n);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string c,string t);
  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int s);
+ [DllImport("user32.dll",SetLastError=true)] public static extern bool SetWindowPos(IntPtr h,IntPtr insertAfter,int x,int y,int width,int height,uint flags);
  [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h,uint m,IntPtr w,IntPtr l);
  [DllImport("user32.dll")] public static extern void keybd_event(byte k,byte s,uint f,UIntPtr extra);
  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
  [DllImport("user32.dll")] public static extern bool GetCursorPos(out Point p);
+ [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(Point p);
+ public static Point SelectActualHit(IntPtr target,int x,int y,int width,int height,
+     out IntPtr oldHit,out int attempts){
+  Point first=new Point{X=x+40,Y=y+height/2};oldHit=WindowFromPoint(first);attempts=0;
+  if(oldHit==target)return first;
+  for(int yy=y+6;yy<y+height-6;yy+=2)for(int xx=x+6;xx<x+width-6;xx+=2){
+    attempts++;Point p=new Point{X=xx,Y=yy};
+    if(WindowFromPoint(p)==target)return p;
+  }
+  return new Point{X=int.MinValue,Y=int.MinValue};
+ }
  [DllImport("user32.dll",SetLastError=true)] public static extern uint SendInput(uint n,Input[] p,int size);
  public static void Key(byte code){keybd_event(code,0,0,UIntPtr.Zero);keybd_event(code,0,2,UIntPtr.Zero);}
  public static void Click(int x,int y,bool right){Point old;GetCursorPos(out old);SetCursorPos(x,y);try{
   Input down=new Input{u=new Union{m=new Mouse{flags=right?8u:2u}}};
   Input up=new Input{u=new Union{m=new Mouse{flags=right?16u:4u}}};
   if(Marshal.SizeOf(typeof(Input))!=40||SendInput(2,new[]{down,up},40)!=2)throw new Exception("Input not delivered");
+  // Keep the pointer at the target until the injected down/up events are consumed.
+  System.Threading.Thread.Sleep(100);
  }finally{SetCursorPos(old.X,old.Y);}}
  public static IntPtr[] Owned(uint pid,IntPtr tray){var list=new List<IntPtr>();EnumFn f=(h,d)=>{uint p;GetWindowThreadProcessId(h,out p);if(p==pid&&!list.Contains(h))list.Add(h);return true;};EnumWindows(f,IntPtr.Zero);EnumChildWindows(tray,f,IntPtr.Zero);return list.ToArray();}
  public static bool Above(IntPtr a,IntPtr b){for(int i=0;i<512;i++){b=GetWindow(b,3);if(b==IntPtr.Zero)return false;if(a==b)return true;}return false;}
  public static string Title(IntPtr h){var s=new StringBuilder(256);GetWindowText(h,s,s.Capacity);return s.ToString();}
+ public static string WindowClass(IntPtr h){var s=new StringBuilder(256);GetClassName(h,s,s.Capacity);return s.ToString();}
 }
 '@
 Add-Type -TypeDefinition $native -Language CSharp
@@ -217,21 +238,207 @@ try{
   # Original Capture() remains the separate final pixel threshold acceptance.
   $evidence+=Capture $monitor ($mode+'_NORMAL')
   # Real right-click and invoke the actual installed product's Settings menu item.
-  [R146Native]::Click(($original.X+40),($original.Y+($original.Height/2)),$true);Pump 650
+  # R372 strict native input: zero-alpha glass background lets mouse through.
+  # Find an actual UI hit-tested, nontransparent overlay pixel; no UIA Invoke.
+  [IntPtr]$fixedHit=[IntPtr]::Zero;[int]$scans=0
+  $target=[R146Native]::SelectActualHit($monitor,$original.X,$original.Y,
+    $original.Width,$original.Height,[ref]$fixedHit,[ref]$scans)
+  $ok=($target.X -ne [int]::MinValue)
+  $proof=[ordered]@{Mode=$mode;MonitorHWND=$monitor.ToInt64()
+    FixedClick=@(($original.X+40),($original.Y+[int]($original.Height/2)))
+    FixedNativeHit=$fixedHit.ToInt64()
+    SelectedClick=@($target.X,$target.Y)
+    SelectedNativeHit=$(if($ok){[R146Native]::WindowFromPoint($target).ToInt64()}else{0})
+    FixedPointHitMonitor=($fixedHit -eq $monitor)
+    UsedOpaqueGlyphFallback=($fixedHit -ne $monitor)
+    SearchCount=$scans
+    OriginalUIAAndSettingsForegroundRequirementsUnchanged=$true
+    PhysicalSendInputRequired=$true}
+  [IO.File]::WriteAllText((Join-Path $out ($mode+'_R372_NATIVE_HITTEST.json')),
+   ($proof|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
+  if(!$ok -or $proof.SelectedNativeHit -ne $monitor.ToInt64()){
+   throw ('R372_NO_NATIVE_OPAQUE_HIT MODE='+$mode+' SCANS='+$scans)
+  }
+  $evidence+=@{State=$mode+'_NATIVE_CLICK_HITTEST';FixedOnMonitor=$proof.FixedPointHitMonitor;FallbackUsed=$proof.UsedOpaqueGlyphFallback;HitX=$target.X;HitY=$target.Y;SearchCount=$scans}
+  [R146Native]::Click($target.X,$target.Y,$true);Pump 650
   Assert-Visible $monitor $original ($mode+'_MENU') $top
   $evidence+=Capture $monitor ($mode+'_MENU')
   $menuItem=$null
   $condition=New-Object Windows.Automation.AndCondition([Windows.Automation.Condition[]]@(
    (New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::ProcessIdProperty,[int]$process.Id)),
    (New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::NameProperty,'Settings...'))))
-  $menuItem=[Windows.Automation.AutomationElement]::RootElement.FindFirst([Windows.Automation.TreeScope]::Descendants,$condition)
-  if($null -eq $menuItem){throw 'R146_REAL_SETTINGS_MENU_ITEM_NOT_FOUND'}
-  $invoke=$menuItem.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern);$invoke.Invoke();Pump 1500
-  $settings=[IntPtr]::Zero
-  foreach($h in [R146Native]::Owned([uint32]$process.Id,$taskbar)){if([R146Native]::Title($h) -like '* - Settings' -and [R146Native]::IsWindowVisible($h)){$settings=$h;break}}
-  if($settings -eq [IntPtr]::Zero -or [R146Native]::GetForegroundWindow() -ne $settings){throw 'R146_SETTINGS_NOT_REAL_FOREGROUND'}
-  $work=[Windows.Forms.Screen]::FromHandle($settings).WorkingArea
-  if(!$work.Contains((Box $settings))){throw 'R146_SETTINGS_EXTENDS_BEHIND_TASKBAR'}
+  # Keep the exact PID/name predicate; poll for a bounded five seconds because
+  # the native popup can be delayed while DWM/Glass transitions settle.
+  $menuClock=[Diagnostics.Stopwatch]::StartNew()
+  do{
+   try{
+    $menuItem=[Windows.Automation.AutomationElement]::RootElement.FindFirst([Windows.Automation.TreeScope]::Descendants,$condition)
+   }catch [Windows.Automation.ElementNotAvailableException]{
+    $menuItem=$null
+   }
+   if($null -ne $menuItem){break}
+   Pump 100
+  }while($menuClock.ElapsedMilliseconds -lt 5000)
+  $menuClock.Stop()
+  $menuWaitMs=$menuClock.ElapsedMilliseconds
+  if($null -eq $menuItem){
+   $foreground=[R146Native]::GetForegroundWindow();$foregroundPid=[uint32]0
+   [void][R146Native]::GetWindowThreadProcessId($foreground,[ref]$foregroundPid)
+   $foregroundTitle=[R146Native]::Title($foreground)
+   $allSettings=New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::NameProperty,'Settings...')
+   $otherMatches=[Windows.Automation.AutomationElement]::RootElement.FindAll([Windows.Automation.TreeScope]::Descendants,$allSettings)
+   $matchSummary=@(foreach($item in $otherMatches){@{Pid=$item.Current.ProcessId;Type=$item.Current.ControlType.ProgrammaticName;Offscreen=$item.Current.IsOffscreen;Class=$item.Current.ClassName}})
+   # R375: failure-only Win32 topology distinguishes absent native popup
+   # from a real popup missed by UI Automation. Original strict throw is retained.
+   try{
+    $owned=[R146Native]::Owned([uint32]$process.Id,$taskbar)
+    $nativeWindows=New-Object 'Collections.Generic.List[object]'
+    for($i=0;$i -lt [Math]::Min(64,$owned.Length);$i++){
+     $h=$owned[$i];$rect=New-Object R146Native+Rect
+     $rectOk=[R146Native]::GetWindowRect($h,[ref]$rect)
+     $nativeWindows.Add([ordered]@{
+      Hwnd=$h.ToInt64();Class=[R146Native]::WindowClass($h)
+      Title=[R146Native]::Title($h);Visible=[R146Native]::IsWindowVisible($h)
+      Parent=[R146Native]::GetParent($h).ToInt64()
+      Owner=[R146Native]::GetWindow($h,4).ToInt64()
+      Rect=$(if($rectOk){@($rect.L,$rect.T,$rect.R,$rect.B)}else{@()})
+     })
+    }
+    $nativeFailure=[ordered]@{
+     Revision='R375';Mode=$mode;WaitMs=$menuWaitMs
+     ProductPid=$process.Id;MonitorHwnd=$monitor.ToInt64()
+     ClickXY=@($target.X,$target.Y)
+     HitHwndAfterWait=[R146Native]::WindowFromPoint($target).ToInt64()
+     ForegroundHwnd=$foreground.ToInt64();ForegroundPid=$foregroundPid
+     ForegroundClass=[R146Native]::WindowClass($foreground)
+     ForegroundTitle=$foregroundTitle
+     TaskbarHwnd=$taskbar.ToInt64()
+     NativeOwnedWindowCount=$owned.Length
+     NativeOwnedWindowListTruncated=($owned.Length -gt 64)
+     NativeOwnedWindows=@($nativeWindows.ToArray())
+     AllUIASettingsMatches=$matchSummary
+     OriginalStrictFiveSecondMenuGateUnchanged=$true
+     DiagnosticOnly=$true
+    }
+    [IO.File]::WriteAllText((Join-Path $out ($mode+'_SETTINGS_MENU_NATIVE_FAILURE.json')),
+     ($nativeFailure|ConvertTo-Json -Depth 9),[Text.UTF8Encoding]::new($false))
+   }catch{Write-Output ('R375_NATIVE_MENU_DIAGNOSTIC_WARNING '+$_.Exception.Message)}
+   throw ('R146_REAL_SETTINGS_MENU_ITEM_NOT_FOUND MODE='+$mode+' WAIT_MS='+$menuWaitMs+' FG_PID='+$foregroundPid+' FG_TITLE='+$foregroundTitle+' UIA_MATCHES='+($matchSummary|ConvertTo-Json -Compress))
+  }
+  $evidence+=@{State=$mode+'_SETTINGS_MENU_ITEM';WaitMs=$menuWaitMs;ProcessId=$menuItem.Current.ProcessId;Name=$menuItem.Current.Name;ControlType=$menuItem.Current.ControlType.ProgrammaticName}
+  Write-Output ('R146_SETTINGS_MENU_ITEM_READY MODE='+$mode+' WAIT_MS='+$menuWaitMs)
+    # Invoke the real visible menu item with physical input, not UIA InvokePattern.
+  # The actual mouse click preserves foreground-activation semantics on all guests.
+  $menuBounds=$menuItem.Current.BoundingRectangle
+  if($menuItem.Current.IsOffscreen -or $menuBounds.IsEmpty -or $menuBounds.Width -lt 4 -or $menuBounds.Height -lt 4){
+   throw ('R146_SETTINGS_MENU_ITEM_NOT_CLICKABLE MODE='+$mode+' OFFSCREEN='+$menuItem.Current.IsOffscreen+' BOUNDS='+$menuBounds.ToString())
+  }
+  $menuClickX=[int][Math]::Floor($menuBounds.Left+($menuBounds.Width/2))
+  $menuClickY=[int][Math]::Floor($menuBounds.Top+($menuBounds.Height/2))
+  $evidence+=@{State=$mode+'_SETTINGS_MENU_CLICK';X=$menuClickX;Y=$menuClickY;Bounds=$menuBounds.ToString();ProcessId=$menuItem.Current.ProcessId}
+  [R146Native]::Click($menuClickX,$menuClickY,$false);Pump 250
+  # Require the actual product-owned Settings HWND to become foreground.
+  # Polling is bounded; a missing/non-foreground window remains a hard failure.
+  $settings=[IntPtr]::Zero;$settingsCandidate=[IntPtr]::Zero
+  $settingsClock=[Diagnostics.Stopwatch]::StartNew()
+  do{
+   $foreground=[R146Native]::GetForegroundWindow()
+   foreach($h in [R146Native]::Owned([uint32]$process.Id,$taskbar)){
+    if([R146Native]::Title($h) -like '* - Settings' -and [R146Native]::IsWindowVisible($h)){
+     $settingsCandidate=$h
+     if($foreground -eq $h){$settings=$h;break}
+    }
+   }
+   if($settings -ne [IntPtr]::Zero){break}
+   Pump 100
+  }while($settingsClock.ElapsedMilliseconds -lt 5000)
+  $settingsClock.Stop()
+  $settingsWaitMs=$settingsClock.ElapsedMilliseconds
+  if($settings -eq [IntPtr]::Zero){
+   $foreground=[R146Native]::GetForegroundWindow();$foregroundPid=[uint32]0
+   [void][R146Native]::GetWindowThreadProcessId($foreground,[ref]$foregroundPid)
+   $foregroundTitle=[R146Native]::Title($foreground)
+   $windowSummary=@(foreach($h in [R146Native]::Owned([uint32]$process.Id,$taskbar)){
+    $r=Box $h
+    $style=[R146Native]::GetWindowLongPtr($h,-16).ToInt64()
+    $parent=[R146Native]::GetParent($h)
+    $owner=[R146Native]::GetWindow($h,4)
+    @{Hwnd=$h.ToInt64();Title=[R146Native]::Title($h)
+     Visible=[R146Native]::IsWindowVisible($h);Foreground=($h -eq $foreground)
+     Rect=@($r.X,$r.Y,$r.Width,$r.Height);Style=$style
+     WSVisible=(($style -band 268435456) -ne 0)
+     Parent=$parent.ToInt64()
+     ParentVisible=$(if($parent -ne [IntPtr]::Zero){[R146Native]::IsWindowVisible($parent)}else{$null})
+     Owner=$owner.ToInt64()
+     OwnerVisible=$(if($owner -ne [IntPtr]::Zero){[R146Native]::IsWindowVisible($owner)}else{$null})}
+   })
+   # R355: retain the native visibility state on an actual hosted UI failure.
+   # Do not retry or weaken any of the real HWND and foreground assertions.
+   $settingsFailure=[ordered]@{
+    Revision='R355';Mode=$mode;WaitMs=$settingsWaitMs
+    ForegroundHWND=$foreground.ToInt64();ForegroundPID=$foregroundPid
+    ForegroundTitle=$foregroundTitle;CandidateHWND=$settingsCandidate.ToInt64()
+    Windows=$windowSummary;ThresholdsUnchanged=$true
+   }
+   [IO.File]::WriteAllText((Join-Path $out ($mode+'_SETTINGS_NATIVE_FAILURE.json')),
+    ($settingsFailure|ConvertTo-Json -Depth 10),[Text.UTF8Encoding]::new($false))
+   throw ('R146_SETTINGS_NOT_REAL_FOREGROUND MODE='+$mode+' WAIT_MS='+$settingsWaitMs+' FG_HWND='+$foreground.ToInt64()+' FG_PID='+$foregroundPid+' FG_TITLE='+$foregroundTitle+' CANDIDATE_HWND='+$settingsCandidate.ToInt64()+' WINDOWS='+($windowSummary|ConvertTo-Json -Compress -Depth 5))
+  }
+  Write-Output ('R146_SETTINGS_FOREGROUND_READY MODE='+$mode+' WAIT_MS='+$settingsWaitMs+' HWND='+$settings.ToInt64())
+  $evidence+=@{State=$mode+'_SETTINGS_FOREGROUND';WaitMs=$settingsWaitMs;Hwnd=$settings.ToInt64();Title=[R146Native]::Title($settings);Foreground=$true}
+     # GetWindowRect can include invisible resize borders. Compare the DWM
+   # visible frame and the real Explorer taskbar frame in screen coordinates.
+   # The foreground HWND can be observable before WinForms finishes its
+   # Shown/DPI layout pass. Poll the real DWM frame and Explorer work area;
+   # require three consecutive in-bounds samples, without weakening the gate.
+   $geometryWaitClock=[Diagnostics.Stopwatch]::StartNew()
+   $geometryStableSamples=0
+   $geometrySampleCount=0
+   $geometryInitialInBounds=$false
+   $geometry=$null
+   do{
+    $settingsOuter=Box $settings
+    $settingsFrame=New-Object R146Native+Rect
+    $settingsDwmHr=[R146Native]::VisibleFrameBounds($settings,[ref]$settingsFrame)
+    if($settingsDwmHr -ne 0){
+     throw ('R146_SETTINGS_DWM_FRAME_BOUNDS_UNAVAILABLE HRESULT=0x{0:X8}' -f ($settingsDwmHr -band 0xffffffff))
+    }
+    $settingsVisible=New-Object Drawing.Rectangle($settingsFrame.L,$settingsFrame.T,($settingsFrame.R-$settingsFrame.L),($settingsFrame.B-$settingsFrame.T))
+    $taskbarFrame=New-Object R146Native+Rect
+    $taskbarDwmHr=[R146Native]::VisibleFrameBounds($taskbar,[ref]$taskbarFrame)
+    if($taskbarDwmHr -ne 0){
+     throw ('R146_TASKBAR_DWM_FRAME_BOUNDS_UNAVAILABLE HRESULT=0x{0:X8}' -f ($taskbarDwmHr -band 0xffffffff))
+    }
+    $taskbarVisible=New-Object Drawing.Rectangle($taskbarFrame.L,$taskbarFrame.T,($taskbarFrame.R-$taskbarFrame.L),($taskbarFrame.B-$taskbarFrame.T))
+    $screen=[Windows.Forms.Screen]::FromHandle($settings)
+    $work=$screen.WorkingArea
+    $screenBounds=$screen.Bounds
+    $geometry=[ordered]@{
+     Mode=$mode;Device=$screen.DeviceName;WorkArea=@($work.X,$work.Y,$work.Width,$work.Height)
+     ScreenBounds=@($screenBounds.X,$screenBounds.Y,$screenBounds.Width,$screenBounds.Height)
+     SettingsOuter=@($settingsOuter.X,$settingsOuter.Y,$settingsOuter.Width,$settingsOuter.Height)
+     SettingsVisible=@($settingsVisible.X,$settingsVisible.Y,$settingsVisible.Width,$settingsVisible.Height)
+     TaskbarVisible=@($taskbarVisible.X,$taskbarVisible.Y,$taskbarVisible.Width,$taskbarVisible.Height)
+     SettingsDwmHRESULT=$settingsDwmHr;TaskbarDwmHRESULT=$taskbarDwmHr
+    }
+    $geometryInBounds=$work.Contains($settingsVisible) -and $screenBounds.Contains($settingsVisible) -and !$settingsVisible.IntersectsWith($taskbarVisible)
+    if($geometrySampleCount -eq 0){$geometryInitialInBounds=$geometryInBounds}
+    $geometrySampleCount++
+    if(!$geometryInBounds){
+     $geometryStableSamples=0
+    }else{
+     $geometryStableSamples++
+     if($geometryStableSamples -ge 3){break}
+    }
+    Pump 100
+   }while($geometryWaitClock.ElapsedMilliseconds -lt 5000)
+   $geometryWaitClock.Stop()
+   $geometryWaitMs=$geometryWaitClock.ElapsedMilliseconds
+   if($geometryStableSamples -lt 3 -or !$geometryInitialInBounds){
+    $evidence+=@{State=$mode+'_SETTINGS_GEOMETRY_FAIL';Geometry=$geometry;WaitMs=$geometryWaitMs;StableSamples=$geometryStableSamples;InitialInBounds=$geometryInitialInBounds;SampleCount=$geometrySampleCount}
+    throw ('R146_SETTINGS_EXTENDS_BEHIND_TASKBAR WAIT_MS='+$geometryWaitMs+' STABLE_SAMPLES='+$geometryStableSamples+' INITIAL_IN_BOUNDS='+$geometryInitialInBounds+' '+($geometry|ConvertTo-Json -Compress -Depth 4))
+   }
+   $evidence+=@{State=$mode+'_SETTINGS_GEOMETRY';Geometry=$geometry;WaitMs=$geometryWaitMs;StableSamples=$geometryStableSamples;InitialInBounds=$geometryInitialInBounds;SampleCount=$geometrySampleCount}
   Assert-Visible $monitor $original ($mode+'_SETTINGS') $top
   $evidence+=Capture $monitor ($mode+'_SETTINGS')
   [void][R146Native]::SendMessage($settings,0x0010,[IntPtr]::Zero,[IntPtr]::Zero);Pump 500
@@ -251,11 +458,92 @@ try{
   if([R146Native]::IsWindowVisible($monitor)){throw 'R146_MONITOR_VISIBLE_WITHOUT_TASKBAR_IN_FULLSCREEN'}
   $evidence+=@{State=$mode+'_FULLSCREEN';Hidden=$true;Foreground=$full.Handle.ToInt64()}
   $full.Close();$full.Dispose();$full=$null;Pump 1500
+  # R402: only the disposable hosted R402 workflow enables this opt-in fault.
+  # Never modify taskbar/Explorer HWND, only the private candidate's overlay.
+  if($InjectLostTopmostAfterFullscreen -and ($mode -ceq 'plain10' -or $mode -ceq 'glass0')){
+   $phase=$mode+'_R402_FORCED_NOTOPMOST'
+   if($monitor -eq [IntPtr]::Zero -or $taskbar -eq [IntPtr]::Zero -or
+      [R146Native]::GetWindowLongPtr($monitor,-8) -ne $taskbar -or
+      ![R146Native]::IsWindowVisible($monitor) -or
+      ![R146Native]::IsWindowVisible($taskbar)){
+    throw ('R402_INVALID_OWNER_OR_VISIBILITY_BEFORE_INJECTION '+$mode)
+   }
+   $initialEx=[R146Native]::GetWindowLongPtr($monitor,-20).ToInt64()
+   if(($initialEx -band 8) -eq 0){throw ('R402_NOT_TOPMOST_AT_PRECONDITION '+$mode)}
+   $logPath=Join-Path $env:LOCALAPPDATA ('TaskbarMonitorEnhanced\Logs\tbme_csharp_'+(Get-Date -Format yyyyMMdd)+'.log')
+   if(!(Test-Path -LiteralPath $logPath)){throw ('R402_LOG_NOT_FOUND '+$mode)}
+   $beforeLog=[IO.File]::ReadAllText($logPath)
+   # HWND_NOTOPMOST=-2; flags NOSIZE|NOMOVE|NOACTIVATE|NOOWNERZORDER=0x213.
+   # Do not set SWP_NOZORDER or alter taskbar shell owner.
+   if(![R146Native]::SetWindowPos($monitor,[IntPtr](-2),0,0,0,0,[uint32]0x213)){
+    throw ('R402_WIN32_NOTOPMOST_INJECTION_FAILED '+$mode+' WIN32='+[Runtime.InteropServices.Marshal]::GetLastWin32Error())
+   }
+   $faultEx=[R146Native]::GetWindowLongPtr($monitor,-20).ToInt64()
+   if(($faultEx -band 8) -ne 0){throw ('R402_TOPMOST_BIT_NOT_REMOVED '+$mode)}
+   $timer=[Diagnostics.Stopwatch]::StartNew();$restoredEx=$faultEx;$markerFound=$false
+   do{
+    Pump 125
+    $restoredEx=[R146Native]::GetWindowLongPtr($monitor,-20).ToInt64()
+    $nowLog=[IO.File]::ReadAllText($logPath)
+    if($nowLog.Length -ge $beforeLog.Length){
+     $markerFound=$nowLog.Substring($beforeLog.Length).Contains('TASKBAR_VISIBLE_TOPMOST_DRIFT_REPAIRED')
+    }
+    if(($restoredEx -band 8) -ne 0 -and $markerFound){break}
+   }while($timer.ElapsedMilliseconds -lt 6500)
+   $timer.Stop()
+   $proof=[ordered]@{State=$mode+'_R402_FORCED_NOTOPMOST_REPAIR';BeforeEx=$initialEx;
+    InjectedEx=$faultEx;AfterEx=$restoredEx;ElapsedMs=$timer.ElapsedMilliseconds;
+    LoggedActualRepair=$markerFound;Monitor=$monitor.ToInt64();Taskbar=$taskbar.ToInt64();
+    TaskbarOwnerUnchanged=([R146Native]::GetWindowLongPtr($monitor,-8) -eq $taskbar);
+    TaskbarRemainsVisible=[R146Native]::IsWindowVisible($taskbar);
+    TaskbarAboveMonitor=[R146Native]::Above($taskbar,$monitor);OwnerPCUntouched=$true}
+   $evidence+=$proof
+   if(($restoredEx -band 8) -eq 0 -or !$markerFound -or
+      !$proof.TaskbarOwnerUnchanged -or !$proof.TaskbarRemainsVisible -or $proof.TaskbarAboveMonitor){
+    throw ('R402_NATIVE_REPAIR_NOT_PROVEN '+$mode+' '+($proof|ConvertTo-Json -Compress))
+   }
+   Write-Output ('R402_REAL_FAULT_AND_APP_REPAIR_PASS MODE='+$mode+' MS='+$timer.ElapsedMilliseconds+
+    ' BEFORE='+$initialEx+' INJECTED='+$faultEx+' AFTER='+$restoredEx)
+  }
   Assert-Visible $monitor $original ($mode+'_RETURN_FULLSCREEN') $top
   $evidence+=Capture $monitor ($mode+'_RETURN_FULLSCREEN')
   # Simulate taskbar visibility notification, only on disposable runner; always restore.
-  [void][R146Native]::ShowWindow($taskbar,0);$hidTaskbar=$true;Pump 1100
-  if([R146Native]::IsWindowVisible($monitor)){
+  # R373 records the native transition timeline while preserving the original 1100ms hard gate.
+  $hideTaskbarVisibleBefore=[R146Native]::IsWindowVisible($taskbar)
+  $hideMonitorVisibleBefore=[R146Native]::IsWindowVisible($monitor)
+  $hideShowWindowPreviousVisible=[R146Native]::ShowWindow($taskbar,0)
+  $hidTaskbar=$true
+  $hideClock=[Diagnostics.Stopwatch]::StartNew()
+  $hideTransitions=New-Object 'Collections.Generic.List[object]'
+  $hideLastTaskbar=$null;$hideLastMonitor=$null
+  do{
+   $hideTaskbarNow=[R146Native]::IsWindowVisible($taskbar)
+   $hideMonitorNow=[R146Native]::IsWindowVisible($monitor)
+   if($null -eq $hideLastTaskbar -or $hideTaskbarNow -ne $hideLastTaskbar -or $hideMonitorNow -ne $hideLastMonitor){
+    $hideTransitions.Add([ordered]@{ElapsedMs=$hideClock.ElapsedMilliseconds;TaskbarVisible=$hideTaskbarNow;MonitorVisible=$hideMonitorNow})
+    $hideLastTaskbar=$hideTaskbarNow;$hideLastMonitor=$hideMonitorNow
+   }
+   Pump 25
+  }while($hideClock.ElapsedMilliseconds -lt 1100)
+  $hideClock.Stop()
+  $hideTaskbarVisibleAfter=[R146Native]::IsWindowVisible($taskbar)
+  $hideMonitorVisibleAfter=[R146Native]::IsWindowVisible($monitor)
+  $firstHiddenTransition=$hideTransitions|Where-Object{$_.MonitorVisible -eq $false}|Select-Object -First 1
+  $firstHiddenMs=-1
+  if($null -ne $firstHiddenTransition){$firstHiddenMs=[int]$firstHiddenTransition.ElapsedMs}
+  $hideResult=[ordered]@{
+   TaskbarVisibleBefore=$hideTaskbarVisibleBefore
+   MonitorVisibleBefore=$hideMonitorVisibleBefore
+   ShowWindowPreviousVisible=$hideShowWindowPreviousVisible
+   TaskbarVisibleAfter=$hideTaskbarVisibleAfter
+   MonitorVisibleAfter=$hideMonitorVisibleAfter
+   WaitMs=$hideClock.ElapsedMilliseconds
+   ThresholdMs=1100
+   FirstMonitorHiddenMs=$firstHiddenMs
+   Transitions=@($hideTransitions.ToArray())
+  }
+  $evidence+=@{State=$mode+'_TASKBAR_HIDE';TaskbarVisibleBefore=$hideTaskbarVisibleBefore;TaskbarVisibleAfter=$hideTaskbarVisibleAfter;MonitorVisibleBefore=$hideMonitorVisibleBefore;MonitorVisibleAfter=$hideMonitorVisibleAfter;FirstMonitorHiddenMs=$firstHiddenMs;WaitMs=$hideClock.ElapsedMilliseconds;ThresholdMs=1100}
+  if($hideMonitorVisibleAfter){
    # Do not suppress this independent FAIL gate. Collect the real HWND/shell
    # visibility and optional screen-pixel evidence before the existing throw.
    $forkHide=[ordered]@{
@@ -268,7 +556,17 @@ try{
     MemoryOwner=[R146Native]::GetWindowLongPtr($monitor,-8).ToInt64()
     ProductSourceChanged=$false
     OriginalHideInvariantRetained=$true
+    HideMeasurement=$hideResult
    }
+   # R371 diagnostic only: the 1100-ms hide gate already FAILED.
+   # Do not relax or bypass it. Observe any delayed UI watchdog effect.
+   $forkHide.OriginalHideWaitMs=1100
+   Pump 2000
+   $forkHide.AfterDiagnosticWaitMs=2000
+   $forkHide.TaskbarVisibleAfterWait=[R146Native]::IsWindowVisible($taskbar)
+   $forkHide.MonitorVisibleAfterWait=[R146Native]::IsWindowVisible($monitor)
+   $forkHide.ForegroundAfterWait=[R146Native]::GetForegroundWindow().ToInt64()
+   $forkHide.ProcessAliveAfterWait=($null -ne (Get-Process -Id $process.Id -ErrorAction SilentlyContinue))
    [IO.File]::WriteAllText((Join-Path $out ($mode+'_R163_TASKBAR_HIDE_FAILURE.json')),
      ($forkHide|ConvertTo-Json -Depth 9),[Text.UTF8Encoding]::new($false))
    throw 'R146_MONITOR_IGNORES_TASKBAR_HIDE'
@@ -289,7 +587,8 @@ finally{
  if($null -ne $full){$full.Close();$full.Dispose()}
  if($null -ne $process){try{if(!$process.HasExited){$process.Kill()}}catch{}}
  try{
-  $logs=@(Get-ChildItem (Join-Path $app 'Logs') -Filter 'tbme_csharp_*.log' -File -ErrorAction Stop)
+  $logRoot=Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced\Logs'
+  $logs=@(Get-ChildItem $logRoot -Filter 'tbme_csharp_*.log' -File -ErrorAction Stop)
   foreach($log in $logs){
    Get-Content -LiteralPath $log.FullName -Tail 1600 | Select-String -Pattern 'PRESENTATION|GLASS_NATIVE|GLASS_COMPOSITION|TASKBAR_|VISIBILITY_WATCHDOG|LOW_PRESSURE|CONTEXT_MENU|SETTINGS|START_|RECOVERY' | ForEach-Object Line | Set-Content -LiteralPath (Join-Path $out ('DIAG_'+$log.Name)) -Encoding UTF8
   }

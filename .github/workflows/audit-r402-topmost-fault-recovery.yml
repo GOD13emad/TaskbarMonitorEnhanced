@@ -1,0 +1,189 @@
+name: R402 real hosted overlay NOTOPMOST fault and visible recovery
+
+on:
+  push:
+    branches: [security/r347-r349-helper-hardening-v1710]
+    paths:
+      - 'build/Test-R291-ExplorerStart-Settings-Glass.ps1'
+      - '.github/workflows/audit-r402-topmost-fault-recovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-exact-candidate:
+    name: R402 build exact private candidate
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact candidate without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Build exact Setup and Main with manifest-pinned hashes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Build.ps1
+          if($LASTEXITCODE -ne 0){throw 'R402_EXACT_BUILD_FAILED'}
+          $setup='build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe'
+          $main='build/_out/App/TaskbarMonitorEnhanced.exe'
+          $manifestPath='artifacts/BUILD_MANIFEST.json'
+          if(!(Test-Path -LiteralPath $setup) -or !(Test-Path -LiteralPath $main) -or
+             !(Test-Path -LiteralPath $manifestPath)){throw 'R402_BUILD_OUTPUT_OR_MANIFEST_MISSING'}
+          $manifest=Get-Content -LiteralPath $manifestPath -Raw|ConvertFrom-Json
+          $setupEntry=@($manifest.Outputs|Where-Object{$_.Name -ceq 'TaskbarMonitorEnhanced_Setup_1.7.10.exe'})
+          $mainEntry=@($manifest.Outputs|Where-Object{$_.Name -ceq 'TaskbarMonitorEnhanced.exe'})
+          $setupHash=(Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToUpperInvariant()
+          $mainHash=(Get-FileHash -LiteralPath $main -Algorithm SHA256).Hash.ToUpperInvariant()
+          if($setupEntry.Count -ne 1 -or $mainEntry.Count -ne 1 -or
+             $setupEntry[0].SHA256 -cne $setupHash -or
+             $mainEntry[0].SHA256 -cne $mainHash -or
+             [long]$setupEntry[0].Bytes -ne (Get-Item -LiteralPath $setup).Length -or
+             [long]$mainEntry[0].Bytes -ne (Get-Item -LiteralPath $main).Length){
+            throw 'R402_BUILD_MANIFEST_BYTE_HASH_MISMATCH'
+          }
+          $candidate=[ordered]@{
+            Schema=1;Commit=$env:GITHUB_SHA;Version='1.7.10'
+            Private=$true;NotForPublicInstallation=$true
+            SetupSHA256=$setupHash;MainSHA256=$mainHash
+          }
+          [IO.File]::WriteAllText('build/_out/CANDIDATE.json',($candidate|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
+          'R402_EXACT_PRIVATE_CANDIDATE_MANIFEST_PASS'
+
+      - name: Retain exact candidate bytes
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R402-PRIVATE-CANDIDATE-${{ github.run_id }}
+          path: |
+            build/_out/CANDIDATE.json
+            build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe
+            build/_out/App/TaskbarMonitorEnhanced.exe
+          retention-days: 7
+          if-no-files-found: error
+
+  real-notopmost-injection:
+    needs: build-exact-candidate
+    name: R402 real NOTOPMOST and app recovery on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: A
+            os: windows-2025
+          - host: B
+            os: windows-2022
+    steps:
+      - name: Checkout exact candidate without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download exact private Setup and Main built on separate isolated runner
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: R402-PRIVATE-CANDIDATE-${{ github.run_id }}
+          path: _r402_candidate
+
+      - name: Verify isolated host and PowerShell 5.1 exact source
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          if($PSVersionTable.PSEdition -cne 'Desktop' -or
+             $env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/security/r347-r349-helper-hardening-v1710' -or
+             $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID|LAPTOP' -or
+             ![Environment]::UserInteractive -or
+             (git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){
+            throw 'R402_DISPOSABLE_HOST_OR_EXACT_COMMIT_PRECONDITION_FAILED'
+          }
+          $script=(Resolve-Path 'build/Test-R291-ExplorerStart-Settings-Glass.ps1').Path
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($script,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw 'R402_NATIVE_POWERSHELL_51_PARSE_FAILED'}
+          if((Test-Path (Join-Path $env:LOCALAPPDATA 'TaskbarMonitorEnhanced')) -or
+             (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarMonitorEnhanced') -or
+             @(Get-Process TaskbarMonitorEnhanced -ErrorAction SilentlyContinue).Count){
+            throw 'R402_TARGET_NOT_FRESH_DISPOSABLE_RUNNER'
+          }
+          $manifest=Get-Content '_r402_candidate/CANDIDATE.json' -Raw|ConvertFrom-Json
+          $main='_r402_candidate/App/TaskbarMonitorEnhanced.exe'
+          $setup='_r402_candidate/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe'
+          if($manifest.Commit -cne $env:GITHUB_SHA -or $manifest.Version -cne '1.7.10' -or
+             $manifest.Private -ne $true -or $manifest.NotForPublicInstallation -ne $true -or
+             (Get-FileHash -LiteralPath $main -Algorithm SHA256).Hash.ToUpperInvariant() -cne $manifest.MainSHA256 -or
+             (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToUpperInvariant() -cne $manifest.SetupSHA256){
+             throw 'R402_DOWNLOADED_EXACT_PRIVATE_SETUP_MAIN_SHA_MISMATCH'
+          }
+          'R402_ISOLATED_WIN32_HOST_AND_PARSER_PASS'
+
+      - name: Real missing TOPMOST injection and native app recovery on private Setup
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $native=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
+          $test=(Resolve-Path 'build/Test-R291-ExplorerStart-Settings-Glass.ps1').Path
+          $candidate=(Resolve-Path '_r402_candidate').Path
+          $proof=@(& $native -NoLogo -NoProfile -NonInteractive -STA -ExecutionPolicy Bypass -File $test -HostLabel '${{ matrix.host }}' -CandidateDir $candidate -InjectLostTopmostAfterFullscreen)
+          if($LASTEXITCODE -ne 0){throw ('R402_REAL_NATIVE_FAULT_TEST_FAILED_EXIT_'+$LASTEXITCODE)}
+          foreach($mode in @('plain10','glass0')){
+            if(@($proof|Where-Object{$_ -match ('^R402_REAL_FAULT_AND_APP_REPAIR_PASS MODE='+$mode+' ')}).Count -ne 1){
+              throw ('R402_REAL_APP_RECOVERY_LOG_PROOF_NOT_PRESENT_'+$mode)
+            }
+          }
+          $where=Join-Path $env:RUNNER_TEMP 'TBME_R291_${{ matrix.host }}'
+          $file=Join-Path $where 'R291_NATIVE.json'
+          if(!(Test-Path $file)){throw 'R402_NATIVE_JSON_MISSING'}
+          $receipt=Get-Content $file -Raw|ConvertFrom-Json
+          if($receipt.EventCommit -cne $env:GITHUB_SHA -or
+             $receipt.Status -cne 'PASS_REAL_MENU_SETTINGS_START_FULLSCREEN_TASKBAR_VISIBILITY_FOUR_MODES' -or
+             $receipt.PersonalComputerTouched -ne $false){
+            throw 'R402_NATIVE_SETUP_OR_REAL_GUI_INVARIANT_FAILED'
+          }
+          $injected=@($receipt.Evidence|Where-Object{$_.State -match '_R402_FORCED_NOTOPMOST_REPAIR$'})
+          if($injected.Count -ne 2){throw 'R402_DID_NOT_INJECT_BOTH_REAL_GLASS_MODES'}
+          foreach($item in $injected){
+            if(($item.BeforeEx -band 8) -eq 0 -or ($item.InjectedEx -band 8) -ne 0 -or
+               ($item.AfterEx -band 8) -eq 0 -or !$item.LoggedActualRepair -or
+               !$item.TaskbarOwnerUnchanged -or !$item.TaskbarRemainsVisible -or
+               $item.TaskbarAboveMonitor -or $item.OwnerPCUntouched -ne $true -or
+               $item.ElapsedMs -gt 6500){
+              throw ('R402_FORCED_NATIVE_DRIFT_NOT_REPAIRED_'+$item.State)
+            }
+          }
+          foreach($mode in @('plain1','plain10','glass0','opaque100')){
+            if(@($receipt.Evidence|Where-Object{$_.State -ceq ($mode+'_RETURN_FULLSCREEN')}).Count -ne 1){
+              throw ('R402_ORIGINAL_NATIVE_R291_FULLSCREEN_WITNESS_MISSING_'+$mode)
+            }
+          }
+          $sha=(Get-FileHash $file -Algorithm SHA256).Hash
+          Write-Output ('R402_HOSTED_NATIVE_FAULT_INJECTION_AND_REPAIR_PASS HOST=${{ matrix.host }} COMMIT='+$env:GITHUB_SHA+' RECEIPT_SHA256='+$sha)
+          $injected|Select-Object State,BeforeEx,InjectedEx,AfterEx,ElapsedMs,LoggedActualRepair|ConvertTo-Json -Compress
+
+      - name: Retain raw real native fault and visual artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R402-${{ matrix.host }}-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/TBME_R291_${{ matrix.host }}/R291_NATIVE.json
+            ${{ runner.temp }}/TBME_R291_${{ matrix.host }}/DIAG_tbme_csharp_*.log
+            ${{ runner.temp }}/TBME_R291_${{ matrix.host }}/R158_READY_*.json
+            ${{ runner.temp }}/TBME_R291_${{ matrix.host }}/plain10_RETURN_FULLSCREEN.png
+            ${{ runner.temp }}/TBME_R291_${{ matrix.host }}/glass0_RETURN_FULLSCREEN.png
+          retention-days: 7
+          if-no-files-found: warn

@@ -1,0 +1,89 @@
+name: R351 exact in-process sensor rollback function (disposable Windows)
+on:
+  push:
+    branches: [security/r347-r349-helper-hardening-v1710]
+    paths:
+      - installer/TaskbarMonitorEnhanced_Setup.cs
+      - installer/TBME_Setup_Elevated_Helper.ps1
+      - build/Test-R351-ActualRollbackFunction-Native.ps1
+      - .github/workflows/audit-r351-actual-rollback-function-native.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  actual-inprocess-rollback:
+    name: R351 exact rollback function ${{ matrix.host }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: A
+            os: windows-2025
+          - host: B
+            os: windows-2022
+    steps:
+      - name: Checkout exact candidate without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Enforce disposable already-admin Windows and no preexisting product
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_ACTIONS -cne 'true' -or
+             $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+             $env:RUNNER_OS -cne 'Windows' -or
+             $env:GITHUB_REPOSITORY -cne 'GOD13emad/TaskbarMonitorEnhanced' -or
+             $env:GITHUB_REF -cne 'refs/heads/security/r347-r349-helper-hardening-v1710' -or
+             $env:COMPUTERNAME -match '(?i)EMAD-PC|ALIEMAD|SAEID|LAPTOP' -or
+             (git rev-parse HEAD).Trim() -cne '${{ github.sha }}'){
+            throw 'R351_HOST_OR_COMMIT_NOT_DISPOSABLE'
+          }
+          $root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'TaskbarMonitorEnhanced'
+          $app=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
+          if((Test-Path -LiteralPath $root) -or
+             (Test-Path -LiteralPath (Join-Path $app 'TaskbarMonitorEnhanced.exe')) -or
+             @(Get-ScheduledTask -TaskName 'TaskbarMonitorEnhanced Sensor Broker' -TaskPath '\' -ErrorAction SilentlyContinue | Where-Object {$null -ne $_}).Count -or
+             @(Get-Process TaskbarMonitorEnhanced,TaskbarMonitorSensorBroker,TaskbarMonitorSensorSupervisor -ErrorAction SilentlyContinue).Count){
+            throw 'R351_HOST_ALREADY_HAS_REAL_PRODUCT'
+          }
+          $isAdmin=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+          if(-not $isAdmin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){
+            throw 'R351_NO_EXISTING_ADMIN_TOKEN'
+          }
+          'R351_DISPOSABLE_NO_PRODUCT_ALREADY_ADMIN_PRECONDITIONS_PASS'
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: 10.0.400
+      - name: Build exact Setup PE with embedded rollback and native tree lease functions
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          ./build/Build.ps1
+          if($LASTEXITCODE -ne 0 -or
+             !(Test-Path -LiteralPath build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe)){
+            throw 'R351_EXACT_COMPILED_SETUP_MISSING'
+          }
+          'R351_EXACT_COMPILED_SETUP_BUILD_PASS'
+      - name: Execute exact embedded rollback function and real Task Scheduler restoration
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $native=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
+          $test=(Resolve-Path build/Test-R351-ActualRollbackFunction-Native.ps1).Path
+          $source=(Resolve-Path .).Path
+          & $native -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $test -HostLabel '${{ matrix.host }}' -SourceRoot $source
+          if($LASTEXITCODE -ne 0){throw 'R351_ACTUAL_INPROCESS_ROLLBACK_NOT_ACCEPTED'}
+      - name: Retain raw native rollback receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: R351-${{ matrix.host }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/R351_*/R351_ACTUAL_ROLLBACK_FUNCTION_NATIVE.json
+          retention-days: 7
+          if-no-files-found: warn

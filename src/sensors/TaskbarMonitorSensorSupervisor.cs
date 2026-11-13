@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 using System.Threading;
 
 [assembly: AssemblyTitle("Taskbar Monitor Enhanced Sensor Supervisor")]
@@ -441,26 +443,333 @@ internal static class TaskbarMonitorSensorSupervisor
                 "\"SupervisorVersion\":\""+SupervisorVersion+"\","+
                 "\"BrokerVersion\":\""+BrokerProtocolVersion+"\""+
                 "}";
-            string tmp=StatePath+".tmp";
-            File.WriteAllText(tmp,json);
-            if(File.Exists(StatePath))File.Replace(tmp,StatePath,null,true);
-            else File.Move(tmp,StatePath);
+            string tmp=StatePath+"."+Guid.NewGuid().ToString("N")+".tmp";
+            bool tempCreated=false;
+            try
+            {
+                using(FileStream stream=new FileStream(tmp,FileMode.CreateNew,FileAccess.Write,FileShare.None))
+                {
+                    tempCreated=true;
+                    byte[] bytes=new System.Text.UTF8Encoding(false).GetBytes(json);
+                    stream.Write(bytes,0,bytes.Length);
+                    stream.Flush();
+                }
+                if(File.Exists(StatePath))File.Replace(tmp,StatePath,null,true);
+                else File.Move(tmp,StatePath);
+                tempCreated=false;
+            }
+            finally
+            {
+                if(tempCreated)
+                {
+                    try{File.Delete(tmp);}catch{}
+                }
+            }
         }
         catch{}
     }
 
+    // TBME:R338_SUPERVISOR_TRUSTED_ARGV:BEGIN
+    // R338: the Supervisor may run with the task principal's highest available
+    // token. Never let argv choose a worker executable or telemetry destination.
+    // These are fail-closed path/reparse checks, not atomic rename-race or hardlink leases.
+    // R367 random CreateNew temp files reject pre-existing aliases; concurrent directory
+    // writers after the handle closes remain outside this guarantee.
+    static bool NoReparseComponents(string fullPath)
+    {
+        string cursor=Path.GetFullPath(fullPath);
+        while(!String.IsNullOrEmpty(cursor))
+        {
+            try
+            {
+                if((File.GetAttributes(cursor)&FileAttributes.ReparsePoint)!=0)
+                    return false;
+            }
+            catch(FileNotFoundException){}
+            catch(DirectoryNotFoundException){}
+            string parent=Path.GetDirectoryName(cursor);
+            if(String.IsNullOrEmpty(parent)||String.Equals(parent,cursor,StringComparison.OrdinalIgnoreCase))
+                break;
+            cursor=parent;
+        }
+        return true;
+    }
+
+    // OS known-folder paths are supplied by Main, never accepted from argv.
+    // R421: this release's installed Broker and per-user installer require
+    // profile\AppData\Local. Arbitrary caller-defined local-volume paths are
+    // rejected; genuine Windows Known Folder redirection remains a separate
+    // compatibility acceptance gate, not a silent relaxation of the boundary.
+    static bool TrustedWorkerPaths(string broker,string output,string executableDirectory,
+                                   string programFiles,string profile,string localAppData)
+    {
+        try
+        {
+            if(String.IsNullOrWhiteSpace(broker)||String.IsNullOrWhiteSpace(output)||
+               String.IsNullOrWhiteSpace(executableDirectory)||String.IsNullOrWhiteSpace(programFiles)||
+               String.IsNullOrWhiteSpace(profile)||String.IsNullOrWhiteSpace(localAppData)||
+               broker.Length>2048||output.Length>2048||
+               executableDirectory.Length>4096||programFiles.Length>4096||
+               profile.Length>4096||localAppData.Length>4096||
+               !Path.IsPathRooted(broker)||!Path.IsPathRooted(output)||
+               !Path.IsPathRooted(executableDirectory)||!Path.IsPathRooted(programFiles)||
+               !Path.IsPathRooted(profile)||!Path.IsPathRooted(localAppData))
+                return false;
+            string pfFull=Path.GetFullPath(programFiles);
+            string userFull=Path.GetFullPath(profile);
+            string localFull=Path.GetFullPath(localAppData);
+            string dirFull=Path.GetFullPath(executableDirectory);
+            if(pfFull.StartsWith(@"\\",StringComparison.Ordinal)||
+               userFull.StartsWith(@"\\",StringComparison.Ordinal)||
+               localFull.StartsWith(@"\\",StringComparison.Ordinal)||
+               dirFull.StartsWith(@"\\",StringComparison.Ordinal))
+                return false;
+            if(String.Equals(Path.GetPathRoot(pfFull),pfFull,StringComparison.OrdinalIgnoreCase)||
+               String.Equals(Path.GetPathRoot(userFull),userFull,StringComparison.OrdinalIgnoreCase)||
+               String.Equals(Path.GetPathRoot(localFull),localFull,StringComparison.OrdinalIgnoreCase)||
+               String.Equals(Path.GetPathRoot(dirFull),dirFull,StringComparison.OrdinalIgnoreCase))
+                return false;
+            string pf=pfFull.TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
+            string local=localFull.TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
+            // R421: Windows KnownFolder LocalAppData may follow a poisoned process
+            // environment. It must still equal the current OS profile's AppData\Local,
+            // not merely a writable directory under an arbitrary absolute path.
+            string expectedLocal=Path.GetFullPath(Path.Combine(userFull,"AppData","Local"))
+                .TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
+            if(!String.Equals(local,expectedLocal,StringComparison.OrdinalIgnoreCase))
+                return false;
+            string dir=dirFull.TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
+            string protectedDir=Path.Combine(pf,"TaskbarMonitorEnhanced","SensorBroker");
+            string expectedBroker=Path.Combine(protectedDir,"TaskbarMonitorSensorBroker.exe");
+            string expectedOutput=Path.Combine(local,"TaskbarMonitorEnhanced","cpu_temp_broker.json");
+            if(!String.Equals(dir,protectedDir,StringComparison.OrdinalIgnoreCase)||
+               !String.Equals(Path.GetFullPath(broker),expectedBroker,StringComparison.OrdinalIgnoreCase)||
+               !String.Equals(Path.GetFullPath(output),expectedOutput,StringComparison.OrdinalIgnoreCase)||
+               !File.Exists(expectedBroker)||
+               !Directory.Exists(Path.GetDirectoryName(expectedOutput)))
+                return false;
+            return NoReparseComponents(userFull)&&
+                   NoReparseComponents(expectedBroker)&&
+                   NoReparseComponents(expectedOutput);
+        }
+        catch{return false;}
+    }
+    // TBME:R338_SUPERVISOR_TRUSTED_ARGV:END
+    // R406: the startup-only R338 check is not enough when sensor workers
+    // restart hours later (including after power resume). Revalidate each
+    // executable/owner output/mode immediately before every process launch.
+    // This is a source/path policy, not an atomic directory-handle lease.
+    static string TrustedBrokerLaunchArguments(string broker,string mode,string output,
+        string programFiles,string profile,string localAppData)
+    {
+        if(String.IsNullOrWhiteSpace(broker)||String.IsNullOrWhiteSpace(mode)||
+           String.IsNullOrWhiteSpace(output)||String.IsNullOrWhiteSpace(programFiles)||
+           String.IsNullOrWhiteSpace(profile)||String.IsNullOrWhiteSpace(localAppData))
+            throw new InvalidDataException("Broker launch binding is empty.");
+        if(broker.Length>2048||output.Length>2048||
+           broker.IndexOf('"')>=0||output.IndexOf('"')>=0||
+           broker.IndexOf('\r')>=0||output.IndexOf('\r')>=0||
+           broker.IndexOf('\n')>=0||output.IndexOf('\n')>=0)
+            throw new InvalidDataException("Broker launch path is not safe for Windows argv.");
+
+        string fullProgramFiles=Path.GetFullPath(programFiles);
+        string fullLocal=Path.GetFullPath(localAppData);
+        string trustedBroker=Path.Combine(fullProgramFiles,
+            "TaskbarMonitorEnhanced","SensorBroker","TaskbarMonitorSensorBroker.exe");
+        string trustedDir=Path.GetDirectoryName(trustedBroker);
+        string trustedAppData=Path.Combine(fullLocal,"TaskbarMonitorEnhanced");
+        string expectedCpu=Path.Combine(trustedAppData,"cpu_temp_broker.json");
+        if(!TrustedWorkerPaths(trustedBroker,expectedCpu,trustedDir,
+                               programFiles,profile,localAppData)||
+           !String.Equals(broker,trustedBroker,StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Broker launch executable identity changed.");
+
+        string expectedOutput;
+        switch(mode)
+        {
+            case "--run-cpu":expectedOutput=expectedCpu;break;
+            case "--run-gpu":expectedOutput=Path.Combine(trustedAppData,"gpu_temp_broker.json");break;
+            case "--once-storage":expectedOutput=Path.Combine(trustedAppData,"storage_temp_broker.json");break;
+            default:throw new InvalidDataException("Broker launch mode is not allowlisted.");
+        }
+        if(!String.Equals(output,expectedOutput,StringComparison.OrdinalIgnoreCase)||
+           !NoReparseComponents(expectedOutput))
+            throw new InvalidDataException("Broker output identity or reparse binding changed.");
+        return mode+" \""+expectedOutput+"\"";
+    }
+
+    static string CurrentTrustedBrokerLaunchArguments(string mode,string output)
+    {
+        return TrustedBrokerLaunchArguments(BrokerPath,mode,output,
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+    }
+
+    // R407: retain no-delete native handles across the Broker creation boundary.
+    // Revalidating a path alone (R406) cannot exclude a concurrent rename or
+    // replacement between validation and CreateProcess. These handles protect
+    // the executable and each existing owner/protected ancestor until Start returns.
+    sealed class BrokerLaunchLease : IDisposable
+    {
+        const uint ReadAttributes=0x80,GenericRead=0x80000000,ShareRead=1,ShareReadWrite=3,OpenExisting=3;
+        const uint BackupSemantics=0x02000000,OpenReparse=0x00200000;
+        const uint IsDirectory=0x10,IsReparse=0x400;
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct FileAttributeTagInfo
+        {
+            public uint Attributes;
+            public uint ReparseTag;
+        }
+        [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true,EntryPoint="CreateFileW")]
+        static extern SafeFileHandle CreateFile(string path,uint access,uint share,
+            IntPtr security,uint disposition,uint flags,IntPtr template);
+        [DllImport("kernel32.dll",SetLastError=true)]
+        static extern bool GetFileInformationByHandleEx(SafeFileHandle handle,int infoClass,
+            out FileAttributeTagInfo info,uint size);
+        [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true,EntryPoint="GetFinalPathNameByHandleW")]
+        static extern uint GetFinalPathNameByHandle(SafeFileHandle handle,
+            System.Text.StringBuilder buffer,uint size,uint flags);
+        [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true,EntryPoint="GetLongPathNameW")]
+        static extern uint GetLongPathName(string path,System.Text.StringBuilder buffer,uint size);
+
+        readonly List<SafeFileHandle> handles=new List<SafeFileHandle>();
+        readonly HashSet<string> directories=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        static string CanonicalExistingPath(string path)
+        {
+            string full=Path.GetFullPath(path);
+            if(full.StartsWith(@"\\",StringComparison.Ordinal))
+                throw new InvalidDataException("Broker launch lease refuses a network path.");
+            System.Text.StringBuilder b=new System.Text.StringBuilder(4096);
+            uint n=GetLongPathName(full,b,(uint)b.Capacity);
+            if(n==0||n>=b.Capacity)
+                throw new IOException("Broker launch cannot normalize existing Windows path: "+Marshal.GetLastWin32Error());
+            return Path.GetFullPath(b.ToString());
+        }
+
+        void Pin(string path,bool isDirectory)
+        {
+            string expected=CanonicalExistingPath(path);
+            if(isDirectory && directories.Contains(expected))return;
+            SafeFileHandle h=CreateFile(expected,isDirectory?ReadAttributes:GenericRead,
+                isDirectory?ShareReadWrite:ShareRead,IntPtr.Zero,OpenExisting,
+                OpenReparse|(isDirectory?BackupSemantics:0),IntPtr.Zero);
+            if(h==null||h.IsInvalid)
+            {
+                int error=Marshal.GetLastWin32Error();
+                if(h!=null)h.Dispose();
+                throw new IOException("Broker launch cannot pin file or directory: "+error);
+            }
+            try
+            {
+                FileAttributeTagInfo tag;
+                if(!GetFileInformationByHandleEx(h,9,out tag,
+                      (uint)Marshal.SizeOf(typeof(FileAttributeTagInfo))) ||
+                   (tag.Attributes&IsReparse)!=0 ||
+                   ((tag.Attributes&IsDirectory)!=0)!=isDirectory)
+                    throw new InvalidDataException("Broker launch pinned object changed type or is a reparse point.");
+                System.Text.StringBuilder b=new System.Text.StringBuilder(4096);
+                uint n=GetFinalPathNameByHandle(h,b,(uint)b.Capacity,0);
+                if(n==0||n>=b.Capacity)
+                    throw new IOException("Broker launch cannot read pinned native file identity.");
+                string actual=b.ToString();
+                if(actual.StartsWith(@"\\?\UNC\",StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("Broker launch pinned an unexpected network path.");
+                if(actual.StartsWith(@"\\?\",StringComparison.Ordinal))actual=actual.Substring(4);
+                if(!String.Equals(CanonicalExistingPath(actual),expected,StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("Broker launch pinned handle identity differs from trusted path.");
+                handles.Add(h);
+                if(isDirectory)directories.Add(expected);
+            }
+            catch{h.Dispose();throw;}
+        }
+
+        void PinAncestors(string leafDirectory)
+        {
+            Stack<string> ascending=new Stack<string>();
+            string cursor=Path.GetFullPath(leafDirectory);
+            for(int i=0;i<64;i++)
+            {
+                string parent=Path.GetDirectoryName(cursor);
+                if(String.IsNullOrWhiteSpace(parent)||String.Equals(parent,cursor,StringComparison.OrdinalIgnoreCase))break;
+                ascending.Push(cursor);
+                cursor=parent;
+                if(i==63)throw new InvalidDataException("Broker launch ancestor depth exceeds bound.");
+            }
+            while(ascending.Count>0)Pin(ascending.Pop(),true);
+        }
+
+        internal static BrokerLaunchLease Acquire(string broker,string mode,string output,
+            string programFiles,string profile,string localAppData)
+        {
+            string trusted=TrustedBrokerLaunchArguments(broker,mode,output,programFiles,profile,localAppData);
+            BrokerLaunchLease lease=new BrokerLaunchLease();
+            try
+            {
+                lease.PinAncestors(Path.GetDirectoryName(broker));
+                lease.PinAncestors(profile);
+                lease.PinAncestors(localAppData);
+                lease.PinAncestors(Path.GetDirectoryName(output));
+                lease.Pin(broker,false);
+                if(File.Exists(output))lease.Pin(output,false);
+                if(!String.Equals(trusted,
+                    TrustedBrokerLaunchArguments(broker,mode,output,programFiles,profile,localAppData),
+                    StringComparison.Ordinal))
+                    throw new InvalidDataException("Broker launch binding changed while handles were acquired.");
+                return lease;
+            }
+            catch{lease.Dispose();throw;}
+        }
+
+        public void Dispose()
+        {
+            for(int i=handles.Count-1;i>=0;i--)handles[i].Dispose();
+            handles.Clear();
+            directories.Clear();
+        }
+    }
+
+    static BrokerLaunchLease PinCurrentBrokerLaunch(string mode,string output)
+    {
+        return BrokerLaunchLease.Acquire(BrokerPath,mode,output,
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+    }
+
     static bool ParseArgs(string[] args)
     {
-        string legacyOutput="";
-        for(int i=0;i<args.Length-1;i++)
+        if(args==null||args.Length!=4)return false;
+        string broker="",output="";
+        for(int i=0;i<args.Length;i+=2)
         {
-            if(String.Equals(args[i],"--broker",StringComparison.OrdinalIgnoreCase))BrokerPath=args[++i];
-            else if(String.Equals(args[i],"--output",StringComparison.OrdinalIgnoreCase))legacyOutput=args[++i];
+            if(String.IsNullOrWhiteSpace(args[i+1]))return false;
+            if(String.Equals(args[i],"--broker",StringComparison.OrdinalIgnoreCase))
+            {
+                if(broker.Length!=0)return false;
+                broker=args[i+1];
+            }
+            else if(String.Equals(args[i],"--output",StringComparison.OrdinalIgnoreCase))
+            {
+                if(output.Length!=0)return false;
+                output=args[i+1];
+            }
+            else return false;
         }
-        if(String.IsNullOrWhiteSpace(BrokerPath)||String.IsNullOrWhiteSpace(legacyOutput))return false;
-        string dir=Path.GetDirectoryName(legacyOutput);
-        if(String.IsNullOrWhiteSpace(dir))return false;
-        CpuOutput=legacyOutput;
+        string executableDirectory=AppDomain.CurrentDomain.BaseDirectory;
+        string programFiles=Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        string profile=Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        string localAppData=Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if(!TrustedWorkerPaths(broker,output,executableDirectory,programFiles,profile,localAppData))
+            return false;
+        // The argv values are equality-checked above, never forwarded.
+        BrokerPath=Path.Combine(Path.GetFullPath(programFiles),
+                                "TaskbarMonitorEnhanced","SensorBroker","TaskbarMonitorSensorBroker.exe");
+        CpuOutput=Path.Combine(Path.GetFullPath(localAppData),
+                               "TaskbarMonitorEnhanced","cpu_temp_broker.json");
+        string dir=Path.GetDirectoryName(CpuOutput);
         GpuOutput=Path.Combine(dir,"gpu_temp_broker.json");
         StorageOutput=Path.Combine(dir,"storage_temp_broker.json");
         Cpu.Output=CpuOutput;
@@ -468,6 +777,32 @@ internal static class TaskbarMonitorSensorSupervisor
         return true;
     }
 
+    // R439: a process basename alone is not a trusted termination boundary.
+    // Only drain our protected executable in the current interactive session.
+    static bool IsManagedLegacyBrokerIdentity(string observedPath,int observedSession,
+        string expectedPath,int ownerSession)
+    {
+        if(observedSession!=ownerSession||String.IsNullOrWhiteSpace(observedPath)||
+           String.IsNullOrWhiteSpace(expectedPath))return false;
+        try
+        {
+            return String.Equals(Path.GetFullPath(observedPath),
+                Path.GetFullPath(expectedPath),StringComparison.OrdinalIgnoreCase);
+        }
+        catch{return false;}
+    }
+
+    static bool IsManagedLegacyBroker(Process p)
+    {
+        try
+        {
+            if(p==null||p.HasExited)return false;
+            using(Process owner=Process.GetCurrentProcess())
+                return IsManagedLegacyBrokerIdentity(
+                    p.MainModule.FileName,p.SessionId,BrokerPath,owner.SessionId);
+        }
+        catch{return false;}
+    }
     static bool StopExistingBrokers()
     {
         bool clear=true;
@@ -475,6 +810,11 @@ internal static class TaskbarMonitorSensorSupervisor
         {
             foreach(Process p in Process.GetProcessesByName("TaskbarMonitorSensorBroker"))
             {
+                if(!IsManagedLegacyBroker(p))
+                {
+                    try{p.Dispose();}catch{}
+                    continue;
+                }
                 bool exited=false;
                 try
                 {
@@ -504,8 +844,12 @@ internal static class TaskbarMonitorSensorSupervisor
         try
         {
             Process[] ps=Process.GetProcessesByName("TaskbarMonitorSensorBroker");
-            bool any=ps.Length>0;
-            foreach(Process p in ps)try{p.Dispose();}catch{}
+            bool any=false;
+            foreach(Process p in ps)
+            {
+                if(IsManagedLegacyBroker(p))any=true;
+                try{p.Dispose();}catch{}
+            }
             return any;
         }
         catch{return true;}
@@ -569,12 +913,19 @@ internal static class TaskbarMonitorSensorSupervisor
 
     static void StartWorker(Worker w,string reason)
     {
+        // Recheck and pin both the original executable and the owner ancestry.
+        using(BrokerLaunchLease pinned=PinCurrentBrokerLaunch(w.Mode,w.Output))
+        {
+        string checkedArguments=CurrentTrustedBrokerLaunchArguments(w.Mode,w.Output);
         ProcessStartInfo psi=new ProcessStartInfo();
         psi.FileName=BrokerPath;
-        psi.Arguments=w.Mode+" \""+w.Output+"\"";
+        psi.Arguments=checkedArguments;
         psi.UseShellExecute=false;
         psi.CreateNoWindow=true;
         Process p=Process.Start(psi);
+        // Release file sharing immediately after native process creation;
+        // the surrounding using also releases on a failed CreateProcess.
+        pinned.Dispose();
         if(p==null)throw new InvalidOperationException(w.Name+"_BROKER_START_RETURNED_NULL");
         w.Process=p;
         w.JobContained=ChildJobContainment.Attach(p);
@@ -587,6 +938,7 @@ internal static class TaskbarMonitorSensorSupervisor
         w.LastReason=reason;
         Log("WORKER_START name="+w.Name+" reason="+reason+" pid="+p.Id+
             " restartCount="+w.RestartCount+" startupGraceSec="+w.StartupGraceSeconds+" hardStallSec="+w.HardStallSeconds);
+        }
     }
 
     static DateTime OutputWriteUtc(string path)
@@ -920,12 +1272,18 @@ internal static class TaskbarMonitorSensorSupervisor
 
     static void StartStorage()
     {
+        using(BrokerLaunchLease pinned=PinCurrentBrokerLaunch("--once-storage",StorageOutput))
+        {
+        string checkedArguments=CurrentTrustedBrokerLaunchArguments("--once-storage",StorageOutput);
         ProcessStartInfo psi=new ProcessStartInfo();
         psi.FileName=BrokerPath;
-        psi.Arguments="--once-storage \""+StorageOutput+"\"";
+        psi.Arguments=checkedArguments;
         psi.UseShellExecute=false;
         psi.CreateNoWindow=true;
         Process p=Process.Start(psi);
+        // Release file sharing immediately after native process creation;
+        // the surrounding using also releases on a failed CreateProcess.
+        pinned.Dispose();
         if(p==null)throw new InvalidOperationException("STORAGE_BROKER_START_RETURNED_NULL");
         StorageProcess=p;
         StorageOutputAtStartUtc=OutputWriteUtc(StorageOutput);
@@ -935,6 +1293,7 @@ internal static class TaskbarMonitorSensorSupervisor
         StorageAttemptCount++;
         StorageLastReason="RUNNING";
         Log("STORAGE_START pid="+p.Id+" attempt="+StorageAttemptCount+" timeoutSec="+StorageTimeoutSeconds);
+        }
     }
 
     static void CheckStorage()

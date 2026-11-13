@@ -3,9 +3,9 @@
   "Project": "TaskbarMonitorEnhanced",
   "AuthorityIndex": "docs/project-control/PROJECT_BRAIN.md",
   "Scope": "Redacted public summary only, not the owner-local authoritative Project Brain. Official single per-user product release accepted under unsigned waiver; machinewide singleton not asserted.",
-  "CurrentEngineeringRevision": "R352",
-  "Status": "PUBLIC_V1710_OWNER_INSTALLED_HASH_VERIFIED_SECURITY_PR98_REVIEW_PENDING_GUI_WITNESS_PENDING",
-  "UpdatedUtc": "2026-11-08T23:00:11.863Z",
+  "CurrentEngineeringRevision": "R408",
+  "Status": "R408_HOSTED_BUILD_AND_INSTALL_4_OF_4_PASS_R367_FIX_PENDING_CODEQL_AND_REVIEW_BLOCKED",
+  "UpdatedUtc": "2026-11-11T10:27:16.2508402Z",
   "FinalObjective": "Preserve v1.6 taskbar behavior with user-enabled zero-background Glass Mode, correct Start/Settings/fullscreen handling, safe in-place upgrades, a single per-user installation root, and reliable low-overhead sensors.",
   "CurrentAcceptedBaseline": {
     "Version": "1.7.10",
@@ -35,7 +35,7 @@
     "HKCUDisplayVersion": "1.7.10",
     "InstallStateVersion": "1.7.10",
     "RunningAtLastReadOnlyCheck": true,
-    "LastReadOnlyObservedLocal": "2026-11-09T02:27:11.8920194+03:30",
+    "LastReadOnlyObservedLocal": "2026-11-09T10:35:43.1509609+03:30",
     "InplaceUpgradeToV1710": "INSTALLED_VERSION_AND_HASH_CONFIRMED_COMPLETE_TRANSITION_RECEIPT_NOT_INDEPENDENTLY_ATTESTED"
   },
   "HistoricalOfficialV179OwnerAcceptance": {
@@ -85,18 +85,49 @@
     "R295 immutable v1.7.9 release ID 427321765 and exact source 479ee78; seven public assets independently downloaded and SHA/manifest-verified, real owner 1.7.8-to-1.7.9 in-place upgrade and sensors PASS; public tracker #7 updated.",
     "R301 immutable public v1.7.10 release ID 438006233 and all seven assets independently SHA/manifest verified; exact source hosted native and Explorer Start/Settings/Glass CI PASS.",
     "R303 personal host Setup v1.7.10 /verify PASS without installation; installed v1.7.9 remains running and personal GUI witness OPEN.",
-    "R352 public status read-only corrected: installed v1.7.10+r299 Main/Uninstall hashes and HKCU/install_state 1.7.10 independently read back; this does not validate the complete owner upgrade transaction."
+    "R352 public status read-only corrected: installed v1.7.10+r299 Main/Uninstall hashes and HKCU/install_state 1.7.10 independently read back; this does not validate the complete owner upgrade transaction.",
+    "R355: security branch synchronized with merged public-docs-only main; failure-only R291 native Settings HWND/parent/owner diagnostics added without product code or acceptance-threshold change. Exact test-source e1a8ac2 passed Build 4/4, R338 4/4, R290 2/2 and R291 2/2; exact CI head 0b8a216 passed 13/13 (Build 4/4, R338 4/4, R290 2/2, R291 3/3). Local Windows PowerShell 5.1 synthetic hidden-HWND harness executed the exact failure-only JSON block and verified Visible/WSVisible, parent/owner and ThresholdsUnchanged readback; diagnostic-only PASS, not root-cause or product UI proof. Current Helper, Setup, R352 test and workflow blobs match the R352 hosted-tested b937e25 commit; public release and owner installation unchanged; independent human review pending.",
+    "R357: protected Broker tree deletion now rejects ReadOnly leaves/owner marker before mutation and deletes the ownership marker last; late Memory-Mapped leaf deletion failure preserves the marker. R350 passed 30/30 checks on each Windows Server 2022/2025 host. Exact candidate head 07c095c passed 12 hosted workflows / 40 jobs (40/40), including Build/Verification, R291 Explorer UI, R290 Z-order, R338, R337, R344, R347, R349, R350, R351 and R352. No owner installation or immutable release changed; PR #98 remains unmerged pending independent human review.",
+    "R358: test-only acceptance added for the real Setup elevated-helper named-pipe transport. Exact Setup PE SHA256 7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06; R358 run 42559951920 passed 3/3 jobs, with 6/6 checks on Windows Server 2025 and 2022 (embedded helper/source match, PowerShell 5.1 compactor parse, bounded random pipe/runas bootstrap, wrong-PID rejection without payload, exact SHA256-pinned GZIP delivery and parse). No UAC or product mutation was performed. Latest PR branch tip 9130fabc5cd36b551fdf412d4a369d2a8ad523ea passed 13/13 PR jobs (Build 4/4 including R298/R299/R300, R338 4/4, R290 2/2, R291 3/3). R357 product-source head 07c095c remains 40/40 CI PASS; no product source changed after R357. PR #98 remains unmerged pending independent human review.",
+    "R359: added native Windows PowerShell 5.1 acceptance for the exact Setup-created named-pipe DACL and the R305 same-effective-SID fail-closed boundary. Exact Setup SHA256 7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06; run 42562923316 passed 3/3 jobs, with 6/6 checks on Windows Server 2025 and 2022. The native GetSecurityInfo inspection verified a protected DACL containing only owner and SYSTEM full-control ACEs; the embedded Helper rejected a distinct synthetic target SID with SENSOR_BOUNDARY_ELEVATED_TOKEN_ACCOUNT_MISMATCH before profile/install mutation; ProgramFiles root, target logs/payload, Broker task and sensor processes remained unchanged. No UAC, second account or product mutation was performed. First harness run 42562342803 failed because PipesAclExtensions is unavailable in .NET Framework Windows PowerShell 5.1; the test now uses native Win32 GetSecurityInfo and the exact rerun passed. Latest PR code/test head dc266f2 passed 13/13 PR jobs: Build 4/4 (R298/R299/R300), R338 4/4, R290 2/2, R291 3/3. R357 product-source head 07c095c remains 40/40 CI PASS; no product source changed after R357. R305 intentionally rejects different-SID UAC over-the-shoulder elevation before mutation; the main app can complete while optional protected sensors remain degraded. PR #98 remains unmerged pending independent human review.",
+    "R360: exact Setup hosted repeatability stress passed 3/3 jobs on Windows Server 2022/2025; 3 cycles per host, 6/6 cycles and 24/24 plain1/plain10/glass0/opaque100 mode executions, zero failure diagnostics; no owner PC touched.",
+    "R361/R362: bounded retry, SHA-pinned cache and partial-file fail-closed download handling added for the immutable predecessor Setup and locked LHM/PawnIO dependencies; local Windows PowerShell 5.1 negative/positive harness passed.",
+    "R363: GitHub Release Assets API IDs pinned for LHM/PawnIO/public v1.7.9 Setup with browser fallback; local API asset harness 3/3 and fallback/terminal-hash harness PASS; full local Build 0 warnings/0 errors, selftests 3/3, Setup /verify 25 resources, no PawnIO bundle; exact Setup/Main hashes match R360 candidate.",
+    "R364: R338 workflow now uses the exact candidate SHA-pinned build tooling for isolated baseline/candidate source builds while verifying product source Git HEAD remains unchanged; local copy harness PASS; push and PR R338 4/4; exact PR-head CI 13/13.",
+    "R365: owner-local exact Setup R335 atomic log/pipe contract 24/24, R338 trusted Supervisor arguments 20/20 and R298 deferred-cleanup PASS; exact Setup SHA 7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06; no UAC, install or ProgramFiles mutation.",
+    "R366: PR #96 closed unmerged as superseded by PR #98 after exact R338 source/test blob parity; public Issue #7 received R365 status update; scoped owner-host Issue #6 scan found no installed legacy driver artifact/service/source literal, without attributing the reporter binary.",
+    "R367: exact baseline 035e8fc5db2fc020e539ec930a10770b9807d318 full build and native 4/4 reproduced Supervisor and Broker predictable-temp hard-link write-through; candidate product commit 92f8b8bdfef210f00ee8b03aff062fd9e2dfa8d3 uses GUID+CreateNew temp files, removes Broker File.Copy fallback and fails closed after atomic replace retries; local candidate full build 0 warnings/0 errors and native 4/4; hosted push+pull_request Windows Server 2022/2025 matrix 8/8; exact PR-head CI 30/30; local receipt .local/audit/r367-elevated-temp-hardlink-local-20261109.json SHA256 AA3485943E4C3B2C0D4DF91688F41251F8C5AF503926A4E2B890A7EFEF410736. Pre-existing aliases blocked; concurrent writer after temp handle close is outside the guarantee. Public release and owner installation unchanged.",
+    "R368: 100ms mouse cursor hold after SendInput in real R291 test; Windows PowerShell 5.1 parser and C# compilation PASS; initial 20/20 exact-head CI. A later R291 Windows 2022 glass0 missing Settings menu first attempt failed, then succeeded on one job rerun; intermittent root cause not established.",
+    "R369: compiled baseline e6d3405 AtomicTextFile.Write predictable PID/TickCount temporary hard-link write-through reproduced on isolated same-user NTFS Canary; fix f704c412 uses GUID+CreateNew exclusive StreamWriter plus atomic File.Replace/Move and nonoverwriting backup. Full local build zero warning/errors and selftests/repro PASS, candidate native 6/6, UTF8 byte parity 6/6. Hosted push 42643594516 4/4 and PR 42643606514 4/4 PASS on Windows Server 2022/2025; test-only harness dfd4a36 and 40e598a corrected two false CI failures. Exact test HEAD 40e598a CI 28/28 after one original failed R291 2022 glass0 case and successful controlled job rerun, not first-try clean. Local receipt .local/audit/r369-atomictext-local-20261109.json SHA256 A8590B336CB3261EB7BCA885F893451BEB242AC0B27AB55A8ACB532969841FEE. PR #98 independent human review still pending; public release and owner install unchanged.",
+    "R370: baseline source a8fadee WritePhase phase.tmp File.WriteAllText followed a precreated same-user NTFS hardlink and modified isolated outside-canary; source candidate 8d0b43b uses FileMode.CreateNew and exclusive handle for the fixed crash-recovery phase.tmp name, refuses alias without changing canary and preserves PREPARED/COMMITTING/COMMITTED plus destination hardlink replacement. Local App/Sensor/Setup build 0 warnings/errors and exact embedded Setup source checked; native baseline 1/1 and candidate 3/3. Hosted Windows Server 2022/2025 baseline/candidate push+PR matrix 8/8, eight typed receipts, exact code/test head CI 63/63 success. Receipt .local/audit/r370-upgrade-phase-hardlink-local-20261109.json SHA256 E50936C6BB5BB0F0DBE630FC0FA0876EEFD48EA7BB83D590E7A54BEF7A51EE8C; PR #98 comment 6744756723, Issue #7 6744763801. Personal installed official v1.7.10 and immutable release unchanged. No cross-privilege or owner-run installer claim; human review still zero.",
+    "R371 test-only R291 diagnostic instrumentation, PS51/YAML parser PASS, current exact-head CI 28/28 SUCCESS; original prior Windows 2022 glass0 menu and hide failures both NON-PASS, root cause unresolved; no product or owner mutation. Receipt SHA256 A096C940520B8DE40C89F70B23B6C1E6FA0119A7B6925554F8C9B037C23A0AC4.",
+    "R372: corrected PS51 parser harness head 3e5523e exact CI 28/28 success, R291 2022/2025 four modes and R360 three cycles each OS success, 8/8 native click HWND proofs fixed pixel already hit target, no fallback exercised. Initial head 73b5486 PS51 Object[] error and older intermittent R291 failures kept NON-PASS. Local receipt SHA256 D7BC6A9B0B60FF1FBD42039C921AE0F59BA59ADF85D704807B9378F0AA0B8175; no product or owner install changes; human review still zero.",
+    "R373: test-only taskbar-hide transition telemetry; PS5.1/YAML/mock checks PASS; product/test head 915e9e3 PR 28/28, state head 38e773a PR 29/29, R291 6/6 host executions across three runs and R360 6/6 cycles / 24 modes. Total 12 cycles / 48 modes and 48 native hide samples 29-502 ms (median 224); taskbar and monitor visible before/hidden after in all samples. Original 1100ms gate unchanged. Product source, public release and owner install unchanged; historical R371 UI failures remain unproven; PR #98 human review pending.",
+    "R374: independent human-review handoff for PR #98 posted at https://github.com/GOD13emad/TaskbarMonitorEnhanced/pull/98#issuecomment-6750739912 and read back; still zero human reviews. Read-only owner v1.7.10 SHA/process/sensor check; isolated .NET File.Replace pre-existing backup-hardlink canary stayed byte-identical, scope limited to direct .NET fixture.",
+    "R375: test-only failure-only native Settings-menu HWND/class/foreground topology diagnostic committed dc625f5; Windows PowerShell 5.1 parser/native C# compile/unchanged strict gate and isolated real failure-branch synthetic JSON test PASS. PR CI 28/28 SUCCESS; R291 two Windows hosts PASS; R360 six fresh guest cycles/24 modes PASS. Combined R373/R375 20 host-cycles/80 UI modes/80 native hide samples PASS at 29-513 ms median 239.5 under unchanged 1100ms gate; original R371 failures remain NON-PASS/UNPROVEN. Additional independent owner-host thermal proof of exact official and private Candidate binaries: both 98/98 bitmap cases PASS; Glass current saved OFF at 1-percent normal opacity, which gives zero strong red under simulated 95C in Mission Control versus 3000 in true Glass; no installation/config change. Supplemental exact-head R360 6/6 guest cycles, 24/24 native hide samples PASS; scope aggregate 26 cycles/104/104 samples; historical R371 negative preserved. Read-only owner fullscreen/shell notification state diagnostic showed hidden monitor and QUNS_BUSY=2 with correct 90C warning request; CoreAudio SystemSounds session readback unmuted at 1.0, no physical sound witness.",
+    "R376: repaired R369 negative-control test timing only, local exact Candidate 350 links/10 aligned writes PASS, GitHub exact-head R369 runs 42724136143 and 42724144960 both 4/4 PASS with all eight raw receipts validating baseline real write-through and Candidate canary protection. Exact PR head 0c2a5a4 CI 36/36 SUCCESS, R360 run 42724136388 real Windows 2022/2025 six cycles/24 native hide samples PASS. Previous R369 false-negative and historical R371 UI failures preserved; independent security review not submitted.",
+    "R377: LOCAL_ONLY baseline vulnerable empty-directory deletion reproduced and Candidate exact production CleanOwnedStage preservation/refusal + indexed nested cleanup PASS; full 0-warning Setup/Broker/Supervisor/Main build and 3 workspace selftests PASS. Hosted CI now PASS 67/67 on exact R377 engineering commit 8ff5632, native R370 4/4 and R360 6 cycles / 24 samples with raw SHA receipts; independent human review remains OPEN.",
+    "R379: old R377 Candidate outside-Stage junction filename traversal reproduced in disposable NTFS; exact source-level strict regression failed before fix and passed after per-level TopDirectoryOnly reparse preflight. Local baseline 2/2, Candidate 6/6, full build 0 warnings/errors and Setup /verify 25 resources. Hosted source HEAD 5dd6bd9: 63/63 CI; R370 8/8 push/PR Windows 2022/2025 jobs; R360 6/6 guest cycles, 24/24 native hide samples PASS at 59-507ms. Human security review and historical UI root cause remain OPEN.",
+    "R380: Direct public owner-installed v1.7.10 Main on owner Windows in isolated proof modes PASS: synthetic thermal hot-red 98 pairs/49 themes min 2790 red pixels, zero cold; zero-alpha opaque foreground 196 cases; charts 196 cases; offscreen native layered-window upload exit 0. Owner binary/config hashes and single running PID unchanged; physical on-taskbar Glass and audible warning NOT accepted.",
+    "R381: OWNER-installed public v1.7.10 exact executable isolated real Taskbar Glass visual proof PASS with 3 private screenshots, actual layered 2 metric uploads, 2173 text and 2446 chart changed pixels; 4/4 opacity transitions PASS. One exact production SystemSounds.Exclamation event produced Windows default render endpoint peak 0.3456726 from baseline 0, PASS endpoint signal (not human hearing). Owner process/config/executable unchanged; physical hearing and independent security approval remain OPEN.",
+    "R382: exact hosted R371 original two separately archived glass0 Windows 2022 failure artifacts restored and hashed (menu-not-found and strict Taskbar-hide); each retains NON-PASS with separate unproven root cause. Owner-installed v1.7.10 isolated --settingsproof 9 pages PASS, 73 interactive a11y labels 0 gaps, 152 High Contrast controls 0 gaps; no owner config or installation change.",
+    "R383: reproduced postscan late unknown upgrade Stage member deleted by recursive cleanup in disposable fixture; fixed installer to delete only indexed known files and empty known dirs. Exact source-extracted R379 baseline negative 2/2 and Candidate 8/8, full Main/Broker/Supervisor/Setup build 0 warnings/errors, three selftests, /verify 25 resources PASS; hosted R370 push+PR Windows 2022/2025 8/8 SHA receipts and exact head 04ca643 CI 29/29. Prior shallow-checkout failed jobs preserved as historic; corrected source checkout with fetch-depth 0. MMZ laptop 15 static source guards + 39 PS syntax PASS (not independent human approval).",
+    "R384: corrected R383 partial-stage cleanup flaw by repeating complete per-level allowlist/reparse inventory immediately before any known deletion. Exact R379 baseline negative 2/2 and exact R384 Candidate 10/10 including late root file, late empty directory, nested late file; all five journal metadata markers and stage structure preserved on refusal. Full Main/Broker/Supervisor/Setup build 0 warnings/errors, 3 selftests, Setup /verify 25/25. Exact PR head f59e1dc CI 63/63, hosted R370 push+PR 8/8, R360 6 real Windows 2022/2025 UI cycles and 24/24 hide samples 28-498ms median 233.5ms; R299 actual public v1.7.9 in-place upgrade and R300 actual fresh install PASS, exact Setup SHA 01A208F1FF0929AD6E03D895803AD08A65BB39F1B0014EB0B2A4DF4FC31D8CB9. Aggregate receipt SHA256 66EA0AC59B24D5B0C67B2961E084CAAB8F3CE2778774D418818DB070C6A05266. Human review still required; R371 historical failures remain unproven; Notion restoration still requires explicit user confirmation."
   ],
   "Open": [
+    "PR98_CODEQL_SIX_CRITICAL_BLOCKING",
+    "R407_DISPOSABLE_HOSTED_CREATEPROCESS_ACCEPTANCE_PENDING",
     "OWNER_V179_TO_V1710_UPGRADE_TRANSACTION_PROVENANCE_NOT_INDEPENDENTLY_REVALIDATED",
     "ISSUE6_REPORTER_DRIVER_SHA_AND_INSTALL_ORIGIN_MISSING",
-    "OWNER_APP_OS_NOTIFICATION_BANNER_AND_AUDIBLE_SPEAKER_NOT_INDEPENDENTLY_WITNESSED",
-    "OWNER_WINDOWS11_PERSONAL_START_SETTINGS_DYNAMIC_GUI_WITNESS_PENDING"
+    "PR98_INDEPENDENT_HUMAN_SECURITY_REVIEW_PENDING",
+    "OWNER_GUI_AUDIO_WITNESS_DEFERRED_NOT_PASS",
+    "NOTION_RESTORE_CONFIRMATION_PENDING",
+    "R291_HOSTED_WINDOWS2022_INTERMITTENT_ROOT_CAUSE_UNPROVEN"
   ],
-  "CriticalPath": "Official immutable v1.7.10 release and hosted functional tests accepted. Personal owner install now reports v1.7.10+r299 with Main/Uninstall hashes and HKCU version matching public release; original upgrade transaction not independently revalidated. Owner Windows 11 Start/Settings/Glass dynamic witness remains pending; security PR #98 is draft and requires independent human review. Unsigned waiver and physical AC exclusion remain.",
-  "MainBlocker": "Public v1.7.10 and current owner-installed hashes verified. Security PR #98 remains draft/unmerged without submitted independent human review; personal dynamic Start/Settings/Glass and notification/audio witnesses pending. Original reporter evidence for issue #6 remains external. Do not force-close owner app, alter GUI focus, merge security candidate, or claim physical acceptance.",
-  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R352_NOT_A_SECOND_OPERATIONAL_BRAIN",
-  "ExactNextAction": "Get an actual independent reviewer submission on draft security PR #98 and assess it before any merge or new product publication; separately perform owner Windows 11 dynamic Start/Settings/Glass verification only through authorized GUI input/witness. Owner already has public v1.7.10+r299; do not repeat the old R303 v1.7.9 upgrade. Original reporter SHA/origin for issue #6 is still required.",
+  "CriticalPath": "R408 closes unrestricted directly-invoked Broker output argv and validates native directory identities before each atomic write; a narrow rename-after-revalidation window is not proven closed. Hosted regression, six open critical CodeQL alerts and independent last-push reviewer block PR merge; installed public v1.7.10 remains immutable.",
+  "MainBlocker": "R408 Broker mode/output independent boundary local compiled PASS, exact-head hosted write test pending. Six critical CodeQL command-line alerts remain OPEN; genuine last-push independent human security review has not been submitted. PR #98 BLOCKED.",
+  "BrainStatus": "PUBLIC_REDACTED_DERIVATIVE_R373_NOT_SECOND_OPERATIONAL_BRAIN",
+  "ExactNextAction": "Commit/push R408 and inspect exact-head hosted Broker AtomicWrite, R298/R299/R300 upgrade/recovery and R404-R408 regressions plus CodeQL. Correct any real failure; obtain six proper security dispositions and independent human last-push review before merge.",
   "PublicTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/7",
   "SecurityTracker": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/issues/6",
   "HistoricalR40Record": {
@@ -135,12 +166,2396 @@
   "SecurityCandidate": {
     "PullRequest": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/pull/98",
     "Branch": "security/r347-r349-helper-hardening-v1710",
-    "LatestReviewedByHostedCI": "d1ac63686cd8700f764764213a5c2c3a543ae324",
-    "LatestProductTestSource": "b937e25be73d697895a666204f43231705acf4b7",
-    "R352Windows2022And2025": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42527941266",
+    "LatestReviewedByHostedCI": "f59e1dcf410b97cf16350bc385b4fcbedbf3b093",
+    "LatestProductTestSource": "f59e1dcf410b97cf16350bc385b4fcbedbf3b093",
+    "R352Windows2022And2025": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455344",
     "R352ChecksPerHost": 14,
     "IndependentHumanReviewSubmitted": false,
     "MergedIntoMain": false,
-    "PublicReleaseUnchanged": true
-  }
+    "PublicReleaseUnchanged": true,
+    "BaseMainCommit": "02c38f6176464400564099f7847a5429a2ce5233",
+    "ReviewState": "READY_FOR_REVIEW_HUMAN_REVIEW_PENDING",
+    "RequestedReviewer": "mohammadmohammadzadeh19960-code",
+    "R355DiagnosticsScope": "Failure-only R291 Settings native WS_VISIBLE, parent and owner visibility JSON; no product code or acceptance-threshold change.",
+    "R355TestSourceCI": {
+      "Commit": "e1a8ac211de94fa46df8e3ab8fd9ac6e838a6ca6",
+      "BuildAndVerification": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42545438922",
+        "Jobs": 4,
+        "Result": "SUCCESS"
+      },
+      "R338": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42545439152",
+        "Jobs": 4,
+        "Result": "SUCCESS"
+      },
+      "R290": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42545438926",
+        "Jobs": 2,
+        "Result": "SUCCESS"
+      },
+      "R291": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42545438887",
+        "Jobs": 3,
+        "Result": "SUCCESS"
+      }
+    },
+    "LatestExactBranchHeadCI": {
+      "Commit": "0c2a5a48f2ff2cad00ee8a569e6e25dd0dce315f",
+      "TotalChecks": 36,
+      "Passed": 36,
+      "Failed": 0,
+      "Pending": 0,
+      "Result": "SUCCESS",
+      "R369RunIds": [
+        42724136143,
+        42724144960
+      ],
+      "R360Run": 42724136388,
+      "Scope": "R376 test-only harness fix, real baseline negative controls and candidate positive controls; R370 production unchanged"
+    },
+    "LatestExactCITestedHead": "f59e1dcf410b97cf16350bc385b4fcbedbf3b093",
+    "R355FailureDiagnosticHarness": {
+      "Result": "PASS",
+      "Environment": "Windows PowerShell 5.1.26100.9818",
+      "Fixture": "Synthetic hidden WinForms HWND; no product process or desktop focus interaction",
+      "Checks": [
+        "Exact R291 failure-only block executed",
+        "A_SETTINGS_NATIVE_FAILURE.json written and re-read",
+        "Visible=false and WSVisible=false retained",
+        "Parent and owner fields retained",
+        "ThresholdsUnchanged=true"
+      ],
+      "OutputSHA256": "B54E400766D072CFD5C525ACE685E885104F8A3BD16F7E870477280B557E181A",
+      "Scope": "Diagnostic collection/serialization only; not a product UI fix, hosted failure reproduction or root-cause proof"
+    },
+    "R350Windows2022And2025": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455363",
+    "R350ChecksPerHost": 30,
+    "R357TreeDeleteHardening": {
+      "Commit": "07c095c43e3a96e838bfaee7f51d86707326dda8",
+      "ChangedFiles": [
+        "installer/TBME_Setup_Elevated_Helper.ps1",
+        "build/Test-R350-PrivilegedTreeDelete-Native.ps1"
+      ],
+      "ReadOnlyLeafPreflight": "PASS",
+      "ReadOnlyOwnerMarkerPreflight": "PASS",
+      "MappedLeafLateDeleteFailureOwnerMarkerRetained": "PASS",
+      "R350": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455363",
+        "Jobs": 2,
+        "ChecksPerHost": 30,
+        "Result": "SUCCESS"
+      }
+    },
+    "LatestPushRegressionCI": {
+      "Commit": "724be329b5468f14509d62dc460d6eec161a35d6",
+      "R338": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42570085924",
+        "Jobs": 4,
+        "Result": "SUCCESS"
+      },
+      "Scope": "R364 push-triggered R338 baseline/candidate workflow only; all other exact PR-head workflows are recorded in LatestExactBranchHeadCI."
+    },
+    "TotalExactHeadCI": {
+      "Workflows": 12,
+      "Jobs": 40,
+      "Passed": 40,
+      "Failed": 0,
+      "Result": "SUCCESS",
+      "Scope": "R357 production/test source head; R358/R359 add test/workflow-only coverage; no production source changes after R357."
+    },
+    "BuildAcceptance": {
+      "GlassAndChartSuites": 10,
+      "R272ThermalWarningThemes": 49,
+      "R244SettingsPages": 9,
+      "PortableRuntimeContractSuites": 5,
+      "SPDX23SBOMGenerated": true,
+      "R136ManifestAndSBOMMatchExactSetupBytes": true,
+      "ProvenanceAttestationSteps": "SKIPPED_IN_PULL_REQUEST_CONTEXT"
+    },
+    "R291HostedUI": {
+      "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556460114",
+      "Hosts": [
+        "Windows Server 2022",
+        "Windows Server 2025"
+      ],
+      "Modes": [
+        "plain1",
+        "plain10",
+        "glass0",
+        "opaque100"
+      ],
+      "RealStartSettingsFullscreenVisibility": true,
+      "PersonalComputerTouched": false
+    },
+    "R357ProductSourceCI": {
+      "Commit": "07c095c43e3a96e838bfaee7f51d86707326dda8",
+      "Workflows": 12,
+      "Jobs": 40,
+      "Passed": 40,
+      "Failed": 0,
+      "Result": "SUCCESS",
+      "R350": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455363",
+        "Jobs": 2,
+        "ChecksPerHost": 30,
+        "Result": "SUCCESS"
+      },
+      "R352": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455344",
+        "Jobs": 3,
+        "ChecksPerHost": 14,
+        "Result": "SUCCESS"
+      }
+    },
+    "R358PipeTransport": {
+      "Commit": "9130fabc5cd36b551fdf412d4a369d2a8ad523ea",
+      "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42559951920",
+      "Jobs": 3,
+      "Result": "SUCCESS",
+      "SetupSHA256": "7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06",
+      "WindowsServer2025": {
+        "Checks": 6,
+        "Result": "PASS",
+        "ReceiptArtifactId": 13649132053
+      },
+      "WindowsServer2022": {
+        "Checks": 6,
+        "Result": "PASS",
+        "ReceiptArtifactId": 13648124689
+      },
+      "SetupArtifactId": 13648544336,
+      "Checks": [
+        "EXACT_SETUP_PE_EMBEDS_CURRENT_HELPER_SOURCE",
+        "REAL_SETUP_COMPACTOR_OUTPUT_PARSES_AS_WINDOWS_POWERSHELL_51",
+        "REAL_SETUP_BUILD_LAUNCH_CREATES_BOUNDED_RANDOM_PIPE_AND_SYSTEM_POWERSHELL_RUNAS_BOOTSTRAP",
+        "WRONG_PID_PIPE_CLIENT_REJECTED_WITHOUT_RECEIVING_PAYLOAD",
+        "INTENDED_CHILD_RECEIVES_EXACT_SHA256_PINNED_GZIP_HELPER_AND_PARSES",
+        "PIPE_DELIVERY_COMPLETES_WITHOUT_ELEVATION_OR_PRODUCT_MUTATION"
+      ],
+      "UACActuallyInvoked": false,
+      "ProductInstallOrMutationPerformed": false,
+      "InitialHarnessFailure": {
+        "RunId": 42559632585,
+        "RootCause": "PowerShell PSObject wrappers were passed to Setup MethodInfo.Invoke string parameters",
+        "FixCommit": "9130fabc5cd36b551fdf412d4a369d2a8ad523ea",
+        "RetestRunId": 42559951920,
+        "RetestResult": "SUCCESS"
+      }
+    },
+    "LatestPRHeadCI": {
+      "Commit": "f59e1dcf410b97cf16350bc385b4fcbedbf3b093",
+      "TotalChecks": 63,
+      "Passed": 63,
+      "Failed": 0,
+      "Pending": 0,
+      "Result": "SUCCESS",
+      "EngineeringCommit": "f59e1dcf410b97cf16350bc385b4fcbedbf3b093",
+      "ReviewerState": "REVIEW_REQUIRED_ZERO_GENUINE_HUMAN_REVIEWS",
+      "RequestedReviewer": "mohammadmohammadzadeh19960-code",
+      "Scope": "Exact R384 source head and synthetic PR merge build, including R370/R360/R299/R300"
+    },
+    "R359IdentityBoundary": {
+      "Commit": "dc266f2d32bd4b51d6fd16c70d871e368ab8fcd0",
+      "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42562923316",
+      "Jobs": 3,
+      "Result": "SUCCESS",
+      "SetupSHA256": "7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06",
+      "WindowsServer2025": {
+        "Checks": 6,
+        "Result": "PASS",
+        "ReceiptArtifactId": 13650271363
+      },
+      "WindowsServer2022": {
+        "Checks": 6,
+        "Result": "PASS",
+        "ReceiptArtifactId": 13649897524
+      },
+      "SetupArtifactId": 13650117717,
+      "Checks": [
+        "HOSTED_RUNNER_ADMIN_IDENTITY_AND_DISTINCT_TARGET_SID_ESTABLISHED",
+        "EXACT_SETUP_PE_EMBEDS_CURRENT_HELPER_AND_R305_IDENTITY_GUARD",
+        "SETUP_PIPE_DACL_IS_PROTECTED_AND_RESTRICTED_TO_OWNER_AND_SYSTEM",
+        "EMBEDDED_HELPER_REJECTS_DIFFERENT_EFFECTIVE_USER_SID_BEFORE_PROFILE_OR_INSTALL_MUTATION",
+        "CROSS_ACCOUNT_REFUSAL_LEAVES_PROGRAMFILES_LOGS_PAYLOAD_TASK_AND_SENSOR_PROCESSES_UNCHANGED",
+        "NO_UAC_OR_PRODUCT_MUTATION_PERFORMED"
+      ],
+      "Policy": {
+        "SameEffectiveUserSIDRequired": true,
+        "DifferentSIDCredentialElevation": "FAIL_CLOSED_BEFORE_MUTATION",
+        "StandardUserOverTheShoulderSensorElevationSupported": false,
+        "MainApplicationInstallFallback": "INSTALL_COMPLETES_WITH_OPTIONAL_PROTECTED_SENSORS_DEGRADED_OR_NA",
+        "Evidence": "R305 helper guard; Windows UAC credential elevation runs under the administrator account whose credentials were entered.",
+        "MicrosoftReferences": [
+          "https://learn.microsoft.com/en-us/windows/win32/dxtecharts/user-account-control-for-game-developers",
+          "https://learn.microsoft.com/en-us/windows/security/application-security/application-control/user-account-control/how-it-works"
+        ]
+      },
+      "SyntheticDifferentTargetSID": true,
+      "UACActuallyInvoked": false,
+      "SecondAccountCreated": false,
+      "ProductInstallOrMutationPerformed": false,
+      "InitialHarnessFailure": {
+        "RunId": 42562342803,
+        "RootCause": "System.IO.Pipes.PipesAclExtensions is unavailable in .NET Framework Windows PowerShell 5.1.",
+        "Fix": "Inspect the actual pipe kernel-object DACL with native Win32 GetSecurityInfo/GetSecurityDescriptorControl/GetAclInformation/GetAce.",
+        "RetestRunId": 42562923316,
+        "RetestResult": "SUCCESS"
+      }
+    },
+    "HistoricalR357PushRegressionCI": {
+      "Commit": "07c095c43e3a96e838bfaee7f51d86707326dda8",
+      "R337": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455334",
+        "Jobs": 4,
+        "Result": "SUCCESS"
+      },
+      "R338": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455447",
+        "Jobs": 4,
+        "Result": "SUCCESS"
+      },
+      "R344": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455442",
+        "Jobs": 8,
+        "Result": "SUCCESS"
+      },
+      "R347": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455376",
+        "Jobs": 2,
+        "Result": "SUCCESS"
+      },
+      "R349": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455415",
+        "Jobs": 2,
+        "Result": "SUCCESS"
+      },
+      "R350": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455363",
+        "Jobs": 2,
+        "ChecksPerHost": 30,
+        "Result": "SUCCESS"
+      },
+      "R351": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455452",
+        "Jobs": 2,
+        "Result": "SUCCESS"
+      },
+      "R352": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42556455344",
+        "Jobs": 3,
+        "ChecksPerHost": 14,
+        "Result": "SUCCESS"
+      },
+      "TotalJobs": 27,
+      "Result": "SUCCESS",
+      "ValidForLatestBranchBecauseProductionSourceUnchangedAfterR357": true
+    },
+    "R360SettingsVisibilityStress": {
+      "Commit": "a583bcfcaa2fe8d9df5741082d31e1fc80cb2868",
+      "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42568721956",
+      "Jobs": 3,
+      "Result": "SUCCESS",
+      "Hosts": [
+        "Windows Server 2022",
+        "Windows Server 2025"
+      ],
+      "CyclesPerHost": 3,
+      "TotalCycles": 6,
+      "Modes": [
+        "plain1",
+        "plain10",
+        "glass0",
+        "opaque100"
+      ],
+      "TotalModeExecutions": 24,
+      "FailureDiagnostics": 0,
+      "SetupSHA256": "7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06",
+      "MainSHA256": "7C046BB3A8AD8730AE561B8431CF31E5A31D11D8C967A589A9886D89C7CBADE9",
+      "Windows2022ReceiptArtifactId": 13651634781,
+      "Windows2025ReceiptArtifactId": 13652473254,
+      "SetupArtifactId": 13652511374,
+      "PersonalComputerTouched": false,
+      "ProductSourceChanged": false,
+      "UACActuallyInvoked": false
+    },
+    "R361R362DownloadRetry": {
+      "R361Commit": "43a38a96e24ed021c653e818344109df8d5495df",
+      "R362Commit": "d88ba4f74a4f86066f469642773b000bc5632ce4",
+      "Behavior": [
+        "SHA-256 cache hit skips network",
+        "Download to .partial and atomically move after hash verification",
+        "Bounded 3/8/20-second retries for transient failures",
+        "Permanent HTTP 4xx and SHA mismatch fail closed"
+      ],
+      "LocalPS51Harness": "PASS",
+      "Cases": [
+        "HTTP 504 then exact-hash success",
+        "verified cache hit",
+        "terminal HTTP 403",
+        "terminal SHA mismatch"
+      ]
+    },
+    "R363ApiReleaseAssets": {
+      "Commit": "a583bcfcaa2fe8d9df5741082d31e1fc80cb2868",
+      "Assets": {
+        "LibreHardwareMonitor": 355828308,
+        "PawnIO": 374375077,
+        "PublicV179Setup": 686770639
+      },
+      "LocalPS51ApiAssetHarness": {
+        "Passed": 3,
+        "Total": 3,
+        "Result": "PASS"
+      },
+      "ApiFallbackHarness": {
+        "Result": "PASS",
+        "Cases": [
+          "API 504 then browser fallback",
+          "API 403 then browser fallback",
+          "API SHA mismatch terminal fail-closed"
+        ]
+      },
+      "LocalBuild": {
+        "Result": "PASS",
+        "Warnings": 0,
+        "Errors": 0,
+        "WorkspaceSelfTests": 3,
+        "SetupVerifyResources": 25,
+        "PawnIOBundled": false,
+        "SetupSHA256": "7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06",
+        "MainSHA256": "7C046BB3A8AD8730AE561B8431CF31E5A31D11D8C967A589A9886D89C7CBADE9"
+      },
+      "HostedCI": {
+        "BuildJobs": 4,
+        "BuildResult": "SUCCESS",
+        "R290Jobs": 2,
+        "R290Result": "SUCCESS",
+        "R291Jobs": 3,
+        "R291Result": "SUCCESS",
+        "R338PushJobs": 4,
+        "R338PushResult": "SUCCESS",
+        "R338PRJobs": 3,
+        "R338PRTotal": 4,
+        "R338PRFailure": "Only baseline A: HTTP 504 from old direct-download Build.ps1 before R338 assertions"
+      }
+    },
+    "R364BaselineBuildTooling": {
+      "Commit": "724be329b5468f14509d62dc460d6eec161a35d6",
+      "Workflow": ".github/workflows/audit-r338-supervisor-argv-trust.yml",
+      "Behavior": "Copy exact candidate SHA-pinned Build.ps1 and dependency lock into isolated baseline/candidate source checkout before compile; verify copied hashes and unchanged source Git HEAD.",
+      "LocalCopyHarness": "PASS",
+      "BuildToolSHA256": "47588B1F3C28CCBF84815B2F0E0F0728F7C12D3741B06560855A90D960DB2D0A",
+      "DependencyLockSHA256": "E6D94B12B5D23283D70BB1555601372918B68E41EAF27D8BF75543E6F6D14246",
+      "BaselineProductSourceCommit": "035e8fc5db2fc020e539ec930a10770b9807d318",
+      "CandidateProductSourceCommit": "724be329b5468f14509d62dc460d6eec161a35d6",
+      "PushR338": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42570085924",
+        "Jobs": 4,
+        "Result": "SUCCESS"
+      },
+      "PRR338": {
+        "URL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/actions/runs/42570091574",
+        "Jobs": 4,
+        "Result": "SUCCESS"
+      },
+      "BaselineExpectedChecks": 3,
+      "CandidateStrictTrustChecks": 20
+    }
+  },
+  "CurrentVerificationRevision": "R384",
+  "Deferred": [
+    "OWNER_WINDOWS11_PERSONAL_START_SETTINGS_DYNAMIC_GUI_WITNESS_DEFERRED_NOT_PASS_OWNER_ACCEPTED_CURRENT_BEHAVIOR_NO_CURRENT_TAKEOVER_AUTHORITY",
+    "OWNER_APP_OS_NOTIFICATION_BANNER_AND_AUDIBLE_SPEAKER_NOT_INDEPENDENTLY_WITNESSED_DEFERRED_NOT_PASS"
+  ],
+  "NotionCoordination": {
+    "Status": "PENDING_USER_CONFIRMATION_TO_RESTORE_LAST_INTACT_R359_VERSION_THEN_SYNC_R372",
+    "Page": "https://app.notion.com/p/412d5b4a86f681c29173c01fc4c75842",
+    "LastVerifiedUtc": "2026-11-09T04:54:27.207Z",
+    "Scope": "R360 repeated Explorer Settings stress, R361-R363 SHA-pinned/API-backed download hardening, R364 exact-baseline R338 build tooling and exact-head CI, R365 owner-local R335/R338/R298 regressions, R366 PR #96 supersession and Issue #7 tracker update plus scoped Issue #6 owner-host audit, R367 Supervisor/Broker temp hard-link hardening and 30/30 exact-head CI. Independent human review, reporter/owner evidence gaps and restoration confirmation remain. R368 native R291 click event stabilization; R369 App config/history AtomicTextFile hard-link hardening, hosted 8/8, exact test-head 28/28 after one controlled R291 job rerun. Restoration approval still required. R370 Installer fixed upgrade phase.tmp hardlink fix, 8/8 hosted plus exact-head 63/63; Notion still awaits restoration approval. R371 exact test head 28/28 and prior hosted UI failure evidence; Notion sync pending specific confirmation. R372 test-only strict real UI native-hit CI 28/28, prior failures preserved, root cause unproven; portfolio sync waits specific restoration consent. R373 test-only hide-latency telemetry: last tested docs-only PR head 38e773a CI 29/29, R291 6/6 host executions across three runs, R360 6/6 cycles and 48/48 hide samples 29-502ms (median 224ms); historical UI root cause remains unproven. Notion restore/sync still requires specific owner confirmation. R374 security-review handoff posted and verified. R375 Win32 Settings-menu diagnostic test-only commit dc625f5 passed 28/28 PR checks, R291 2/2 hosts, R360 6/6 cycles; cumulative R373/R375 80/80 native hide samples 29-513 ms median 239.5. Historical UI fault NON-PASS/unproven; Notion restore still explicitly pending owner approval. R375 owner-host exact official and candidate thermal Glass bitmap proof 98/98 each, current GlassMode=false at 1% ordinary opacity; local receipt r375-ownerhost-thermal-rootcause-20261110.json. Real GUI/audio witness remains open; restore approval remains pending. R375 supplemental current-head R360 workflow dispatch 42717624532: 6/6 new guest cycles; 104/104 aggregated native hide samples across 26 cycles, 2-528ms median 247.5ms, unchanged strict gate; historical negatives still OPEN; no Notion restore approval. R375 live owner fullscreen observation and Windows QUNS_BUSY=2; no real audio, toast or true-Glass acceptance and no Notion restore consent. R376 local 350 alias/10 real aligned candidate-write proof PASS; hosted R369 baseline/candidate revalidation pending; previous failing baseline A kept NON-PASS. No Notion restore. R376 completed hosted R369 eight raw controls PASS (runs 42724136143/42724144960), exact-head PR 36/36 SUCCESS and R360 six further real Windows guest cycles; Notion restore still specifically not authorized. R377 owner-approved local security code repair of upgrade stage unknown empty-directory preservation. Local negative-control baseline/candidate 2/2 and 5/5 PASS; full build PASS. Hosted acceptance and independent reviewer approval pending; Notion restore still requires explicit consent. R377 hosted exact source R370 4/4, R360 6/6, source-head CI 67/67 verified; local receipt r377-hosted-acceptance-exact-head-20261110.json. Notion restore remains UNAUTHORIZED until owner consents. R379 production source 5dd6bd9 reparse preflight hosted CI 63/63, R370 8/8, R360 24/24 verified. Notion restore still awaiting explicit owner consent; sync pending. R380 owner-installed v1.7.10 synthetic thermal/glass/chart/offscreen native alpha proofs PASS on owner Windows, local SHA receipt r380-owner-installed-glass-acceptance-20261110.json. True visual/audio acceptance remains open; Notion restore still consent-blocked. R381 owner personal native Taskbar temporary Glass real-screen and default Windows sound endpoint output signal PASS; proof receipt r381-owner-native-glass-and-audio-acceptance-20261110.json SHA256 5A4211A939A1DEFA70233DE1BF29793B72320E37E7B95E3CBDD15EFC5421F10C; Notion restore remains owner-specific-consent blocked. R382 two distinct R371 original Windows 2022 glass0 failures verified by immutable IDs, and owner installed nine-page Settings offscreen accessibility PASS; local owner-private receipt r382-historical-2022-negatives-and-installed-settings-proof-20261110.json SHA256 41B51CFB405DF874B6F0B2889B9C8E2FFCAA8A3B3DDAEF41E92EED2595219117. Notion restore still requires explicit owner consent. R383 exact source clean-stage preservation commit 52f3967 and hosted head 04ca643 PASS (R370 8/8, CI 29/29), reviewer host AI checks 15/15 PS39 but no human approval. Local receipt r383-hosted-acceptance-exact-head-20261110.json SHA256 4F56BB155652731535344CE107F7C31F18C841AE82A0DBF55C89131B9542625A. Notion restore remains blocked pending explicit owner confirmation. R384 f59e1dc: final stage inventory recheck preserves all five journal markers for late root file/empty directory/nested file; local baseline 2/2 Candidate 10/10, full build/Setup verify PASS; hosted exact-head CI 63/63, R370 8/8, R360 six cycles/24 hide samples, R299 actual v1.7.9 upgrade and R300 fresh install PASS. Aggregate receipt r384-hosted-acceptance-exact-head-20261110.json SHA256 66EA0AC59B24D5B0C67B2961E084CAAB8F3CE2778774D418818DB070C6A05266. Reviewer host 14/14 static and PS39 parse is AI-assisted, not human approval. R371 historical negatives remain unproven. Notion R359 restore still explicitly consent-blocked. Current R384 documentation-only PR head 581d46a has 29/29 exact-head checks PASS; source/test engineering commit f59e1dc remains 63/63 PASS. No Notion page mutation was made because the R359 restoration confirmation is still pending.",
+    "Authority": "Coordination mirror only; PROJECT_BRAIN.md and native test receipts remain technical authority.",
+    "RecoveryTargetUtc": "2026-11-09T04:54:27.398Z",
+    "RecoveryReason": "The 2026-11-09T06:05:33.663Z ChatGPT/MCP update_content operation removed 55 page blocks; version history attributes all 55 affected blocks to this operation only. Restore of the last intact R359 version requires explicit user confirmation before R369 synchronization."
+  },
+  "R365LocalSupplementalVerification": {
+    "Revision": "R365",
+    "ObservedLocalAt": "2026-11-09T10:35:43.1509609+03:30",
+    "SourceCommitAtTest": "46d2314a472ed1ac16780b57d15c3b9cbdc4a01e",
+    "ProductSourceCommit": "07c095c43e3a96e838bfaee7f51d86707326dda8",
+    "SetupPath": "build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe",
+    "SetupSHA256": "7639FD5B621C5C323E179ADEA164139D28F4671FBC7E858956CA5D59F02FEF06",
+    "SetupBytes": 8781312,
+    "R335TestScript": "build/Test-R335-AtomicUserLogSink-Native.ps1",
+    "R335TestScriptSHA256": "78F8F4A33BA19EB7AA53C8C7F2E0919CD606FB525CF52389BFFE79E81F04E9EB",
+    "LocalChecks": {
+      "R335AtomicUserLogSink": "24/24 PASS",
+      "R338SupervisorTrustedArgs": "20/20 PASS",
+      "R298DeferredCleanup": "PASS"
+    },
+    "Safety": {
+      "UACActuallyInvoked": false,
+      "RealElevatedHelperLaunched": false,
+      "ProductInstallOrMutationPerformed": false,
+      "ProgramFilesModified": false,
+      "ForeignCanaryPreserved": true,
+      "TemporaryFixtureLeftovers": 0,
+      "InstalledVersion": "1.7.10",
+      "InstalledMainSHA256": "715CDA5E666E12C5FF2BCD46D513467CCEFEABE43A76F77689F604D4F432F2D7",
+      "InstalledUninstallSHA256": "1D0326CF11CEE069AD295112A9CA49D9FCBDB58ECDAB46FFE9C0F7172CE26D7E",
+      "MainProcessRunning": true,
+      "SensorBrokerProcessCount": 2,
+      "SensorSupervisorProcessCount": 1,
+      "BrokerScheduledTask": "Running",
+      "GitWorkingTree": "Clean before state upsert"
+    },
+    "Scope": "Local compiled-helper log/pipe/handle contract and trusted Supervisor argv/cleanup regressions only; not real UAC, owner install/upgrade, release, interactive GUI/audio or human review acceptance."
+  },
+  "R366CoordinationAndAudit": {
+    "Revision": "R366",
+    "ObservedLocalAt": "2026-11-09T10:48:31.5958379+03:30",
+    "PR98": {
+      "LastVerifiedHeadBeforeStateUpsert": "da5bd840226f6a3ad71ac3a175e03eb5e4060b53",
+      "State": "OPEN",
+      "Mergeable": true,
+      "Merged": false,
+      "ExactHeadCI": {
+        "Total": 13,
+        "Passed": 13,
+        "Failed": 0,
+        "Workflows": {
+          "Build": 4,
+          "R338": 4,
+          "R290": 2,
+          "R291": 3
+        }
+      },
+      "ReviewsSubmitted": 0,
+      "RequestedReviewer": "mohammadmohammadzadeh19960-code"
+    },
+    "PR96": {
+      "State": "CLOSED_UNMERGED_AS_SUPERSEDED",
+      "ClosedAtUtc": "2026-11-09T07:15:12Z",
+      "SupersededByPR": 98,
+      "SupervisorGitBlob": "d3ae5870298d3b086de018a796ee2bd4211d8853",
+      "R338TestGitBlob": "e745536b2f9bdc143c926b9a9cdd3eaaf6dcef09",
+      "OldWorkflowGitBlob": "b5f8bfd2785c9018b90f99a6ea7e4afc40d14ab2",
+      "ConsolidatedWorkflowGitBlob": "42bc8791e4e08571116db273aebfd569171a9473",
+      "ClosureCommentId": 6734460420
+    },
+    "Issue7R365StatusCommentId": 6734470728,
+    "Issue6OwnerHostScan": {
+      "CurrentInstalledRootSysFiles": 0,
+      "LegacyReportedTaskbarMonitorSysPathExists": false,
+      "LegacyDriverServicesFound": 0,
+      "CurrentSourceLiteralHits": 0,
+      "ReporterBinaryAttribution": "UNRESOLVED",
+      "Scope": "Owner host canonical install root and current src/installer/build only; not the reporter machine or quarantined binary."
+    },
+    "OwnerUpgradeReceiptSearch": {
+      "Scope": "Current app root plus project .local depth 4, excluding archive; filenames and bounded local evidence inventory.",
+      "PersonalV179ToV1710TransactionReceiptFound": false,
+      "SetupVerificationArtifactsFound": [
+        "R303_OWNER_PC_RELEASE_SETUP_VERIFY.json",
+        "R303-Owner-OneInstaller-Upgrade.ps1"
+      ],
+      "Gate": "UNVERIFIED"
+    },
+    "HistoricalOpenPRs": {
+      "PR80": "OPEN_HISTORICAL_V178_REVIEW_BRANCH_NOT_SAFE_TO_MERGE_WHOLESALE",
+      "PR82": "DRAFT_V178_PROVENANCE_WORK_SEPARATE_SCOPE"
+    },
+    "Safety": {
+      "ProductionSourceChanged": false,
+      "PublicReleaseChanged": false,
+      "OwnerInstallChanged": false,
+      "PR98Merged": false
+    },
+    "Scope": "GitHub coordination cleanup and scoped owner-host evidence only; no product source, release or installed product changed."
+  },
+  "R367HardlinkBoundary": {
+    "Revision": "R367",
+    "ObservedUtc": "2026-11-09T08:26:31.537Z",
+    "Baseline": {
+      "Commit": "035e8fc5db2fc020e539ec930a10770b9807d318",
+      "FullBuild": "PASS",
+      "NativeChecks": "4/4",
+      "SupervisorPredictableTempHardlink": "WRITE_THROUGH_REPRODUCED",
+      "BrokerPidTickTempHardlink": "WRITE_THROUGH_REPRODUCED",
+      "DestinationHardlinkChecks": "2/2_PASS_WITH_CANARIES_UNCHANGED"
+    },
+    "Candidate": {
+      "ProductCommit": "92f8b8bdfef210f00ee8b03aff062fd9e2dfa8d3",
+      "FullBuild": "PASS_0_WARNINGS_0_ERRORS",
+      "NativeChecks": "4/4",
+      "SupervisorPrecreatedAlias": "BLOCKED",
+      "BrokerPrecreatedAlias": "BLOCKED",
+      "DestinationHardlinkChecks": "2/2_PASS_WITH_CANARIES_UNCHANGED",
+      "BrokerFileCopyOverwriteFallback": "REMOVED_FAIL_CLOSED"
+    },
+    "HostedR367": {
+      "PushRun": 42584436249,
+      "PullRequestRun": 42584443225,
+      "Jobs": 8,
+      "Passed": 8,
+      "Failed": 0,
+      "Matrix": "baseline/candidate x Windows Server 2022/2025",
+      "TypedReceipts": 8
+    },
+    "ExactHeadCI": {
+      "ProductCommit": "92f8b8bdfef210f00ee8b03aff062fd9e2dfa8d3",
+      "Total": 30,
+      "Passed": 30,
+      "Failed": 0,
+      "Pending": 0
+    },
+    "PR98": {
+      "State": "OPEN",
+      "Mergeable": true,
+      "Merged": false,
+      "RequestedReviewer": "mohammadmohammadzadeh19960-code",
+      "ReviewsSubmitted": 0,
+      "R367EvidenceComment": 6735353547,
+      "R367HostedComment": 6735406531,
+      "ExactHeadCIComment": 6735464641
+    },
+    "PublicTracker": {
+      "Issue7R367Comment": 6735420915,
+      "Issue7ExactHeadCIComment": 6735467015
+    },
+    "LocalReceipt": {
+      "Path": ".local/audit/r367-elevated-temp-hardlink-local-20261109.json",
+      "SHA256": "AA3485943E4C3B2C0D4DF91688F41251F8C5AF503926A4E2B890A7EFEF410736"
+    },
+    "ScopeLimit": "Pre-existing hard-link aliases are rejected. No race-free guarantee is claimed for a concurrent directory writer after the temp handle closes.",
+    "Safety": {
+      "OwnerInstallChanged": false,
+      "PublicReleaseChanged": false,
+      "AppProcessesStopped": false,
+      "UACRequested": false,
+      "Rebooted": false
+    }
+  },
+  "R369AtomicTextBoundary": {
+    "Revision": "R369",
+    "ObservedUtc": "2026-11-09T15:38:48.616Z",
+    "VulnerableBaselineCommit": "e6d3405c116e6dd5b52a018dc46dc7beb86a8562",
+    "SourceFixCommit": "f704c41266e512f90b88d01a90b0aacea69de8f8",
+    "TestFixCommits": [
+      "dfd4a361c8097bbd85e33c695f925a868c99fb6c",
+      "40e598a50421333ea37e1e9abdb2ab39520c5e9e"
+    ],
+    "ExactTestHead": "40e598a50421333ea37e1e9abdb2ab39520c5e9e",
+    "LocalBuild": "PASS_ZERO_WARNINGS_ZERO_ERRORS_SELFTEST_WORKSPACE_REPRO",
+    "LocalCandidateNative": "PASS_6_OF_6",
+    "LocalByteParity": "PASS_6_OF_6_UTF8_BOM_AND_NO_BOM_INCLUDING_PERSIAN",
+    "VulnerableBaseline": "PREDICTABLE_TEMP_HARDLINK_WRITE_THROUGH_REPRODUCED",
+    "Hosted": {
+      "PushRunId": 42643594516,
+      "PullRequestRunId": 42643606514,
+      "TotalJobs": 8,
+      "Passed": 8,
+      "Failed": 0,
+      "OS": [
+        "windows-2022",
+        "windows-2025"
+      ],
+      "TypedArtifacts": 8
+    },
+    "ExactHeadCI": {
+      "Count": 28,
+      "SuccessAfterSingleR291JobRerun": 28,
+      "FirstR291Windows2022": "FAIL_GLASS0_SETTINGS_MENU_NOT_FOUND",
+      "SingleRerun": "PASS",
+      "OriginalFailureRetained": true
+    },
+    "PR98": {
+      "Open": true,
+      "Mergeable": true,
+      "Merged": false,
+      "RequestedReviewer": "mohammadmohammadzadeh19960-code",
+      "IndependentReviewsSubmitted": 0,
+      "CommentId": 6743945217
+    },
+    "LocalReceipt": {
+      "Path": ".local/audit/r369-atomictext-local-20261109.json",
+      "SHA256": "A8590B336CB3261EB7BCA885F893451BEB242AC0B27AB55A8ACB532969841FEE"
+    },
+    "ClaimLimit": "Pre-created same-user NTFS hardlinks blocked. Does not guarantee race freedom against directory writer after temp handle closure.",
+    "PublicReleaseChanged": false,
+    "OwnerInstallChanged": false,
+    "NotionRestorePerformed": false
+  },
+  "R370UpgradePhaseHardlink": {
+    "Revision": "R370",
+    "VerifiedUtc": "2026-11-09T19:36:03.2323103+03:30",
+    "BaselineCommit": "a8fadee40ade2fb871c5d4d1adce7776576270de",
+    "CandidateSourceCommit": "8d0b43bfb5bc897aca829849f2e72861955dec06",
+    "Scope": "Precreated same-user hardlink at fixed stage phase.tmp; stage journal three-phase and destination replacement behavior",
+    "LocalBuild": "PASS_0_WARNINGS_0_ERRORS_APP_SETUP_SUPERVISOR_BROKER_THREE_SELFTESTS_REPRODUCIBILITY",
+    "CompiledSetupEmbedsExactHardenedSource": true,
+    "BaselineWriteThroughReproduced": true,
+    "CandidateAliasRefusedWithCanaryUnchanged": true,
+    "CandidateThreePhaseTransitions": "PASS_3_OF_3",
+    "CandidateDestinationHardlinkPreservedOutsideCanary": true,
+    "NativeHarnessScope": "Exact production WritePhase source-extracted and compiled with isolated fixture root; not real Setup execution",
+    "Hosted": {
+      "Push": 42649502780,
+      "PR": 42649521811,
+      "Jobs": 8,
+      "Passed": 8,
+      "Failed": 0,
+      "TypedArtifacts": 8,
+      "OS": [
+        "windows-2022",
+        "windows-2025"
+      ]
+    },
+    "ExactHeadCI": {
+      "Commit": "8d0b43bfb5bc897aca829849f2e72861955dec06",
+      "Total": 63,
+      "Passed": 63,
+      "Failed": 0,
+      "Pending": 0
+    },
+    "LocalReceipt": {
+      "Path": ".local/audit/r370-upgrade-phase-hardlink-local-20261109.json",
+      "SHA256": "E50936C6BB5BB0F0DBE630FC0FA0876EEFD48EA7BB83D590E7A54BEF7A51EE8C"
+    },
+    "GitHub": {
+      "PR": 98,
+      "ReviewComment": 6744756723,
+      "Issue7Comment": 6744763801,
+      "HumanReviewsSubmitted": 0,
+      "Merged": false
+    },
+    "PublicReleaseChanged": false,
+    "OwnerInstallChanged": false,
+    "ClaimLimit": "No assertion of cross-privilege exploit, actual personal upgrade or race freedom against simultaneous directory replacement"
+  },
+  "R371R291HostedDiagnostics": {
+    "Revision": "R371",
+    "TestCommit": "c0c64685156a651c61ff35fa5b304c5a9aa67e4b",
+    "ProductCommit": "8d0b43bfb5bc897aca829849f2e72861955dec06",
+    "PriorWindows2022FirstAttempt": "FAIL_GLASS0_SETTINGS_MENU_NOT_FOUND_5046MS",
+    "PriorWindows2022Rerun": "FAIL_GLASS0_MONITOR_IGNORES_TASKBAR_HIDE_ORIGINAL_1100MS",
+    "PriorRun": 42651408908,
+    "CurrentR291Run": 42662489526,
+    "CurrentR360Run": 42662472466,
+    "CurrentHeadChecks": 28,
+    "Success": 28,
+    "Failures": 0,
+    "Pending": 0,
+    "OriginalFailuresPreserved": true,
+    "FailureOnlyDiagnosticDelayMs": 2000,
+    "OriginalStrictHideGateMs": 1100,
+    "ProductionSourceChanged": false,
+    "RootCause": "UNPROVEN",
+    "PR98EvidenceComment": 6746607139,
+    "Issue7EvidenceComment": 6746615839,
+    "LocalReceiptPath": ".local/audit/r371-r291-intermittent-ui-20261109.json",
+    "LocalReceiptSHA256": "A096C940520B8DE40C89F70B23B6C1E6FA0119A7B6925554F8C9B037C23A0AC4"
+  },
+  "R372NativeHitTest": {
+    "Revision": "R372",
+    "TestHead": "3e5523e6f84be7f62c96980dcc92116a00c14f6f",
+    "FirstFailedTestHead": "73b548667bf83044a223ed757567d5570f5bc710",
+    "ProductSourceCommit": "8d0b43bfb5bc897aca829849f2e72861955dec06",
+    "FirstHarnessResult": "FAIL_TWO_WINDOWS_PS51_ARRAY_ADDITION_BEFORE_NATIVE_TEST",
+    "FixPS51CoordinatesAndNativeCompilation": "PASS",
+    "CurrentCI": {
+      "Total": 28,
+      "Success": 28,
+      "Failed": 0,
+      "Pending": 0,
+      "R291": 42666822817,
+      "R360": 42666809790
+    },
+    "NativeReceipts": {
+      "Total": 8,
+      "MatchedMonitor": 8,
+      "FixedHitMonitor": 8,
+      "FallbackExercised": 0,
+      "Windows": [
+        "windows-2022",
+        "windows-2025"
+      ],
+      "Modes": [
+        "plain1",
+        "plain10",
+        "glass0",
+        "opaque100"
+      ]
+    },
+    "RootCause": "UNPROVEN",
+    "StrictUIAcceptanceUnchanged": true,
+    "ProductionFilesChanged": false,
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "Receipt": {
+      "Path": ".local/audit/r372-real-native-hittest-20261109.json",
+      "SHA256": "D7BC6A9B0B60FF1FBD42039C921AE0F59BA59ADF85D704807B9378F0AA0B8175"
+    },
+    "GitHub": {
+      "PullRequest": 98,
+      "PRComment": 6747229188,
+      "TrackerIssue": 7,
+      "TrackerComment": 6747236498,
+      "HumanReviews": 0
+    }
+  },
+  "R373TaskbarHideTelemetry": {
+    "Revision": "R373",
+    "Commit": "915e9e3557f4815a0de99188f126e726a7f8a7ad",
+    "Parent": "9830482f343cc57e21612d4cf56a61321ce645f1",
+    "ProductSourceCommit": "8d0b43bfb5bc897aca829849f2e72861955dec06",
+    "StateHead": "38e773a40b8259a7bbbe31678ac40843fe37e497",
+    "StateHeadCI": "29/29_PASS",
+    "StateHeadR291Run": 42691157514,
+    "TestSourcePRChecks": "28/28_PASS",
+    "ChangedFiles": [
+      "build/Test-R291-ExplorerStart-Settings-Glass.ps1",
+      ".github/workflows/audit-r360-r291-settings-visibility-stress.yml"
+    ],
+    "PRChecks": "29/29_PASS",
+    "R291": "6_HOST_EXECUTIONS_PASS_ACROSS_THREE_RUNS",
+    "R360": "6_CYCLES_24_MODES_PASS",
+    "R291Runs": [
+      42686996123,
+      42689659064,
+      42691157514
+    ],
+    "R291HostExecutions": 6,
+    "R291ModeExecutions": 24,
+    "R360Cycles": 6,
+    "R360ModeExecutions": 24,
+    "TotalCycles": 12,
+    "TotalModeExecutions": 48,
+    "HideSamples": 48,
+    "HideMinMs": 29,
+    "HideMedianMs": 224,
+    "HideMaxMs": 502,
+    "AllTaskbarAndMonitorPrePostStatesPass": true,
+    "SetupSHA256": "2B7A2941F3F489196601F8CFF04711C8E5DA65FC12F24394B60C280FA8954547",
+    "MainSHA256": "BAB436ACD0C531DE04DD6BF21B8A4D015F29529798997BEA1931B6FECD8803B6",
+    "ReceiptPath": ".local/audit/r373-taskbar-hide-timing-20261109.json",
+    "ReceiptSHA256": "82ED4356E9A8BBA94939CEE533EE94CA30755A30B8306079A47D779F3A9306FD",
+    "SupplementalReceiptPath": ".local/audit/r373-state-head-r291-revalidation-20261109.json",
+    "SupplementalReceiptSHA256": "EB4FDF4D36F08C65961E76D70EB06581739747095DAD49F6D08180AF57A4E482",
+    "FinalSupplementalReceiptPath": ".local/audit/r373-final-state-head-r291-revalidation-20261109.json",
+    "FinalSupplementalReceiptSHA256": "4AC8BCB38C33ECC28F9B2B80BCF00B196826652426339275F860E7ABEE8B6C35",
+    "RootCause": "UNPROVEN",
+    "HistoricalR371FailuresPreserved": true,
+    "ProductSourceChanged": false,
+    "PublicReleaseChanged": false,
+    "OwnerInstallChanged": false,
+    "PR98HumanReviews": 0,
+    "PR98Mergeable": true,
+    "PR98Merged": false,
+    "NotionRestoreConsent": "PENDING_SPECIFIC_OWNER_CONFIRMATION"
+  },
+  "R375SettingsMenuNativeDiagnostic": {
+    "Revision": "R375",
+    "TestCommit": "dc625f53ff5a980617e5cf47f7ec642d8d3be2ff",
+    "ProductSourceCommit": "8d0b43bfb5bc897aca829849f2e72861955dec06",
+    "ChangedFiles": [
+      "build/Test-R291-ExplorerStart-Settings-Glass.ps1"
+    ],
+    "ScriptSHA256": "8261F6F725320CB1E861813E74E96398A8F7FEB8BB3FA2E80BE7838ABEFF591F",
+    "LocalWinPS51ParserAndCSharpCompile": "PASS",
+    "LocalSyntheticFailureBranchSerialization": "PASS",
+    "LocalMockReceiptPath": ".local/audit/r375-native-menu-mock-20261110.json",
+    "LocalMockReceiptSHA256": "F1E4CB7FEDE9C791354D4C933ABA8A318DED109F3D4ED8053FB107630E2CBF72",
+    "PRChecks": "28/28_PASS",
+    "R291Run": 42697474249,
+    "R291Hosts": 2,
+    "R360Run": 42697462258,
+    "R360HostCycles": 6,
+    "R360Modes": 24,
+    "AggregateR373AndR375": {
+      "HostCycles": 20,
+      "Modes": 80,
+      "HideSamples": 80,
+      "MinHideMs": 29,
+      "MedianHideMs": 239.5,
+      "MaxHideMs": 513,
+      "PrePostVisibilityFailures": 0,
+      "UnchangedLimitMs": 1100
+    },
+    "AggregateReceiptPath": ".local/audit/r375-current-test-results-20261110.json",
+    "AggregateReceiptSHA256": "8B639DE35B0602F63A3DD12E0C03501F687CC6C4C9D944C39889C5F928ADABBA",
+    "ReviewerHandoffCommentId": 6750739912,
+    "ReviewerHandoffURL": "https://github.com/GOD13emad/TaskbarMonitorEnhanced/pull/98#issuecomment-6750739912",
+    "R374BackupHardlinkProbeReceiptPath": ".local/audit/r374-backup-hardlink-boundary.json",
+    "R374BackupHardlinkProbeReceiptSHA256": "17A0E3444B61A30E3DB965F11C5B4FB23C53F23AE40A693EDDAA7CD529E6B8E9",
+    "R374BackupHardlinkProbeScope": "Isolated direct .NET File.Replace canary, not full product",
+    "OwnerMainSHA256": "715CDA5E666E12C5FF2BCD46D513467CCEFEABE43A76F77689F604D4F432F2D7",
+    "OwnerProcessRunningReadOnly": true,
+    "OwnerSensorsFreshReadOnly": true,
+    "OwnerSoundAndVisualWitness": "NOT_ATTESTED",
+    "HistoricalR371FailureRootCause": "UNPROVEN",
+    "HistoricalR371NegativeEvidencePreserved": true,
+    "ProductSourceChanged": false,
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "PR98IndependentHumanReviews": 0,
+    "PR98Merged": false,
+    "NotionRestoreConsent": "PENDING_SPECIFIC_OWNER_APPROVAL",
+    "OwnerThermalGlassEvidence": {
+      "Scope": "Read-only owner host, exact official installed v1.7.10 and exact private Candidate R370; synthetic thermal pixel proof only, not a desktop screenshot or speaker witness.",
+      "ReceiptPath": ".local/audit/r375-ownerhost-thermal-rootcause-20261110.json",
+      "ReceiptSHA256": "8C609F79C20DED2B4AB6E07A12271930C6D6CA8A151864B514F99E756EF5E7D6",
+      "CandidateMainSHA256": "BAB436ACD0C531DE04DD6BF21B8A4D015F29529798997BEA1931B6FECD8803B6",
+      "CandidateThemePairs": 98,
+      "CandidateHotRedPixelsMin": 2790,
+      "CandidateAcceptanceSHA256": "40E9E87858E3803BA3AE373E5307927F58DE1DC8C98B832C84F33C5F1BA09631",
+      "OfficialInstalledMainSHA256": "715CDA5E666E12C5FF2BCD46D513467CCEFEABE43A76F77689F604D4F432F2D7",
+      "OfficialInstalledThemePairs": 98,
+      "OfficialInstalledHotRedPixelsMin": 2790,
+      "OfficialAcceptanceSHA256": "7E667429C1AB01C12267B5F4EE1656544A148B363DFC7986CCF3EA4331B46B2B",
+      "OwnerConfigSHA256": "3335F7BD254C48E88AA9C0F115EE54D03301E1DD421F45D2A8408634C7B8F182",
+      "GlassModeAsObserved": false,
+      "OwnerOpacity": 0.01,
+      "OwnerCpuWarningThresholdC": 90,
+      "CurrentModeHotRedOpaquePixels": 0,
+      "GlassModeHotRedOpaquePixels": 3000,
+      "PixelProofResult": "PASS_EXACT_OFFICIAL_AND_CANDIDATE_98_OF_98_PER_BINARY",
+      "OwnerVisibleGlassState": "NOT_VERIFIED",
+      "OwnerAudioPlaybackWitness": "NOT_VERIFIED",
+      "ChangedOwnerFiles": false,
+      "OwnerNativeTopologyEvidence": {
+        "ReceiptPath": ".local/audit/r375-owner-native-topology-readonly-20261110.json",
+        "ReceiptSHA256": "BF9934D85BEFA494C5295DC33D78B8462C29B2D1542DC48892E2D86F3E106246",
+        "ObservedOwnerPid": 10892,
+        "NativeMonitorHwnd": 84351036,
+        "TaskbarParentHwnd": 65892,
+        "Visible": true,
+        "Rect": [
+          0,
+          1392,
+          1100,
+          1440
+        ],
+        "Class": "WindowsForms10.Window.8.app.0.245fb7_r6_ad1",
+        "Scope": "Read-only Win32 HWND visibility and parent/rect, not screenshot or actual rendered-pixel proof",
+        "OwnerInputChanged": false
+      },
+      "OwnerAudioEndpointEvidence": {
+        "ReceiptPath": ".local/audit/r375-audio-endpoint-readonly-20261110.json",
+        "ReceiptSHA256": "4D3D0D6CE35153598EC13C1E8C2AA3C08635EA6DF21637BD1D7B8A2E0CB68976",
+        "DefaultEndpoint": "Mi monitor",
+        "Driver": "NVIDIA High Definition Audio",
+        "MultimediaActive": true,
+        "MultimediaMuted": false,
+        "MultimediaVolumeScalar": 1,
+        "SoundSchemeFileExists": true,
+        "RequestedSoundLogsSampled": 27,
+        "SoundFailureLogsSampled": 0,
+        "AudibilityWitness": "NOT_ATTESTED",
+        "InputOrAudioConfigChanged": false,
+        "AlternateActiveSpeakers": "Speakers / Realtek USB Audio",
+        "AlternateSpeakersWindowsEndpointState": 1,
+        "AlternateEndpointReceiptPath": ".local/audit/r375-owner-audio-alternatives-readonly-20261110.json",
+        "AlternateEndpointReceiptSHA256": "E258BE3851658D93A8E20497CF03B35BC39ACC182D6A4BACBD1EC2F2596EF11E",
+        "IntendedPhysicalOutput": "UNKNOWN_NEEDS_OWNER_CHOICE"
+      },
+      "OwnerNormalModeVisualCapture": {
+        "Scope": "READ_ONLY_SAME_OWNER_SESSION_NORMAL_MODE_CROPPED_TASKBAR_BITMAP_NOT_GLASS_ACCEPTANCE",
+        "FilePath": ".local/audit/r375-owner-taskbar-visual-crop-20261110.png",
+        "FileSHA256": "7D2549B00363876AF9D5190DD564449F9B5711E4CD405B7A940FD1D4CD588F0C",
+        "SourceFileWriteUtc": "2026-11-09T22:36:42Z",
+        "SizePx": [
+          1300,
+          48
+        ],
+        "DisplayResolutionPx": [
+          3440,
+          1440
+        ],
+        "VisualObservations": "Readable CPU/RAM/GPU text and bar charts in a cropped current desktop taskbar frame",
+        "GlassModeAtCapture": false,
+        "OpacityAtCapture": 0.01,
+        "DisplayedCpuTempApproxC": 86,
+        "ConfiguredCpuHotThresholdC": 90,
+        "HotAlertAtCaptureExpected": false,
+        "CurrentTrueGlassVisualAcceptance": "NOT_TESTED",
+        "CurrentAudioAcousticAcceptance": "NOT_TESTED",
+        "OwnerInputChanged": false,
+        "OwnerConfigChanged": false,
+        "ScreenshotLocalOnly": true
+      },
+      "OwnerFullscreenNotificationProbe": {
+        "Scope": "READ_ONLY_OWNER_FULLSCREEN_NOTIFICATION_STATE_NOT_LIVE_GLASS_OR_AUDIO_ACCEPTANCE",
+        "ReceiptPath": ".local/audit/r375-owner-fullscreen-system-notification-readonly-20261110.json",
+        "ReceiptSHA256": "01A0272D0F4FFD09D68EEA40E7C845ED2887F1B63610F0D090EB5590CA2503F1",
+        "WindowsShellNotificationState": 2,
+        "WindowsShellMeaning": "QUNS_BUSY_FULLSCREEN_OR_PRESENTATION",
+        "QueryHResult": 0,
+        "ForegroundClass": "Chrome_WidgetWin_1",
+        "ForegroundBounds": [
+          0,
+          0,
+          3440,
+          1440
+        ],
+        "OwnerMonitorProcessId": 10892,
+        "MonitorHwnd": 84351036,
+        "MonitorHiddenWhileFullscreen": true,
+        "SystemSoundsSessionVolumeScalarAtProbe": 1,
+        "SystemSoundsSessionMutedAtProbe": false,
+        "SystemSoundsSessionInactiveAtProbe": true,
+        "LastCpuHotRequestAt": "2026-11-10 02:57:37.507",
+        "AlertSoundRequestedOnly": true,
+        "ActualToastDelivery": "NOT_ATTESTED",
+        "ActualAudioHeard": "NOT_ATTESTED",
+        "HistoricalR371RootCause": "UNPROVEN",
+        "OwnerGlassModeChanged": false,
+        "OsAudioSettingsChanged": false,
+        "OsNotificationSettingsChanged": false
+      }
+    },
+    "CurrentC2SupplementalR360": {
+      "SourceHead": "2c41cfceae202c82402ccf018864bcba7d020e80",
+      "RunId": 42717624532,
+      "Result": "SUCCESS",
+      "HostCycles": 6,
+      "StrictSamples": 24,
+      "MinMs": 2,
+      "MedianMs": 259.5,
+      "MaxMs": 528,
+      "AggregateR373AndR375PlusSupplemental": {
+        "HostCycles": 26,
+        "StrictHideSamples": 104,
+        "Pass": 104,
+        "MinMs": 2,
+        "MedianMs": 247.5,
+        "MaxMs": 528,
+        "LimitMs": 1100,
+        "HistoricalNegativeEvidenceStillValid": true
+      },
+      "ReceiptPath": ".local/audit/r375-c2-stress-aggregate-20261110.json",
+      "ReceiptSHA256": "3C30763EF4F1D2AD38E78CAA8C75D4AD3C920FF5953F72AF332015CA88061CC3",
+      "ProductSourceChanged": false,
+      "OwnerInstalledChanged": false,
+      "NotionRestored": false
+    }
+  },
+  "R376HarnessTimingRepair": {
+    "Revision": "R376",
+    "OnlyFile": "build/Test-R369-AtomicTextFile-Hardlink-Native.ps1",
+    "ScriptSHA256": "658F242BC8EA436AC0510A4AD6F9FAADE3EF7E7B198DC8C9A94EF7F414622242",
+    "PreviousFailedHead": "cf104dc81c822e8c3c9cc9318822c0ec1f29638a",
+    "PreviousRunId": 42721843415,
+    "PreviousResult": "FAILURE_BASELINE_A_NEGATIVE_CONTROL_NOT_REPRODUCED",
+    "RootCauseHypothesis": "850ms future target insufficient to preseed 350 hardlinks under guest load",
+    "NoProductSourceChange": true,
+    "StrictBaselineExploitRequirementRetained": true,
+    "StrictCandidateCanaryRequirementRetained": true,
+    "FutureLeadMilliseconds": 8000,
+    "WindowMilliseconds": 350,
+    "MaxAttempts": 3,
+    "AlignedCallRequired": true,
+    "LocalWinPS51Parser": "PASS",
+    "LocalExactPrivateCandidateTest": "PASS_6_OF_6",
+    "LocalAlignedCalls": 10,
+    "LocalAliasCount": 350,
+    "LocalCanaryIntact": true,
+    "LocalReceiptPath": ".local/audit/r376-atomic-hardlink-candidate-local-20261110.json",
+    "LocalReceiptSHA256": "DFD5E0551721520D8B9C0D64D296D1201506E35E34AA54C55B4ABE64B1C66AB4",
+    "HostedExactHeadMatrix": "PASS_2_RUNS_8_JOBS_BASELINE4_OF4_CANDIDATE4_OF4",
+    "ReviewStatus": "REVIEW_REQUIRED",
+    "PublicReleaseChanged": false,
+    "OwnerInstallChanged": false,
+    "NotionRestored": false,
+    "ExactCITestedHead": "0c2a5a48f2ff2cad00ee8a569e6e25dd0dce315f",
+    "ExactHeadCIResult": "SUCCESS_36_OF_36",
+    "R369RunIds": [
+      42724136143,
+      42724144960
+    ],
+    "R369HostedReceiptPath": ".local/audit/r376-r369-hosted-evidence-20261110.json",
+    "R369HostedReceiptSHA256": "A17065DE6B2C0CCA04896BCEC75CB633A71AB4398F1EA7D3027D4BFC9620EC5D",
+    "R360RunId": 42724136388,
+    "R360StrictNativeSamples": 24,
+    "R360HostCycles": 6,
+    "R360HideMinMs": 49,
+    "R360HideMaxMs": 492
+  },
+  "R377StageCleanupGuard": {
+    "Revision": "R377",
+    "PreviousHead": "281ea1d5adc5f5a82958568d3be653a7fdc484a0",
+    "OnlyChangedSourceFiles": [
+      "installer/TaskbarMonitorEnhanced_Setup.cs",
+      "build/Test-R370-UpgradePhaseTempHardlink-Native.ps1"
+    ],
+    "SourceSHA256": "9EDE25E28ABC93E1CD919ADA77773F6F353F6B4E61201DE2C255C323D3E65A0E",
+    "TestSHA256": "1C822EF1D5769AFF2FA7DFD4873651C43F4A3C539FDF62F726D09A8D23B55DB5",
+    "Vulnerability": "Unknown empty subdirectory in owned upgrade stage silently removed by previous recursive cleanup",
+    "Scope": "Same-user transient stage path preservation, not cross-account privilege escalation or all-race guarantee",
+    "BaselineNegativeControl": "PASS_DELETION_REPRODUCED",
+    "CandidateSafeControl": "PASS_UNRECOGNIZED_EMPTY_DIR_REFUSED_AND_PRESERVED",
+    "CandidateLegitimateCleanup": "PASS_INDEXED_NESTED_STAGE_REMOVED",
+    "ExistingR370HardlinkAndThreePhases": "PASS_LOCAL",
+    "LocalFullBuild": "PASS_0_WARNINGS_0_ERRORS_APP_BROKER_SUPERVISOR_SETUP_AND_3_WORKSPACE_TESTS",
+    "LocalReceiptPath": ".local/audit/r377-cleanownedstage-negative-control-20261110.json",
+    "LocalReceiptSHA256": "E643E747ACE4062FB5BCDBD978098715CA53EA99206071C7041EE2F7A7D20140",
+    "HostedMatrixStatus": "PASS_WINDOWS2022_2025_4_OF_4",
+    "OwnerInstalledChanged": false,
+    "PublicReleaseChanged": false,
+    "NotionRestored": false,
+    "IndependentHumanReview": "PENDING",
+    "ExactSourceCommit": "8ff56325a55335d130a27770b54809dc913ca233",
+    "HostedReceiptPath": ".local/audit/r377-hosted-acceptance-exact-head-20261110.json",
+    "HostedReceiptSHA256": "CF56B446C58E38E8C5DC4558EC360388B8EA539B3D074ECDFA4D45941649BF2F",
+    "HostedR370Run": 42732526897,
+    "HostedR360Run": 42732511804,
+    "HostedR360RealCycles": 6,
+    "HostedR360NativeHideSamples": 24,
+    "HostedR360HideMinMs": 113,
+    "HostedR360HideMedianMs": 330.5,
+    "HostedR360HideMaxMs": 506,
+    "ExactHeadCI": "PASS_67_OF_67_SOURCE_HEAD_8ff5632",
+    "CandidateSetupSHA256": "B1E8121ED9C1F121E45C6A2F6D736AEA352B5BF636489C643139CBDA89F4F9D1",
+    "CandidateMainSHA256": "BAB436ACD0C531DE04DD6BF21B8A4D015F29529798997BEA1931B6FECD8803B6"
+  },
+  "R379ReparseTraversal": {
+    "Revision": "R379",
+    "EngineeringCommit": "5dd6bd9919656b63b0db45b74d34ff8221ee018e",
+    "PreviousVulnerableSourceCommit": "8ff56325a55335d130a27770b54809dc913ca233",
+    "Issue": "Recursive Directory.GetFiles AllDirectories follows stage junction before reparse preflight",
+    "NewSourceSHA256": "7A6A20545A7D1CEA48A110192FA3EB8BE8791019EE3170EBCFB250A8C72A66CB",
+    "TestSourceSHA256": "0F1890EAADD75F8055CDA537A42FC81E05E8564EF285D17E1ED88CEF41B733FE",
+    "ExactSourceHeadCI": {
+      "Passed": 63,
+      "Total": 63,
+      "Failed": 0,
+      "Pending": 0,
+      "Commit": "5dd6bd9919656b63b0db45b74d34ff8221ee018e"
+    },
+    "HostedR370": {
+      "PushRun": 42748759572,
+      "PullRequestRun": 42748768788,
+      "Jobs": 8,
+      "Passed": 8,
+      "Baseline": 4,
+      "Candidate": 4
+    },
+    "HostedR360": {
+      "Run": 42748759516,
+      "Cycles": 6,
+      "NativeSamples": 24,
+      "Passed": 24,
+      "MinMs": 59,
+      "MedianMs": 280,
+      "MaxMs": 507,
+      "OriginalThresholdMs": 1100
+    },
+    "CandidateSetupSHA256": "4D50FFFB0AF0751D2542AD0FA9255C6F8169AD80273B129D03FD46DE4A65F9CD",
+    "CandidateMainSHA256": "BAB436ACD0C531DE04DD6BF21B8A4D015F29529798997BEA1931B6FECD8803B6",
+    "LocalFullBuild": "PASS_0_WARN_0_ERRORS_3_SELFTESTS",
+    "SetupVerify": "PASS_25_EMBEDDED_RESOURCES",
+    "EvidencePath": ".local/audit/r379-hosted-source-acceptance-20261110.json",
+    "EvidenceSHA256": "6B8E96F4D0DA17E0563141738E14EBD0F93412BE9B1D9F731CC7DA27BAE5F9CC",
+    "HistoricalUiR371RootCause": "UNPROVEN",
+    "ApprovalState": "REVIEW_REQUIRED_ZERO_INDEPENDENT_HUMAN_REVIEWS",
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "NotionRestored": false,
+    "ClaimLimit": "Fail-closed static reparse preflight, not universal race immunity"
+  },
+  "R380OwnerGlassProof": {
+    "Revision": "R380",
+    "SourceHead": "e8a3a14263af1da6215908f2f5d0187e770f0dae",
+    "InstalledVersion": "v1.7.10",
+    "OwnerInstalledMainSHA256": "715CDA5E666E12C5FF2BCD46D513467CCEFEABE43A76F77689F604D4F432F2D7",
+    "OwnerConfigSHA256": "3335F7BD254C48E88AA9C0F115EE54D03301E1DD421F45D2A8408634C7B8F182",
+    "OwnerGlassMode": false,
+    "OwnerPID": 10892,
+    "ThermalGlass": {
+      "Status": "PASS",
+      "Themes": 49,
+      "Pairs": 98,
+      "HotRedPixelsMin": 2790,
+      "ColdRedPixelsMax": 0,
+      "ClearPixelsMin": 22355
+    },
+    "ZeroAlphaText": {
+      "Status": "PASS",
+      "Themes": 49,
+      "Cases": 196,
+      "OpaqueGlyphsRetained": true
+    },
+    "TransparentCharts": {
+      "Status": "PASS",
+      "Themes": 49,
+      "Cases": 196,
+      "ForegroundIndependent": true
+    },
+    "OffscreenNative": {
+      "Status": "PASS",
+      "UpdateLayeredWindowExitCode": 0,
+      "ActualTaskbarInput": false
+    },
+    "ReceiptPath": ".local/audit/r380-owner-installed-glass-acceptance-20261110.json",
+    "ReceiptSHA256": "4C3F0AF3C0ABCF02DFE89FE700708BC0B61BE38152967B0635A688B274AC3FCA",
+    "PersonalVisibleGlassAccepted": false,
+    "PhysicalSoundHeard": false,
+    "OwnerConfigChanged": false,
+    "OwnerInstalledChanged": false,
+    "IndependentHumanSecurityReview": "PENDING_ZERO_APPROVALS",
+    "NotionRestore": "PENDING_EXPLICIT_OWNER_CONSENT"
+  },
+  "R381OwnerRealTaskbarAndAudio": {
+    "Revision": "R381",
+    "GitBaselineHead": "fd428433d3e4daa02854a5881e130b3ee578799c",
+    "InstalledVersion": "v1.7.10",
+    "InstalledMainSHA256": "715CDA5E666E12C5FF2BCD46D513467CCEFEABE43A76F77689F604D4F432F2D7",
+    "OwnerConfigSHA256": "3335F7BD254C48E88AA9C0F115EE54D03301E1DD421F45D2A8408634C7B8F182",
+    "SingleOwnerPID": 10892,
+    "TemporaryActualTaskbarGlass": {
+      "Status": "PASS_REAL_SCREEN_COMPOSITOR",
+      "RealTextChangedPixels": 2173,
+      "RealChartChangedPixels": 2446,
+      "TransparentExpectedPixels": 29084,
+      "FourModeTransitions": "PASS_4_OF_4",
+      "RestoredZeroAlphaGlyphs": 2211,
+      "RestoredZeroAlphaCharts": 2446,
+      "ScreenshotsStoredOwnerPrivate": true
+    },
+    "WindowsExclamationAudioEndpoint": {
+      "Status": "PASS_OUTPUT_PEAK_NOT_HUMAN_AUDIBLE_WITNESS",
+      "BaselinePeak": 0.0,
+      "EventPeak": 0.3456726,
+      "SoundInvocations": 1,
+      "HumanPhysicallyHeard": false
+    },
+    "ReceiptPath": ".local/audit/r381-owner-native-glass-and-audio-acceptance-20261110.json",
+    "ReceiptSHA256": "5A4211A939A1DEFA70233DE1BF29793B72320E37E7B95E3CBDD15EFC5421F10C",
+    "OwnerInstalledChanged": false,
+    "ConfigChanged": false,
+    "PermanentGlassPreferenceChanged": false,
+    "HistoricalR371UiCause": "UNPROVEN",
+    "IndependentHumanReview": "PENDING",
+    "PublicReleaseChanged": false,
+    "NotionRestored": false,
+    "ScopeLimits": "Real isolated temporary Taskbar proof and default output endpoint signal, not full durable Glass user acceptance or acoustic witness"
+  },
+  "R382SettingsAndHistoricalR371": {
+    "Revision": "R382",
+    "BaselineHead": "1d96199c10ee11b8c9b671bda132d46d4f6791ec",
+    "EngineeringRevision": "R379",
+    "PrivateReceiptPath": ".local/audit/r382-historical-2022-negatives-and-installed-settings-proof-20261110.json",
+    "PrivateReceiptSHA256": "41B51CFB405DF874B6F0B2889B9C8E2FFCAA8A3B3DDAEF41E92EED2595219117",
+    "OriginalWindows2022CI": 42651408908,
+    "SeparateHistoricalNegativeArtifactIds": [
+      13690047155,
+      13691325294
+    ],
+    "DistinctFailures": [
+      "R146_REAL_SETTINGS_MENU_ITEM_NOT_FOUND glass0 WAIT_MS=5046",
+      "R146_MONITOR_IGNORES_TASKBAR_HIDE glass0"
+    ],
+    "NegativeRootCause": "UNPROVEN",
+    "AlphaZeroFixedClickExplanation": "HYPOTHESIS_ONLY_NO_HISTORICAL_POINT_HIT_CAPTURE",
+    "WinFormsWatchdogTimer500Ms": "KNOWN_UI_PUMP_TIMER_NOT_HARD_DEADLINE",
+    "OwnerInstalledSettings": {
+      "Result": "PASS_OFFSCREEN_RENDER_AND_ACCESSIBILITY_ONLY",
+      "Pages": 9,
+      "InteractiveAccessibilityControls": 73,
+      "AccessibilityNameGaps": 0,
+      "HighContrastControls": 152,
+      "HighContrastGaps": 0,
+      "PrivateLocalPNGs": 9,
+      "OnscreenNativeForegroundAccepted": false,
+      "ManifestSHA256": "9701A660EF8A46E51A82E7376D96ABBF2A0878FCF9896E9F99498B27C133C571"
+    },
+    "OwnerBinaryConfigPIDUnchanged": true,
+    "ProductSourceChanged": false,
+    "PublicReleaseChanged": false,
+    "NotionRestored": false,
+    "HumanSecurityReview": "PENDING"
+  },
+  "R383StagePostscanPreservation": {
+    "Revision": "R383",
+    "EngineeringCommit": "52f396774829379e9552da4a1bb0fa7432074ece",
+    "LastHostedExactHead": "04ca64383dabdba6282407b503b4c09b93640276",
+    "PreviousSource": "R379_5dd6bd9_LATE_UNINDEXED_POSTSCAN_RECURSIVE_DELETE",
+    "Fix": "Known files only, then known nonrecursive empty dirs deepest-first; late unknown members remain",
+    "ProductionSourceSHA256": "B4DA1F7598F02B38D7058078F30F4E80C65F04040BD887D6C3FC6F34447738DE",
+    "WindowsNativeHarnessSHA256": "86989CFD18446D4BD4002FF22A6D96639350A302F4143B92AEAC609CC58F44CD",
+    "LocalBaselineChecks": 2,
+    "LocalCandidateChecks": 8,
+    "LocalBuild": "PASS_0_WARNINGS_0_ERRORS_3_SELFTESTS",
+    "LocalPrivateSetupVerifyResources": 25,
+    "LocalPrivateSetupSHA256": "2EC99C7C4BDF88522BED81B16B0D932E5E07270AD74576EA4E2C6A49AFD7A78D",
+    "HostedR370WindowsMatrix": {
+      "PushRun": 42783879916,
+      "PullRequestRun": 42783887647,
+      "Jobs": 8,
+      "Passed": 8,
+      "Baseline": 4,
+      "Candidate": 4
+    },
+    "ExactHeadCI": {
+      "Head": "04ca64383dabdba6282407b503b4c09b93640276",
+      "Total": 29,
+      "Success": 29,
+      "Failed": 0,
+      "Pending": 0
+    },
+    "InitialFailedCI": "SOURCE_52f3967_HOSTED_CANDIDATE_R370_SHALLOW_CHECKOUT_GIT_SHOW_BASELINE_UNAVAILABLE",
+    "FixedCIWorkflowCommit": "04ca64383dabdba6282407b503b4c09b93640276",
+    "LinuxReviewerHostTechnicalPreflight": {
+      "StaticChecks": 15,
+      "Passed": 15,
+      "PowerShellParsed": 39,
+      "SyntaxErrors": 0,
+      "HumanReview": false,
+      "ReceiptSHA256": "3899B3B2A9750B7FE136F1ABE2320311D0B475C4E608553A54E041A2A5FA8227"
+    },
+    "LocalReceiptPath": ".local/audit/r383-hosted-acceptance-exact-head-20261110.json",
+    "LocalReceiptSHA256": "4F56BB155652731535344CE107F7C31F18C841AE82A0DBF55C89131B9542625A",
+    "OwnerInstalledConfigChanged": false,
+    "PublicReleaseChanged": false,
+    "NotionRestored": false,
+    "HumanSecurityApproval": "REVIEW_REQUIRED_ZERO_REAL_REVIEWS",
+    "Limit": "Not a guarantee against simultaneous directory rename/reparse TOCTOU or privileged multi-account races"
+  },
+  "R384StageJournalRescan": {
+    "Revision": "R384",
+    "EngineeringCommit": "f59e1dcf410b97cf16350bc385b4fcbedbf3b093",
+    "ExactPRHead": "581d46a4e1671692aa1d2ff0e7760889d7892b1b",
+    "Finding": "R383 preserved late unknown data but deleted journal metadata before nonrecursive deletion refused, risking an unrecognizable partial stage",
+    "Fix": "Repeat full per-level file/directory/reparse inventory immediately before any known file deletion; late unknown root file, empty directory, or nested file refuses before journal/payload deletion",
+    "ProductionSourceSHA256Windows": "E7C8782DF180F40C61F7F71E1C72F0ADE174DE156C53EA92B3991C6B9DCDE95D",
+    "ProductionSourceGitBlob": "e3c7581bafc4a3f818d2e7d14432dc86dcc24bca",
+    "NativeHarnessSHA256Windows": "E9150DB8BF950E281BED9517E8B6A198EE3D824A3287D341B562664CCA0DEB94",
+    "NativeHarnessGitBlob": "836495ff5616af543f8bb1412acd963c0c9d6774",
+    "LocalBaselineChecks": 2,
+    "LocalCandidateChecks": 10,
+    "JournalMarkersPreserved": [
+      "owner.txt",
+      "phase.txt",
+      "index.txt",
+      "phase.tmp",
+      "previous_version.txt"
+    ],
+    "LocalBuild": "PASS_0_WARNINGS_0_ERRORS_3_SELFTESTS",
+    "LocalSetupVerifyResources": 25,
+    "LocalReceiptPath": ".local/audit/r384-late-stage-journal-preservation-local-20261110.json",
+    "LocalReceiptSHA256": "5EF13CEEEB63955FF55FB70ACCAF9FC28EEBADD5C49356CE040678C8674A9368",
+    "HostedAcceptanceReceiptPath": ".local/audit/r384-hosted-acceptance-exact-head-20261110.json",
+    "HostedAcceptanceReceiptSHA256": "66EA0AC59B24D5B0C67B2961E084CAAB8F3CE2778774D418818DB070C6A05266",
+    "HostedExactHeadCI": {
+      "Head": "581d46a4e1671692aa1d2ff0e7760889d7892b1b",
+      "Total": 29,
+      "Passed": 29,
+      "Failed": 0,
+      "Pending": 0,
+      "Scope": "Current exact PR head; documentation-only update. Source/test blobs remain identical to engineering commit f59e1dc."
+    },
+    "HostedR370": {
+      "PushRun": 42789591180,
+      "PRRun": 42789601227,
+      "Jobs": 8,
+      "Passed": 8,
+      "CandidateChecksEach": 10,
+      "BaselineChecksEach": 2
+    },
+    "HostedR360": {
+      "Run": 42789591343,
+      "Cycles": 6,
+      "HideSamples": 24,
+      "MinMs": 28,
+      "MedianMs": 233.5,
+      "MaxMs": 498,
+      "HardLimitMs": 1100
+    },
+    "HostedR299": {
+      "Run": 42789601278,
+      "PublicV179InPlaceUpgrade": true,
+      "InterruptedCommitRecovery": true,
+      "UserCanariesPreserved": true,
+      "SecondUpdateIdempotent": true,
+      "ReceiptSHA256": "C1B190D0A1460ECE309BA2FA46A413D211C85F65665BD63023A976F3105000BC"
+    },
+    "HostedR300": {
+      "Run": 42789601278,
+      "FreshInstall": true,
+      "OneCanonicalRoot": true,
+      "ExternalCanaryPreserved": true,
+      "ReceiptSHA256": "A5E331ACB46CE51D7B5F22806A1F70649DE5094BC5E0F6DABF6375316D650C0F"
+    },
+    "ReviewerHostTechnicalPreflight": {
+      "StaticChecks": 14,
+      "Passed": 14,
+      "PowerShellParsed": 39,
+      "SyntaxErrors": 0,
+      "HumanReview": false,
+      "ReceiptSHA256": "08856D5D74851E9837626FBF1796FD4DD358C118637D9342A7D2334DE962019D"
+    },
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "HumanReview": {
+      "PR": 98,
+      "State": "REVIEW_REQUIRED",
+      "Reviews": 0,
+      "RequestedReviewer": "mohammadmohammadzadeh19960-code"
+    },
+    "R371HistoricalRootCause": "UNPROVEN",
+    "NotionRestore": "PENDING_EXPLICIT_USER_CONFIRMATION",
+    "ScopeLimit": "Final inventory narrows the scan-to-delete race for tested late members but does not provide atomic immunity to concurrent directory rename/reparse swaps after the final inventory.",
+    "HostedEngineeringSourceHeadCI": {
+      "Head": "f59e1dcf410b97cf16350bc385b4fcbedbf3b093",
+      "Total": 63,
+      "Passed": 63,
+      "Failed": 0,
+      "Pending": 0,
+      "Scope": "Exact R384 engineering source/test commit; no production or test source changed by the subsequent documentation-only PR commit."
+    }
+  },
+  "R385": {
+    "Revision": "R385",
+    "EngineeringCommit": "4536bc7666be3773d1f9934c7d5a0592b064c266",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "Change": "Refuse per-user in-place upgrade/recovery before AppRoot or stage access when UAC is enabled and Setup runs elevated; preserve medium-integrity and UAC-disabled admin compatibility.",
+    "LocalBaseline": {
+      "Status": "PASS",
+      "Checks": 2,
+      "ReceiptSHA256": "93EC3FDCF29C3554220152A2914CF5FDB634E969B30BB116B584E8212200C908"
+    },
+    "LocalCandidate": {
+      "Status": "PASS",
+      "Checks": 6,
+      "ReceiptSHA256": "4123D51090F6BF55302A4B2D16104131589E1A2F7F7B5532D144DAAE92C94A14"
+    },
+    "LocalBuild": {
+      "Status": "PASS",
+      "Warnings": 0,
+      "Errors": 0,
+      "SelfTests": 3,
+      "SetupVerifyResources": 25,
+      "ReproBuild": true,
+      "SetupSHA256": "8FA5B5530D38601CE41354DCC22ED43E4AE5459C1293E3AF4EB7832A2391056B",
+      "MainSHA256": "BAB436ACD0C531DE04DD6BF21B8A4D015F29529798997BEA1931B6FECD8803B6"
+    },
+    "PowerShell51Parse": "PASS",
+    "WorkflowYamlParse": "PASS",
+    "GitDiffCheck": "PASS",
+    "HostedCI": {
+      "Status": "R385_DEDICATED_PUSH_AND_PR_MATRICES_PASS_R291_RETRY_AND_R360_PRIOR_STRESS_PASS_R388_EXACT_HEAD_VALIDATION_PENDING",
+      "ExactHead": "4536bc7666be3773d1f9934c7d5a0592b064c266",
+      "PushRun": 42814394318,
+      "PullRequestRun": 42814404634,
+      "Push": {
+        "Jobs": 4,
+        "Passed": 4,
+        "Failed": 0
+      },
+      "PullRequest": {
+        "Jobs": 4,
+        "Passed": 4,
+        "Failed": 0
+      },
+      "Windows2022": {
+        "Baseline": {
+          "Status": "SUCCESS",
+          "Checks": 2,
+          "ReceiptSHA256": "5491A954C3B9C184404477C8077E8367D9C9F7FE4F3FBBE3A01F40F60704A158"
+        },
+        "Candidate": {
+          "Status": "SUCCESS",
+          "Checks": 6,
+          "ReceiptSHA256": "D9E4BFF3661695B50DA0618D71C894069B1B01B92D0EAA6684F1CE0326050584"
+        }
+      },
+      "Windows2025": {
+        "Baseline": {
+          "Status": "SUCCESS",
+          "Checks": 2,
+          "ReceiptSHA256": "263A43167312169D0C00BD2119B2C77168D08EC2A8EBA6E01D38CD2E4D71595F"
+        },
+        "Candidate": {
+          "Status": "SUCCESS",
+          "Checks": 6,
+          "ReceiptSHA256": "B610CD008B40265511D66AFB5A48490A001BE6523F5A5FDA255EF5973092ADEC"
+        }
+      },
+      "ArtifactValidation": "4/4 push receipts + 4/4 PR receipts; ZIP digest and JSON receipt SHA256 verified.",
+      "BroaderPR": {
+        "BuildVerification": {
+          "Run": 42814404560,
+          "Jobs": 4,
+          "Passed": 3,
+          "Failed": 1,
+          "Failure": "R299 Setup process returned generic exit 34 through the catch path. That run did not set TBME_UPDATE_DIAGNOSTIC_PHASE, so the underlying exception was not captured; prior attribution to the R385 elevation guard is unsupported.",
+          "R386Attempt": {
+            "Run": 42817756016,
+            "Status": "FAILED_BEFORE_SETUP_LAUNCH",
+            "Failure": "R299_PARENT_MUST_HAVE_FULL_UAC_ELEVATION_TOKEN; runner parent was already medium; no Setup process was created."
+          },
+          "R387FixCommit": "0100e61e980419b1f325f29e751b8989ea55453c"
+        },
+        "R291": {
+          "Run": 42814404550,
+          "InitialAttempt": {
+            "Jobs": 3,
+            "Passed": 2,
+            "Failed": 1,
+            "Failure": "Windows 2025 hidden Settings HWND; R146_SETTINGS_NOT_REAL_FOREGROUND; Visible=false; WS_VISIBLE=false; 5111ms; original artifact retained."
+          },
+          "DiagnosticRetry": {
+            "Attempt": 2,
+            "Status": "SUCCESS",
+            "Jobs": 3,
+            "Passed": 3,
+            "Failed": 0,
+            "FailedJobId": 129826772496,
+            "Windows2025ArtifactSHA256": "66452172d85b8567b845e49509dce1b27752688f61d72d9345d36397354db58e",
+            "Windows2022ArtifactSHA256": "ce09a2b5575c1886b0a5615c693919c371662c920ef270dc7843f85e0bf5b056",
+            "Windows2025SettingsForegroundWaitMs": [
+              2,
+              0,
+              0,
+              0
+            ]
+          },
+          "OriginalFailureRetained": true,
+          "RootCause": "Not established; retry passed, R360 three-cycle stress remains pending.",
+          "R360Stress": {
+            "Run": 42817747115,
+            "Status": "SUCCESS",
+            "Cycles": 3,
+            "Windows2022": "SUCCESS",
+            "Windows2025": "SUCCESS"
+          }
+        }
+      },
+      "OtherPRWorkflows": {
+        "R290": "SUCCESS",
+        "R338": "SUCCESS",
+        "R367": "SUCCESS",
+        "R369": "SUCCESS",
+        "R370": "SUCCESS"
+      }
+    },
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "Limit": "No full Setup invocation, real UAC prompt or owner installation upgrade was performed; native fixture compiles exact production helper methods and simulates the extracted guard."
+  },
+  "R386": {
+    "Revision": "R386",
+    "EngineeringCommit": "4f3625a81004b35603d7b0ae150dba0ea1ff0dea",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "Change": "Test-infrastructure-only R299 launcher starts per-user Setup and crash fixture under verified same-user linked UAC-limited medium-integrity token; production R385 guard unchanged.",
+    "Files": [
+      ".github/workflows/ci.yml",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1",
+      "build/R299-MediumTokenLauncher.cs"
+    ],
+    "LocalValidation": {
+      "PowerShell51Parse": "PASS",
+      "CSharpCompileNetFramework": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "GitDiffCheck": "PASS"
+    },
+    "SetupUpdateChildLaunches": 3,
+    "CrashFixtureChildLaunches": 1,
+    "ChildTokenAssertions": [
+      "Same user SID",
+      "TokenElevationType=Limited",
+      "TokenElevation=0",
+      "TokenIntegrityLevel=Medium (0x2000)",
+      "Primary token"
+    ],
+    "HostedCI": {
+      "BuildAndVerification": {
+        "Run": 42817756016,
+        "Status": "FAILED_BEFORE_SETUP_LAUNCH",
+        "Failure": "R299_PARENT_MUST_HAVE_FULL_UAC_ELEVATION_TOKEN"
+      },
+      "R291PR": {
+        "Run": 42817756118,
+        "Status": "QUEUED"
+      },
+      "R385PR": {
+        "Run": 42817755998,
+        "Status": "QUEUED"
+      },
+      "R360Stress": {
+        "Run": 42817747115,
+        "Status": "IN_PROGRESS",
+        "Build": "SUCCESS",
+        "Windows2022": "QUEUED",
+        "Windows2025": "QUEUED"
+      },
+      "R338": {
+        "Run": 42817756020,
+        "Status": "QUEUED_OR_IN_PROGRESS"
+      },
+      "R367": {
+        "Run": 42817756017,
+        "Status": "QUEUED"
+      },
+      "R369": {
+        "Run": 42817756211,
+        "Status": "QUEUED"
+      },
+      "R370": {
+        "Run": 42817756155,
+        "Status": "QUEUED"
+      },
+      "R290": {
+        "Run": 42817756028,
+        "Status": "QUEUED"
+      }
+    },
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "R386 hosted run failed before creating any Setup process; it did not test the product or R385 guard.",
+    "Status": "SUPERSEDED_BY_R387_AFTER_HOSTED_PARENT_TOKEN_ASSUMPTION_FAILED_BEFORE_SETUP"
+  },
+  "R387": {
+    "Revision": "R387",
+    "EngineeringCommit": "0100e61e980419b1f325f29e751b8989ea55453c",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "Change": "Test-only launcher supports already-medium workflow token or linked limited token from Full parent; adds per-phase Setup diagnostics and uploads raw failure diagnostics. Production code unchanged.",
+    "Files": [
+      ".github/workflows/ci.yml",
+      "build/R299-MediumTokenLauncher.cs",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1"
+    ],
+    "LocalValidation": {
+      "PowerShell51Parse": "PASS",
+      "CSharpCompileNetFramework": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "GitDiffCheck": "PASS",
+      "NativeMediumChildSmoke": "PASS",
+      "WhitelistedEnvironmentPropagation": "PASS",
+      "NativeSmokeChild": "whoami.exe /groups",
+      "TokenSource": "CURRENT_MEDIUM_TOKEN"
+    },
+    "SetupUpdateChildLaunches": 3,
+    "CrashFixtureChildLaunches": 1,
+    "DiagnosticPhases": [
+      "NEGATIVE_USER_EDIT",
+      "POSITIVE_OFFICIAL_STABLE",
+      "IDEMPOTENT"
+    ],
+    "TamperDiagnosticAssertion": "Must identify modified Source/StudioThemes.cs predecessor and must not be the R385 elevation refusal.",
+    "HostedCI": {
+      "BuildAndVerification": {
+        "Run": 42820827177,
+        "Status": "FAILED_BEFORE_SETUP_LAUNCH",
+        "Failure": "Parent token was TokenElevationType Default, primary, High integrity 0x3000; neither Medium nor Full/linked-token path. No Setup process was created."
+      },
+      "R360Push": {
+        "Run": 42820814782,
+        "Status": "IN_PROGRESS"
+      },
+      "R291PR": {
+        "Run": 42820827126,
+        "Status": "QUEUED"
+      },
+      "R385PR": {
+        "Run": 42820827224,
+        "Status": "QUEUED"
+      },
+      "R338": {
+        "Run": 42820827209,
+        "Status": "QUEUED"
+      },
+      "R367": {
+        "Run": 42820827104,
+        "Status": "IN_PROGRESS"
+      },
+      "R369": {
+        "Run": 42820827063,
+        "Status": "IN_PROGRESS"
+      },
+      "R370": {
+        "Run": 42820827139,
+        "Status": "QUEUED"
+      },
+      "R290": {
+        "Run": 42820827042,
+        "Status": "IN_PROGRESS"
+      }
+    },
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "Hosted execution of the new child-token path and actual Setup upgrade/diagnostic have not yet been validated.",
+    "Status": "SUPERSEDED_BY_R388_DEFAULT_HIGH_TOKEN_SUPPORT"
+  },
+  "R388": {
+    "Revision": "R388",
+    "EngineeringCommit": "bc328976c6e7ed7bb449a52f4baed90fd7a5979d",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "Change": "Test-only restricted-medium-token fallback for Default/High parent; disables Administrators SID and maximum privileges, lowers token IL to Medium, verifies same user and child token. Existing current-medium and linked-limited paths retained.",
+    "Files": [
+      "build/R299-MediumTokenLauncher.cs",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1"
+    ],
+    "LocalValidation": {
+      "PowerShell51Parse": "PASS",
+      "CSharpCompileNetFramework": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "GitDiffCheck": "PASS",
+      "NativeCurrentMediumChildSmoke": "PASS",
+      "RestrictedTokenCreationSmoke": "PASS",
+      "RestrictedTokenElevationType": 3,
+      "RestrictedTokenIntegrity": "0x2000",
+      "TokenSource": "CURRENT_MEDIUM_TOKEN"
+    },
+    "HostedCI": {
+      "R360Push": {
+        "Run": 42822651632,
+        "Status": "SUCCESS",
+        "Jobs": 3,
+        "Passed": 3,
+        "Failed": 0
+      },
+      "BuildAndVerification": {
+        "Run": 42822663126,
+        "Status": "FAILURE",
+        "Jobs": 4,
+        "Passed": 3,
+        "Failed": 1,
+        "FailedJobId": 129853549067,
+        "Failure": "R299 failed while creating the explicit restricted Medium child through CreateProcessWithTokenW. The helper failed before any Setup child was created; the real in-place upgrade, crash recovery and idempotence were not exercised. The R388 helper did not preserve the Win32 error code."
+      },
+      "R385PullRequest": {
+        "Run": 42822663157,
+        "Status": "SUCCESS",
+        "Jobs": 4,
+        "Passed": 4,
+        "Failed": 0
+      }
+    },
+    "DiagnosticPhases": [
+      "NEGATIVE_USER_EDIT",
+      "POSITIVE_OFFICIAL_STABLE",
+      "IDEMPOTENT"
+    ],
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "The hosted R299 run did not create a Setup child. R360 push and R385 PR matrices passed, but neither validates the R299 actual Setup upgrade. R389 supersedes the R388 token-launch policy.",
+    "FollowUpCommit": "50cf86a7d932452f4cb4509e333824f3830f2d80",
+    "Status": "SUPERSEDED_AFTER_R299_HOSTED_EXPLICIT_TOKEN_PROCESS_CREATION_FAILURE"
+  },
+  "R389": {
+    "Revision": "R389",
+    "ImplementationCommit": "83bc2c16d0b13631b929646ee6c0555c592de9c2",
+    "ParentCommit": "50cf86a7d932452f4cb4509e333824f3830f2d80",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "Change": "R299 hosted test launcher now follows the actual R385 UAC boundary: UAC-enabled Windows requires a verified same-user Medium child; UAC-disabled Windows may retain the same-user High administrator token only when 64-bit HKLM EnableLUA=0 and the token is primary, TokenElevationType Default, exactly High IL and Administrators-enabled. Unknown UAC state fails closed.",
+    "Files": [
+      ".github/workflows/ci.yml",
+      "build/R299-MediumTokenLauncher.cs",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1"
+    ],
+    "LocalValidation": {
+      "PowerShell51Parse": "PASS",
+      "CSharpCompileNetFramework": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "GitDiffCheck": "PASS",
+      "CurrentMediumChildSmoke": "PASS",
+      "CurrentHostUacEnabled": true,
+      "CurrentChildTokenElevationType": 3,
+      "CurrentChildIntegrity": "0x2000",
+      "CurrentChildAdministratorsEnabled": false,
+      "UacRegistry64Readback": "PASS",
+      "EnvironmentBlockPropagation": "PASS",
+      "ParentTokenDiagnosticSmoke": "PASS",
+      "ReceiptContextAssertions": "PASS",
+      "RequiredCIMarkers": "7/7 PASS",
+      "StaleMediumOnlyMarkerScan": "PASS"
+    },
+    "HostedCI": {
+      "ExactHead": "83bc2c16d0b13631b929646ee6c0555c592de9c2",
+      "BuildAndVerification": {
+        "Run": 42827227428,
+        "Status": "FAILURE",
+        "Jobs": 4,
+        "Passed": 3,
+        "Failed": 1,
+        "FailedJobId": 129869262253,
+        "Failure": "R299 Setup negative tamper test passed with exact Source/StudioThemes.cs diagnostic. The verified restricted Medium token successfully launched Setup and the CrashChild. The crash child exited before producing the COMMITTING arm signal, without a .error.txt; R390 adds preflight/startup/exit-code diagnostics."
+      },
+      "R360Push": {
+        "Run": 42827203984,
+        "Status": "SUCCESS",
+        "Windows2022": "SUCCESS",
+        "Windows2025": "SUCCESS",
+        "Jobs": 3,
+        "Passed": 3,
+        "Failed": 0
+      },
+      "PullRequestChecks": {
+        "Total": 30,
+        "Passed": 29,
+        "Failed": 1,
+        "InProgress": 0,
+        "Failing": "r299-public-v179-inplace-upgrade"
+      },
+      "R385PullRequest": {
+        "Run": 42827227621,
+        "Status": "SUCCESS",
+        "Jobs": 4,
+        "Passed": 4,
+        "Failed": 0
+      }
+    },
+    "TokenPolicy": {
+      "UacEnabled": "Only verified same-user Medium token is accepted.",
+      "UacDisabled": "Only same-user primary Default-elevation token with exactly High IL, enabled Administrators membership and 64-bit HKLM EnableLUA=0 is accepted.",
+      "UnknownUacState": "Fail closed as UAC enabled."
+    },
+    "SetupUpdateChildLaunches": 3,
+    "CrashFixtureChildLaunches": 1,
+    "ChildTokenFactsRecorded": true,
+    "SingleTokenContextAcrossFourChildren": true,
+    "ProductionSetupChanged": false,
+    "R385SecurityGuardChanged": false,
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "R389 hosted R299 verified restricted Medium child creation, tampered official predecessor rejection and exact phase diagnostic. Crash child exited before signaling COMMITTING; real recovery and idempotence were not exercised. R390 adds diagnostic receipts, not a claimed fix of the underlying crash-child cause."
+  },
+  "R390": {
+    "Revision": "R390",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "Objective": "Diagnose why R299 hosted crash fixture exits before COMMITTING arm signal, without altering product Setup, R385 guard or acceptance gates.",
+    "PredecessorCommit": "83bc2c16d0b13631b929646ee6c0555c592de9c2",
+    "FailureEvidence": {
+      "Run": 42827227428,
+      "Job": 129869262253,
+      "Status": "FAILURE_BEFORE_COMMITTING_SIGNAL",
+      "ParentUacEnabled": true,
+      "ParentAdministratorsEnabled": true,
+      "SetupChild": {
+        "TokenSource": "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT",
+        "Method": "CREATE_PROCESS_AS_USER",
+        "Integrity": "0x2000",
+        "AdministratorsEnabled": false
+      },
+      "CrashChild": {
+        "TokenSource": "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT",
+        "Method": "CREATE_PROCESS_AS_USER",
+        "Integrity": "0x2000",
+        "AdministratorsEnabled": false
+      },
+      "TamperDiagnostic": "PASS_SOURCE_STUDIOTHEMES_CS_EXACT_NEGATIVE",
+      "CrashFixtureFailure": "R299_CRASH_CHILD_DID_NOT_ARM_child did not produce arm signal",
+      "Artifact": {
+        "Id": 13770420064,
+        "Digest": "sha256:bfe64a1e4c8a0e78ab05f472f82bd7f21f9e56d1eae6823d51bd4c1f5dee665d",
+        "Contents": "R129_DIAG_NEGATIVE_USER_EDIT.txt"
+      },
+      "ProductSetupCodeChanged": false
+    },
+    "Changes": [
+      "Crash child captures preflight exceptions into its bounded disposable-runner .error.txt and records a PID, run, SHA and environment-bound startup receipt only after validating the exact disposable runner and canonical app root.",
+      "Parent reports child exit status, error and startup receipt if COMMITTING arm signal is absent; validates startup identity before accepting the crash fixture.",
+      "CI requires explicit crash-child startup marker and receipt includes CrashChildStartupVerified."
+    ],
+    "Files": [
+      "build/Test-R299-HostedCrashChild.ps1",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1",
+      ".github/workflows/ci.yml"
+    ],
+    "LocalValidation": {
+      "PowerShell51ParseBoth": "PASS",
+      "CSharpCompileNetFramework": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "RequiredCIMarkers": "8/8 PASS",
+      "GitDiffCheck": "PASS",
+      "ArgumentEnvironmentPropagation": "PASS"
+    },
+    "HostedCI": {
+      "ExactHead": "b2a85c4f8c7c9d41fb609b2a601f2564f1809ca3",
+      "BuildAndVerification": {
+        "Run": 42833174560,
+        "Status": "FAILURE",
+        "Jobs": 4,
+        "Passed": 3,
+        "Failed": 1,
+        "FailedJobId": 129890740074,
+        "Failure": "The verified Medium CrashChild process terminated before script startup with ExitCode -1073741502 = 0xC0000142 STATUS_DLL_INIT_FAILED; no startup receipt and no script-level error. The failure is in process initialization, before the fixture code."
+      },
+      "R360Push": {
+        "Run": 42833157723,
+        "Status": "SUCCESS",
+        "Windows2022": "SUCCESS",
+        "Windows2025": "SUCCESS"
+      },
+      "PullRequestChecks": {
+        "Total": 30,
+        "Passed": 29,
+        "Failed": 1,
+        "InProgress": 0,
+        "Failing": "r299-public-v179-inplace-upgrade"
+      },
+      "R299NegativeTamperDiagnostic": "PASS",
+      "R299CrashChildStartup": "NOT_REACHED"
+    },
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "Hosted CI proved a Windows process-initialization failure (STATUS_DLL_INIT_FAILED, 0xC0000142) before PowerShell script startup. The code changes in R390 diagnosed it but did not fix it or exercise real interrupted COMMITTING recovery and idempotence; R391 tests a narrowly scoped process-creation flag correction."
+  },
+  "R391": {
+    "Revision": "R391",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "BaseCommit": "b2a85c4f8c7c9d41fb609b2a601f2564f1809ca3",
+    "Objective": "Allow normal console attachment/creation only for trusted WindowsPowerShell crash fixture when launched with the same restricted Medium token, to address hosted exit 0xC0000142 before script startup.",
+    "DiagnosticEvidence": {
+      "SourceRun": 42833174560,
+      "SourceJob": 129890740074,
+      "ChildExitCode": -1073741502,
+      "UnsignedNTStatus": "0xC0000142",
+      "NtStatus": "STATUS_DLL_INIT_FAILED",
+      "ChildStartupReceipt": "MISSING",
+      "ChildErrorFile": "MISSING",
+      "ChildTokenSource": "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT",
+      "Integrity": "0x2000",
+      "PriorTamperNegative": "PASS",
+      "OtherExactHeadChecks": {
+        "Passed": 29,
+        "Total": 30
+      },
+      "R360Push": {
+        "Run": 42833157723,
+        "Status": "SUCCESS"
+      },
+      "OfficialDocumentation": [
+        "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55",
+        "https://learn.microsoft.com/en-us/windows/desktop/ProcThread/process-creation-flags",
+        "https://learn.microsoft.com/en-us/windows/desktop/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw"
+      ],
+      "CausalInterpretation": "STATUS_DLL_INIT_FAILED is verified; CREATE_NO_WINDOW on a restricted-token console child is the current testable hypothesis, not yet an accepted root cause."
+    },
+    "Change": "The test-only launcher retains CREATE_NO_WINDOW for all GUI Setup invocations but allows normal console attachment/creation for the exact trusted system WindowsPowerShell.exe crash fixture. New boolean overload is default-off; the helper fails closed for any other executable and asserts purpose-bound console mode in the PowerShell wrapper. Same token, same IL, same strict hosted guard and original recovery/tamper assertions remain unchanged.",
+    "Files": [
+      "build/R299-MediumTokenLauncher.cs",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1",
+      ".github/workflows/ci.yml"
+    ],
+    "LocalValidation": {
+      "PowerShell51ParseBoth": "PASS",
+      "CSharpCompileNetFramework": "PASS",
+      "DefaultNoWindowChild": "PASS",
+      "ConsoleFlagUntrustedExeRejected": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "ConsoleCIMarker": "PASS",
+      "GitDiffCheck": "PASS",
+      "DirectConsoleChildOnOwner": "NOT_RUN_TO_AVOID_OWNER_VISIBLE_CONSOLE"
+    },
+    "HostedCI": {
+      "ExactHead": "ad6179fba3d86fc8940c0a2308181b6d3133fe48",
+      "BuildAndVerification": {
+        "Run": 42835087137,
+        "Status": "FAILURE",
+        "Jobs": 4,
+        "Passed": 3,
+        "Failed": 1,
+        "FailedJobId": 129897085655,
+        "Failure": "The R299 wrapper accidentally emitted the literal crash-console CI PASS marker on its success output stream alongside the R299HostedProcess object; the caller assigned the resulting string+object array to $crashChild. The first .Dispose() on that value raised 'System.String does not contain a method named Dispose'. No valid crash/COMMITTING acceptance followed."
+      },
+      "R299ChildTokens": {
+        "SetupUpdate": "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT",
+        "CrashChild": "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT",
+        "Integrity": "0x2000",
+        "AdministratorsEnabled": false,
+        "CrashConsoleAllowed": true
+      },
+      "R360Push": {
+        "Run": 42835076925,
+        "Status": "IN_PROGRESS"
+      },
+      "PullRequestChecks": {
+        "Total": 30,
+        "Passed": 27,
+        "Failed": 1,
+        "InProgress": 2
+      }
+    },
+    "R385GuardChanged": false,
+    "ProductionSetupChanged": false,
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "The trusted console-only crash-child launch reached the PowerShell wrapper but the wrapper's PASS marker contaminated its object return value. This masks the actual child outcome; R391 does not prove DLL initialization was fixed, crash staging, real COMMITTING recovery or idempotence. R392 fixes only PowerShell success-stream pollution.",
+    "ImplementationCommit": "ad6179fba3d86fc8940c0a2308181b6d3133fe48"
+  },
+  "R392": {
+    "Revision": "R392",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "BaseCommit": "ad6179fba3d86fc8940c0a2308181b6d3133fe48",
+    "Objective": "Preserve the process-returning PowerShell wrapper's single typed R299HostedProcess result; emit the console-flag CI marker only at top-level after verifying its result type and ConsoleAllowed true.",
+    "FailureEvidence": {
+      "HostedRun": 42835087137,
+      "Job": 129897085655,
+      "Status": "FAIL_BEFORE_COMMITTING_ACCEPTANCE",
+      "Message": "[System.String] does not contain a method named Dispose",
+      "Cause": "A literal R299_HOSTED_CRASH_CHILD_CONSOLE_ALLOWED=PASS string was emitted on Start-R299HostedProcess's success output stream, making $crashChild an array instead of a typed process."
+    },
+    "Changes": [
+      "Remove CI marker from Start-R299HostedProcess function success stream.",
+      "After assigning $crashChild, assert it is exactly a R299HostedProcess with ConsoleAllowed true, then emit the expected CI marker at top-level script only."
+    ],
+    "Files": [
+      "build/Test-R299-HostedPublicV179Upgrade.ps1"
+    ],
+    "LocalValidation": {
+      "WindowsPowerShell51ASTParse": "PASS",
+      "MockedWrapperSetupUpdateTypedSingleObject": "PASS",
+      "MockedWrapperCrashChildTypedSingleObject": "PASS",
+      "PurposeBoundConsoleFlag": "PASS",
+      "NoOperatingSystemChildDuringMock": "PASS",
+      "GitDiffCheck": "PASS"
+    },
+    "HostedCI": {
+      "ExactHead": "e25e8eaeff825a3e23be0990fd88605f3365f1b9",
+      "BuildAndVerification": {
+        "Run": 42836539517,
+        "Status": "FAILURE",
+        "Passed": 3,
+        "Total": 4,
+        "FailedJobId": 129901623367,
+        "Failure": "R299 created the correct restricted same-user Medium CrashChild via CreateProcessAsUserW but the child remained RUNNING after ~19.5s without producing the preflight/startup or COMMITTING signal. No .error.txt existed; real interrupted COMMITTING recovery and idempotence were not performed."
+      },
+      "R360Push": {
+        "Run": 42836527156,
+        "Status": "SUCCESS",
+        "Windows2022": "SUCCESS",
+        "Windows2025": "SUCCESS"
+      },
+      "PullRequestChecks": {
+        "Total": 30,
+        "Passed": 29,
+        "Failed": "r299-public-v179-inplace-upgrade",
+        "InProgress": 0
+      },
+      "SetupAndCrashChildCreation": "PASS_RESTRICTED_MEDIUM",
+      "R299CrashChildEntry": "NOT_REACHED",
+      "RealRecoveryAndIdempotence": "UNPROVEN"
+    },
+    "SecurityAssertions": "Unchanged: same-user verified Medium token, restricted Administrators, strict disposable runner gate, R385 Setup elevation guard and full R299 binary/update/recovery/canary/idempotence assertions.",
+    "ProductSetupChanged": false,
+    "OwnerInstallChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "R392 local mock proved typed wrapper output, hosted process creation succeeded, but hosted PowerShell crash child remained RUNNING with neither startup nor arm receipt at the ~19.5s bound. R393 tests CREATE_NEW_CONSOLE exclusively for the trusted crash fixture and adds a diagnostic entry receipt. The actual recovery/update/idempotence is still not accepted.",
+    "ImplementationCommit": "e25e8eaeff825a3e23be0990fd88605f3365f1b9"
+  },
+  "R393": {
+    "Revision": "R393",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "BaselineHead": "e25e8eaeff825a3e23be0990fd88605f3365f1b9",
+    "Objective": "Resolve hosted R299 restricted-Medium PowerShell crash-child process startup hang (alive, no script-startup receipt after 19.5s) using an independently created console, with exact-host-only early-entry diagnostic; preserve all Setup security and acceptance assertions.",
+    "FailureEvidence": {
+      "HostedRun": 42836539517,
+      "Job": 129901623367,
+      "Failed": "R299_CRASH_CHILD_DID_NOT_ARM_hasExited=False_exitCode=RUNNING_startup=startup receipt missing_error=child did not produce arm signal",
+      "SetupChild": {
+        "TokenSource": "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT",
+        "CreationMethod": "CREATE_PROCESS_AS_USER",
+        "IntegrityRid": "0x2000",
+        "AdministratorsEnabled": false,
+        "ConsoleAllowed": false
+      },
+      "CrashChild": {
+        "TokenSource": "RESTRICTED_MEDIUM_TOKEN_FROM_DEFAULT_HIGH_PARENT",
+        "CreationMethod": "CREATE_PROCESS_AS_USER",
+        "IntegrityRid": "0x2000",
+        "AdministratorsEnabled": false,
+        "ConsoleAllowed": true
+      },
+      "R360": {
+        "Run": 42836527156,
+        "Status": "SUCCESS"
+      },
+      "ExactHeadChecks": {
+        "Total": 30,
+        "Passed": 29,
+        "Failed": 1
+      },
+      "Hypothesis": "Console inherited from GitHub service parent is inaccessible or not initialized by a restricted Medium token. CREATE_NEW_CONSOLE is a narrow, documented alternative, not a proven cause until hosted test."
+    },
+    "Files": [
+      ".github/workflows/ci.yml",
+      "build/R299-MediumTokenLauncher.cs",
+      "build/Test-R299-HostedCrashChild.ps1",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1"
+    ],
+    "Change": "Use CREATE_NEW_CONSOLE (0x10) exclusively for the exact trusted system WindowsPowerShell.exe crash-child launcher. All production GUI Setup /update children still use CREATE_NO_WINDOW (0x08000000). Child writes an early entry receipt only after exact disposable runner identity and absolute runner-temp signal path match; parent requires matching PID, run, SHA and phase, retaining the stricter later preflight and COMMITTING receipts. CI requires the additional entry marker.",
+    "LocalValidation": {
+      "WindowsPowerShell51ParseBoth": "PASS",
+      "CSharpNetFrameworkCompile": "PASS",
+      "NewConsoleFlagConstant": "PASS_0x10",
+      "CreationFlagOnlyForConsoleAllowed": "PASS",
+      "DefaultNoWindowChildSmoke": "PASS",
+      "UntrustedExecutableConsoleFlagRefusal": "PASS",
+      "WorkflowYAMLParse": "PASS",
+      "ThreeCIChildMarkers": "PASS",
+      "GitDiffCheck": "PASS",
+      "OwnerOrNonHostedRefusal": "PASS",
+      "NoOwnerSideSignalFiles": "PASS"
+    },
+    "HostedCI": {
+      "ExactHead": "65c4dd5e5e502e4a3aa70f9f9ad55cce1565bc58",
+      "BuildAndVerification": {
+        "Run": 42842652486,
+        "Status": "FAILURE",
+        "Jobs": 4,
+        "Passed": 3,
+        "Failed": 1,
+        "FailedJobId": 129924700872,
+        "Failure": "R299 created a verified restricted Medium Setup child and GUI-mode WindowsPowerShell crash child via CreateProcessAsUser, but crash child died before script startup with exit code -1073741502 (NTSTATUS 0xC0000142 STATUS_DLL_INIT_FAILED). No .gui.entered.txt, .entered.txt, .started.txt or COMMITTING signal was written."
+      },
+      "R360Push": {
+        "Run": 42842321660,
+        "Status": "SUCCESS",
+        "Windows2022": "SUCCESS",
+        "Windows2025": "SUCCESS"
+      },
+      "PullRequestChecks": {
+        "Total": 30,
+        "Passed": 29,
+        "Failed": 1,
+        "InProgress": 0,
+        "Failing": "r299-public-v179-inplace-upgrade"
+      },
+      "OriginalPublic179SetupPins": "PASS",
+      "ExactTamperNegative": "PASS",
+      "RealInterruptedCommittingRecovery": "UNPROVEN",
+      "ExactSecondUpdateIdempotence": "UNPROVEN"
+    },
+    "ProductionSetupChanged": false,
+    "R385GuardChanged": false,
+    "OwnerInstallationChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "Hosted R393 proved that CREATE_NEW_CONSOLE does not solve the restricted Medium powershell.exe initialization: child terminated with NTSTATUS 0xC0000142 before even the early entry receipt. R394 retains the original test script but invokes it inside a small .NET Framework Windows-subsystem GUI process. Real upgrade/recovery and idempotence remain unproven.",
+    "ImplementationCommit": "65c4dd5e5e502e4a3aa70f9f9ad55cce1565bc58"
+  },
+  "R394": {
+    "Revision": "R394",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "BaseCommit": "65c4dd5e5e502e4a3aa70f9f9ad55cce1565bc58",
+    "Objective": "Replace only the R299 restricted-Medium console-subsystem PowerShell crash-child process with a compiled .NET Framework Windows-subsystem GUI bootstrap embedding the same PowerShell 5.1 script in-process, preserving all original security and COMMITTING/recovery assertions.",
+    "Evidence": {
+      "R393HostedRun": 42842652486,
+      "R393FailedJob": 129924700872,
+      "R393Failure": "STATUS_DLL_INIT_FAILED_0xC0000142_BEFORE_SCRIPT_ENTRY",
+      "MediumToken": "0x2000_ADMINISTRATORS_DISABLED",
+      "ConsoleVariantsTested": [
+        "CREATE_NO_WINDOW",
+        "DEFAULT_CONSOLE",
+        "CREATE_NEW_CONSOLE"
+      ],
+      "AllFailedToProduceVerifiedCrashScriptEntry": true,
+      "R393Checks": {
+        "Total": 30,
+        "Passed": 29,
+        "Failed": 1
+      },
+      "R360Push": {
+        "Run": 42842321660,
+        "Status": "SUCCESS"
+      }
+    },
+    "Changes": [
+      "A new CI-only C# GUI bootstrap validates exact hosted Windows identity, immutable run/SHA formats, workspace and runner-temp signal path before any disk write.",
+      "It emits a strict per-PID GUI-entry receipt and invokes unchanged Test-R299-HostedCrashChild.ps1 in-process with System.Management.Automation.PowerShell rather than launching console-subsystem powershell.exe.",
+      "The parent compiles this Windows-subsystem binary exclusively on the disposable runner, records its SHA and verifies PE subsystem=2, then launches it via the existing same-user restricted Medium token path with no console enabled.",
+      "The parent validates GUI bootstrap, script entry, preflight and COMMITTING receipts and includes bounded bootstrap errors/exit status on failure; CI requires new GUI host and GUI bootstrap markers without dropping original recovery, canary and idempotence gates."
+    ],
+    "Files": [
+      "build/R299-HostedCrashGuiBootstrap.cs",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1",
+      ".github/workflows/ci.yml"
+    ],
+    "LocalValidation": {
+      "WindowsPowerShell51ParseBoth": "PASS",
+      "CSharpLauncherNetFrameworkCompile": "PASS",
+      "GuiWindowsSubsystemCompilation": "PASS_PE_SUBSYSTEM_2",
+      "GuiEmbeddedPowerShellInProcessScript": "PASS",
+      "GuiBootstrapCurrentMediumTokenProcess": "PASS_MEDIUM_IL_0x2000",
+      "GuiBootstrapNonHostedRefusal": "PASS_EXIT_81",
+      "GuiBootstrapCreatedOwnerFiles": false,
+      "WorkflowYamlParse": "PASS",
+      "RequiredCIMarkers": "PASS",
+      "GitDiffCheck": "PASS"
+    },
+    "HostedCI": {
+      "Run": 42846214839,
+      "Name": "Build and Verification",
+      "Status": "FAILURE",
+      "PassedJobs": 3,
+      "FailedJobs": 1,
+      "FailedJob": "r299-public-v179-inplace-upgrade",
+      "JobId": 129935715885,
+      "TotalExactHeadChecks": 30,
+      "PassedExactHeadChecks": 29,
+      "FailedExactHeadChecks": 1,
+      "R360PushRun": 42845937625,
+      "R360PushStatus": "SUCCESS",
+      "R299GuiBootstrapEntry": "PASS",
+      "R299OriginalScriptEntry": "PASS",
+      "R299OriginalScriptPreflight": "FAIL_BEFORE_STARTUP_RECEIPT",
+      "CrashChildExitCode": 81,
+      "Failure": "System.Management.Automation.RuntimeException: You cannot call a method on a null-valued expression. The error occurred inside original crash script preflight after GUI_BOOTSTRAP_STARTED and HOSTED_IDENTITY_VERIFIED receipts; before PREFLIGHT_PASSED, COMMITTING and actual Setup recovery.",
+      "SuspectedRootCause": "In-process PowerShell preflight calls native console git.exe and immediately .Trim() on its output; null stdout can raise the observed exception."
+    },
+    "RealSetupRecoveryAndIdempotence": "PENDING_HOSTED_ACCEPTANCE",
+    "ProductionSetupChanged": false,
+    "R385GuardChanged": false,
+    "OwnerInstallationChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "Hosted R299 proved GUI/embedded PowerShell script entry but failed before preflight startup receipt. R395 addresses the preflight native git.exe dependency and subsequent csc.exe dependency inside the restricted Medium crash child. No R299 recovery, real upgrade, or idempotence acceptance yet.",
+    "ImplementationCommit": "bebf23ece316518296f0cf3797e70d301068f983"
+  },
+  "R395": {
+    "Revision": "R395",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "BaseCommit": "bebf23ece316518296f0cf3797e70d301068f983",
+    "Objective": "Remove native console-subsystem child process dependencies from the R299 in-process PowerShell GUI crash fixture, while keeping exact Git HEAD integrity, immutable binary pins, and true File.Replace(null-backup) semantics.",
+    "Evidence": {
+      "R394Run": 42846214839,
+      "R394FailedJob": 129935715885,
+      "R394ExactHeadChecks": {
+        "Passed": 29,
+        "Total": 30
+      },
+      "R394GuiEntry": "PASS",
+      "R394ScriptEntry": "PASS",
+      "R394Preflight": "FAILED_BEFORE_STARTUP",
+      "R394Error": "You cannot call a method on a null-valued expression",
+      "ChildToken": "same-user restricted Medium, IL=0x2000, Administrators disabled",
+      "IdentifiedFailureBoundary": "Preflight git -C <repo> rev-parse HEAD .Trim() can dereference null stdout when native console git.exe cannot initialize under the hosted restricted token; embedded script error was reported before any file staging.",
+      "AdditionalRisk": "Add-Type in the same crash script starts csc.exe console compiler; eliminate this pending subprocess dependency before hosted retest."
+    },
+    "Change": "Replace native git.exe HEAD lookup with fail-closed, in-process read-only .git/HEAD resolution supporting detached, loose and packed branch refs. Reject malformed or traversal refs and SHA mismatch. Use the existing System.IO.File.Replace 3-string overload via reflection with a true null backup instead of spawning Add-Type/csc.exe. Preserve exact two replacements and all owner/disposable guards.",
+    "Files": [
+      "build/Test-R299-HostedCrashChild.ps1"
+    ],
+    "LocalValidation": {
+      "WindowsPowerShell51Parser": "PASS",
+      "ExistingRepoGitHeadReadback": "PASS",
+      "DetachedHead": "PASS",
+      "LooseRef": "PASS",
+      "PackedRef": "PASS",
+      "RefTraversalRejected": "PASS",
+      "InvalidPackedShaRejected": "PASS",
+      "ConsoleGitAndCompilerDependenciesRemoved": "PASS",
+      "ReflectionFileReplaceTrueNullBackup": "PASS",
+      "OwnerNonHostedRefusal": "PASS",
+      "OwnerNonHostedCreatedSignalFiles": false,
+      "WorkflowYamlParse": "PASS",
+      "GitDiffCheck": "PASS"
+    },
+    "HostedCI": {
+      "ExactHead": "6d7d71399d541276d7b63fc8510f720edb4c077f",
+      "BuildAndVerification": {
+        "Run": 42855656529,
+        "Status": "FAILURE",
+        "PassedJobs": 3,
+        "FailedJobs": 1,
+        "FailedJob": "r299-public-v179-inplace-upgrade",
+        "FailedJobId": 129969807393
+      },
+      "ExactHeadChecks": {"Passed": 29, "Total": 30},
+      "Failure": "R299 protected GUI child started, wrote GUI_BOOTSTRAP_STARTED and HOSTED_IDENTITY_VERIFIED for matching run/PID/SHA, then remained RUNNING for ~30s without PREFLIGHT_PASSED, COMMITTING, .error.txt or bootstrap error. Exact blocked preflight operation is not established.",
+      "NegativePredecessorTamper": "PASS",
+      "RealCrashRecoveryAndIdempotence": "UNPROVEN"
+    },
+    "R385SecurityGuardChanged": false,
+    "ProductionSetupChanged": false,
+    "OwnerInstallationChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "Local validation verifies source parsing, in-process Git ref resolution, exact File.Replace semantics and nonhosted refusal only. Actual GitHub-hosted COMMITTING arm, forced kill, genuine Setup replay, canary preservation and exact second-update idempotence remain unverified; independent human security review still required for PR #98."
+  },
+  "R396": {
+    "Revision": "R396",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "BaseCommit": "6d7d71399d541276d7b63fc8510f720edb4c077f",
+    "Objective": "Discriminate the exact stalled operation inside the R299 restricted-Medium GUI-hosted PowerShell child before COMMITTING, using a single bounded run-scoped checkpoint receipt.",
+    "FailureEvidence": {
+      "Run": 42855656529,
+      "FailedJob": 129969807393,
+      "ExactHeadChecksPassed": 29,
+      "ExactHeadChecksTotal": 30,
+      "ParentToken": "UAC-enabled elevated GitHub runner",
+      "ChildToken": "same-user restricted Medium IL 0x2000; Administrators disabled",
+      "GuiBootstrapEntry": "PASS",
+      "EmbeddedScriptIdentityEntry": "PASS",
+      "OriginalScriptPreflight": "NO_STARTUP_NO_ERROR_RUNNING",
+      "RealRecovery": "NOT_PERFORMED"
+    },
+    "Changes": [
+      "After the exact disposable GitHub Windows identity and runner-temporary signal are verified, write a bounded overwritten JSON checkpoint containing only PID, run, GitSHA, phase and UTC.",
+      "Checkpoint before/after in-process Git HEAD resolution, canonical root check, SHA pins, process query and state, plus start and staging/COMMITTING milestones.",
+      "On timeout the parent includes the final checkpoint in the R299 failure detail and refuses a stale checkpoint before launching."
+    ],
+    "Files": [
+      "build/Test-R299-HostedCrashChild.ps1",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1"
+    ],
+    "LocalValidation": {
+      "WindowsPowerShell51ParseChild": "PASS",
+      "WindowsPowerShell51ParseParent": "PASS",
+      "NetFrameworkLauncherCompile": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "GitDiffCheck": "PASS",
+      "IsolatedCheckpointJsonOverwrite": "PASS",
+      "OwnerNonHostedRefusalNoSignals": "PASS"
+    },
+    "HostedCI": {
+      "ExactBranchHead": "921ff14060cee1989183b40df40041172c38367d",
+      "PullRequestBuildVerification": {
+        "Run": 42858789063,
+        "Status": "SUCCESS",
+        "PassedJobs": 4,
+        "TotalJobs": 4,
+        "R299Job": 129981077400,
+        "R299ReceiptSHA256": "A0C2383A983BCE4DAFD5C556E592C3B18538DC21ED727D11D86CB08FB0F74A58",
+        "GITHUB_SHA_ExpectedPRMergeRef": "90528e40970d4225bf6686ee8dac596e448beaa7",
+        "VerifiedClaims": ["Official v1.7.9 Setup SHA and predecessor pins","Tampered predecessor refusal","4 same-user restricted Medium child token checks","Interrupted COMMITTING recovery by actual Setup","Exact v1.7.10 update","User canary preservation","Second update idempotence"]
+      },
+      "WorkflowDispatchBuildVerification": {
+        "Run": 42858662091,
+        "Status": "FAILURE",
+        "PassedJobs": 3,
+        "FailedJob": "r299-public-v179-inplace-upgrade",
+        "FailedJobId": 129980454333,
+        "LastCrashChildCheckpoint": "BEFORE_BINARY_PINS",
+        "ExitState": "STILL_RUNNING_AT_30S_TIMEOUT",
+        "Evidence": "The script completed in-process HEAD and canonical root verification, then stalled during three Get-FileHash SHA256 checks before PREFLIGHT_PASSED. No Setup COMMITTING acceptance occurred in this run."
+      },
+      "R360Push": {"Run": 42858203029,"Windows2022": "SUCCESS","Windows2025": "SUCCESS"},
+      "R291PullRequest": {"Run": 42858788741,"Status": "SUCCESS"},
+      "R385PullRequest": {"Run": 42858788887,"Status": "SUCCESS"},
+      "CrossRunRepeatability": "NOT_YET_PROVEN"
+    },
+    "ProductSetupChanged": false,
+    "OwnerInstallationChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "Only diagnostic instrumentation; no actual hosted COMMITTING/recovery/idempotence proof yet. R395 29/30 checks were valid only for exact prior SHA. Independent human security review for PR #98 required."
+  },
+  "R397": {
+    "Revision": "R397",
+    "Branch": "security/r347-r349-helper-hardening-v1710",
+    "BaseCommit": "921ff14060cee1989183b40df40041172c38367d",
+    "Objective": "Eliminate Get-FileHash command/module import from the restricted-Medium GUI crash-child preflight and widen its disposable-only bounded staging wait from 30s to 90s, without changing the Setup or validation predicates.",
+    "Evidence": {
+      "R396ManualRun": 42858662091,
+      "R396ManualLastCheckpoint": "BEFORE_BINARY_PINS",
+      "R396ManualTimeoutSeconds": 30,
+      "R396PRRun": 42858789063,
+      "R396PRResult": "SUCCESS_4_OF_4",
+      "R396PRReceiptSHA256": "A0C2383A983BCE4DAFD5C556E592C3B18538DC21ED727D11D86CB08FB0F74A58",
+      "R396PRMergeRefSHA": "90528e40970d4225bf6686ee8dac596e448beaa7",
+      "R396PRRecoveryAccepted": true,
+      "Important": "The same code head passed full PR R299 and failed manual R299 in a 30s SHA preflight; exact cause is not proven but module loading latency is a bounded testable hypothesis."
+    },
+    "Files": [
+      "build/Test-R299-HostedCrashChild.ps1",
+      "build/Test-R299-HostedPublicV179Upgrade.ps1"
+    ],
+    "Changes": [
+      "Replace all crash-child Get-FileHash calls with explicitly rooted, in-process System.Security.Cryptography.SHA256 over read-only file streams; preserve uppercase exact SHA pin comparisons.",
+      "Record successive binary pin checkpoint indexes to discriminate each SHA check.",
+      "Increase only the hosted disposable crash-child arm poll from 200x150ms to 600x150ms (90s), retaining failure on timeout and the workflow's 15-minute cap."
+    ],
+    "LocalValidation": {
+      "PowerShell51ParseChild": "PASS",
+      "PowerShell51ParseParent": "PASS",
+      "NativeSHA256ByteMatchGetFileHash": "PASS",
+      "TamperSensitiveSHA256": "PASS",
+      "RelativePathRejected": "PASS",
+      "NoGetFileHashInCrashChild": "PASS",
+      "WorkflowYamlParse": "PASS",
+      "GitDiffCheck": "PASS"
+    },
+    "HostedCI": "PENDING_AFTER_PUSH",
+    "R385GuardChanged": false,
+    "ProductSetupChanged": false,
+    "OwnerInstallationChanged": false,
+    "PublicReleaseChanged": false,
+    "MergePerformed": false,
+    "Limit": "PR R396 acceptance is real but same-head manual repeatability failed. R397 is test-only and must be revalidated on its exact head; human independent review of PR #98 still absent."
+  },
+  "R407": {
+    "Status": "LOCAL_COMPILED_REGRESSION_PASS_HOSTED_PENDING",
+    "Parent": "27160f83b9770019e900ec2511d4e4fa5e860094",
+    "TimestampUtc": "2026-11-11T08:43:17.5980464Z",
+    "Objective": "Eliminate preflight-to-CreateProcess Broker executable and ancestor rename/write gap without elevation, by native handle-identity checking, GEN_READ file sharing and no-delete directory pins across launch.",
+    "Files": [
+      "src/sensors/TaskbarMonitorSensorSupervisor.cs",
+      "build/Test-R407-BrokerLaunchPinnedIdentity.ps1",
+      ".github/workflows/ci.yml"
+    ],
+    "Evidence": {
+      "FullFourComponentBuild": "PASS_0_WARNINGS_0_ERRORS",
+      "R404": "PASS_COMPILED_LOCAL",
+      "R405": "PASS_COMPILED_LOCAL",
+      "R406": "PASS_COMPILED_LOCAL",
+      "R407": "PASS_COMPILED_LOCAL_TEN_NEGATIVE_ATTEMPTS",
+      "YAML": "PARSE_PASS",
+      "PowerShell51": "PARSE_PASS",
+      "GitDiff": "CHECK_PASS",
+      "FirstNegativeFinding": "READ_ATTRIBUTES_ONLY_ALLOWED_BROKER_FILE_REWRITE",
+      "Fix": "GENERIC_READ_FOR_BROKER_FILE_ONLY_DIRECTORY_READ_ATTRIBUTES_PRESERVED",
+      "HostedRealCreateProcess": "PENDING"
+    },
+    "SecurityScope": "Protect executable and existing owner/protected ancestor handles only through Process.Start. Native loaded-child completion, all NTFS attack classes, and owner real GUI are outside local fixture proof.",
+    "OwnerInstallationChanged": false,
+    "PublicReleaseChanged": false,
+    "PR98CodeQLCriticalAlerts": "SIX_UNRESOLVED",
+    "IndependentHumanReview": "REQUESTED_PENDING"
+  },
+  "R408": {
+  "Status": "LOCAL_COMPILED_PASS_HOSTED_PENDING",
+  "Parent": "2068c2499efee649fcf65d3ef1421c6b21a2e834",
+  "TimestampUtc": "2026-11-11T10:27:16.2508402Z",
+  "Objective": "Eliminate standalone Broker arbitrary output write from untrusted caller argv, independently of Supervisor.",
+  "Files": [
+    "src/sensors/BrokerOutputBoundary.cs",
+    "src/sensors/TaskbarMonitorSensorBroker.cs",
+    "build/TaskbarMonitorSensorBroker.csproj",
+    "build/Test-R408-BrokerOutputBoundary.ps1",
+    "build/Test-R367-ElevatedAtomicTempAlias-Native.ps1",
+    ".github/workflows/ci.yml"
+  ],
+  "Evidence": {
+    "BrokerBuild": "PASS_0_WARNINGS_0_ERRORS",
+    "AllFourComponents": "PASS_DETERMINISTIC_SELFTESTS",
+    "AllowedModeCount": 3,
+    "RejectedInvalidCount": 14,
+    "DirectBrokerExternalCanaryExitCode": 2,
+    "DirectoryRename": "NATIVE_HANDLE_RENAMED_CHECK_DETECTED",
+    "ExternalCanary": "SHA_UNCHANGED",
+    "R407": "PASS",
+    "OwnerLocalAppDataPaths": "READ_ONLY_PASS",
+    "HostedRealAtomicWrite": "PENDING",
+    "FirstHostedRun": "43003898271_FAIL_R408_EXISTING_RUNNER_ROOT",
+    "FirstR367Run": "43003889358_CANDIDATE_REFLECTION_OLD_ENTRYPOINT_FAIL",
+    "LocalFixtureRecovery": "R408_AND_R367_CANDIDATE_PASS_AFTER_SYNTHETIC_LEASE",
+    "HostedSyntheticCore": "PASS_BUILD_43005151387",
+    "SecondHostedR367Run": "43005151388_CANDIDATE_A_B_FAIL_PATH_MISMATCH_8DOT3_HYPOTHESIS",
+    "R367FixtureNormalization": "LOCAL_PASS_HOSTED_PENDING"
+  },
+  "ResidualRisk": "A concurrent rename between live directory-handle revalidation and final filesystem operation is not excluded by R408.",
+  "PR98CodeQLCriticalAlerts": "SIX_OPEN",
+  "IndependentHumanSecurityReview": "PENDING",
+  "OwnerInstallationChanged": false,
+  "PublicReleaseChanged": false
+}
 }

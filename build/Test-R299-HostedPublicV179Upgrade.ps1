@@ -15,6 +15,90 @@ if($PSVersionTable.PSEdition -cne 'Desktop' -or
 }
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 if((git -C $root rev-parse HEAD).Trim() -cne $env:GITHUB_SHA){throw 'R299_REFUSE_NONEXACT_COMMIT'}
+$diagnosticRoot=Join-Path $env:RUNNER_TEMP 'TBME_R126_STABLE_UPDATE'
+if(Test-Path $diagnosticRoot){throw 'R299_SETUP_DIAGNOSTIC_ROOT_PREEXISTS'}
+[IO.Directory]::CreateDirectory($diagnosticRoot)|Out-Null
+# Match the actual Setup/R385 security boundary: UAC-enabled updates require a
+# verified same-user Medium token. UAC-disabled Windows has no Medium/High split;
+# the same-user High administrator token is permitted only when EnableLUA is zero.
+$launcherPath=Join-Path $PSScriptRoot 'R299-MediumTokenLauncher.cs'
+if(!(Test-Path $launcherPath -PathType Leaf)){throw 'R299_MEDIUM_TOKEN_LAUNCHER_SOURCE_MISSING'}
+if(-not ('R299HostedTokenLauncher' -as [type])){
+ Add-Type -Path $launcherPath -ErrorAction Stop
+}
+
+$script:R299HostedSetupUpdateLaunchCount=0
+$script:R299HostedCrashChildLaunchCount=0
+$script:R299HostedTokenSources=New-Object 'System.Collections.Generic.List[string]'
+$script:R299HostedTokenCreationMethods=New-Object 'System.Collections.Generic.List[string]'
+$script:R299HostedTokenElevationTypes=New-Object 'System.Collections.Generic.List[int]'
+$script:R299HostedTokenIntegrityRids=New-Object 'System.Collections.Generic.List[int]'
+$script:R299HostedAdministratorsGroupEnabled=New-Object 'System.Collections.Generic.List[bool]'
+$script:R299HostedUacEnabled=New-Object 'System.Collections.Generic.List[bool]'
+$flags=[Reflection.BindingFlags]::Static -bor [Reflection.BindingFlags]::NonPublic
+$parentUacEnabled=[bool][R299HostedTokenLauncher].GetMethod('IsUacEnabled',$flags).Invoke($null,@())
+$parentIdentity=[Security.Principal.WindowsIdentity]::GetCurrent()
+try{
+ $parentPrincipal=New-Object Security.Principal.WindowsPrincipal -ArgumentList $parentIdentity
+ $parentAdminEnabled=$parentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+ Write-Host ('R299_PARENT_TOKEN_POLICY=PASS uacEnabled='+$parentUacEnabled+' administratorsEnabled='+$parentAdminEnabled+' userSid='+$parentIdentity.User.Value)
+}finally{$parentIdentity.Dispose()}
+function New-R299HostedEnvironmentBlock {
+    $names=@(
+        'SystemRoot','windir','PATH','PATHEXT','PSModulePath','TEMP','TMP',
+        'LOCALAPPDATA','APPDATA','USERPROFILE','HOMEDRIVE','HOMEPATH','COMSPEC',
+        'ProgramFiles','ProgramFiles(x86)','ProgramData','OS','USERNAME','USERDOMAIN',
+        'SESSIONNAME','PROCESSOR_ARCHITECTURE','NUMBER_OF_PROCESSORS','COMPUTERNAME',
+        'GITHUB_ACTIONS','RUNNER_ENVIRONMENT','RUNNER_OS','GITHUB_REPOSITORY',
+        'GITHUB_RUN_ID','GITHUB_SHA','RUNNER_TEMP','GITHUB_WORKSPACE','RUNNER_TOOL_CACHE',
+        'TBME_UPDATE_DIAGNOSTIC_PHASE'
+    )
+    $entries=New-Object 'System.Collections.Generic.List[string]'
+    foreach($name in $names){
+        $value=[Environment]::GetEnvironmentVariable($name)
+        if($null -ne $value){$entries.Add($name+'='+$value)}
+    }
+    $sorted=@($entries | Sort-Object { $_.Substring(0,$_.IndexOf('=')) })
+    return ([string]::Join([string][char]0,[string[]]$sorted)+[char]0+[char]0)
+}
+$script:R299HostedEnvironmentBlock=New-R299HostedEnvironmentBlock
+
+function Start-R299HostedProcess {
+    param(
+        [Parameter(Mandatory=$true)][string]$FileName,
+        [string[]]$ArgumentList=@(),
+        [Parameter(Mandatory=$true)][string]$WorkingDirectory,
+        [Parameter(Mandatory=$true)][ValidateSet('SetupUpdate','CrashChild')][string]$Purpose
+    )
+    $process=[R299HostedTokenLauncher]::Start(
+        [IO.Path]::GetFullPath($FileName),
+        [string[]]$ArgumentList,
+        [IO.Path]::GetFullPath($WorkingDirectory),
+        [string]$script:R299HostedEnvironmentBlock,
+        [bool]$false
+    )
+    if($Purpose -eq 'SetupUpdate'){$script:R299HostedSetupUpdateLaunchCount++}
+    else{$script:R299HostedCrashChildLaunchCount++}
+    if($process.ConsoleAllowed){
+     $process.Dispose()
+     throw 'R299_GUI_SETUP_OR_CRASH_CHILD_CONSOLE_FLAG_UNEXPECTED'
+    }
+    $script:R299HostedTokenSources.Add([string]$process.TokenSource)
+    $script:R299HostedTokenCreationMethods.Add([string]$process.CreationMethod)
+    $script:R299HostedTokenElevationTypes.Add([int]$process.TokenElevationType)
+    $script:R299HostedTokenIntegrityRids.Add([int]$process.TokenIntegrityRid)
+    $script:R299HostedAdministratorsGroupEnabled.Add([bool]$process.AdministratorsGroupEnabled)
+    $script:R299HostedUacEnabled.Add([bool]$process.UacEnabled)
+    Write-Host ('R299_HOSTED_CHILD_TOKEN=PASS purpose='+$Purpose+
+        ' source='+$process.TokenSource+' method='+$process.CreationMethod+
+        ' elevationType='+$process.TokenElevationType+
+        ' integrity=0x'+$process.TokenIntegrityRid.ToString('X')+
+        ' administratorsEnabled='+$process.AdministratorsGroupEnabled+
+        ' uacEnabled='+$process.UacEnabled+' consoleAllowed='+$process.ConsoleAllowed+
+        ' pid='+$process.Id)
+    return $process
+}
+
 $app=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TaskbarMonitorEnhanced'
 $expectedLocal=Join-Path ([Environment]::GetFolderPath('UserProfile')) 'AppData/Local'
 if(-not [string]::Equals([IO.Path]::GetFullPath((Split-Path $app)),
@@ -145,15 +229,19 @@ function AssertUnaffected {
  $run=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($runKey,$false)
  try{if($run.GetValue($startupName) -cne $startup){throw 'R299_STARTUP_PREFERENCE_CHANGED'}}finally{$run.Dispose()}
 }
+function Get-R299SetupFailureDiagnostic {
+ param([Parameter(Mandatory=$true)][string]$Phase)
+ $path=Join-Path $diagnosticRoot ('R129_DIAG_'+$Phase+'.txt')
+ if(!(Test-Path -LiteralPath $path -PathType Leaf)){
+  return ('R299_SETUP_DIAGNOSTIC_MISSING path='+$path)
+ }
+ return (Get-Content -LiteralPath $path -Raw)
+}
 function InvokeCandidateUpdate {
- $p=[Diagnostics.ProcessStartInfo]::new()
- $p.FileName=$newSetup
- $p.Arguments='/update /quiet'
- $p.WorkingDirectory=$env:RUNNER_TEMP
- $p.UseShellExecute=$false
- $p.CreateNoWindow=$true
- $child=[Diagnostics.Process]::Start($p)
- if(!$child){throw 'R299_UPDATE_PROCESS_NOT_CREATED'}
+ param([Parameter(Mandatory=$true)][ValidateSet('NEGATIVE_USER_EDIT','POSITIVE_OFFICIAL_STABLE','IDEMPOTENT')][string]$Phase)
+ $env:TBME_UPDATE_DIAGNOSTIC_PHASE=$Phase
+ $script:R299HostedEnvironmentBlock=New-R299HostedEnvironmentBlock
+ $child=Start-R299HostedProcess -FileName $newSetup -ArgumentList @('/update','/quiet') -WorkingDirectory $env:RUNNER_TEMP -Purpose SetupUpdate
  try{
   if(!$child.WaitForExit(150000)){
    try{$child.Kill();$child.WaitForExit(8000)|Out-Null}catch{}
@@ -168,8 +256,18 @@ $tamper=Join-Path $app 'Source/StudioThemes.cs'
 [IO.File]::AppendAllText($tamper,'R299_TAMPER_PROBE')
 $stateBefore=(Get-FileHash $state).Hash
 $mainBefore=(Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe')).Hash
-$code=InvokeCandidateUpdate
-if($code -ne 34){throw ('R299_TAMPERED_PREDECESSOR_NOT_REFUSED_EXIT_'+$code)}
+$code=InvokeCandidateUpdate -Phase NEGATIVE_USER_EDIT
+if($code -ne 34){$detail=Get-R299SetupFailureDiagnostic -Phase NEGATIVE_USER_EDIT;throw ('R299_TAMPERED_PREDECESSOR_NOT_REFUSED_EXIT_'+$code+'; '+$detail)}
+$negativeDiagnosticPath=Join-Path $diagnosticRoot 'R129_DIAG_NEGATIVE_USER_EDIT.txt'
+$negativeDiagnostic=Get-R299SetupFailureDiagnostic -Phase NEGATIVE_USER_EDIT
+if($negativeDiagnostic -notmatch 'R129_FAIL_CLOSED_DIAGNOSTIC' -or
+   $negativeDiagnostic -notmatch 'TEST_PHASE=NEGATIVE_USER_EDIT' -or
+   $negativeDiagnostic -notmatch [regex]::Escape('GIT_SHA='+$env:GITHUB_SHA) -or
+   $negativeDiagnostic -notmatch [regex]::Escape('Protected/edited/missing old program component Source/StudioThemes.cs; NO files changed.') -or
+   $negativeDiagnostic -match 'R385: per-user in-place update requires a non-elevated process'){
+ throw 'R299_TAMPER_NEGATIVE_SETUP_DIAGNOSTIC_INVALID_OR_ELEVATION_BLOCKED'
+}
+$negativeDiagnosticSHA=(Get-FileHash -LiteralPath $negativeDiagnosticPath -Algorithm SHA256).Hash
 if((Get-FileHash $state).Hash -cne $stateBefore -or
    (Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe')).Hash -cne $mainBefore){
  throw 'R299_TAMPER_REFUSAL_MODIFIED_MANAGED_PRODUCT'
@@ -196,36 +294,103 @@ if((Get-FileHash $tamper).Hash -cne [string]$pins['Source/StudioThemes.cs']){thr
 # files and writes an owned COMMITTING marker. The parent terminates ONLY
 # that exact test-owned child, and the REAL candidate Setup must recover.
 $childScript=Join-Path $PSScriptRoot 'Test-R299-HostedCrashChild.ps1'
+$guiSource=Join-Path $PSScriptRoot 'R299-HostedCrashGuiBootstrap.cs'
 $signal=Join-Path $env:RUNNER_TEMP ('R299_ABRUPT_COMMITTING_ARMED_'+$env:GITHUB_RUN_ID+'.json')
-if(!(Test-Path $childScript) -or (Test-Path $signal) -or (Test-Path ($signal+'.error.txt'))){
+$startupSignal=$signal+'.started.txt'
+$entrySignal=$signal+'.entered.txt'
+$guiEntrySignal=$signal+'.gui.entered.txt'
+$bootstrapErrorSignal=$signal+'.bootstrap.error.txt'
+if(!(Test-Path $childScript -PathType Leaf) -or
+   !(Test-Path $guiSource -PathType Leaf) -or
+   (Test-Path $signal) -or
+   (Test-Path ($signal+'.error.txt')) -or
+   (Test-Path $bootstrapErrorSignal) -or
+   (Test-Path $startupSignal) -or
+   (Test-Path $entrySignal) -or
+   (Test-Path $guiEntrySignal) -or
+   (Test-Path ($signal+'.checkpoint.json'))){
  throw 'R299_CRASH_FIXTURE_SOURCE_OR_SIGNAL_NOT_FRESH'
 }
-$trustedPowerShell=Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell/v1.0/powershell.exe'
-if(!(Test-Path $trustedPowerShell)){throw 'R299_CRASH_CHILD_HOST_UNAVAILABLE'}
-$psi=[Diagnostics.ProcessStartInfo]::new()
-$psi.FileName=$trustedPowerShell
-$psi.WorkingDirectory=$env:RUNNER_TEMP
-$psi.UseShellExecute=$false
-$psi.CreateNoWindow=$true
-$psi.Arguments='-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "'+$childScript+
-  '" -CandidateSetup "'+$newSetup+'" -App "'+$app+'" -Signal "'+$signal+
-  '" -ExpectedSetupSha '+[string]$expectedNew[0].SHA256+
-  ' -ExpectedPriorSetupSha '+$publicSha+
-  ' -ExpectedPriorMainSha 04776E870A492733BBA33A550F732F5DB688A6585FC6533224A56687F1A6D88E'+
-  ' -ExpectedNewMainSha '+[string]$expectedMain[0].SHA256
-$crashChild=[Diagnostics.Process]::Start($psi)
-if(!$crashChild){throw 'R299_OWNED_CRASH_CHILD_NOT_STARTED'}
+$guiExe=Join-Path $env:RUNNER_TEMP ('R299_HostedCrashGui_'+$env:GITHUB_RUN_ID+'.exe')
+if(Test-Path $guiExe){throw 'R299_GUI_BOOTSTRAP_BINARY_PREEXISTS'}
+$psAssembly=[System.Management.Automation.PowerShell].Assembly.Location
+if(!(Test-Path $psAssembly -PathType Leaf)){throw 'R299_GUI_BOOTSTRAP_POWERSHELL_ASSEMBLY_MISSING'}
+Add-Type -TypeDefinition ([IO.File]::ReadAllText($guiSource)) -ReferencedAssemblies @(
+ 'System.dll','System.Core.dll',$psAssembly
+) -OutputAssembly $guiExe -OutputType WindowsApplication -ErrorAction Stop
+if(!(Test-Path $guiExe -PathType Leaf)){throw 'R299_GUI_BOOTSTRAP_COMPILE_OUTPUT_MISSING'}
+$pe=[IO.File]::ReadAllBytes($guiExe)
+$peOffset=[BitConverter]::ToInt32($pe,0x3C)
+if($peOffset -lt 0 -or $peOffset+24+70 -gt $pe.Length -or
+   [BitConverter]::ToUInt16($pe,$peOffset+24+68) -ne 2){
+ throw 'R299_GUI_BOOTSTRAP_NOT_WINDOWS_SUBSYSTEM'
+}
+Write-Host ('R299_GUI_BOOTSTRAP_SHA256='+(Get-FileHash -LiteralPath $guiExe -Algorithm SHA256).Hash)
+$env:TBME_UPDATE_DIAGNOSTIC_PHASE=''
+$script:R299HostedEnvironmentBlock=New-R299HostedEnvironmentBlock
+$crashArguments=@(
+ $newSetup,
+ $app,
+ $signal,
+ [string]$expectedNew[0].SHA256,
+ $publicSha,
+ '04776E870A492733BBA33A550F732F5DB688A6585FC6533224A56687F1A6D88E',
+ [string]$expectedMain[0].SHA256
+)
+$crashChild=Start-R299HostedProcess -FileName $guiExe -ArgumentList $crashArguments -WorkingDirectory $env:RUNNER_TEMP -Purpose CrashChild
+if($crashChild -isnot [R299HostedProcess] -or $crashChild.ConsoleAllowed){
+ throw 'R299_CRASH_CHILD_LAUNCH_MUST_RETURN_SINGLE_NONCONSOLE_GUI_PROCESS'
+}
+'R299_HOSTED_CRASH_CHILD_GUI_HOST=PASS'
 try{
  $armed=$false
- for($probe=0;$probe -lt 130;$probe++){
+ # Hosted Windows runner staging can exceed 30s. Preserve fail-closed
+ # behavior with a bounded 90s diagnostic wait; never accept on timeout.
+ for($probe=0;$probe -lt 600;$probe++){
   if(Test-Path $signal){$armed=$true;break}
   if($crashChild.HasExited){break}
   Start-Sleep -Milliseconds 150
  }
  if(!$armed){
+  $childHasExited=[bool]$crashChild.HasExited
+  $childExitCode=if($childHasExited){[string]$crashChild.ExitCode}else{'RUNNING'}
+  $bootstrapEntry=if(Test-Path $guiEntrySignal){Get-Content $guiEntrySignal -Raw}else{'GUI bootstrap entry missing'}
+  $bootstrapError=if(Test-Path $bootstrapErrorSignal){Get-Content $bootstrapErrorSignal -Raw}else{'GUI bootstrap error missing'}
   $childError=if(Test-Path ($signal+'.error.txt')){Get-Content ($signal+'.error.txt') -Raw}else{'child did not produce arm signal'}
-  throw ('R299_CRASH_CHILD_DID_NOT_ARM_'+$childError.Substring(0,[Math]::Min(680,$childError.Length)))
+  $startupError=if(Test-Path $startupSignal){Get-Content $startupSignal -Raw}else{'startup receipt missing'}
+  $entryError=if(Test-Path $entrySignal){Get-Content $entrySignal -Raw}else{'entry receipt missing'}
+  $checkpointPath=$signal+'.checkpoint.json'
+  $checkpoint=if(Test-Path $checkpointPath){Get-Content $checkpointPath -Raw}else{'checkpoint not reached'}
+  $failureDetail='hasExited='+$childHasExited+'_exitCode='+$childExitCode+'_guiEntry='+$bootstrapEntry+'_guiError='+$bootstrapError+'_entry='+$entryError+'_checkpoint='+$checkpoint+'_startup='+$startupError+'_error='+$childError
+  throw ('R299_CRASH_CHILD_DID_NOT_ARM_'+$failureDetail.Substring(0,[Math]::Min(1900,$failureDetail.Length)))
  }
+ if(!(Test-Path $guiEntrySignal)){throw 'R299_CRASH_GUI_BOOTSTRAP_ENTRY_RECEIPT_MISSING'}
+ $guiEntryRecord=Get-Content $guiEntrySignal -Raw|ConvertFrom-Json
+ if($guiEntryRecord.Pid -ne $crashChild.Id -or
+    $guiEntryRecord.Phase -cne 'GUI_BOOTSTRAP_STARTED' -or
+    $guiEntryRecord.GitSha -cne $env:GITHUB_SHA -or
+    $guiEntryRecord.RunId -cne $env:GITHUB_RUN_ID){
+  throw 'R299_CRASH_GUI_BOOTSTRAP_RECEIPT_IDENTITY_WRONG'
+ }
+ 'R299_HOSTED_CRASH_GUI_BOOTSTRAP=PASS'
+ if(!(Test-Path $entrySignal)){throw 'R299_CRASH_CHILD_ENTRY_RECEIPT_MISSING'}
+ $entryRecord=Get-Content $entrySignal -Raw|ConvertFrom-Json
+ if($entryRecord.Pid -ne $crashChild.Id -or
+    $entryRecord.Phase -cne 'HOSTED_IDENTITY_VERIFIED' -or
+    $entryRecord.GitSha -cne $env:GITHUB_SHA -or
+    $entryRecord.RunId -cne $env:GITHUB_RUN_ID){
+  throw 'R299_CRASH_CHILD_ENTRY_RECEIPT_IDENTITY_WRONG'
+ }
+ 'R299_HOSTED_CRASH_CHILD_ENTRY=PASS'
+ if(!(Test-Path $startupSignal)){throw 'R299_CRASH_CHILD_STARTUP_RECEIPT_MISSING'}
+ $startupRecord=Get-Content $startupSignal -Raw|ConvertFrom-Json
+ if($startupRecord.Pid -ne $crashChild.Id -or
+    $startupRecord.Phase -cne 'PREFLIGHT_PASSED' -or
+    $startupRecord.GitSha -cne $env:GITHUB_SHA -or
+    $startupRecord.RunId -cne $env:GITHUB_RUN_ID){
+  throw 'R299_CRASH_CHILD_STARTUP_RECEIPT_IDENTITY_WRONG'
+ }
+ 'R299_HOSTED_CRASH_CHILD_STARTUP=PASS'
  $record=Get-Content $signal -Raw|ConvertFrom-Json
  if($record.Pid -ne $crashChild.Id -or
     $record.Phase -cne 'COMMITTING' -or
@@ -252,8 +417,8 @@ try{
 }
 # The first genuine binary update below must replay the interrupted
 # COMMITTING stage to the official predecessor, then perform the upgrade.
-$code=InvokeCandidateUpdate
-if($code -ne 0){throw ('R299_OFFICIAL_179_TO_1710_REAL_SETUP_UPDATE_FAILED_EXIT_'+$code)}
+$code=InvokeCandidateUpdate -Phase POSITIVE_OFFICIAL_STABLE
+if($code -ne 0){$detail=Get-R299SetupFailureDiagnostic -Phase POSITIVE_OFFICIAL_STABLE;throw ('R299_OFFICIAL_179_TO_1710_REAL_SETUP_UPDATE_FAILED_EXIT_'+$code+'; '+$detail)}
 if(!(Test-Path (Join-Path $app 'TaskbarMonitorEnhanced.exe')) -or
    (Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe')).Hash -cne $expectedMain[0].SHA256 -or
    (Get-FileHash (Join-Path $app 'Uninstall.exe')).Hash -cne $expectedNew[0].SHA256){
@@ -281,15 +446,45 @@ if(Test-Path (Join-Path $app '.tbme-upgrade')){throw 'R299_CRASH_RECOVERY_LEFT_T
 $mainAfter=(Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe')).Hash
 $setupAfter=(Get-FileHash (Join-Path $app 'Uninstall.exe')).Hash
 $stateHashAfter=(Get-FileHash $state).Hash
-$code=InvokeCandidateUpdate
-if($code -ne 0 -or
-   (Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe')).Hash -cne $mainAfter -or
+$code=InvokeCandidateUpdate -Phase IDEMPOTENT
+if($code -ne 0){$detail=Get-R299SetupFailureDiagnostic -Phase IDEMPOTENT;throw ('R299_IDEMPOTENT_SECOND_UPDATE_FAILED_EXIT_'+$code+'; '+$detail)}
+if((Get-FileHash (Join-Path $app 'TaskbarMonitorEnhanced.exe')).Hash -cne $mainAfter -or
    (Get-FileHash (Join-Path $app 'Uninstall.exe')).Hash -cne $setupAfter -or
    (Get-FileHash $state).Hash -cne $stateHashAfter){
  throw 'R299_SECOND_UPDATE_NOT_EXACT_IDEMPOTENT'
 }
 AssertUnaffected
 'R299_HOSTED_EXACT_SECOND_UPDATE_IDEMPOTENT=PASS'
+# Every Setup /update invocation and the crash fixture must use one verified
+# same-user token context. UAC-enabled guests must be Medium; a High token is
+# accepted only when the 64-bit HKLM EnableLUA value proves UAC is disabled.
+if($script:R299HostedSetupUpdateLaunchCount -ne 3 -or
+   $script:R299HostedCrashChildLaunchCount -ne 1 -or
+   $script:R299HostedTokenSources.Count -ne 4 -or
+   $script:R299HostedTokenCreationMethods.Count -ne 4 -or
+   $script:R299HostedTokenElevationTypes.Count -ne 4 -or
+   $script:R299HostedTokenIntegrityRids.Count -ne 4 -or
+   $script:R299HostedAdministratorsGroupEnabled.Count -ne 4 -or
+   $script:R299HostedUacEnabled.Count -ne 4){
+ throw 'R299_HOSTED_TOKEN_LAUNCH_COUNTS_UNEXPECTED'
+}
+$uacStates=@($script:R299HostedUacEnabled.ToArray()|Select-Object -Unique)
+$integrityStates=@($script:R299HostedTokenIntegrityRids.ToArray()|Select-Object -Unique)
+$adminStates=@($script:R299HostedAdministratorsGroupEnabled.ToArray()|Select-Object -Unique)
+$elevationStates=@($script:R299HostedTokenElevationTypes.ToArray()|Select-Object -Unique)
+$sourceStates=@($script:R299HostedTokenSources.ToArray()|Select-Object -Unique)
+$creationStates=@($script:R299HostedTokenCreationMethods.ToArray()|Select-Object -Unique)
+if($uacStates.Count -ne 1 -or $integrityStates.Count -ne 1 -or $adminStates.Count -ne 1 -or
+   $elevationStates.Count -ne 1 -or $sourceStates.Count -ne 1 -or $creationStates.Count -ne 1){
+ throw 'R299_HOSTED_CHILD_TOKEN_CONTEXT_CHANGED_DURING_ACCEPTANCE'
+}
+if($uacStates[0] -and $integrityStates[0] -ne 0x2000){
+ throw 'R299_UAC_ENABLED_CHILD_NOT_MEDIUM_INTEGRITY'
+}
+if(!$uacStates[0] -and $integrityStates[0] -ge 0x3000 -and !$adminStates[0]){
+ throw 'R299_UAC_DISABLED_HIGH_CHILD_NOT_ADMINISTRATOR'
+}
+'R299_HOSTED_TOKEN_PROCESS_CREATION=PASS'
 # Preserve a deterministic compact receipt, never emit user data.
 $receipt=[ordered]@{
  Status='PASS_ORIGINAL_PUBLIC_V179_TO_V1710_REAL_SETUP_UPDATE'
@@ -303,6 +498,19 @@ $receipt=[ordered]@{
  InterruptedCommitRecovered=$true
  UpgradePreservedUserCanaries=$true
  ExactSecondUpdateIdempotent=$true
+ SetupUpdateProcessesVerifiedToken=$script:R299HostedSetupUpdateLaunchCount
+ CrashFixtureProcessVerifiedToken=$script:R299HostedCrashChildLaunchCount
+ CrashGuiBootstrapVerified=$true
+ CrashChildStartupVerified=$true
+ CrashChildEntryVerified=$true
+ HostedTokenVerifiedForEveryChild=$true
+ HostedTokenSources=@($script:R299HostedTokenSources.ToArray())
+ HostedTokenCreationMethods=@($script:R299HostedTokenCreationMethods.ToArray())
+ ChildTokenElevationTypes=@($script:R299HostedTokenElevationTypes.ToArray())
+ ChildTokenIntegrityRids=@($script:R299HostedTokenIntegrityRids.ToArray())
+ ChildAdministratorsGroupEnabled=@($script:R299HostedAdministratorsGroupEnabled.ToArray())
+ ChildUacEnabled=@($script:R299HostedUacEnabled.ToArray())
+ TamperedPredecessorDiagnosticSHA256=$negativeDiagnosticSHA
  PersonalDeviceWasNotUsed=$true
  Utc=[DateTime]::UtcNow.ToString('o')
 }

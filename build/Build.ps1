@@ -17,14 +17,86 @@ $LockPath=Join-Path $PSScriptRoot 'dependencies.lock.json'
 if(!(Test-Path -LiteralPath $LockPath)){throw 'Dependency lock file is missing.'}
 $Lock=Get-Content -LiteralPath $LockPath -Raw|ConvertFrom-Json
 $LhmUrl=[string]$Lock.dependencies.LibreHardwareMonitor.url
+$LhmApiUrl=[string]$Lock.dependencies.LibreHardwareMonitor.apiUrl
 $LhmSha=([string]$Lock.dependencies.LibreHardwareMonitor.sha256).ToUpperInvariant()
 $PawnUrl=[string]$Lock.dependencies.PawnIO.url
+$PawnApiUrl=[string]$Lock.dependencies.PawnIO.apiUrl
 $PawnSha=([string]$Lock.dependencies.PawnIO.sha256).ToUpperInvariant()
 
 function Assert-Hash([string]$Path,[string]$Expected){
     if(!(Test-Path -LiteralPath $Path)){throw "Missing dependency: $Path"}
     $actual=(Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
     if($actual -ne $Expected){throw "SHA256 mismatch for $Path; expected $Expected; actual $actual"}
+}
+function Download-PinnedDependency([string]$Uri,[string]$Path,[string]$Expected,[string]$ApiUri=''){
+    if(Test-Path -LiteralPath $Path){
+        $cached=(Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
+        if($cached -ceq $Expected){
+            Write-Host ('TBME_DEPENDENCY_CACHE_HIT=PASS file='+[IO.Path]::GetFileName($Path))
+            return
+        }
+    }
+    $partial=$Path+'.partial'
+    Remove-Item -LiteralPath $partial -Force -ErrorAction SilentlyContinue
+    $sources=@()
+    if(![string]::IsNullOrWhiteSpace($ApiUri)){$sources+= $ApiUri}
+    $sources+= $Uri
+    $delays=@(3,8,20)
+    $downloaded=$false
+    $downloadError=$null
+    $sourceName=''
+    foreach($source in $sources){
+        $isApi=$source.StartsWith('https://api.github.com/',[StringComparison]::OrdinalIgnoreCase)
+        for($attempt=1;$attempt -le 4;$attempt++){
+            try{
+                if($isApi){
+                    $headers=@{Accept='application/octet-stream';'X-GitHub-Api-Version'='2022-11-28'}
+                    $token=[string]$env:GITHUB_TOKEN
+                    if([string]::IsNullOrWhiteSpace($token)){$token=[string]$env:GH_TOKEN}
+                    if(![string]::IsNullOrWhiteSpace($token)){$headers.Authorization='Bearer '+$token}
+                    Invoke-WebRequest -UseBasicParsing -Uri $source -Headers $headers -MaximumRedirection 5 -OutFile $partial -TimeoutSec 120 -ErrorAction Stop
+                    $sourceName='GITHUB_API_RELEASE_ASSET'
+                }else{
+                    Invoke-WebRequest -UseBasicParsing -Uri $source -MaximumRedirection 5 -OutFile $partial -TimeoutSec 120 -ErrorAction Stop
+                    $sourceName='GITHUB_BROWSER_RELEASE_URL'
+                }
+                $downloaded=$true
+                break
+            }catch{
+                $downloadError=$_.Exception
+                Remove-Item -LiteralPath $partial -Force -ErrorAction SilentlyContinue
+                $httpStatus=0
+                if($_.Exception.Response -and $_.Exception.Response.StatusCode){
+                    $httpStatus=[int]$_.Exception.Response.StatusCode
+                }
+                $permanentHttpFailure=($httpStatus -ge 400 -and $httpStatus -lt 500 -and
+                    $httpStatus -ne 408 -and $httpStatus -ne 429)
+                if($permanentHttpFailure -or $attempt -eq 4){break}
+                $delay=$delays[$attempt-1]
+                Write-Warning ('TBME_DEPENDENCY_DOWNLOAD_TRANSIENT_FAILURE file='+
+                    [IO.Path]::GetFileName($Path)+' source='+
+                    $(if($isApi){'API'}else{'BROWSER'})+' attempt='+$attempt+
+                    ' status='+$httpStatus+' retrySeconds='+$delay)
+                Start-Sleep -Seconds $delay
+            }
+        }
+        if($downloaded){break}
+    }
+    if(!$downloaded){
+        $detail=if($downloadError){$downloadError.Message}else{'unknown transport failure'}
+        throw ('TBME_DEPENDENCY_DOWNLOAD_FAILED_AFTER_RETRIES file='+
+            [IO.Path]::GetFileName($Path)+' '+$detail)
+    }
+    try{
+        # Integrity failure is terminal: never retry or accept a mismatched pinned dependency.
+        Assert-Hash $partial $Expected
+        Move-Item -LiteralPath $partial -Destination $Path -Force
+        Write-Host ('TBME_DEPENDENCY_DOWNLOAD_SHA256=PASS file='+
+            [IO.Path]::GetFileName($Path)+' source='+$sourceName)
+    }catch{
+        Remove-Item -LiteralPath $partial -Force -ErrorAction SilentlyContinue
+        throw
+    }
 }
 function Build([string]$Project){
     & dotnet build $Project -c Release --nologo -p:RestoreIgnoreFailedSources=true
@@ -51,8 +123,8 @@ function Assert-PeSubsystem([string]$Path,[int]$Expected){
 
 New-Item -ItemType Directory -Force -Path $Deps,$Out,$Package,$TextPackage,$Artifacts|Out-Null
 if(!$NoDownload){
-    Invoke-WebRequest -UseBasicParsing -Uri $LhmUrl -OutFile $LhmZip
-    Invoke-WebRequest -UseBasicParsing -Uri $PawnUrl -OutFile $PawnExe
+    Download-PinnedDependency $LhmUrl $LhmZip $LhmSha $LhmApiUrl
+    Download-PinnedDependency $PawnUrl $PawnExe $PawnSha $PawnApiUrl
 }
 Assert-Hash $LhmZip $LhmSha
 Assert-Hash $PawnExe $PawnSha

@@ -30,6 +30,14 @@ jobs:
         with:
           dotnet-version: 10.0.400
 
+      # Run before any other fixture can create the canonical LocalAppData AppRoot.
+      # The test owns and removes that exact root on this fresh GitHub-hosted runner.
+      - name: R85 absent PawnIO must degrade safely without driver or sensor mutation
+        shell: pwsh
+        run: |
+          ./build/Test-PawnIO-External-Degrade.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Optional driver missing state tried unsafe protected mutation.' }
+
       - name: Git whitespace check
         shell: pwsh
         run: git diff --check HEAD^
@@ -65,7 +73,224 @@ jobs:
       - name: Reproducible build
         shell: pwsh
         run: ./build/Build.ps1
+      - name: R439 compiled legacy Broker refuses foreign same-name sessions and paths
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          # Launch a child WinPS5.1 process and use its real exit status rather
+          # than a stale LASTEXITCODE inherited from prior CI native commands.
+          $native=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+          $proof=@(& $native -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./build/Test-R439-LegacyBrokerProcessScope.ps1 -SupervisorPath ./build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe)
+          $exit=$LASTEXITCODE
+          $proof
+          if($exit -ne 0 -or
+             $proof -cnotcontains 'R439_PASS_COMPILED_EXACT_IMAGE_AND_SESSION_SCOPE_11_CASES' -or
+             $proof -cnotcontains 'R439_PASS_LIVE_TRUSTED_DRAIN_FOREIGN_SAME_NAME_SURVIVES'){
+             throw 'R439_COMPILED_LEGACY_PROCESS_SCOPE_REGRESSION'
+          }
+          $proof
 
+      - name: R398 compiled Updater rejects parent junction and redirects before writes
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R398-UpdateReparseAncestor.ps1 -AppPath ./build/_out/App/TaskbarMonitorEnhanced.exe -SourceRoot . -HostedGuest)
+          foreach($mark in @(
+            'R398_PASS_REAL_COMPILED_VERIFIER_ACCEPTS_UNLINKED_FIXTURE',
+            'R398_PASS_COMPILED_VERIFIER_REJECTS_PARENT_JUNCTION',
+            'R398_PASS_COMPILED_PREWRITE_GUARD_REJECTS_JUNCTION',
+            'R398_PASS_COMPILED_PREWRITE_GUARD_ACCEPTS_NORMAL_PATH',
+            'R398_PASS_FIXTURE_CONTENT_UNCHANGED',
+            'R398_PASS_NO_INSTALLER_LAUNCHED',
+            'R398_RESULT=PASS_SCOPED_UPDATER_PARENT_JUNCTION_BLOCKED'
+          )){
+            if($proof -cnotcontains $mark){throw ('R398_MISSING_NATIVE_REPARSE_PROOF_'+$mark)}
+          }
+          $proof
+
+      - name: R400 real compiled updater staging protects existing hardlink and rejects junction
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R400-UpdateStaging-CreateNew.ps1 -AppPath ./build/_out/App/TaskbarMonitorEnhanced.exe -SourceRoot . -HostedGuest)
+          foreach($mark in @(
+            'R400_PASS_COMPILED_CREATE_NEW_VERIFIED_STREAM_AND_DIGEST',
+            'R400_PASS_EXISTING_STAGING_NEVER_TRUNCATED',
+            'R400_PASS_PREPLANTED_HARDLINK_CANARY_UNCHANGED',
+            'R400_PASS_BAD_DIGEST_FAILS_CLOSED_AND_CLEANS_OWN_STAGING',
+            'R400_PASS_TINY_TRANSFER_REJECTED',
+            'R400_PASS_DISALLOWED_STAGING_PATH_REJECTED',
+            'R400_PASS_PARENT_JUNCTION_REJECTED_BEFORE_WRITE',
+            'R400_PASS_OUTSIDE_CANARY_BYTE_IDENTICAL',
+            'R400_PASS_NO_NETWORK_REQUEST_OR_INSTALLER_LAUNCH',
+            'R400_RESULT=PASS_SCOPED_UNPREDICTABLE_CREATE_NEW_STAGING'
+          )){
+            if($proof -cnotcontains $mark){throw ('R400_MISSING_COMPILED_NATIVE_STAGING_PROOF_'+$mark)}
+          }
+          $proof
+      - name: R408 compiled Broker self-enforced owner output boundary
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R408-BrokerOutputBoundary.ps1 -BrokerPath ./build/_out/Broker/TaskbarMonitorSensorBroker.exe -SourceRoot . -HostedGuest)
+          foreach($mark in @(
+            'R408_PASS_THREE_EXACT_MODE_AND_OUTPUT_PATHS_PINNED',
+            'R408_PASS_FOURTEEN_INVALID_MODE_AND_OWNER_OUTPUT_BINDINGS_REFUSED',
+            'R408_PASS_PIN_RELEASE_AND_DIRECTORY_RENAME_RECOVERY',
+            'R408_PASS_EXTERNAL_CANARY_UNCHANGED',
+            'R408_PASS_REAL_BROKER_EXE_REJECTS_OUTSIDE_OUTPUT_BEFORE_SENSORS',
+            'R408_PASS_DISPOSABLE_SYNTHETIC_OWNER_ROOT_ATOMIC_WRITE_CREATE_AND_REPLACE',
+            'R408_RESULT=PASS_COMPILED_BROKER_INDEPENDENT_OUTPUT_GUARD'
+          )){
+            if($proof -cnotcontains $mark){throw ('R408_HOSTED_BROKER_GUARD_PROOF_MISSING_'+$mark)}
+          }
+          if($proof -cnotcontains 'R408_PASS_OWNER_DIRECTORY_MOVE_DETECTED_FROM_LIVE_NATIVE_HANDLE' -and
+             $proof -cnotcontains 'R408_PASS_OWNER_DIRECTORY_RENAME_REFUSED_DURING_PIN'){
+            throw 'R408_HOSTED_NATIVE_DIRECTORY_MUTATION_PROOF_MISSING'
+          }
+          $proof
+      - name: R407 compiled Broker file and ancestor launch lease
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R407-BrokerLaunchPinnedIdentity.ps1 -SupervisorPath ./build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe -SourceRoot . -HostedGuest)
+          foreach($required in @(
+            'R407_PASS_COMPILED_NATIVE_FILE_AND_ANCESTOR_HANDLES_ACQUIRED',
+            'R407_PASS_TEN_NATIVE_BROKER_OUTPUT_AND_ANCESTOR_MUTATIONS_REFUSED',
+            'R407_PASS_REAL_HOSTED_CREATEPROCESS_WHILE_BROKER_AND_ANCESTORS_PINNED',
+            'R407_PASS_STORAGE_MISSING_LEAF_AND_CANONICAL_RECOVERY',
+            'R407_PASS_INVALID_MODE_REJECTED_BEFORE_LAUNCH',
+            'R407_PASS_HANDLE_DISPOSAL_RELEASES_FILES_AND_OUTSIDE_SHA_UNCHANGED',
+            'R407_RESULT=PASS_COMPILED_ATOMIC_BROKER_LAUNCH_LEASE_SCOPE'
+          )){
+            if($proof -cnotcontains $required){throw ('R407_HOSTED_BROKER_LEASE_PROOF_MISSING_'+$required)}
+          }
+          $proof
+      - name: R419 real compiled Broker argv punctuation and adversarial output
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R419-BrokerArgvMetacharacters.ps1 -SupervisorPath ./build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe -SourceRoot .)
+          foreach($required in @(
+            'R419_PASS_REAL_CREATEPROCESS_EXACT_TWO_ARGV_--run-cpu',
+            'R419_PASS_REAL_CREATEPROCESS_EXACT_TWO_ARGV_--run-gpu',
+            'R419_PASS_REAL_CREATEPROCESS_EXACT_TWO_ARGV_--once-storage',
+            'R419_PASS_FOUR_ADVERSARIAL_MODE_AND_OUTPUT_CASES_REJECTED',
+            'R421_PASS_THREE_NONCANONICAL_LOCALAPPDATA_BRANCHES_REJECTED',
+            'R419_PASS_OUTSIDE_CANARY_UNCHANGED',
+            'R419_PASS_ONLY_HARMLESS_COMPILED_PROBE_EXECUTED',
+            'R419_RESULT=PASS_REAL_NET48_NO_SHELL_ARGV_META_CHARACTERS_EXACT'
+          )){
+            if($proof -cnotcontains $required){throw ('R419_HOSTED_BENIGN_ARGV_REGRESSION_MISSING_'+$required)}
+          }
+          $proof
+      - name: R406 compiled Supervisor per-launch Broker mode and owner path validation
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R406-SupervisorLaunchRebind.ps1 -SupervisorPath ./build/_out/Supervisor/TaskbarMonitorSensorSupervisor.exe -SourceRoot . -HostedGuest)
+          foreach($required in @(
+            'R406_PASS_THREE_CANONICAL_MODES_AND_SPACES_REAL_COMPILED',
+            'R406_PASS_THIRTEEN_UNTRUSTED_EXECUTABLE_MODE_OUTPUT_AND_PROFILE_CASES',
+            'R406_PASS_RESTART_REJECTS_NEW_OWNER_OUTPUT_JUNCTION',
+            'R406_PASS_RESTART_REJECTS_NEW_PROTECTED_BROKER_JUNCTION',
+            'R406_PASS_CANONICAL_RECOVERS_AFTER_BOTH_JUNCTION_REMOVALS',
+            'R406_PASS_OUTSIDE_CANARY_UNCHANGED_NO_REAL_BROKER_EXECUTED',
+            'R406_RESULT=PASS_COMPILED_SUPERVISOR_LAUNCH_TIME_REBIND'
+          )){
+            if($proof -cnotcontains $required){throw ('R406_NATIVE_PER_LAUNCH_REBIND_PROOF_MISSING_'+$required)}
+          }
+          $proof
+      - name: R405 compiled pinned verified Setup and Win32 file identity launch
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R405-PinnedInstallerLaunch.ps1 -AppPath ./build/_out/App/TaskbarMonitorEnhanced.exe -SourceRoot . -HostedGuest)
+          foreach($required in @(
+            'R405_PASS_BAD_SHA_REJECTED_WITHOUT_STALE_PINS',
+            'R405_PASS_REAL_NET48_HANDLE_IDENTITY_AND_SHA',
+            'R405_PASS_SEVEN_FILE_AND_ALL_OWNER_ANCESTOR_MUTATIONS_REJECTED',
+            'R405_PASS_REAL_HOSTED_SHELLEXECUTE_WHILE_SAME_EXE_AND_ANCESTORS_PINNED',
+            'R405_PASS_PINNED_SETUP_AND_OUTSIDE_CANARY_SHA256_UNCHANGED',
+            'R405_PASS_PIN_RELEASE_ALLOWS_NORMAL_FILE_MANAGEMENT',
+            'R405_RESULT=PASS_COMPILED_PINNED_FILE_AND_ANCESTOR_LAUNCH_BOUNDARY'
+          )){
+            if($proof -cnotcontains $required){throw ('R405_NATIVE_PIN_AND_SHELL_EXECUTION_PROOF_MISSING_'+$required)}
+          }
+          $proof
+      - name: R404 compiled owner-only verified Setup execution scope
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R404-UpdaterLaunchCanonicalScope.ps1 -AppPath ./build/_out/App/TaskbarMonitorEnhanced.exe -SourceRoot . -HostedGuest)
+          foreach($required in @(
+            'R404_PASS_REAL_OWNER_INSTALL_ROOT_POLICY_READONLY',
+            'R404_PASS_COMPILED_CANONICAL_UPDATE_SETUP_AND_SHA256',
+            'R404_PASS_TWELVE_MALICIOUS_OR_MISMATCHED_LAUNCH_PATHS_REJECTED',
+            'R404_PASS_REAL_UPDATES_JUNCTION_REJECTED',
+            'R404_PASS_SHA256_FIXTURES_UNCHANGED',
+            'R404_PASS_NO_REAL_SETUP_PROCESS_LAUNCHED_OR_OWNER_CONFIGURATION_MODIFIED',
+            'R404_RESULT=PASS_COMPILED_OWNER_ONLY_CANONICAL_SETUP_LAUNCH_GUARD'
+          )){
+            if($proof -cnotcontains $required){throw ('R404_REQUIRED_NATIVE_PROOF_MISSING_'+$required)}
+          }
+          $proof
+      - name: R403 compiled canonical owner updater directory and version defenses
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R403-UpdaterCanonicalKnownFolder.ps1 -AppPath ./build/_out/App/TaskbarMonitorEnhanced.exe -SourceRoot . -HostedGuest)
+          foreach($mark in @(
+            'R403_PASS_COMPILED_OFFICIAL_NUMERIC_SETUP_ASSET',
+            'R403_PASS_MALFORMED_VERSIONS_AND_TRAVERSAL_REJECTED',
+            'R403_PASS_OWNER_KNOWN_FOLDER_MATCHES_EXISTING_APP_READONLY',
+            'R403_PASS_CANONICAL_OWNER_LOCAL_APPDATA_ACCEPTED',
+            'R403_PASS_REDIRECT_UNC_RELATIVE_ROOT_ONLY_PATHS_REJECTED',
+            'R403_PASS_COMPILED_UPDATES_PARENT_JUNCTION_REJECTED',
+            'R403_PASS_OUTSIDE_CANARY_BYTE_IDENTICAL',
+            'R403_PASS_NO_NETWORK_INSTALLER_OR_OWNER_MUTATION',
+            'R403_RESULT=PASS_COMPILED_CANONICAL_OWNER_UPDATES_AND_NUMERIC_ASSET'
+          )){
+            if($proof -cnotcontains $mark){throw ('R403_COMPILED_UPDATER_NEGATIVE_PROOF_MISSING_'+$mark)}
+          }
+          $proof
+      - name: R401 compiled post-fullscreen topmost loss policy (visible-only)
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R401-TopmostRecoveryPolicy.ps1 -AppPath ./build/_out/App/TaskbarMonitorEnhanced.exe -SourceRoot . -HostedGuest)
+          foreach($mark in @(
+            'R401_PASS_MISSING_TOPMOST_REQUIRES_REPAIR_AFTER_VISIBLE',
+            'R401_PASS_HEALTHY_TOPMOST_NO_PERPETUAL_RESTACK',
+            'R401_PASS_FULLSCREEN_AND_HIDDEN_DO_NOT_RESTACK',
+            'R401_PASS_START_SHELL_NOT_RESTACKED',
+            'R401_PASS_SETTINGS_AND_MENU_NOT_RESTACKED',
+            'R401_PASS_CHILD_MODE_NOT_RESTACKED',
+            'R401_PASS_BOUNDARY_MATRIX_NO_UNCONDITIONAL_TOPMOST_TIMER',
+            'R401_PASS_NO_REAL_TASKBAR_OR_OWNER_PROCESS_TOUCHED',
+            'R401_RESULT=PASS_COMPILED_VISIBLE_TOPMOST_DRIFT_POLICY_ONLY'
+          )){
+            if($proof -cnotcontains $mark){throw ('R401_NATIVE_TOPMOST_DRIFT_PROOF_MISSING_'+$mark)}
+          }
+          $proof
+      - name: R399 real compiled Explorer folder arguments remain one quoted path
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $proof=@(& ./build/Test-R399-ExplorerFolderArgs.ps1 -AppPath ./build/_out/App/TaskbarMonitorEnhanced.exe -SourceRoot . -HostedGuest)
+          foreach($mark in @(
+            'R399_PASS_COMPILED_EXPLORER_ABSOLUTE_AND_QUOTED',
+            'R399_PASS_NATIVE_DOTNET_ARGUMENT_SINGLE_PATH',
+            'R399_PASS_RELATIVE_FOLDER_REJECTED',
+            'R399_PASS_QUOTE_INJECTION_REJECTED',
+            'R399_PASS_MISSING_FOLDER_REJECTED',
+            'R399_PASS_THREE_UI_FOLDER_CALLS_PINNED',
+            'R399_PASS_NO_REAL_EXPLORER_LAUNCHED',
+            'R399_RESULT=PASS_SCOPED_EXPLORER_FOLDER_ARG_QUOTING'
+          )){
+            if($proof -cnotcontains $mark){throw ('R399_MISSING_NATIVE_EXPLORER_PROOF_'+$mark)}
+          }
+          $proof
       # R298: this compiles the actual PE-embedded cleanup source, then
       # invokes the pin/delete primitive ONLY on a freshly created Temp fixture.
       # It never invokes the owner uninstall or alters an installed product.
@@ -109,12 +334,6 @@ jobs:
         run: |
           ./build/Test-NoPawnIO-OssRelease.ps1
           if ($LASTEXITCODE -ne 0) { throw 'A signed Setup may not embed the official PawnIO binary.' }
-
-      - name: R85 absent PawnIO must degrade safely without driver or sensor mutation
-        shell: pwsh
-        run: |
-          ./build/Test-PawnIO-External-Degrade.ps1
-          if ($LASTEXITCODE -ne 0) { throw 'Optional driver missing state tried unsafe protected mutation.' }
 
       - name: All-theme glass and chart visual acceptance (10 suites)
         shell: pwsh
@@ -350,11 +569,47 @@ jobs:
         run: |
           $ErrorActionPreference='Stop'
           $uri='https://github.com/GOD13emad/TaskbarMonitorEnhanced/releases/download/v1.7.9/TaskbarMonitorEnhanced_Setup_1.7.9.exe'
+          $apiUri='https://api.github.com/repos/GOD13emad/TaskbarMonitorEnhanced/releases/assets/686770639'
           $path=Join-Path $env:RUNNER_TEMP 'R299_OFFICIAL_v1.7.9_SETUP.exe'
           if(Test-Path $path){throw 'R299_PUBLISHED_DOWNLOAD_PREEXISTS'}
           [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
-          Invoke-WebRequest -UseBasicParsing -Uri $uri -OutFile $path -TimeoutSec 90
-          if((Get-Item $path).Length -ne 8577536 -or
+          # Prefer the immutable release asset API; retain the browser URL as a pinned fallback.
+          $sources=@($apiUri,$uri)
+          $delays=@(3,8,20)
+          $downloaded=$false
+          $downloadError=$null
+          foreach($source in $sources){
+            $isApi=$source.StartsWith('https://api.github.com/',[StringComparison]::OrdinalIgnoreCase)
+            for($attempt=1;$attempt -le 4;$attempt++){
+              try{
+                if($isApi){
+                  $headers=@{Accept='application/octet-stream';'X-GitHub-Api-Version'='2022-11-28'}
+                  if(![string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN)){$headers.Authorization='Bearer '+$env:GITHUB_TOKEN}
+                  Invoke-WebRequest -UseBasicParsing -Uri $source -Headers $headers -MaximumRedirection 5 -OutFile $path -TimeoutSec 120 -ErrorAction Stop
+                }else{
+                  Invoke-WebRequest -UseBasicParsing -Uri $source -MaximumRedirection 5 -OutFile $path -TimeoutSec 120 -ErrorAction Stop
+                }
+                $downloaded=$true
+                break
+              }catch{
+                $downloadError=$_.Exception
+                Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+                $httpStatus=0
+                if($_.Exception.Response -and $_.Exception.Response.StatusCode){$httpStatus=[int]$_.Exception.Response.StatusCode}
+                $permanentHttpFailure=($httpStatus -ge 400 -and $httpStatus -lt 500 -and $httpStatus -ne 408 -and $httpStatus -ne 429)
+                if($permanentHttpFailure -or $attempt -eq 4){break}
+                $delay=$delays[$attempt-1]
+                Write-Warning ('R299_RELEASE_DOWNLOAD_TRANSIENT_FAILURE source='+$(if($isApi){'API'}else{'BROWSER'})+' attempt='+$attempt+' status='+$httpStatus+' retrySeconds='+$delay)
+                Start-Sleep -Seconds $delay
+              }
+            }
+            if($downloaded){break}
+          }
+          if(!$downloaded){
+            $detail=if($downloadError){$downloadError.Message}else{'unknown transport failure'}
+            throw ('R299_PUBLIC_IMMUTABLE_RELEASE_DOWNLOAD_FAILED_AFTER_RETRIES '+$detail)
+          }
+          if((Get-Item -LiteralPath $path).Length -ne 8577536 -or
              (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -cne '3AE5E2AC7428C3443FF7768C543117AF864E7C73F68D32EFAD4AB40B30FB5B0E'){
             throw 'R299_PUBLIC_IMMUTABLE_RELEASE_DOWNLOAD_HASH_MISMATCH'
           }
@@ -385,6 +640,11 @@ jobs:
           $published=Join-Path $env:RUNNER_TEMP 'R299_OFFICIAL_v1.7.9_SETUP.exe'
           $proof=@(& ./build/Test-R299-HostedPublicV179Upgrade.ps1 -OfficialSetup $published)
           foreach($mark in @(
+            'R299_HOSTED_TOKEN_PROCESS_CREATION=PASS',
+            'R299_HOSTED_CRASH_CHILD_GUI_HOST=PASS',
+            'R299_HOSTED_CRASH_GUI_BOOTSTRAP=PASS',
+            'R299_HOSTED_CRASH_CHILD_ENTRY=PASS',
+            'R299_HOSTED_CRASH_CHILD_STARTUP=PASS',
             'R299_HOSTED_TAMPERED_OFFICIAL_PREDECESSOR_REFUSED_BEFORE_MUTATION=PASS',
             'R299_HOSTED_ABRUPT_TWO_FILE_COMMITTING_RECOVERED_BY_REAL_SETUP=PASS',
             'R299_HOSTED_ORIGINAL_SETUP_OFFICIAL_179_TO_1710_INPLACE_UPGRADE=PASS',
@@ -399,6 +659,15 @@ jobs:
           New-Item -ItemType Directory -Path './artifacts' -Force|Out-Null
           Copy-Item -LiteralPath $receipt -Destination './artifacts/R299_PUBLIC179_HOSTED_UPGRADE_RECEIPT.json' -ErrorAction Stop
           $proof
+
+      - name: Upload R299 hosted Setup failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: r299-public-v179-failure-diagnostics
+          path: ${{ runner.temp }}/TBME_R126_STABLE_UPDATE/R129_DIAG_*.txt
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload original-PE official 1.7.9 upgrade receipt
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

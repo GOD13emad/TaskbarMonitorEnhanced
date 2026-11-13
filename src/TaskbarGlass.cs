@@ -1724,6 +1724,16 @@ namespace TaskbarMonitorEnhanced
                 window.Left<=monitor.Left+1 && window.Top<=monitor.Top+1 &&
                 window.Right>=monitor.Right-1 && window.Bottom>=monitor.Bottom-1;
         }
+        // R401: Windows 2022 can clear WS_EX_TOPMOST on our owned overlay
+        // after fullscreen ends. Repair that exact missing style immediately
+        // only when taskbar presentation is Visible and shell/dialogs are absent.
+        // This is not a perpetual topmost timer or a taskbar mutation.
+        internal static bool ShouldRepairMissingTopmost(bool topLevelGlass,bool visibleEligible,
+            bool shellOpen,bool dialogOpen,long exStyle)
+        {
+            return topLevelGlass&&visibleEligible&&!shellOpen&&!dialogOpen&&
+                (exStyle&Native.WS_EX_TOPMOST)==0;
+        }
         // Only correct a confirmed persistent overlap. The shell may intentionally
         // cover our metrics during Start, fullscreen, or the user's own dialogs.
         internal static bool ShouldRepairOcclusion(bool observed,bool shellOpen,
@@ -1944,6 +1954,31 @@ namespace TaskbarMonitorEnhanced
                     bar.Contains(expectedRect)&&Visible;
                 bool dialogOpen=(settingsForm!=null&&!settingsForm.IsDisposed&&settingsForm.Visible)||
                     (menu!=null&&!menu.IsDisposed&&menu.Visible);
+                // R401: one Windows 2022 native 3-cycle run lost TOPMOST just
+                // after fullscreen exit: STYLE_INTEGRITY_DRIFT was logged, but
+                // delayed whole-form recovery missed the real z-order gate.
+                // Repair only the drifted HWND, without activating or raising
+                // the taskbar, Start, fullscreen, Settings or any other window.
+                long currentEx=Native.GetWindowLongPtr(Handle,Native.GWL_EXSTYLE).ToInt64();
+                if(TaskbarPresentationPolicy.ShouldRepairMissingTopmost(
+                    RequiresGlassTopLevel,valid,presentationShellOpen,dialogOpen,currentEx))
+                {
+                    bool restoredTopmost=EnsureTopLevelGlassStyles("VISIBLE_TOPMOST_LOSS",true);
+                    if(restoredTopmost)
+                    {
+                        presentationOcclusionStreak=0;
+                        presentationLastOcclusionRepairUtc=now;
+                        PaintPerPixelLayer();
+                        Log.Write("INFO","TASKBAR_VISIBLE_TOPMOST_DRIFT_REPAIRED exBefore=0x"+
+                            currentEx.ToString("X8"));
+                    }
+                    else
+                    {
+                        Log.Write("WARN","TASKBAR_VISIBLE_TOPMOST_DRIFT_REPAIR_FAILED exBefore=0x"+
+                            currentEx.ToString("X8"));
+                        if(!recoveryPending)ScheduleRecovery("VISIBLE_TOPMOST_REPAIR_FAILED",250);
+                    }
+                }
                 bool covered=false;
                 if(valid&&!presentationShellOpen&&!dialogOpen)
                 {

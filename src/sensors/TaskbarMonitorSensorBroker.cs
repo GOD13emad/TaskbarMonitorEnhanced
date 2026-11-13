@@ -60,6 +60,10 @@ namespace TaskbarMonitorSensorBroker
     internal static class Program
     {
         private static long SampleSequence=0;
+        // R408: the child validates its own mode and fixed owner output,
+        // independently of the Supervisor that spawned it.
+        private static string BoundOutputMode;
+        private static string BoundOutputPath;
         private static string LogPath
         {
             get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"sensor_broker.log"); }
@@ -105,40 +109,62 @@ namespace TaskbarMonitorSensorBroker
             foreach(IHardware sub in hw.SubHardware)UpdateTree(sub);
         }
 
+        // R367: unique CREATE_NEW temp files reject pre-existing hard-link aliases.
+        // Never fall back to File.Copy, which can write through an aliased destination.
+        // Atomic replace failures are retried and then fail closed.
         private static void AtomicWrite(string path,string json)
         {
-            string parent=Path.GetDirectoryName(path);
-            if(!String.IsNullOrWhiteSpace(parent))Directory.CreateDirectory(parent);
-            string tmp=path+"."+Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture)+"."+Environment.TickCount.ToString(CultureInfo.InvariantCulture)+".tmp";
-            File.WriteAllText(tmp,json);
-            Exception last=null;
-            for(int attempt=0;attempt<5;attempt++)
+            if(String.IsNullOrWhiteSpace(BoundOutputMode)||
+               !String.Equals(path,BoundOutputPath,StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Broker write is not bound to its accepted output.");
+            // No writes until all output ancestry is rechecked and pinned.
+            using(BrokerOutputBoundary lease=BrokerOutputBoundary.PinCurrent(BoundOutputMode,path))
             {
-                try
-                {
-                    if(File.Exists(path))
-                    {
-                        try
-                        {
-                            string bak=path+".bak";
-                            File.Replace(tmp,path,bak,true);
-                            try{File.Delete(bak);}catch{}
-                            return;
-                        }
-                        catch{}
-                    }
-                    File.Copy(tmp,path,true);
-                    try{File.Delete(tmp);}catch{}
-                    return;
-                }
-                catch(Exception ex)
-                {
-                    last=ex;
-                    Thread.Sleep(60*(attempt+1));
-                }
+                AtomicWriteUnderLease(path,json,lease);
             }
-            try{File.Delete(tmp);}catch{}
-            if(last!=null)throw last;
+        }
+
+        // The caller-facing method above enforces the fixed-mode owner boundary.
+        // A separate private core lets native security regression fixtures exercise
+        // atomic replacement on disposable synthetic profiles without touching a
+        // real user's LocalAppData or weakening the executable's argv validation.
+        private static void AtomicWriteUnderLease(string path,string json,BrokerOutputBoundary lease)
+        {
+            if(lease==null)throw new ArgumentNullException("lease");
+            string tmp=path+"."+Guid.NewGuid().ToString("N")+".tmp";
+            bool tempCreated=false;
+            Exception last=null;
+            try
+            {
+                using(FileStream stream=new FileStream(tmp,FileMode.CreateNew,FileAccess.Write,FileShare.None))
+                {
+                    tempCreated=true;
+                    byte[] bytes=new System.Text.UTF8Encoding(false).GetBytes(json);
+                    stream.Write(bytes,0,bytes.Length);
+                    stream.Flush();
+                }
+                for(int attempt=0;attempt<5;attempt++)
+                {
+                    try
+                    {
+                        lease.RevalidateLeaf(path);
+                        if(File.Exists(path))File.Replace(tmp,path,null,true);
+                        else File.Move(tmp,path);
+                        tempCreated=false;
+                        return;
+                    }
+                    catch(Exception ex)
+                    {
+                        last=ex;
+                        if(attempt<4)Thread.Sleep(60*(attempt+1));
+                    }
+                }
+                if(last!=null)throw last;
+            }
+            finally
+            {
+                if(tempCreated)try{File.Delete(tmp);}catch{}
+            }
         }
 
         private static string Json(Dictionary<string,object> m)
@@ -584,16 +610,25 @@ namespace TaskbarMonitorSensorBroker
 
         private static int Main(string[] args)
         {
-            if(args==null||args.Length<2)return 2;
+            if(args==null||args.Length!=2)return 2;
             string mode=(args[0]??"").Trim().ToLowerInvariant();
             string output=args[1];
+            try
+            {
+                output=BrokerOutputBoundary.CurrentValidatedOutput(mode,output);
+                BoundOutputMode=mode;
+                BoundOutputPath=output;
+            }
+            catch(Exception ex)
+            {
+                Log("BROKER_ARGV_REFUSED type="+ex.GetType().Name);
+                return 2;
+            }
             Environment.CurrentDirectory=AppDomain.CurrentDomain.BaseDirectory;
             try
             {
-                if(mode=="--run"||mode=="--run-cpu")return RunPersistent("CPU",output,1000);
+                if(mode=="--run-cpu")return RunPersistent("CPU",output,1000);
                 if(mode=="--run-gpu")return RunPersistent("GPU",output,2000);
-                if(mode=="--once"||mode=="--once-cpu")return RunOnce("CPU",output);
-                if(mode=="--once-gpu")return RunOnce("GPU",output);
                 if(mode=="--once-storage")return RunOnce("STORAGE",output);
                 return 3;
             }
