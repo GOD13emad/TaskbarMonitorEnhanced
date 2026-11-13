@@ -11,6 +11,19 @@ if [[ -e "$destination" || -L "$destination" ]]; then
   exit 3
 fi
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+# SOURCE_DATE_EPOCH pins Debian ar/tar metadata to the last relevant source
+# commit. A documentation-only CI rerun must not change the .deb bytes.
+if [[ ! ${SOURCE_DATE_EPOCH+x} ]]; then
+  SOURCE_DATE_EPOCH="$(git -C "$root" log -1 --format=%ct -- native/linux native/telemetry)" || {
+    echo 'cannot derive deterministic native-source epoch' >&2
+    exit 6
+  }
+fi
+if [[ ! "$SOURCE_DATE_EPOCH" =~ ^[0-9]+$ ]]; then
+  echo 'SOURCE_DATE_EPOCH must be a nonnegative integer' >&2
+  exit 6
+fi
+export SOURCE_DATE_EPOCH
 stage="$(mktemp -d)"
 trap 'rm -rf -- "$stage"' EXIT
 mkdir -p -- "$stage/root/DEBIAN" "$stage/root/usr/bin" "$stage/root/usr/share/applications"

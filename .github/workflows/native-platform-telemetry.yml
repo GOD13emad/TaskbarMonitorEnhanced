@@ -195,6 +195,16 @@ jobs:
           after="$(sha256sum "$deb" | cut -d' ' -f1)"
           test "$before" = "$after"
           echo 'TBME_LINUX_PACKAGE_NO_OVERWRITE=PASS'
+          # R460: two independent builds with distinct temporary roots and time
+          # must yield byte-identical Debian packages, not merely equal ELF.
+          second="$inspect/rebuild-native-preview.deb"
+          sleep 2
+          bash native/linux/build-preview-deb.sh "$second" >"$inspect/rebuild.log"
+          cmp -s "$deb" "$second" || {
+            sha256sum "$deb" "$second"
+            echo 'R460 Debian package rebuild is not byte-identical'; exit 1
+          }
+          echo 'TBME_R460_DEBIAN_PREVIEW_BYTE_IDENTICAL_REBUILD=PASS'
 
       - name: Install and purge owned preview package on disposable Ubuntu CI only
         if: runner.os == 'Linux'
