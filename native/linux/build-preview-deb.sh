@@ -14,10 +14,11 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 stage="$(mktemp -d)"
 trap 'rm -rf -- "$stage"' EXIT
 mkdir -p -- "$stage/root/DEBIAN" "$stage/root/usr/bin" "$stage/root/usr/share/applications"
-c++ -std=c++17 -O2 -march=x86-64 -mtune=generic -Wall -Wextra -Werror -pedantic   "$root/native/linux/Panel.cpp" -o "$stage/root/usr/bin/tbme-linux-panel"   $(pkg-config --cflags --libs gtk+-3.0)
+c++ -std=c++17 -O2 -march=x86-64 -mtune=generic -Wl,-z,x86-64-baseline -Wall -Wextra -Werror -pedantic   "$root/native/linux/Panel.cpp" -o "$stage/root/usr/bin/tbme-linux-panel"   $(pkg-config --cflags --libs gtk+-3.0)
 # R458: reject binaries requiring AVX2/x86-64-v3 at build time.
 # Never strip GNU ELF notes to silence a real loader compatibility check.
 isa_notes="$(readelf -n "$stage/root/usr/bin/tbme-linux-panel")"
+printf "%s\n" "$isa_notes"
 if ! grep -Eq 'x86 ISA needed: x86-64-baseline[[:space:]]*$' <<<"$isa_notes"; then
   printf '%s\n' "$isa_notes" >&2
   echo 'R458 refusing Linux preview requiring above x86-64-baseline' >&2
