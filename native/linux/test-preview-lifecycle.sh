@@ -98,6 +98,28 @@ test "$(/usr/bin/tbme-linux-panel --settings)" = 'alert=true bell=false threshol
 test "$(sha256sum "$prefs" | cut -d' ' -f1)" = "$original_pref_hash"
 echo 'TBME_R446_SAME_VERSION_REINSTALL_FUNCTIONAL_IDENTITY=PASS'
 
+# R463: exercise an actual dpkg downgrade to the synthetic predecessor,
+# then reapply the candidate. A non-default user edit must survive both.
+before_rollback='alert=true bell=false thresholdC=97'
+/usr/bin/tbme-linux-panel --set-threshold 97
+test "$(/usr/bin/tbme-linux-panel --settings)" = "$before_rollback"
+rollback_pref_hash="$(sha256sum "$prefs" | cut -d' ' -f1)"
+test "$rollback_pref_hash" != "$original_pref_hash"
+sudo -n dpkg -i "$stage/synthetic-previous.deb"
+test "$(dpkg-query -W -f='${Status} ${Version}' "$package")" = "install ok installed $old_version"
+/usr/bin/tbme-linux-panel --self-test | grep -Fx 'TBME_NATIVE_R446_SYNTHETIC_PREDECESSOR=PASS'
+test "$(sha256sum "$prefs" | cut -d' ' -f1)" = "$rollback_pref_hash"
+echo 'TBME_R463_DPKG_DOWNGRADE_RESTORES_PREDECESSOR_AND_PRESERVES_USER_EDIT=PASS'
+
+sudo -n dpkg -i "$current"
+test "$(dpkg-query -W -f='${Status} ${Version}' "$package")" = "install ok installed $version"
+test "$(sha256sum /usr/bin/tbme-linux-panel | cut -d' ' -f1)" = "$source_sha"
+/usr/bin/tbme-linux-panel --self-test | grep -Fx 'TBME_LINUX_GTK3_NATIVE_SENSOR_SELFTEST=PASS'
+test "$(/usr/bin/tbme-linux-panel --settings)" = "$before_rollback"
+test "$(sha256sum "$prefs" | cut -d' ' -f1)" = "$rollback_pref_hash"
+test "$(stat -c '%a' "$prefs")" = 600
+echo 'TBME_R463_DPKG_REUPGRADE_RESTORES_CANDIDATE_AND_RELOADS_USER_EDIT=PASS'
+
 sudo -n dpkg --remove "$package"
 test ! -e /usr/bin/tbme-linux-panel
 test ! -e /usr/share/applications/tbme-native-preview.desktop
@@ -108,5 +130,5 @@ if dpkg-query -s "$package" 2>/dev/null | grep -q '^Status: install ok installed
 fi
 installed_by_this_test=false
 test -f "$prefs"
-test "$(sha256sum "$prefs" | cut -d' ' -f1)" = "$original_pref_hash"
+test "$(sha256sum "$prefs" | cut -d' ' -f1)" = "$rollback_pref_hash"
 echo 'TBME_R446_DISPOSABLE_UPGRADE_REMOVE_PURGE=PASS'
