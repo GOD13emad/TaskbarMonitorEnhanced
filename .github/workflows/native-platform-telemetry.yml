@@ -63,8 +63,9 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           set -eu
-          c++ -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+          c++ -std=c++17 -O2 -march=x86-64 -mtune=generic -Wall -Wextra -Werror -pedantic \
             native/linux/Panel.cpp -o tbme-linux-panel $(pkg-config --cflags --libs gtk+-3.0)
+          readelf -n ./tbme-linux-panel | grep -E 'x86 ISA needed: x86-64-baseline[[:space:]]*$'
           ./tbme-linux-panel --self-test | grep -Fx 'TBME_LINUX_GTK3_NATIVE_SENSOR_SELFTEST=PASS'
           # No display required: real sysfs reading or explicit unavailable code 3.
           if ./tbme-linux-panel --probe-temperature > cpu-temperature-witness.txt; then
@@ -179,6 +180,12 @@ jobs:
           set -eu
           deb="$RUNNER_TEMP/taskbarmonitorenhanced-native-preview.deb"
           bash native/linux/build-preview-deb.sh "$deb"
+          inspect="$(mktemp -d "$RUNNER_TEMP/tbme-r458-isa.XXXXXXXX")"
+          trap 'rm -rf -- "$inspect"' EXIT
+          dpkg-deb -x "$deb" "$inspect"
+          readelf -n "$inspect/usr/bin/tbme-linux-panel" |
+            grep -E 'x86 ISA needed: x86-64-baseline[[:space:]]*$'
+          echo 'TBME_R458_LINUX_AMD64_PACKAGE_BASELINE_ISA=PASS'
           test "$(dpkg-deb --field "$deb" Package)" = 'taskbarmonitorenhanced-native-preview'
           before="$(sha256sum "$deb" | cut -d' ' -f1)"
           if bash native/linux/build-preview-deb.sh "$deb" >/dev/null 2>&1; then
