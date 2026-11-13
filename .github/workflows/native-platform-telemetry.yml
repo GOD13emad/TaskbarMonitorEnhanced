@@ -63,7 +63,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           set -eu
-          c++ -std=c++17 -O2 -march=x86-64 -mtune=generic -Wl,-z,x86-64-baseline -Wall -Wextra -Werror -pedantic \
+          c++ -std=c++17 -O2 -march=x86-64 -mtune=generic -Wall -Wextra -Werror -pedantic \
             native/linux/Panel.cpp -o tbme-linux-panel $(pkg-config --cflags --libs gtk+-3.0)
           readelf -n ./tbme-linux-panel
           readelf -n ./tbme-linux-panel | grep -E 'x86 ISA needed: x86-64-baseline[[:space:]]*$'
