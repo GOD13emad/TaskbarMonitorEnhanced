@@ -11,13 +11,12 @@ if [[ -e "$destination" || -L "$destination" ]]; then
   exit 3
 fi
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
-# SOURCE_DATE_EPOCH pins Debian ar/tar metadata to the last relevant source
-# commit. A documentation-only CI rerun must not change the .deb bytes.
+# Pin the default package timestamp to this preview revision's source epoch.
+# PR checkouts use synthetic merge commits, so git-log epochs differ across
+# push/PR builds even with identical ELF and source bytes.
+# Update this default only when intentionally revising the preview package.
 if [[ ! ${SOURCE_DATE_EPOCH+x} ]]; then
-  SOURCE_DATE_EPOCH="$(git -C "$root" log -1 --format=%ct -- native/linux native/telemetry)" || {
-    echo 'cannot derive deterministic native-source epoch' >&2
-    exit 6
-  }
+  SOURCE_DATE_EPOCH=1794441600 # 2026-11-12 00:00:00 UTC (0.1.0~r443)
 fi
 if [[ ! "$SOURCE_DATE_EPOCH" =~ ^[0-9]+$ ]]; then
   echo 'SOURCE_DATE_EPOCH must be a nonnegative integer' >&2
