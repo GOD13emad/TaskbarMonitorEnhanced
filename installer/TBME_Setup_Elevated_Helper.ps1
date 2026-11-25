@@ -147,6 +147,21 @@ static extern SafeFileHandle OpenNative(string name,uint access,uint share,IntPt
 public struct TagInfo { public uint FileAttributes; public uint ReparseTag; }
 [DllImport("kernel32.dll",SetLastError=true)]
 static extern bool GetFileInformationByHandleEx(SafeFileHandle handle,int kind,out TagInfo data,uint size);
+[StructLayout(LayoutKind.Sequential)]
+struct StandardInfo {
+ public long AllocationSize, EndOfFile;
+ public uint NumberOfLinks;
+ public byte DeletePending, Directory;
+}
+[DllImport("kernel32.dll",EntryPoint="GetFileInformationByHandleEx",SetLastError=true)]
+static extern bool GetStandardInfo(SafeFileHandle handle,int kind,out StandardInfo data,uint size);
+static void AssertSingleLink(SafeFileHandle handle) {
+ StandardInfo info;
+ if(!GetStandardInfo(handle,1,out info,(uint)Marshal.SizeOf(typeof(StandardInfo))))
+  throw new IOException("SENSOR_LOG_HANDLE_STANDARD_INFO_UNAVAILABLE");
+ if(info.NumberOfLinks!=1 || info.DeletePending!=0 || info.Directory!=0)
+  throw new IOException("SENSOR_LOG_HANDLE_LINK_COUNT_UNTRUSTED");
+}
 readonly SafeFileHandle[] guard=new SafeFileHandle[5];
 int guardCount=0;
 FileStream stream;
@@ -198,6 +213,7 @@ guard[guardCount++]=parent;
 SafeFileHandle h=OpenChecked(file,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ,
 OPEN_ALWAYS,FILE_FLAG_OPEN_REPARSE_POINT,false);
 try{
+AssertSingleLink(h);
 stream=new FileStream(h,FileAccess.ReadWrite);
 stream.Seek(0,SeekOrigin.End);
 }catch{h.Dispose();throw;}
@@ -205,6 +221,7 @@ stream.Seek(0,SeekOrigin.End);
 }
 public void Append(string text){
 if(disposed || stream==null)throw new ObjectDisposedException("TBMEScopedUserLogLease");
+AssertSingleLink(stream.SafeFileHandle);
 if(stream.Length==0){
 byte[] bom=new System.Text.UTF8Encoding(true).GetPreamble();
 stream.Write(bom,0,bom.Length);
@@ -215,6 +232,7 @@ stream.Flush(true);
 }
 public void Overwrite(string text){
 if(disposed || stream==null)throw new ObjectDisposedException("TBMEScopedUserLogLease");
+AssertSingleLink(stream.SafeFileHandle);
 stream.SetLength(0);stream.Position=0;
 byte[] bom=new System.Text.UTF8Encoding(true).GetPreamble();
 stream.Write(bom,0,bom.Length);

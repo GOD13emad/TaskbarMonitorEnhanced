@@ -185,6 +185,19 @@ try{
   throw 'R335_SANDBOX_BASELINE_RENAME_EXPECTED_PERMITTED'
  }
  Pass 'BASELINE_UNGUARDED_DIR_AND_LEAF_RENAME_ALLOWED'
+ $preExistingHardlink=Join-Path $external 'sensor_install_preexisting_hardlink.txt'
+ & cmd.exe /c ('mklink /H "'+$preExistingHardlink+'" "'+$file+'"')|Out-Null
+ if($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $preExistingHardlink -PathType Leaf)){
+  throw 'R335_PREEXISTING_HARDLINK_FIXTURE_CREATE_FAILED'
+ }
+ $preExistingHash=(Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
+ Refuse 'PREEXISTING_HARDLINK_REFUSED_BEFORE_LEASE' { $probe=[TBMEScopedUserLogLease]::new($profile,$app,$logs,$file); $probe.Dispose() } 'SENSOR_LOG_HANDLE_LINK_COUNT_UNTRUSTED'
+ if((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -cne $preExistingHash -or
+    (Get-FileHash -LiteralPath $preExistingHardlink -Algorithm SHA256).Hash -cne $preExistingHash){
+  throw 'R335_PREEXISTING_HARDLINK_CANARY_CHANGED'
+ }
+ Pass 'PREEXISTING_HARDLINK_CANARY_UNCHANGED'
+ Remove-Item -LiteralPath $preExistingHardlink -Force -ErrorAction Stop
  $lease=[TBMEScopedUserLogLease]::new($profile,$app,$logs,$file)
  Pass 'OPENED_ALL_FIVE_NO_REPARSE_COMPONENT_HANDLES_AND_EXACT_FILE'
  if(CanRename $logs){throw 'R335_LOGS_RENAME_ALLOWED_WHILE_PINNED'}
@@ -214,6 +227,23 @@ try{
   throw 'R335_FOLDER_OR_FILE_RENAME_STILL_BLOCKED_AFTER_DISPOSAL'
  }
  Pass 'RENAMES_REENABLED_AFTER_ALL_HANDLES_CLOSED'
+ $postOpenHardlink=Join-Path $external 'sensor_install_postopen_hardlink.txt'
+ $postOpenExpected=[IO.File]::ReadAllText($file)
+ $lease=[TBMEScopedUserLogLease]::new($profile,$app,$logs,$file)
+ & cmd.exe /c ('mklink /H "'+$postOpenHardlink+'" "'+$file+'"')|Out-Null
+ if($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $postOpenHardlink -PathType Leaf)){
+  throw 'R335_POST_OPEN_HARDLINK_FIXTURE_CREATE_FAILED'
+ }
+ Pass 'POST_OPEN_HARDLINK_ALIAS_CREATED_WHILE_HANDLE_PINNED'
+ Refuse 'POST_OPEN_HARDLINK_APPEND_REFUSED_BEFORE_WRITE' { $lease.Append('R335_FORBIDDEN_APPEND') } 'SENSOR_LOG_HANDLE_LINK_COUNT_UNTRUSTED'
+ Refuse 'POST_OPEN_HARDLINK_OVERWRITE_REFUSED_BEFORE_TRUNCATE' { $lease.Overwrite('R335_FORBIDDEN_OVERWRITE') } 'SENSOR_LOG_HANDLE_LINK_COUNT_UNTRUSTED'
+ $lease.Dispose();$lease=$null
+ if([IO.File]::ReadAllText($file) -cne $postOpenExpected -or
+    [IO.File]::ReadAllText($postOpenHardlink) -cne $postOpenExpected){
+  throw 'R335_POST_OPEN_HARDLINK_CANARY_CHANGED'
+ }
+ Pass 'POST_OPEN_HARDLINK_ALIAS_AND_LOG_BYTES_UNCHANGED'
+ Remove-Item -LiteralPath $postOpenHardlink -Force -ErrorAction Stop
  $retired=$logs+'_clean'
  [IO.Directory]::Move($logs,$retired)
  $link=$false
@@ -272,8 +302,8 @@ try{
   throw 'R335_RESULT_REPARSE_WROTE_OUTSIDE_CANARY'
  }
  Pass 'RESULT_JSON_REPARSE_EXTERNAL_CANARY_INTACT'
- if($checks.Count -ne 24){throw ('R335_EXPECTED_24_CHECKS_ACTUAL_'+$checks.Count)}
- Write-Output ('R335_DISPOSABLE_USER_LOG_HANDLE_PROBE=24/24_PASS')
+ if($checks.Count -ne 30){throw ('R335_EXPECTED_30_CHECKS_ACTUAL_'+$checks.Count)}
+ Write-Output ('R335_DISPOSABLE_USER_LOG_HANDLE_PROBE=30/30_PASS')
  if($HostedGuest){
   if($HostLabel -cnotin @('A','B') -or $env:GITHUB_ACTIONS -cne 'true' -or
      $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or
@@ -284,7 +314,9 @@ try{
   if(Test-Path $dir){throw 'R335_GUEST_RAW_RECEIPT_EXISTS'}
   [IO.Directory]::CreateDirectory($dir)|Out-Null
   $j=[ordered]@{Schema=1;Revision='R335';Host=$HostLabel;SourceCommit=$env:GITHUB_SHA;
-   Status='PASS_SCOPED_NONDELETE_HANDLE_LOGS_APPROOT_AND_FILE';
+   Status='PASS_SCOPED_SINGLE_LINK_GUARDS_NO_ATOMIC_RACE_CLAIM';
+   HardlinkCountEnforced=$true;PreexistingHardlinkRejectedBeforeLease=$true;
+   PostOpenHardlinkAppendAndOverwriteRejected=$true;AtomicHardlinkRaceClosed=$false;
    Checks=@($checks.ToArray());RealElevatedHelperLaunched=$false;
    ActualProgramFilesModified=$false;AtomicCrossUserUacProven=$false;
    ForeignCanaryPreserved=$true;SecurityFinalAccepted=$false}
