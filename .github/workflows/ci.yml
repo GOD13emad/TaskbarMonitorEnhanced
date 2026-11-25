@@ -73,6 +73,30 @@ jobs:
       - name: Reproducible build
         shell: pwsh
         run: ./build/Build.ps1
+      - name: R335 compiled PE user-log hard-link guard (30 checks)
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $native=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+          $script=(Resolve-Path build/Test-R335-AtomicUserLogSink-Native.ps1).Path
+          $setup=(Resolve-Path build/_out/Setup/TaskbarMonitorEnhanced_Setup_1.7.10.exe).Path
+          $proof=@(& $native -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -SetupPath $setup -HostedGuest -HostLabel A)
+          $exit=$LASTEXITCODE
+          $proof
+          foreach($mark in @(
+            'PREEXISTING_HARDLINK_REFUSED_BEFORE_LEASE',
+            'PREEXISTING_HARDLINK_CANARY_UNCHANGED',
+            'POST_OPEN_HARDLINK_ALIAS_CREATED_WHILE_HANDLE_PINNED',
+            'POST_OPEN_HARDLINK_APPEND_REFUSED_BEFORE_WRITE',
+            'POST_OPEN_HARDLINK_OVERWRITE_REFUSED_BEFORE_TRUNCATE',
+            'POST_OPEN_HARDLINK_ALIAS_AND_LOG_BYTES_UNCHANGED',
+            'R335_DISPOSABLE_USER_LOG_HANDLE_PROBE=30/30_PASS'
+          )){
+            if($proof -cnotcontains ('PASS '+$mark) -and $proof -cnotcontains $mark){
+              throw ('R335_HARDLINK_REGRESSION_PROOF_MISSING_'+$mark)
+            }
+          }
+          if($exit -ne 0){throw 'R335_COMPILED_PE_SINGLE_LINK_GUARD_FAILED'}
       - name: R439 compiled legacy Broker refuses foreign same-name sessions and paths
         shell: powershell
         run: |
@@ -424,6 +448,7 @@ jobs:
             artifacts/ci-runtime/SUMMARY.json
             artifacts/BUILD_MANIFEST.json
             artifacts/SBOM.spdx.json
+            ${{ runner.temp }}/R335_*/R335_ATOMIC_LOG_HANDLE_PROBE.json
             build/_out/App/TaskbarMonitorEnhanced.exe
             build/_out/App/TaskbarMonitorEnhanced.exe.config
             build/_out/Broker/TaskbarMonitorSensorBroker.exe
