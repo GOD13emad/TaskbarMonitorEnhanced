@@ -1,6 +1,6 @@
 # Security Policy
 
-Please report security-sensitive issues privately to `aliemad1324@gmail.com` rather than publishing exploit details.
+Use the [private vulnerability reporting form](https://github.com/GOD13emad/TaskbarMonitorEnhanced/security/advisories/new) (Security → Report a vulnerability) for security-sensitive issues. Include the affected version, impact and a minimized reproduction with redacted diagnostics. Do not publish exploit details, credentials or personal data in public issues. If the form is unavailable, the existing private maintainer contact is `aliemad1324@gmail.com`.
 
 For normal bugs, feature requests, compatibility reports, and UI suggestions, please use GitHub Issues.
 
